@@ -188,6 +188,37 @@ export function completeCurrent(
 }
 
 /**
+ * Moves past the current puzzle without recording anything.
+ *
+ * Not a failure: a puzzle you cannot play is the library's fault, not yours,
+ * and marking it failed would fill review mode with puzzles that can never be
+ * solved. Nor is it a retry — a skipped puzzle does not come back this session.
+ */
+export function skipCurrent(session: SessionState, now = Date.now()): SessionState {
+  if (!session.current) return session;
+
+  let cursor = session.cursor;
+  let retries = session.retries;
+  let next: string | null;
+
+  const dueIndex = retries.findIndex((r) => r.readyAt <= session.completed);
+  if (dueIndex >= 0) {
+    next = retries[dueIndex].puzzleId;
+    retries = retries.filter((_, i) => i !== dueIndex);
+  } else if (cursor < session.queue.length) {
+    next = session.queue[cursor];
+    cursor++;
+  } else if (retries.length) {
+    next = retries[0].puzzleId;
+    retries = retries.slice(1);
+  } else {
+    next = null;
+  }
+
+  return { ...session, cursor, retries, current: next, lastActiveAt: now };
+}
+
+/**
  * Drops puzzles that no longer exist, keeping the current one where possible.
  * Called on resume, because a collection can be edited between sessions.
  */

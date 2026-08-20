@@ -225,7 +225,8 @@ try {
   // each becoming its own collection with no name asked for.
   const multi = JSON.stringify([
     { collection: 'Chapter A', puzzles: [
-      { fen: '7k/5ppp/8/8/8/8/8/R6K w - - 0 1', solutions: [['a1a8']] } ] },
+      { fen: '7k/5ppp/8/8/8/8/8/R6K w - - 0 1', solutions: [['a1a8']] },
+      { fen: '6k1/5ppp/8/8/8/8/8/1R4K1 w - - 0 1', solutions: [['b1b8']] } ] },
     { collection: 'Chapter B', puzzles: [
       { fen: '4r1k1/5ppp/8/8/8/8/5PPP/4R1K1 w - - 0 1', solutions: [['e1e8']] } ] },
   ]);
@@ -234,10 +235,28 @@ try {
   await page.waitForTimeout(300);
   check('a multi-collection file lists its chapters',
     (await page.locator('.groups li').count()) === 2);
-  await page.getByRole('button', { name: /Add 2 puzzles/ }).click();
+  await page.getByRole('button', { name: /Add 3 puzzles/ }).click();
   await page.waitForTimeout(400);
   check('each chapter becomes its own collection',
     (await page.locator('.card').count()) === 3);
+
+  // ---- Skipping ----
+  // A puzzle you cannot play must never trap the session, so the escape hatch
+  // is always present rather than only appearing for detected-broken puzzles.
+  await page.getByText('Chapter A').click();
+  await page.getByRole('button', { name: 'Solve in order' }).click();
+  await page.waitForSelector('[data-square="a1"]');
+  await page.waitForTimeout(300);
+  const beforeSkip = Number(await page.locator('.count').textContent());
+  await page.getByRole('button', { name: 'Skip' }).click();
+  await page.waitForTimeout(600);
+  const afterSkip = Number(await page.locator('.count').textContent());
+  check(`skipping moves past the puzzle (${beforeSkip} to ${afterSkip})`, afterSkip < beforeSkip);
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await page.waitForTimeout(400);
+  const chapterCard = (await page.locator('.card').filter({ hasText: 'Chapter A' }).textContent()) ?? '';
+  check(`a skip records neither a solve nor a miss (${chapterCard.replace(/\s+/g, ' ').trim()})`,
+    /0 solved/.test(chapterCard) && !/to review/.test(chapterCard));
 
   // ---- Import from a URL ----
   // The dev server serves the repo root, so the sample is fetchable. This
@@ -259,7 +278,10 @@ try {
   check(`a URL returning a web page says so (${rejects.trim().slice(0, 40)}…)`,
     /web page, not a puzzle file/.test(rejects));
 } catch (error) {
-  console.log(`FAIL  threw: ${error.message}`);
+  console.log(`FAIL  threw: ${error.message.split('\n')[0]}`);
+  await page.screenshot({ path: '/tmp/e2e-failure.png' }).catch(() => {});
+  console.log('  at failure, page showed:',
+    ((await page.locator('body').textContent().catch(() => '')) ?? '').replace(/\s+/g, ' ').trim().slice(0, 160));
   failures.push('exception');
 } finally {
   await browser.close();

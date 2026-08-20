@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { applyUci, sanFor, startingFen } from '../model/board';
+import { applyUci, isLegal, sanFor, startingFen } from '../model/board';
 import { moveFrom, moveTo } from '../model/move';
 import type { Uci } from '../model/move';
 import { solverSide } from '../model/puzzle';
@@ -23,9 +23,11 @@ interface Props {
   puzzle: Puzzle;
   /** `mistakes` is the count for this attempt, for cumulative stats. */
   onComplete: (result: PuzzleResult, mistakes: number) => void;
+  /** Move past a puzzle without recording a result. */
+  onSkip: () => void;
 }
 
-export function PuzzleView({ puzzle, onComplete }: Props) {
+export function PuzzleView({ puzzle, onComplete, onSkip }: Props) {
   const runner = useMemo(() => new PuzzleRunner(puzzle), [puzzle]);
   const solverStart = useMemo(
     () => startingFen(puzzle.fen, puzzle.setupMove),
@@ -112,6 +114,18 @@ export function PuzzleView({ puzzle, onComplete }: Props) {
     [after, fen, onComplete, phase, runner],
   );
 
+  /**
+   * A puzzle whose expected move cannot be played at all.
+   *
+   * The importer rejects these, but a library predating that check — or one
+   * restored from an old backup — can still hold one, and there is no way to
+   * finish it: the board will never accept the move the hint points at. Say so
+   * and offer a way out, rather than letting the session stick.
+   */
+  const expected = runner.expectedMove;
+  const unplayable =
+    phase === 'solving' && expected !== null && !isLegal(fen, expected);
+
   const hintSquares = hint ? { from: moveFrom(hint), to: moveTo(hint) } : null;
   const alternatives = phase === 'failed' ? runner.otherFirstMoves : [];
 
@@ -129,13 +143,22 @@ export function PuzzleView({ puzzle, onComplete }: Props) {
       <div className="puzzle-status">
         {phase === 'setup' && <span className="muted">…</span>}
 
-        {phase === 'solving' && !hint && (
+        {unplayable && (
+          <div className="result">
+            <p className="bad">This puzzle looks broken — its answer is not a legal move.</p>
+            <button type="button" onClick={onSkip}>
+              Skip it
+            </button>
+          </div>
+        )}
+
+        {phase === 'solving' && !unplayable && !hint && (
           <span className="muted">
             {solverSide(puzzle) === 'w' ? 'White' : 'Black'} to play
           </span>
         )}
 
-        {phase === 'solving' && hint && (
+        {phase === 'solving' && !unplayable && hint && (
           <span className="hint">Play the highlighted move</span>
         )}
 

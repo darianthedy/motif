@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { Puzzle } from '../model/puzzle';
 import type { PuzzleResult } from '../model/runner';
-import { completeCurrent, isFinished, progress, remainingCount } from '../model/session';
+import { completeCurrent, isFinished, progress, remainingCount, skipCurrent } from '../model/session';
 import type { SessionState } from '../model/session';
 import { PuzzleView } from './PuzzleView';
 
@@ -38,6 +38,11 @@ export function SessionScreen({
     onSession(completeCurrent(session, result));
   };
 
+  // Always available, not only for puzzles detected as broken: a position can
+  // be legal and still be wrong, and being stuck with no way forward is worse
+  // than an occasional skip.
+  const handleSkip = () => onSession(skipCurrent(session));
+
   if (isFinished(session) || !current) {
     return (
       <div className="session-done">
@@ -63,6 +68,9 @@ export function SessionScreen({
           <div className="progress-fill" style={{ width: `${progress(session) * 100}%` }} />
         </div>
         <span className="muted count">{remainingCount(session)}</span>
+        <button type="button" className="link" onClick={handleSkip} title="Skip this puzzle">
+          Skip
+        </button>
       </header>
 
       {/* Keyed by puzzle id *and* completion count, so a re-served retry
@@ -72,6 +80,7 @@ export function SessionScreen({
         key={`${current.id}:${session.completed}`}
         puzzle={current}
         onComplete={handleComplete}
+        onSkip={handleSkip}
       />
     </div>
   );

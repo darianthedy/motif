@@ -155,3 +155,36 @@ export function legalUci(fen: string, text: string): Uci | null {
   const move = parseUci(text);
   return move && isLegal(fen, move) ? move : null;
 }
+
+/**
+ * Walks a puzzle's solutions and returns the first move that cannot be played,
+ * or null when every line is legal throughout.
+ *
+ * The importer checks that a FEN is structurally plausible and that moves are
+ * well-formed UCI, but neither says the moves are *legal in this position*. A
+ * puzzle that fails here is unsolvable: the board will never accept the move,
+ * so the hint points at something you cannot play and the session cannot get
+ * past it. Cheaper to reject at import than to strand someone mid-session.
+ */
+export function firstIllegalMove(
+  fen: string,
+  setupMove: Uci | undefined,
+  solutions: Uci[][],
+): { move: Uci; ply: number } | null {
+  const start = startingFen(fen, setupMove);
+
+  for (const line of solutions) {
+    let position = start;
+    for (let ply = 0; ply < line.length; ply++) {
+      const next = applyUci(position, line[ply]);
+      if (!next) return { move: line[ply], ply };
+      position = next;
+    }
+  }
+  return null;
+}
+
+/** Whether a setup move can actually be played into the stored position. */
+export function setupMoveIsLegal(fen: string, setupMove: Uci | undefined): boolean {
+  return !setupMove || applyUci(fen, setupMove) !== null;
+}

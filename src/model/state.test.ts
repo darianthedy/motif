@@ -16,12 +16,15 @@ const MATE_FEN = '6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1';
 const OTHER_FEN = '3r2k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1';
 
 function fileWith(fen: string, extra = '') {
-  return `{ "collection": "Test", "puzzles": [ { "fen": "${fen}", "solutions": [["a1a8"]]${extra} } ] }`;
+  return `{ "collection": "Test", "puzzles": [ { "fen": "${fen}", "solutions": [["${SOLUTION[fen]}"]]${extra} } ] }`;
 }
+
+/** The winning move differs per position; a1a8 is not legal in both. */
+const SOLUTION: Record<string, string> = { [MATE_FEN]: 'a1a8', [OTHER_FEN]: 'd1d8' };
 
 function seeded(fens: string[] = [MATE_FEN, OTHER_FEN]) {
   const puzzles = fens
-    .map((fen) => `{ "fen": "${fen}", "solutions": [["a1a8"]] }`)
+    .map((fen) => `{ "fen": "${fen}", "solutions": [["${SOLUTION[fen]}"]] }`)
     .join(',');
   const result = importJson(`{ "collection": "Test", "puzzles": [${puzzles}] }`);
   return applyImport(emptyState(), result).state;

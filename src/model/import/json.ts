@@ -1,3 +1,4 @@
+import { firstIllegalMove, setupMoveIsLegal } from '../board';
 import { parseUci } from '../move';
 import type { Uci } from '../move';
 import { contentKey } from '../puzzle';
@@ -196,6 +197,22 @@ function parseEntry(raw: RawEntry, index: number, result: ImportResult): Puzzle 
       return null;
     }
     setupMove = parsedSetup;
+  }
+
+  if (!setupMoveIsLegal(raw.fen, setupMove)) {
+    result.rejected.push({ index, reason: `Setup move ${setupMove} is illegal in this position` });
+    return null;
+  }
+
+  // Legality is checked once, here, rather than discovered when someone is
+  // three wrong tries deep into a puzzle that cannot be solved.
+  const illegal = firstIllegalMove(raw.fen, setupMove, solutions);
+  if (illegal) {
+    result.rejected.push({
+      index,
+      reason: `Move ${illegal.move} is illegal at ply ${illegal.ply + 1}`,
+    });
+    return null;
   }
 
   return {

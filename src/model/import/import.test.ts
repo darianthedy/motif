@@ -86,11 +86,14 @@ describe('JSON import', () => {
 });
 
 describe('Lichess CSV import', () => {
-  // Real shape of the dump, header included.
+  // The dump's exact column layout, with positions written for this test and
+  // verified legal rather than copied from the database. An earlier version of
+  // this fixture claimed to be real rows and was not: its first move was
+  // illegal in its own FEN, which the legality check later caught.
   const dump = [
     'PuzzleId,FEN,Moves,Rating,RatingDeviation,Popularity,NbPlays,Themes,GameUrl,OpeningTags',
-    '00sHx,q3k1nr/1pp1nQpp/3p4/1P2p3/4P3/B1PP1b2/B5PP/5K1R w k - 0 17,f2g3 e6e7 b2b1 b3c1 b1c1 h6c1,1760,74,93,411,mate mateIn2 short,https://lichess.org/yyznGmXs/black#34,',
-    '00sJ9,r3r1k1/p4ppp/2p2n2/1p6/3P1qb1/2NQR3/PPB2PP1/R1B3K1 w - - 5 18,e3g3 e8e1 g1h2 e1c1 a1c1 f4h6,2671,74,87,569,advantage attraction fork middlegame sacrifice veryLong,https://lichess.org/gyFeQsOE#35,',
+    '00sHx,6k1/5ppp/8/8/8/8/8/R5K1 b - - 0 1,g8h8 a1a8,1760,74,93,411,mate mateIn1 short,https://lichess.org/yyznGmXs/black#34,',
+    '00sJ9,4r1k1/5ppp/8/8/8/8/5PPP/4R1K1 b - - 0 1,g8h8 e1e8,2671,74,87,569,advantage fork middlegame veryLong,https://lichess.org/gyFeQsOE#35,',
   ].join('\n');
 
   it('parses the dump and splits off the setup move', () => {
@@ -100,11 +103,11 @@ describe('Lichess CSV import', () => {
 
     expect(result.inserted[0]).toMatchObject({
       sourceId: '00sHx',
-      setupMove: 'f2g3',
+      setupMove: 'g8h8',
       rating: 1760,
-      tags: ['mate', 'mateIn2', 'short'],
+      tags: ['mate', 'mateIn1', 'short'],
     });
-    expect(result.inserted[0].solutions[0]).toEqual(['e6e7', 'b2b1', 'b3c1', 'b1c1', 'h6c1']);
+    expect(result.inserted[0].solutions[0]).toEqual(['a1a8']);
   });
 
   it('filters by rating', () => {
@@ -138,8 +141,12 @@ describe('Lichess CSV import', () => {
 });
 
 describe('multi-collection files', () => {
-  // The shape produced by the 1001-exercises extraction: an array of chapters,
-  // each its own collection, with book puzzle numbers as ids.
+  // Two chapters, each its own collection, with book puzzle numbers as ids.
+  // The positions are real entries from the 1001-exercises extraction and are
+  // legal throughout — checked with `npm run check:external`. An earlier
+  // version of this fixture was typed from memory, and its mate-in-two line
+  // was illegal at ply two, which is exactly what the legality guard now
+  // rejects at import.
   const book = JSON.stringify([
     {
       collection: 'Mate in one',
@@ -151,7 +158,7 @@ describe('multi-collection files', () => {
     {
       collection: 'Mate in two',
       puzzles: [
-        { id: 58, fen: '2rrk1n1/1nQ1p2N/pB5p/6p1/qP3p2/2P4P/P3BPP1/3R2K1 w - - 0 1', solutions: [['c7d8', 'e8d8', 'd1d8']], tags: ['mateIn2'] },
+        { id: 58, fen: '1r1k4/2R4R/8/8/8/6pP/PPP4q/K1B5 w - - 0 1', solutions: [['c1g5', 'd8e8', 'h7h8']], tags: ['mateIn2'] },
       ],
     },
   ]);
@@ -187,5 +194,55 @@ describe('multi-collection files', () => {
     const result = importJson(`{ "collection": "Solo", "puzzles": [ { "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1", "solutions": [["a1a8"]] } ] }`);
     expect(result.groups).toHaveLength(1);
     expect(result.collectionName).toBe('Solo');
+  });
+});
+
+describe('legality of solutions', () => {
+  // Structural validation cannot see this: `a1b2` is well-formed UCI and the
+  // FEN is well-formed too. Only playing the move reveals that a rook does not
+  // move diagonally — and an unsolvable puzzle strands a session, because the
+  // board will never accept the move the hint is pointing at.
+  it('rejects a first move that is illegal in the position', () => {
+    const result = importJson(
+      `{ "puzzles": [ { "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1", "solutions": [["a1b2"]] } ] }`,
+    );
+    expect(result.inserted).toHaveLength(0);
+    expect(result.rejected[0].reason).toBe('Move a1b2 is illegal at ply 1');
+  });
+
+  it('rejects a move that becomes illegal later in the line', () => {
+    // Qxd8+ is fine; Kxd8 is not, because the queen is defended.
+    const result = importJson(
+      `{ "puzzles": [ { "fen": "2rrk1n1/1nQ1p2N/pB5p/6p1/qP3p2/2P4P/P3BPP1/3R2K1 w - - 0 1",
+         "solutions": [["c7d8", "e8d8", "d1d8"]] } ] }`,
+    );
+    expect(result.inserted).toHaveLength(0);
+    expect(result.rejected[0].reason).toBe('Move e8d8 is illegal at ply 2');
+  });
+
+  it('rejects an illegal setup move', () => {
+    const result = importJson(
+      `{ "puzzles": [ { "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+         "setupMove": "h1h8", "solutions": [["a1a8"]] } ] }`,
+    );
+    expect(result.inserted).toHaveLength(0);
+    expect(result.rejected[0].reason).toMatch(/Setup move h1h8 is illegal/);
+  });
+
+  it('accepts a line that is legal throughout', () => {
+    const result = importJson(
+      `{ "puzzles": [ { "fen": "1r1k4/2R4R/8/8/8/6pP/PPP4q/K1B5 w - - 0 1",
+         "solutions": [["c1g5", "d8e8", "h7h8"]] } ] }`,
+    );
+    expect(result.inserted).toHaveLength(1);
+    expect(result.rejected).toHaveLength(0);
+  });
+
+  it('validates each line of a multi-solution puzzle', () => {
+    const result = importJson(
+      `{ "puzzles": [ { "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+         "solutions": [["a1a8"], ["a1b2"]] } ] }`,
+    );
+    expect(result.inserted, 'one bad line rejects the puzzle').toHaveLength(0);
   });
 });

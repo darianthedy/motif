@@ -8,6 +8,7 @@ import {
   progress,
   reconcile,
   RETRY_GAP,
+  skipCurrent,
   startSession,
 } from './session';
 import type { SessionState } from './session';
@@ -177,5 +178,37 @@ describe('global draw', () => {
   it('still returns everything when the whole library is recent', () => {
     const order = orderForGlobalDraw(ids(3), ids(3), seeded(5));
     expect(new Set(order)).toEqual(new Set(ids(3)));
+  });
+});
+
+describe('skipping', () => {
+  it('advances without recording a result', () => {
+    let session = startSession('ordered', 'c1', ids(3), seeded(1));
+    session = skipCurrent(session);
+
+    expect(session.current).toBe('p1');
+    expect(session.solvedIds).toEqual([]);
+    expect(session.failedIds, 'a skip is not a failure').toEqual([]);
+  });
+
+  it('does not queue the skipped puzzle for retry', () => {
+    let session = startSession('ordered', 'c1', ids(3), seeded(1));
+    session = skipCurrent(session);
+    expect(session.retries).toEqual([]);
+  });
+
+  it('can skip the last puzzle and end the session', () => {
+    let session = startSession('ordered', 'c1', ['only'], seeded(1));
+    session = skipCurrent(session);
+    expect(isFinished(session)).toBe(true);
+  });
+
+  it('serves a due retry ahead of a fresh puzzle when skipping', () => {
+    let session = startSession('ordered', 'c1', ids(6), seeded(1));
+    session = completeCurrent(session, 'failed');
+    while (session.current !== 'p0' && !isFinished(session)) {
+      session = skipCurrent(session);
+    }
+    expect(session.current, 'the owed retry still comes round').toBe('p0');
   });
 });

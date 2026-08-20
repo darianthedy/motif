@@ -1,3 +1,4 @@
+import { firstIllegalMove, setupMoveIsLegal } from '../board';
 import { parseUci } from '../move';
 import type { Uci } from '../move';
 import { contentKey } from '../puzzle';
@@ -79,6 +80,19 @@ export function importLichessCsv(
     const solution = moves.slice(1);
     if (solution.length % 2 !== 1) {
       result.rejected.push({ index, reason: 'Solution line ends on an opponent move' });
+      continue;
+    }
+
+    if (!setupMoveIsLegal(fen, moves[0])) {
+      result.rejected.push({ index, reason: `Setup move ${moves[0]} is illegal in this position` });
+      continue;
+    }
+    const illegal = firstIllegalMove(fen, moves[0], [solution]);
+    if (illegal) {
+      result.rejected.push({
+        index,
+        reason: `Move ${illegal.move} is illegal at ply ${illegal.ply + 1}`,
+      });
       continue;
     }
 

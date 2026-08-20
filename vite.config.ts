@@ -15,15 +15,15 @@ export default defineConfig({
       // new service worker immediately rather than waiting for tabs to close.
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Chesslingo',
-        short_name: 'Chesslingo',
+        name: 'Motif',
+        short_name: 'Motif',
         description: 'Continuous chess puzzle sessions over your own collections.',
         theme_color: '#16171d',
         background_color: '#16171d',
         display: 'standalone',
         orientation: 'portrait',
         // Relative, to match the base path and stay installable from a subpath
-        // such as /chesslingo/.
+        // such as /motif/.
         start_url: '.',
         scope: '.',
       },

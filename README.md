@@ -1,10 +1,15 @@
-# Chesslingo
+# Motif
 
 Continuous chess puzzle sessions over collections you import yourself. Show a
 puzzle, solve it, move to the next one — Duolingo's pacing rather than a
 puzzle-of-the-day.
 
 A React PWA, deployable to GitHub Pages, installable to an iPhone home screen.
+
+Named for the chess term: a motif is the idea behind a tactic — the pin, the
+fork, the deflection, the back rank. It is also, not by accident, the field on
+every puzzle in the schema. That field is deliberately never shown while you are
+solving, because naming the idea gives the puzzle away.
 
 ## Status
 

@@ -13,7 +13,7 @@ export function App() {
 
   return (
     <main style={{ padding: '2rem', maxWidth: '32rem', margin: '0 auto' }}>
-      <h1 style={{ marginBottom: '0.25rem' }}>Chesslingo</h1>
+      <h1 style={{ marginBottom: '0.25rem' }}>Motif</h1>
       <p style={{ color: 'var(--muted)', marginTop: 0 }}>
         Model layer ready — {result.inserted.length} sample puzzles parsed from{' '}
         {result.collectionName ?? 'an unnamed collection'}.

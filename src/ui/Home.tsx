@@ -3,6 +3,8 @@ import { exportState, parseState } from '../model/storage';
 import { allPuzzles, failedPuzzleIds, statsFor } from '../model/state';
 import type { AppState } from '../model/state';
 import type { Collection } from '../model/puzzle';
+import { syncAvailable } from '../model/supabase';
+import type { SyncStatus } from '../useSync';
 
 interface Props {
   state: AppState;
@@ -11,6 +13,9 @@ interface Props {
   onReviewMistakes: () => void;
   onImport: () => void;
   onRestore: (state: AppState) => void;
+  onAccount: () => void;
+  syncStatus: SyncStatus;
+  signedIn: boolean;
 }
 
 export function Home({
@@ -20,6 +25,9 @@ export function Home({
   onReviewMistakes,
   onImport,
   onRestore,
+  onAccount,
+  syncStatus,
+  signedIn,
 }: Props) {
   const restoreInput = useRef<HTMLInputElement>(null);
   const total = allPuzzles(state).length;
@@ -101,6 +109,13 @@ export function Home({
         <button type="button" onClick={onImport}>
           Import puzzles
         </button>
+        {syncAvailable && (
+          <button type="button" onClick={onAccount}>
+            {signedIn ? 'Account' : 'Sign in to sync'}
+            {syncStatus.kind === 'syncing' && ' · syncing…'}
+            {syncStatus.kind === 'error' && ' · sync failed'}
+          </button>
+        )}
       </div>
 
       {/* Export is not a nicety here. iOS evicts script-writable storage for

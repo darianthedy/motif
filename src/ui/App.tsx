@@ -15,6 +15,8 @@ import {
 } from '../model/state';
 import type { AppState } from '../model/state';
 import { useAppState } from '../useAppState';
+import { useSync } from '../useSync';
+import { AccountScreen } from './AccountScreen';
 import { CollectionView } from './CollectionView';
 import { Home } from './Home';
 import { ImportScreen } from './ImportScreen';
@@ -40,11 +42,15 @@ type Route =
   | { name: 'home' }
   | { name: 'collection'; id: string }
   | { name: 'import' }
+  | { name: 'account' }
   | { name: 'session'; key: string };
 
 export function App() {
   const { state, update, replace } = useAppState();
   const [route, setRoute] = useState<Route>({ name: 'home' });
+  // Sync adopts whatever the merge produced; it is a superset of what this
+  // device had, so replacing local state with it never loses work.
+  const { user, status, syncNow } = useSync({ state, onMerged: replace });
   const [notice, setNotice] = useState<string | null>(null);
 
   // The store is read asynchronously; rendering an empty library first would
@@ -96,6 +102,19 @@ export function App() {
             setRoute({ name: 'home' });
           }}
           // Stopping keeps the session: that is the whole point of resuming.
+          onExit={() => setRoute({ name: 'home' })}
+        />
+      </main>
+    );
+  }
+
+  if (route.name === 'account') {
+    return (
+      <main className="app">
+        <AccountScreen
+          user={user}
+          status={status}
+          onSyncNow={syncNow}
           onExit={() => setRoute({ name: 'home' })}
         />
       </main>
@@ -155,6 +174,9 @@ export function App() {
         onGlobalRandom={() => begin(GLOBAL_SESSION, 'randomGlobal')}
         onReviewMistakes={() => begin('review', 'reviewMistakes')}
         onImport={() => setRoute({ name: 'import' })}
+        onAccount={() => setRoute({ name: 'account' })}
+        syncStatus={status}
+        signedIn={Boolean(user)}
         onRestore={(restored) => {
           replace(restored);
           setNotice('Backup restored.');

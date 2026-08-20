@@ -1,27 +1,41 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type { Puzzle } from '../model/puzzle';
 import type { PuzzleResult } from '../model/runner';
-import { completeCurrent, isFinished, progress, remainingCount, startSession } from '../model/session';
-import type { SessionMode, SessionState } from '../model/session';
+import { completeCurrent, isFinished, progress, remainingCount } from '../model/session';
+import type { SessionState } from '../model/session';
 import { PuzzleView } from './PuzzleView';
 
 interface Props {
-  puzzles: Puzzle[];
-  mode: SessionMode;
-  collectionId: string | null;
+  session: SessionState;
+  puzzles: Record<string, Puzzle>;
+  /** Persist the advanced session. Called once per completed puzzle. */
+  onSession: (session: SessionState) => void;
+  onResult: (puzzleId: string, result: PuzzleResult, mistakes: number) => void;
+  /** Session reached its end: clear it so the next start is fresh. */
+  onFinished: () => void;
   onExit: () => void;
 }
 
-export function SessionScreen({ puzzles, mode, collectionId, onExit }: Props) {
-  const byId = useMemo(() => new Map(puzzles.map((p) => [p.id, p])), [puzzles]);
-  const [session, setSession] = useState<SessionState>(() =>
-    startSession(mode, collectionId, puzzles.map((p) => p.id)),
+export function SessionScreen({
+  session,
+  puzzles,
+  onSession,
+  onResult,
+  onFinished,
+  onExit,
+}: Props) {
+  const current = session.current ? puzzles[session.current] : undefined;
+  const solvedCount = session.solvedIds.length;
+
+  const summary = useMemo(
+    () => ({ solved: solvedCount, missed: session.failedIds.length, total: session.queue.length }),
+    [session.failedIds.length, session.queue.length, solvedCount],
   );
 
-  const current = session.current ? byId.get(session.current) : undefined;
-
-  const handleComplete = (result: PuzzleResult) => {
-    setSession((state) => completeCurrent(state, result));
+  const handleComplete = (result: PuzzleResult, mistakes: number) => {
+    if (!session.current) return;
+    onResult(session.current, result, mistakes);
+    onSession(completeCurrent(session, result));
   };
 
   if (isFinished(session) || !current) {
@@ -29,10 +43,10 @@ export function SessionScreen({ puzzles, mode, collectionId, onExit }: Props) {
       <div className="session-done">
         <h2>Session complete</h2>
         <p className="muted">
-          {session.solvedIds.length} of {session.queue.length} solved cleanly
-          {session.failedIds.length > 0 && `, ${session.failedIds.length} missed`}.
+          {summary.solved} of {summary.total} solved cleanly
+          {summary.missed > 0 && `, ${summary.missed} missed`}.
         </p>
-        <button type="button" onClick={onExit}>
+        <button type="button" onClick={onFinished}>
           Done
         </button>
       </div>
@@ -51,9 +65,9 @@ export function SessionScreen({ puzzles, mode, collectionId, onExit }: Props) {
         <span className="muted count">{remainingCount(session)}</span>
       </header>
 
-      {/* Keyed by puzzle id *and* completion count, so re-serving a retry
-          remounts the view and starts it fresh rather than reusing the runner
-          from the first attempt. */}
+      {/* Keyed by puzzle id *and* completion count, so a re-served retry
+          remounts the view and starts a fresh runner rather than reusing the
+          one from the first attempt. */}
       <PuzzleView
         key={`${current.id}:${session.completed}`}
         puzzle={current}

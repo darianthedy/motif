@@ -1,23 +1,25 @@
 /**
- * Drives the solve loop in a real browser.
+ * Drives the whole app in a real browser: import, solve, stop, reload, resume.
  *
  * The model layer is unit-tested, but nothing there proves a tap on a square
- * turns into the right UCI string, that the promotion picker commits the piece
- * you chose, or that a mis-drag is free. Those are properties of the pointer
- * pipeline and only a browser can answer them.
+ * turns into the right UCI string, that the board is actually square, or that
+ * a session survives a reload. Those are properties of the browser and only a
+ * browser can answer them.
  *
  * Square positions are read from the real square elements rather than computed
- * by dividing the board box by eight. The earlier version did the latter, which
+ * by dividing the board box by eight. An earlier version did the latter, which
  * meant it silently assumed the very geometry a layout bug had broken, and
  * every check passed against a board that was visibly wrong on a phone.
  *
  * Usage: node scripts/e2e-solve.mjs [--headed] [--shots]
  */
+import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 
 const HEADED = process.argv.includes('--headed');
 const SHOTS = process.argv.includes('--shots');
+const SAMPLE = readFileSync(new URL('../samples/back-rank.json', import.meta.url), 'utf8');
 
 const failures = [];
 function check(label, condition) {
@@ -48,13 +50,14 @@ async function drag(page, from, to) {
   const b = await squareCentre(page, to);
   await page.mouse.move(a.x, a.y);
   await page.mouse.down();
-  await page.mouse.move(b.x, b.y, { steps: 10 });
+  await page.mouse.move(a.x, a.y - 5);
+  await page.mouse.move(b.x, b.y, { steps: 12 });
   await page.mouse.up();
   await page.waitForTimeout(60);
 }
 
 /**
- * Squares currently carrying a legal-destination dot or capture ring.
+ * Squares carrying a legal-destination dot or capture ring.
  *
  * react-chessboard applies `squareStyles` to a child div of the square rather
  * than to the square itself, so the marker has to be read one level down.
@@ -71,7 +74,6 @@ async function markedTargets(page) {
   );
 }
 
-/** The square currently highlighted as selected, if any. */
 async function selectedSquare(page) {
   const found = await page.locator('[data-square]').evaluateAll((nodes) =>
     nodes
@@ -91,10 +93,39 @@ const url = 'http://localhost:5199';
 
 const browser = await chromium.launch({ headless: !HEADED });
 // iPhone-ish viewport: this is the target device, so test at that size.
-const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+const page = await context.newPage();
 
 try {
   await page.goto(url);
+
+  // ---- Import ----
+  await page.getByRole('button', { name: 'Import puzzles' }).click();
+  await page.locator('textarea').fill(SAMPLE);
+  await page.waitForTimeout(200);
+  check('the importer detects JSON and previews the count',
+    await page.getByRole('button', { name: /Add 3 puzzles/ }).isVisible());
+  if (SHOTS) await page.screenshot({ path: '/tmp/motif-import.png' });
+
+  await page.getByRole('button', { name: /Add 3 puzzles/ }).click();
+  await page.waitForTimeout(300);
+  check('the collection appears on the home screen',
+    await page.getByText('Back-rank mates').isVisible());
+  if (SHOTS) await page.screenshot({ path: '/tmp/motif-home.png' });
+
+  // Re-importing the same file must not duplicate anything.
+  await page.getByRole('button', { name: 'Import puzzles' }).click();
+  await page.locator('textarea').fill(SAMPLE);
+  await page.waitForTimeout(200);
+  await page.getByRole('button', { name: /Add 3 puzzles/ }).click();
+  await page.waitForTimeout(300);
+  check('re-importing adds nothing new',
+    await page.getByText(/No new puzzles/).isVisible());
+  const cards = await page.locator('.card').count();
+  check('and does not create a second collection', cards === 1);
+
+  // ---- Start a session ----
+  await page.getByText('Back-rank mates').click();
   await page.getByRole('button', { name: 'Solve in order' }).click();
   await page.waitForSelector('[data-square="a1"]');
   await page.waitForTimeout(300);
@@ -103,7 +134,7 @@ try {
   const boxes = await page.locator('[data-square]').evaluateAll((nodes) =>
     nodes.map((node) => {
       const rect = node.getBoundingClientRect();
-      return { square: node.dataset.square, w: rect.width, h: rect.height };
+      return { w: rect.width, h: rect.height };
     }),
   );
   check('the board has 64 squares', boxes.length === 64);
@@ -112,13 +143,10 @@ try {
   const heights = new Set(boxes.map((box) => Math.round(box.h)));
   check(`all ranks are the same height (${[...heights].join(', ')})`, heights.size === 1);
 
-  // Pieces must be vector, not glyphs: iOS renders the Unicode chess codepoints
-  // poorly and gives U+265F an emoji presentation, which is what forced the
-  // move to react-chessboard.
   const svgCount = await page.locator('[data-square] svg').count();
   check(`pieces render as SVG (${svgCount} found)`, svgCount >= 6);
 
-  // ---- Puzzle 1: solve by tapping ----
+  // ---- Solving ----
   await tap(page, 'a1');
   const dots = await markedTargets(page);
   check(`selecting a piece shows its legal destinations (${dots.length})`, dots.length > 0);
@@ -126,40 +154,71 @@ try {
   check('and marks the piece as selected', (await selectedSquare(page)) === 'a1');
   if (SHOTS) await page.screenshot({ path: '/tmp/motif-selected.png' });
 
-  // Tapping an empty, illegal square deselects and costs nothing.
   await tap(page, 'd4');
   check('tapping an illegal square clears the selection', (await markedTargets(page)).length === 0);
-  check('and does not fail the puzzle', !(await page.locator('.result').isVisible().catch(() => false)));
+  check('and does not fail the puzzle',
+    !(await page.locator('.result').isVisible().catch(() => false)));
 
-  // Three legal-but-wrong moves should surface the hint.
   for (const wrong of ['a7', 'a6', 'a5']) {
     await tap(page, 'a1');
     await tap(page, wrong);
   }
-  const hintShown = await page.locator('.hint').isVisible().catch(() => false);
-  check('three wrong tries reveal the answer', hintShown);
+  check('three wrong tries reveal the answer',
+    await page.locator('.hint').isVisible().catch(() => false));
   if (SHOTS) await page.screenshot({ path: '/tmp/motif-hint.png' });
 
-  // Play the revealed move to finish the (already failed) puzzle.
   await tap(page, 'a1');
   await tap(page, 'a8');
   await page.waitForTimeout(250);
   check('a missed puzzle stops and shows the result card',
     await page.locator('.result').isVisible().catch(() => false));
-
-  const comment = await page.locator('.comment').textContent().catch(() => '');
-  check('the comment appears only after the puzzle resolves', Boolean(comment));
+  check('the comment appears only after the puzzle resolves',
+    Boolean(await page.locator('.comment').textContent().catch(() => '')));
   if (SHOTS) await page.screenshot({ path: '/tmp/motif-missed.png' });
 
   await page.getByRole('button', { name: 'Continue' }).click();
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(300);
 
-  // ---- Puzzle 2: solve by dragging, cleanly ----
+  // ---- Clean solve by dragging ----
+  const remainingBefore = Number(await page.locator('.count').textContent());
   await drag(page, 'd1', 'd8');
-  await page.waitForTimeout(400);
-  check('a clean drag solve advances without a confirmation step',
+  // Longer than SOLVED_PAUSE_MS, or the auto-advance has not yet recorded it.
+  await page.waitForTimeout(1200);
+  const remainingAfter = Number(await page.locator('.count').textContent());
+  check(`a clean drag solve advances by itself (${remainingBefore} to ${remainingAfter})`,
+    remainingAfter < remainingBefore);
+  check('with no confirmation step',
     !(await page.locator('.result').isVisible().catch(() => false)));
-  if (SHOTS) await page.screenshot({ path: '/tmp/motif-board.png' });
+
+  // ---- Stop, reload, resume ----
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await page.waitForTimeout(400);
+  check('stopping returns to the collection list',
+    await page.getByText('Back-rank mates').isVisible());
+  check('and the collection is marked in progress',
+    await page.locator('.pill').isVisible().catch(() => false));
+
+  await page.reload();
+  await page.waitForTimeout(600);
+  check('the library survives a reload',
+    await page.getByText('Back-rank mates').isVisible());
+  check('the in-progress session survives a reload',
+    await page.locator('.pill').isVisible().catch(() => false));
+  const cardText = (await page.locator('.card').first().textContent()) ?? '';
+  check(`and the solved puzzle is remembered (${cardText.trim()})`,
+    /1 solved/.test(cardText));
+  if (SHOTS) await page.screenshot({ path: '/tmp/motif-resumed.png' });
+
+  await page.getByText('Back-rank mates').click();
+  await page.getByRole('button', { name: 'Resume' }).click();
+  await page.waitForSelector('[data-square="a1"]');
+  check('resuming reopens the board', await page.locator('[data-square="a1"]').isVisible());
+
+  // ---- Review mistakes ----
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await page.waitForTimeout(400);
+  const reviewButton = page.getByRole('button', { name: /Review mistakes \(\d+\)/ });
+  check('the missed puzzle is offered for review', await reviewButton.isVisible());
 } catch (error) {
   console.log(`FAIL  threw: ${error.message}`);
   failures.push('exception');

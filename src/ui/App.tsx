@@ -1,27 +1,142 @@
-import { useMemo, useState } from 'react';
-import { importJson } from '../model/import/json';
+import { useState } from 'react';
+import type { Collection } from '../model/puzzle';
+import type { PuzzleResult } from '../model/runner';
+import { orderForGlobalDraw, startSession } from '../model/session';
 import type { SessionMode } from '../model/session';
+import {
+  GLOBAL_SESSION,
+  allPuzzles,
+  clearSession,
+  deleteCollection,
+  failedPuzzleIds,
+  puzzlesIn,
+  recordResult,
+  saveSession,
+} from '../model/state';
+import type { AppState } from '../model/state';
+import { useAppState } from '../useAppState';
+import { CollectionView } from './CollectionView';
+import { Home } from './Home';
+import { ImportScreen } from './ImportScreen';
 import { SessionScreen } from './SessionScreen';
 import './App.css';
-import sample from '../../samples/back-rank.json?raw';
 
 /**
- * Temporary shell: the sample collection, hard-wired, so the solve loop is
- * usable end to end. Collections, import and persistence come next; this exists
- * so the board and session can be played with on a real phone before then.
+ * Says what an import actually did.
+ *
+ * Re-importing a file you already have is the common case, not an error — it is
+ * how an edited comment reaches an existing puzzle. Reporting that as
+ * "Added 0" reads like a failure, so the zero case gets its own sentence.
  */
-export function App() {
-  const puzzles = useMemo(() => importJson(sample).inserted, []);
-  const [mode, setMode] = useState<SessionMode | null>(null);
+function describeImport(added: number, refreshed: number): string {
+  const plural = (n: number) => (n === 1 ? 'puzzle' : 'puzzles');
+  if (added && refreshed) return `Added ${added} ${plural(added)}, refreshed ${refreshed}.`;
+  if (added) return `Added ${added} ${plural(added)}.`;
+  if (refreshed) return `No new puzzles — refreshed ${refreshed} you already had.`;
+  return 'Nothing to add.';
+}
 
-  if (mode) {
+type Route =
+  | { name: 'home' }
+  | { name: 'collection'; id: string }
+  | { name: 'import' }
+  | { name: 'session'; key: string };
+
+export function App() {
+  const { state, update, replace } = useAppState();
+  const [route, setRoute] = useState<Route>({ name: 'home' });
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // The store is read asynchronously; rendering an empty library first would
+  // flash "nothing here yet" over an existing collection on every launch.
+  if (!state) return <main className="app" />;
+
+  const collectionOf = (id: string) => state.collections.find((c) => c.id === id);
+
+  const begin = (key: string, mode: SessionMode, collection?: Collection) => {
+    let ids: string[];
+    if (mode === 'reviewMistakes') {
+      ids = failedPuzzleIds(state);
+    } else if (collection) {
+      ids = puzzlesIn(state, collection).map((puzzle) => puzzle.id);
+    } else {
+      // Bias the library-wide draw away from what was just seen, so two short
+      // sessions in a row do not serve the same handful.
+      ids = orderForGlobalDraw(
+        allPuzzles(state).map((puzzle) => puzzle.id),
+        state.recent,
+      );
+    }
+    if (!ids.length) return;
+
+    const session = startSession(mode, collection?.id ?? null, ids);
+    update((current) => saveSession(current, key, session));
+    setRoute({ name: 'session', key });
+  };
+
+  const onResult = (puzzleId: string, result: PuzzleResult, mistakes: number) => {
+    update((current) => recordResult(current, puzzleId, result, mistakes));
+  };
+
+  if (route.name === 'session') {
+    const session = state.sessions[route.key];
+    if (!session) {
+      setRoute({ name: 'home' });
+      return <main className="app" />;
+    }
     return (
       <main className="app">
         <SessionScreen
-          puzzles={puzzles}
-          mode={mode}
-          collectionId="sample"
-          onExit={() => setMode(null)}
+          session={session}
+          puzzles={state.puzzles}
+          onSession={(next) => update((current) => saveSession(current, route.key, next))}
+          onResult={onResult}
+          onFinished={() => {
+            update((current) => clearSession(current, route.key));
+            setRoute({ name: 'home' });
+          }}
+          // Stopping keeps the session: that is the whole point of resuming.
+          onExit={() => setRoute({ name: 'home' })}
+        />
+      </main>
+    );
+  }
+
+  if (route.name === 'import') {
+    return (
+      <main className="app">
+        <ImportScreen
+          state={state}
+          onApply={(next: AppState, added, refreshed) => {
+            replace(next);
+            setNotice(describeImport(added, refreshed));
+            setRoute({ name: 'home' });
+          }}
+          onExit={() => setRoute({ name: 'home' })}
+        />
+      </main>
+    );
+  }
+
+  if (route.name === 'collection') {
+    const collection = collectionOf(route.id);
+    if (!collection) {
+      setRoute({ name: 'home' });
+      return <main className="app" />;
+    }
+    return (
+      <main className="app">
+        <CollectionView
+          state={state}
+          collection={collection}
+          onStart={(mode) => begin(collection.id, mode, collection)}
+          onResume={() => setRoute({ name: 'session', key: collection.id })}
+          onDiscardSession={() => update((current) => clearSession(current, collection.id))}
+          onDelete={() => {
+            update((current) => deleteCollection(current, collection.id));
+            setRoute({ name: 'home' });
+          }}
+          onExit={() => setRoute({ name: 'home' })}
         />
       </main>
     );
@@ -29,16 +144,22 @@ export function App() {
 
   return (
     <main className="app">
-      <h1>Motif</h1>
-      <p className="muted">Back-rank mates · {puzzles.length} puzzles</p>
-      <div className="menu">
-        <button type="button" onClick={() => setMode('ordered')}>
-          Solve in order
-        </button>
-        <button type="button" onClick={() => setMode('randomInCollection')}>
-          Solve shuffled
-        </button>
-      </div>
+      {notice && (
+        <p className="notice" onClick={() => setNotice(null)}>
+          {notice}
+        </p>
+      )}
+      <Home
+        state={state}
+        onOpen={(collection) => setRoute({ name: 'collection', id: collection.id })}
+        onGlobalRandom={() => begin(GLOBAL_SESSION, 'randomGlobal')}
+        onReviewMistakes={() => begin('review', 'reviewMistakes')}
+        onImport={() => setRoute({ name: 'import' })}
+        onRestore={(restored) => {
+          replace(restored);
+          setNotice('Backup restored.');
+        }}
+      />
     </main>
   );
 }

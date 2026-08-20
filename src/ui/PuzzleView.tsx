@@ -21,7 +21,8 @@ type Phase = 'setup' | 'solving' | 'solved' | 'failed';
 
 interface Props {
   puzzle: Puzzle;
-  onComplete: (result: PuzzleResult) => void;
+  /** `mistakes` is the count for this attempt, for cumulative stats. */
+  onComplete: (result: PuzzleResult, mistakes: number) => void;
 }
 
 export function PuzzleView({ puzzle, onComplete }: Props) {
@@ -103,7 +104,9 @@ export function PuzzleView({ puzzle, onComplete }: Props) {
         const result = runner.result;
         setPhase(result === 'solved' ? 'solved' : 'failed');
         // A clean solve moves on by itself; a miss waits for you to look at it.
-        if (result === 'solved') after(SOLVED_PAUSE_MS, () => onComplete('solved'));
+        if (result === 'solved') {
+          after(SOLVED_PAUSE_MS, () => onComplete('solved', runner.mistakes));
+        }
       }
     },
     [after, fen, onComplete, phase, runner],
@@ -158,7 +161,7 @@ export function PuzzleView({ puzzle, onComplete }: Props) {
                   .join(', ')}
               </p>
             )}
-            <button type="button" onClick={() => onComplete('failed')}>
+            <button type="button" onClick={() => onComplete('failed', runner.mistakes)}>
               Continue
             </button>
           </div>

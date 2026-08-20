@@ -7,8 +7,14 @@
  * short of that — mocking the transport, reusing one context — would test the
  * plumbing while assuming the thing that actually matters.
  *
- * Requires VITE_NEON_BASE_URL. Creates a throwaway account; pass --email to
- * reuse one.
+ * Requires VITE_NEON_BASE_URL for the local run. Creates a throwaway account;
+ * pass --email to reuse one, or --url to run against the deployed site instead
+ * of a dev server.
+ *
+ * Running it against production is not redundant. Better Auth rejects origins
+ * that are not on its trusted-domain list, and localhost is trusted by default
+ * — so a local pass says nothing about whether the deployed origin works. That
+ * exact gap shipped once already.
  */
 import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
@@ -28,9 +34,11 @@ const check = (label, ok) => {
   if (!ok) failures.push(label);
 };
 
-const server = await createServer({ server: { port: 5194 } });
-await server.listen();
-const url = 'http://localhost:5194';
+const target = arg('url');
+const server = target ? null : await createServer({ server: { port: 5194 } });
+if (server) await server.listen();
+const url = target ?? 'http://localhost:5194';
+console.log(`target: ${url}`);
 const browser = await chromium.launch();
 
 async function device(name) {
@@ -113,7 +121,7 @@ try {
   failures.push('exception');
 } finally {
   await browser.close();
-  await server.close();
+  await server?.close();
 }
 
 console.log(failures.length ? `\n${failures.length} failed` : '\nsync works end to end');

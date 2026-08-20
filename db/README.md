@@ -68,7 +68,21 @@ gh secret set VITE_NEON_BASE_URL --body "https://<endpoint>.<region>.aws.neon.te
 Read at build time and inlined into the bundle. That is fine: the endpoint is
 public by design, and RLS is the security boundary.
 
-### 5. Verify it, rather than assuming
+### 5. Trust the deploy origin
+
+Neon Auth rejects requests from origins not on its trusted-domain list, and
+**localhost is trusted by default**. So a local sync test proves nothing about
+the deployed site — this exact gap shipped once, and production failed with
+`Invalid origin` while every local check was green.
+
+```bash
+npx neonctl neon-auth domain add "https://<user>.github.io" --project-id <id>
+```
+
+Or Neon Console → Auth → Configuration → Domains. Origin only: scheme and host,
+no path, no trailing slash.
+
+### 6. Verify it, rather than assuming
 
 ```bash
 npm run check:sync
@@ -80,7 +94,18 @@ same account and must receive a library it never imported, and a *third*
 account must not see it at all. That last check is the privacy claim, and it is
 RLS's alone, so it is tested rather than trusted.
 
+Add `--url=https://<user>.github.io/motif/` to run it against the deployed site
+instead of a dev server. Do that before believing sync works: the trusted-origin
+rule means local success and production success are different facts.
+
 It creates throwaway accounts. Delete them from Neon Console → Auth when done.
+
+## Accounts are created in the app, not the console
+
+Creating a user from the Neon Console provisions an account with no password —
+Better Auth only sets one through the sign-up call. Such an account cannot sign
+in here, since the app authenticates with email and password. Use **Account →
+Create an account** in the app instead.
 
 Absent it, the app builds and runs exactly as before, local-only, with the sync
 UI hidden.

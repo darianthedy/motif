@@ -66,6 +66,25 @@ try {
   await page.getByRole('button', { name: 'Solve in order' }).click();
   await page.waitForSelector('.board');
 
+  // ---- Board geometry ----
+  // Every square must be square. Nothing in the unit tests can see this: the
+  // first version set only grid-template-columns, so ranks holding pieces grew
+  // to fit their glyphs and the empty ranks collapsed.
+  const boxes = await page.locator('.square').evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const rect = node.getBoundingClientRect();
+      return { w: rect.width, h: rect.height };
+    }),
+  );
+  check('the board has 64 squares', boxes.length === 64);
+  const skewed = boxes.filter((box) => Math.abs(box.w - box.h) > 1);
+  check(
+    `every square is square (${skewed.length} skewed)`,
+    skewed.length === 0,
+  );
+  const heights = new Set(boxes.map((box) => Math.round(box.h)));
+  check(`all ranks are the same height (${[...heights].join(', ')})`, heights.size === 1);
+
   // ---- Puzzle 1: solve by tapping ----
   await tap(page, 'a1');
   const dots = await page.locator('.target').count();

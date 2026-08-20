@@ -10,14 +10,23 @@ import './Board.css';
  * Solid glyphs for both colours, tinted rather than mixing the outline and
  * filled sets. The outline glyphs are noticeably lighter than the filled ones
  * in most system fonts, so a mixed board looks unbalanced at small sizes.
+ *
+ * Every glyph carries U+FE0E, the text presentation selector. U+265F (the black
+ * pawn) is the one chess codepoint with an *emoji* presentation default, so iOS
+ * renders it with the glossy colour Apple glyph while its neighbours stay flat
+ * text — a board where only the pawns look like stickers. The selector is inert
+ * on the other five, so it goes on all of them rather than being a special case
+ * someone has to remember.
  */
+const TEXT_PRESENTATION = '︎';
+
 const GLYPH: Record<PieceType, string> = {
-  k: '♚',
-  q: '♛',
-  r: '♜',
-  b: '♝',
-  n: '♞',
-  p: '♟',
+  k: `♚${TEXT_PRESENTATION}`,
+  q: `♛${TEXT_PRESENTATION}`,
+  r: `♜${TEXT_PRESENTATION}`,
+  b: `♝${TEXT_PRESENTATION}`,
+  n: `♞${TEXT_PRESENTATION}`,
+  p: `♟${TEXT_PRESENTATION}`,
 };
 
 const PROMOTION_CHOICES: PromotionPiece[] = ['q', 'r', 'b', 'n'];

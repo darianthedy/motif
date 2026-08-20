@@ -6,6 +6,10 @@
 .board {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
+  /* Both axes must be explicit. With rows left to `auto`, they size to their
+     content, so a rank holding pieces grows taller than an empty one and the
+     board stops being a grid of squares. */
+  grid-template-rows: repeat(8, 1fr);
   aspect-ratio: 1;
   width: 100%;
   border-radius: 6px;

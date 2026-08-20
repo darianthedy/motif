@@ -1,40 +1,55 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { needsPromotion, piecesOn, SQUARES, targetsFrom } from '../model/board';
-import type { PieceType, Target } from '../model/board';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { Square } from 'chess.js';
+import { Chessboard } from 'react-chessboard';
+import type { PieceDropHandlerArgs, SquareHandlerArgs } from 'react-chessboard';
+import { needsPromotion, targetsFrom, turnOf } from '../model/board';
 import { makeMove } from '../model/move';
 import type { PromotionPiece, Uci } from '../model/move';
 import type { Side } from '../model/puzzle';
 import './Board.css';
 
 /**
- * Solid glyphs for both colours, tinted rather than mixing the outline and
- * filled sets. The outline glyphs are noticeably lighter than the filled ones
- * in most system fonts, so a mixed board looks unbalanced at small sizes.
+ * react-chessboard supplies the piece set and the drag layer.
  *
- * Every glyph carries U+FE0E, the text presentation selector. U+265F (the black
- * pawn) is the one chess codepoint with an *emoji* presentation default, so iOS
- * renders it with the glossy colour Apple glyph while its neighbours stay flat
- * text — a board where only the pawns look like stickers. The selector is inert
- * on the other five, so it goes on all of them rather than being a special case
- * someone has to remember.
+ * The first version drew the board by hand with Unicode glyphs, which looked
+ * acceptable in Chromium and poor on iOS: the system chess glyphs are heavy and
+ * detail-free at board size, and U+265F additionally defaults to an emoji
+ * presentation. Fonts were the wrong dependency for something that has to look
+ * the same everywhere — vector pieces are.
+ *
+ * What did not change is where the rules live. This component still resolves
+ * every interaction to a UCI string and hands it up; the runner still cannot
+ * tell a tap from a drag; an interaction that fails to produce a legal move
+ * still never reaches it.
  */
-const TEXT_PRESENTATION = '︎';
 
-const GLYPH: Record<PieceType, string> = {
-  k: `♚${TEXT_PRESENTATION}`,
-  q: `♛${TEXT_PRESENTATION}`,
-  r: `♜${TEXT_PRESENTATION}`,
-  b: `♝${TEXT_PRESENTATION}`,
-  n: `♞${TEXT_PRESENTATION}`,
-  p: `♟${TEXT_PRESENTATION}`,
+const SELECTED_STYLE: React.CSSProperties = {
+  background: 'rgba(255, 213, 79, 0.55)',
+};
+
+const HIGHLIGHT_STYLE: React.CSSProperties = {
+  background: 'rgba(93, 168, 255, 0.45)',
+};
+
+// A dot for a quiet move, a ring for a capture, so a destination reads
+// differently when something is standing on it.
+const MOVE_DOT_STYLE: React.CSSProperties = {
+  background: 'radial-gradient(circle, rgba(20,20,20,0.28) 18%, transparent 20%)',
+};
+
+const CAPTURE_RING_STYLE: React.CSSProperties = {
+  background:
+    'radial-gradient(circle, transparent 54%, rgba(20,20,20,0.28) 56%, rgba(20,20,20,0.28) 66%, transparent 68%)',
 };
 
 const PROMOTION_CHOICES: PromotionPiece[] = ['q', 'r', 'b', 'n'];
 
-interface PendingPromotion {
-  from: string;
-  to: string;
-}
+const PROMOTION_GLYPH: Record<PromotionPiece, string> = {
+  q: 'Queen',
+  r: 'Rook',
+  b: 'Bishop',
+  n: 'Knight',
+};
 
 export interface BoardProps {
   fen: string;
@@ -48,19 +63,6 @@ export interface BoardProps {
   interactive?: boolean;
 }
 
-/**
- * The board. Owns selection, dragging and the promotion picker.
- *
- * Tap and drag are not two code paths: a pointer press selects, a pointer
- * release decides. Releasing on the square you pressed leaves the piece
- * selected, which is a tap; releasing on a legal destination commits, which is
- * a drag. Both end in the same `onMove` call with the same UCI string, so the
- * validator upstream cannot tell them apart — and neither can the scoring.
- *
- * Anything that does not produce a legal move — releasing on an illegal square,
- * off the board, or cancelling the promotion picker — resolves to a deselect
- * and never reaches `onMove`. That is what keeps a mis-drag free.
- */
 export function Board({
   fen,
   orientation,
@@ -70,196 +72,132 @@ export function Board({
   interactive = true,
 }: BoardProps) {
   const [selected, setSelected] = useState<string | null>(null);
-  const [targets, setTargets] = useState<Map<string, Target>>(new Map());
-  const [pending, setPending] = useState<PendingPromotion | null>(null);
-  const [drag, setDrag] = useState<{ from: string; x: number; y: number } | null>(null);
-  const boardRef = useRef<HTMLDivElement>(null);
+  const [pending, setPending] = useState<{ from: string; to: string } | null>(null);
 
-  const pieces = piecesOn(fen);
-  const pieceAt = new Map(pieces.map((piece) => [piece.square, piece]));
-  const files = orientation === 'w' ? 'abcdefgh' : 'hgfedcba';
-  const ranks = orientation === 'w' ? [8, 7, 6, 5, 4, 3, 2, 1] : [1, 2, 3, 4, 5, 6, 7, 8];
+  const turn = turnOf(fen);
+  const targets = useMemo(
+    () => (selected ? targetsFrom(fen, selected) : new Map()),
+    [fen, selected],
+  );
 
-  // Any change of position abandons whatever was in flight. Without this a
-  // selection can survive into the next puzzle and point at a square whose
-  // piece is gone.
+  // A new position abandons whatever was in flight. Without this a selection
+  // can survive into the next puzzle and point at a square whose piece is gone.
   useEffect(() => {
     setSelected(null);
-    setTargets(new Map());
     setPending(null);
-    setDrag(null);
   }, [fen]);
 
-  const select = useCallback(
-    (square: string) => {
-      setSelected(square);
-      setTargets(targetsFrom(fen, square));
+  /**
+   * Resolves an interaction into a move, or into nothing.
+   *
+   * Returns whether the board should treat the move as accepted. Illegal
+   * destinations return false, which snaps a dragged piece back and costs the
+   * solver nothing — the runner never hears about it.
+   */
+  const play = useCallback(
+    (from: string, to: string): boolean => {
+      if (!interactive) return false;
+      if (!targetsFrom(fen, from).has(to)) return false;
+
+      setSelected(null);
+      if (needsPromotion(fen, from, to)) {
+        // Held rather than played: the picker decides which piece, and
+        // cancelling it is the same as never having moved.
+        setPending({ from, to });
+        return false;
+      }
+      onMove(makeMove(from, to));
+      return true;
     },
-    [fen],
+    [fen, interactive, onMove],
   );
 
-  const clear = useCallback(() => {
-    setSelected(null);
-    setTargets(new Map());
-    setDrag(null);
-  }, []);
+  const onPieceDrop = useCallback(
+    ({ sourceSquare, targetSquare }: PieceDropHandlerArgs): boolean => {
+      setSelected(null);
+      if (!targetSquare) return false;
+      return play(sourceSquare, targetSquare);
+    },
+    [play],
+  );
 
-  /** Commits, or opens the picker first when the destination needs one. */
-  const commit = useCallback(
-    (from: string, to: string) => {
-      if (needsPromotion(fen, from, to)) {
-        setPending({ from, to });
-        setDrag(null);
+  // Square clicks alone: pieces render inside squares and do not stop
+  // propagation, so one handler covers occupied and empty squares, with `piece`
+  // telling them apart. Adding onPieceClick would double-fire.
+  const onSquareClick = useCallback(
+    ({ piece, square }: SquareHandlerArgs) => {
+      if (!interactive) return;
+      const isOwnPiece = piece ? piece.pieceType[0] === turn : false;
+
+      if (!selected) {
+        if (isOwnPiece) setSelected(square);
         return;
       }
-      clear();
-      onMove(makeMove(from, to));
+      if (square === selected) {
+        setSelected(null);
+        return;
+      }
+      if (targets.has(square)) {
+        play(selected, square);
+        return;
+      }
+      // Tapping another of your own pieces re-targets rather than counting as
+      // a move to an illegal square.
+      setSelected(isOwnPiece ? square : null);
     },
-    [clear, fen, onMove],
+    [interactive, play, selected, targets, turn],
   );
 
-  /** Which square a client coordinate falls on, or null if off the board. */
-  const squareAt = useCallback(
-    (clientX: number, clientY: number): string | null => {
-      const rect = boardRef.current?.getBoundingClientRect();
-      if (!rect) return null;
-      const col = Math.floor(((clientX - rect.left) / rect.width) * 8);
-      const row = Math.floor(((clientY - rect.top) / rect.height) * 8);
-      if (col < 0 || col > 7 || row < 0 || row > 7) return null;
-      return `${files[col]}${ranks[row]}`;
-    },
-    [files, ranks],
-  );
-
-  const onPointerDown = (event: React.PointerEvent) => {
-    if (!interactive || pending) return;
-    const square = squareAt(event.clientX, event.clientY);
-    if (!square) return;
-
-    // Committing on press would make a drag impossible, so a press on a legal
-    // destination only records intent; the release decides.
-    if (selected && targets.has(square)) {
-      commit(selected, square);
-      return;
+  const squareStyles = useMemo(() => {
+    const styles: Record<string, React.CSSProperties> = {};
+    if (highlight) {
+      styles[highlight.from] = { ...HIGHLIGHT_STYLE };
+      styles[highlight.to] = { ...HIGHLIGHT_STYLE };
     }
-
-    const piece = pieceAt.get(square);
-    if (piece) {
-      // Tapping a different piece of yours reselects rather than counting as a
-      // move to an illegal square.
-      select(square);
-      setDrag({ from: square, x: event.clientX, y: event.clientY });
-      boardRef.current?.setPointerCapture(event.pointerId);
-    } else {
-      clear();
+    if (selected) {
+      styles[selected] = { ...styles[selected], ...SELECTED_STYLE };
+      for (const [target, info] of targets) {
+        styles[target] = {
+          ...styles[target],
+          ...(info.capture ? CAPTURE_RING_STYLE : MOVE_DOT_STYLE),
+        };
+      }
     }
-  };
-
-  const onPointerMove = (event: React.PointerEvent) => {
-    if (!drag) return;
-    setDrag({ ...drag, x: event.clientX, y: event.clientY });
-  };
-
-  const onPointerUp = (event: React.PointerEvent) => {
-    if (!drag) return;
-    const square = squareAt(event.clientX, event.clientY);
-    boardRef.current?.releasePointerCapture(event.pointerId);
-
-    // Released where it started: a tap. Keep the selection so the next tap can
-    // choose a destination.
-    if (square === drag.from) {
-      setDrag(null);
-      return;
-    }
-
-    if (square && targets.has(square)) {
-      commit(drag.from, square);
-      return;
-    }
-
-    // Off-board or an illegal square. Free — this is the mis-drag case.
-    clear();
-  };
+    return styles;
+  }, [highlight, selected, targets]);
 
   const choosePromotion = (piece: PromotionPiece) => {
     if (!pending) return;
     const { from, to } = pending;
     setPending(null);
-    clear();
     onMove(makeMove(from, to, piece));
   };
 
   return (
-    <div className="board-wrap">
-      <div
-        ref={boardRef}
-        className="board"
-        key={shakeKey}
-        data-shake={shakeKey ? 'yes' : undefined}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={clear}
-      >
-        {ranks.map((rank, row) =>
-          files.split('').map((file, col) => {
-            const square = `${file}${rank}`;
-            const piece = pieceAt.get(square);
-            const target = targets.get(square);
-            const dark = (row + col) % 2 === 1;
-            const isDragging = drag?.from === square;
-
-            return (
-              <div
-                key={square}
-                className="square"
-                data-dark={dark || undefined}
-                data-selected={selected === square || undefined}
-                data-highlight={
-                  highlight && (highlight.from === square || highlight.to === square)
-                    ? 'yes'
-                    : undefined
-                }
-              >
-                {piece && (
-                  <span
-                    className="piece"
-                    data-color={piece.color}
-                    data-ghost={isDragging || undefined}
-                  >
-                    {GLYPH[piece.type]}
-                  </span>
-                )}
-                {target && <span className="target" data-capture={target.capture || undefined} />}
-              </div>
-            );
-          }),
-        )}
-      </div>
-
-      {/* The dragged piece follows the pointer outside the grid flow, so it is
-          never clipped by a square and never intercepts its own hit testing. */}
-      {drag && pieceAt.get(drag.from) && (
-        <span
-          className="piece dragging"
-          data-color={pieceAt.get(drag.from)!.color}
-          style={{ left: drag.x, top: drag.y }}
-        >
-          {GLYPH[pieceAt.get(drag.from)!.type]}
-        </span>
-      )}
+    <div className="board-wrap" data-shake={shakeKey || undefined} key={shakeKey}>
+      <Chessboard
+        options={{
+          id: 'motif-board',
+          position: fen,
+          onPieceDrop,
+          onSquareClick,
+          squareStyles,
+          boardOrientation: orientation === 'w' ? 'white' : 'black',
+          allowDragging: interactive,
+          animationDurationInMs: 150,
+        }}
+      />
 
       {pending && (
-        <div className="promotion-backdrop" onPointerDown={() => setPending(null)}>
-          <div className="promotion" onPointerDown={(event) => event.stopPropagation()}>
+        <div className="promotion-backdrop" onClick={() => setPending(null)}>
+          <div className="promotion" onClick={(event) => event.stopPropagation()}>
+            <p className="promotion-title">Promote to</p>
             {PROMOTION_CHOICES.map((choice) => (
               <button key={choice} type="button" onClick={() => choosePromotion(choice)}>
-                <span className="piece" data-color={orientation}>
-                  {GLYPH[choice]}
-                </span>
+                {PROMOTION_GLYPH[choice]}
               </button>
             ))}
-            <button type="button" className="promotion-cancel" onClick={() => setPending(null)}>
+            <button type="button" className="link" onClick={() => setPending(null)}>
               Cancel
             </button>
           </div>
@@ -269,4 +207,4 @@ export function Board({
   );
 }
 
-export { SQUARES };
+export type { Square };

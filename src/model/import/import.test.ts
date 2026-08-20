@@ -136,3 +136,56 @@ describe('Lichess CSV import', () => {
     expect(runner.result).toBe('solved');
   });
 });
+
+describe('multi-collection files', () => {
+  // The shape produced by the 1001-exercises extraction: an array of chapters,
+  // each its own collection, with book puzzle numbers as ids.
+  const book = JSON.stringify([
+    {
+      collection: 'Mate in one',
+      puzzles: [
+        { id: 1, fen: 'kr6/1p6/p7/4b3/8/8/1P4BP/R6K w - - 0 1', solutions: [['a1a6']], tags: ['mateIn1'], comment: 'The pin is mightier than the sword' },
+        { id: 2, fen: 'r2B3k/5p1p/8/8/8/b7/7P/K5R1 w - - 0 1', solutions: [['d8f6']], tags: ['mateIn1'] },
+      ],
+    },
+    {
+      collection: 'Mate in two',
+      puzzles: [
+        { id: 58, fen: '2rrk1n1/1nQ1p2N/pB5p/6p1/qP3p2/2P4P/P3BPP1/3R2K1 w - - 0 1', solutions: [['c7d8', 'e8d8', 'd1d8']], tags: ['mateIn2'] },
+      ],
+    },
+  ]);
+
+  it('reads every chapter as its own group', () => {
+    const result = importJson(book);
+    expect(result.groups.map((group) => group.name)).toEqual(['Mate in one', 'Mate in two']);
+    expect(result.groups[0].puzzles).toHaveLength(2);
+    expect(result.groups[1].puzzles).toHaveLength(1);
+    expect(result.inserted).toHaveLength(3);
+  });
+
+  it('keeps the book number as the source id', () => {
+    const result = importJson(book);
+    expect(result.groups[0].puzzles[0].sourceId).toBe('1');
+    expect(result.groups[1].puzzles[0].sourceId).toBe('58');
+  });
+
+  it('leaves collectionName unset, since one name cannot describe several', () => {
+    expect(importJson(book).collectionName).toBeUndefined();
+  });
+
+  it('numbers rejections across the whole file, not per chapter', () => {
+    const broken = JSON.stringify([
+      { collection: 'A', puzzles: [{ fen: '6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1', solutions: [['a1a8']] }] },
+      { collection: 'B', puzzles: [{ fen: 'nonsense', solutions: [['a1a8']] }] },
+    ]);
+    const result = importJson(broken);
+    expect(result.rejected).toEqual([{ index: 1, reason: 'Malformed FEN' }]);
+  });
+
+  it('still handles a plain single-collection object', () => {
+    const result = importJson(`{ "collection": "Solo", "puzzles": [ { "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1", "solutions": [["a1a8"]] } ] }`);
+    expect(result.groups).toHaveLength(1);
+    expect(result.collectionName).toBe('Solo');
+  });
+});

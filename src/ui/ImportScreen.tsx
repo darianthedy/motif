@@ -49,15 +49,21 @@ export function ImportScreen({ state, onApply, onExit }: Props) {
     parse(await file.text());
   };
 
-  const apply = () => {
-    if (!preview) return;
-    const collectionName = name.trim() || preview.result.collectionName || 'Imported';
-    const { state: next, added, refreshed } = applyImport(state, preview.result, collectionName);
-    onApply(next, added, refreshed);
-  };
-
   const result = preview?.result;
   const incoming = result ? result.inserted.length + result.updated.length : 0;
+  // A file carrying its own chapter names does not need one from us, and
+  // asking would only invite collapsing eighteen chapters into one bucket.
+  const namedGroups = result?.groups.filter((group) => group.name) ?? [];
+  const multiCollection = namedGroups.length > 1;
+
+  const apply = () => {
+    if (!result) return;
+    const collectionName = multiCollection
+      ? undefined
+      : name.trim() || result.collectionName || 'Imported';
+    const { state: next, added, refreshed } = applyImport(state, result, collectionName);
+    onApply(next, added, refreshed);
+  };
 
   return (
     <div className="screen">
@@ -116,14 +122,32 @@ export function ImportScreen({ state, onApply, onExit }: Props) {
             </ul>
           )}
 
-          <label className="field">
-            <span className="muted small">Collection name</span>
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Imported"
-            />
-          </label>
+          {multiCollection ? (
+            <div className="field">
+              <span className="muted small">
+                {namedGroups.length} collections in this file
+              </span>
+              <ul className="groups">
+                {namedGroups.map((group) => (
+                  <li key={group.name} className="small">
+                    {group.name}{' '}
+                    <span className="muted">
+                      · {group.puzzles.length} puzzle{group.puzzles.length === 1 ? '' : 's'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <label className="field">
+              <span className="muted small">Collection name</span>
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Imported"
+              />
+            </label>
+          )}
 
           <button type="button" onClick={apply} disabled={incoming === 0}>
             Add {incoming} puzzle{incoming === 1 ? '' : 's'}

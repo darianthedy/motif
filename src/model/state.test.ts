@@ -216,3 +216,33 @@ describe('content identity', () => {
     expect(contentKey(restored.puzzles[puzzle.id])).toBe(contentKey(puzzle));
   });
 });
+
+describe('importing a multi-chapter file', () => {
+  const book = JSON.stringify([
+    { collection: 'Chapter one', puzzles: [{ fen: '6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1', solutions: [['a1a8']] }] },
+    { collection: 'Chapter two', puzzles: [{ fen: '3r2k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1', solutions: [['d1d8']] }] },
+  ]);
+
+  it('creates one collection per chapter', () => {
+    const { state, added, collections } = applyImport(emptyState(), importJson(book));
+    expect(added).toBe(2);
+    expect(collections).toBe(2);
+    expect(state.collections.map((c) => c.name)).toEqual(['Chapter one', 'Chapter two']);
+    expect(state.collections[0].puzzleIds).toHaveLength(1);
+    expect(state.collections[1].puzzleIds).toHaveLength(1);
+  });
+
+  it('does not let a supplied name collapse the chapters together', () => {
+    const { state } = applyImport(emptyState(), importJson(book), 'Everything');
+    expect(state.collections.map((c) => c.name)).toEqual(['Chapter one', 'Chapter two']);
+  });
+
+  it('is idempotent across the whole file', () => {
+    const first = applyImport(emptyState(), importJson(book)).state;
+    const second = applyImport(first, importJson(book));
+    expect(second.added).toBe(0);
+    expect(second.refreshed).toBe(2);
+    expect(second.state.collections).toHaveLength(2);
+    expect(Object.keys(second.state.puzzles)).toHaveLength(2);
+  });
+});

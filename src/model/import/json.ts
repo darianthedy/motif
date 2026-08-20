@@ -17,7 +17,21 @@ import type { Puzzle } from '../puzzle';
  *   ] }
  * ```
  */
+/**
+ * One collection's worth of puzzles from an import file.
+ *
+ * A file may carry several — the 1001-exercises book is 18 chapters, and
+ * splitting it by hand would be absurd. A single-collection file is simply a
+ * file with one group, so there is one code path rather than two.
+ */
+export interface ImportGroup {
+  name?: string;
+  puzzles: Puzzle[];
+}
+
 export interface ImportResult {
+  /** Membership, in file order. */
+  groups: ImportGroup[];
   /** Puzzles new to the library. */
   inserted: Puzzle[];
   /**
@@ -27,11 +41,12 @@ export interface ImportResult {
   updated: Puzzle[];
   /** Rejected entries with reasons, so the import screen can show them. */
   rejected: { index: number; reason: string }[];
+  /** Convenience for the common single-collection file. */
   collectionName?: string;
 }
 
 function emptyResult(): ImportResult {
-  return { inserted: [], updated: [], rejected: [] };
+  return { groups: [], inserted: [], updated: [], rejected: [] };
 }
 
 /**
@@ -76,6 +91,7 @@ function parseLine(raw: unknown): Uci[] | null {
 }
 
 interface RawEntry {
+  id?: unknown;
   fen?: unknown;
   setupMove?: unknown;
   solutions?: unknown;
@@ -88,15 +104,19 @@ interface RawEntry {
 /**
  * Parses and validates a JSON import payload.
  *
- * `existingKeys` are the content keys already in the library; entries matching
- * one are routed to `updated` rather than `inserted`. Duplicates *within* the
- * same file are collapsed the same way, so a file listing a puzzle twice
- * yields one row.
+ * Accepts either a single collection object or an array of them, so a whole
+ * multi-chapter book imports in one go. `existingKeys` are the content keys
+ * already in the library; entries matching one are routed to `updated` rather
+ * than `inserted`. Duplicates *within* the file are collapsed the same way, so
+ * a puzzle listed twice yields one row.
+ *
+ * Rejection indices are file-wide rather than per group, so a reported row
+ * number means something to someone scrolling the file.
  */
 export function importJson(text: string, existingKeys = new Set<string>()): ImportResult {
   const result = emptyResult();
 
-  let parsed: { collection?: unknown; puzzles?: unknown };
+  let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch (error) {
@@ -104,71 +124,96 @@ export function importJson(text: string, existingKeys = new Set<string>()): Impo
     return result;
   }
 
-  if (typeof parsed.collection === 'string') result.collectionName = parsed.collection;
-  if (!Array.isArray(parsed.puzzles)) {
-    result.rejected.push({ index: -1, reason: 'Missing a "puzzles" array' });
-    return result;
+  const blocks = Array.isArray(parsed) ? parsed : [parsed];
+  const seen = new Set(existingKeys);
+  let index = 0;
+
+  for (const block of blocks) {
+    const group = block as { collection?: unknown; puzzles?: unknown };
+    if (!Array.isArray(group?.puzzles)) {
+      result.rejected.push({ index, reason: 'Missing a "puzzles" array' });
+      continue;
+    }
+
+    const name = typeof group.collection === 'string' ? group.collection : undefined;
+    const puzzles: Puzzle[] = [];
+
+    for (const raw of group.puzzles as RawEntry[]) {
+      const at = index++;
+      const puzzle = parseEntry(raw, at, result);
+      if (!puzzle) continue;
+
+      puzzles.push(puzzle);
+      const key = contentKey(puzzle);
+      if (seen.has(key)) {
+        result.updated.push(puzzle);
+      } else {
+        seen.add(key);
+        result.inserted.push(puzzle);
+      }
+    }
+
+    result.groups.push({ name, puzzles });
   }
 
-  const seen = new Set(existingKeys);
-
-  parsed.puzzles.forEach((raw: RawEntry, index: number) => {
-    if (typeof raw?.fen !== 'string' || !isPlausibleFen(raw.fen)) {
-      result.rejected.push({ index, reason: 'Malformed FEN' });
-      return;
-    }
-
-    if (!Array.isArray(raw.solutions) || raw.solutions.length === 0) {
-      result.rejected.push({ index, reason: 'Puzzle has no solution' });
-      return;
-    }
-
-    const solutions: Uci[][] = [];
-    for (const rawLine of raw.solutions) {
-      const line = parseLine(rawLine);
-      if (!line || line.length === 0) {
-        result.rejected.push({ index, reason: 'Solution contains a malformed move' });
-        return;
-      }
-      // A line must end on the solver's move; a trailing opponent reply would
-      // mean the puzzle ends without the solver doing anything.
-      if (line.length % 2 !== 1) {
-        result.rejected.push({ index, reason: 'Solution line ends on an opponent move' });
-        return;
-      }
-      solutions.push(line);
-    }
-
-    let setupMove: Uci | undefined;
-    if (raw.setupMove !== undefined) {
-      const parsedSetup = typeof raw.setupMove === 'string' ? parseUci(raw.setupMove) : null;
-      if (!parsedSetup) {
-        result.rejected.push({ index, reason: 'Malformed setup move' });
-        return;
-      }
-      setupMove = parsedSetup;
-    }
-
-    const puzzle: Puzzle = {
-      id: crypto.randomUUID(),
-      fen: raw.fen,
-      setupMove,
-      solutions,
-      tags: Array.isArray(raw.tags) ? raw.tags.filter((t): t is string => typeof t === 'string') : [],
-      comment: typeof raw.comment === 'string' ? raw.comment : undefined,
-      sourceId: typeof raw.sourceId === 'string' ? raw.sourceId : undefined,
-      rating: typeof raw.rating === 'number' ? raw.rating : undefined,
-      addedAt: Date.now(),
-    };
-
-    const key = contentKey(puzzle);
-    if (seen.has(key)) {
-      result.updated.push(puzzle);
-    } else {
-      seen.add(key);
-      result.inserted.push(puzzle);
-    }
-  });
-
+  if (result.groups.length === 1) result.collectionName = result.groups[0].name;
   return result;
+}
+
+/** Validates one entry, recording a reason on the result if it is rejected. */
+function parseEntry(raw: RawEntry, index: number, result: ImportResult): Puzzle | null {
+  if (typeof raw?.fen !== 'string' || !isPlausibleFen(raw.fen)) {
+    result.rejected.push({ index, reason: 'Malformed FEN' });
+    return null;
+  }
+
+  if (!Array.isArray(raw.solutions) || raw.solutions.length === 0) {
+    result.rejected.push({ index, reason: 'Puzzle has no solution' });
+    return null;
+  }
+
+  const solutions: Uci[][] = [];
+  for (const rawLine of raw.solutions) {
+    const line = parseLine(rawLine);
+    if (!line || line.length === 0) {
+      result.rejected.push({ index, reason: 'Solution contains a malformed move' });
+      return null;
+    }
+    // A line must end on the solver's move; a trailing opponent reply would
+    // mean the puzzle ends without the solver doing anything.
+    if (line.length % 2 !== 1) {
+      result.rejected.push({ index, reason: 'Solution line ends on an opponent move' });
+      return null;
+    }
+    solutions.push(line);
+  }
+
+  let setupMove: Uci | undefined;
+  if (raw.setupMove !== undefined) {
+    const parsedSetup = typeof raw.setupMove === 'string' ? parseUci(raw.setupMove) : null;
+    if (!parsedSetup) {
+      result.rejected.push({ index, reason: 'Malformed setup move' });
+      return null;
+    }
+    setupMove = parsedSetup;
+  }
+
+  return {
+    id: crypto.randomUUID(),
+    fen: raw.fen,
+    setupMove,
+    solutions,
+    tags: Array.isArray(raw.tags) ? raw.tags.filter((t): t is string => typeof t === 'string') : [],
+    comment: typeof raw.comment === 'string' ? raw.comment : undefined,
+    // The book numbers its puzzles; keeping that as the source id makes a
+    // puzzle findable in the original.
+    sourceId:
+      typeof raw.sourceId === 'string'
+        ? raw.sourceId
+        : typeof raw.id === 'number'
+          ? String(raw.id)
+          : undefined,
+    rating: typeof raw.rating === 'number' ? raw.rating : undefined,
+    addedAt: Date.now(),
+  };
 }

@@ -76,44 +76,55 @@ export function statsFor(state: AppState, collection: Collection): CollectionSta
 export function applyImport(
   state: AppState,
   result: ImportResult,
+  /**
+   * Overrides the collection name. Only meaningful for a single-group file —
+   * a multi-chapter import takes its names from the file, since one name
+   * cannot describe eighteen chapters.
+   */
   collectionName?: string,
-): { state: AppState; added: number; refreshed: number } {
+): { state: AppState; added: number; refreshed: number; collections: number } {
   const puzzles = { ...state.puzzles };
   const byKey = new Map<string, string>();
   for (const puzzle of Object.values(puzzles)) byKey.set(contentKey(puzzle), puzzle.id);
 
-  const touchedIds: string[] = [];
+  let collections = state.collections;
   let added = 0;
   let refreshed = 0;
+  let touchedCollections = 0;
 
-  for (const incoming of [...result.inserted, ...result.updated]) {
-    const key = contentKey(incoming);
-    const existingId = byKey.get(key);
+  const singleGroup = result.groups.length === 1;
 
-    if (existingId) {
-      // Identity is position + solutions, so everything else is metadata and
-      // the newer file wins. The id is kept so progress survives a re-import.
-      puzzles[existingId] = {
-        ...puzzles[existingId],
-        tags: incoming.tags,
-        comment: incoming.comment,
-        rating: incoming.rating ?? puzzles[existingId].rating,
-        sourceId: incoming.sourceId ?? puzzles[existingId].sourceId,
-      };
-      touchedIds.push(existingId);
-      refreshed++;
-    } else {
-      puzzles[incoming.id] = incoming;
-      byKey.set(key, incoming.id);
-      touchedIds.push(incoming.id);
-      added++;
+  for (const group of result.groups) {
+    const touchedIds: string[] = [];
+
+    for (const incoming of group.puzzles) {
+      const key = contentKey(incoming);
+      const existingId = byKey.get(key);
+
+      if (existingId) {
+        // Identity is position + solutions, so everything else is metadata and
+        // the newer file wins. The id is kept so progress survives a re-import.
+        puzzles[existingId] = {
+          ...puzzles[existingId],
+          tags: incoming.tags,
+          comment: incoming.comment,
+          rating: incoming.rating ?? puzzles[existingId].rating,
+          sourceId: incoming.sourceId ?? puzzles[existingId].sourceId,
+        };
+        touchedIds.push(existingId);
+        refreshed++;
+      } else {
+        puzzles[incoming.id] = incoming;
+        byKey.set(key, incoming.id);
+        touchedIds.push(incoming.id);
+        added++;
+      }
     }
-  }
 
-  const name = collectionName ?? result.collectionName;
-  let collections = state.collections;
+    const name = (singleGroup ? collectionName : undefined) ?? group.name ?? collectionName;
+    if (!name || !touchedIds.length) continue;
+    touchedCollections++;
 
-  if (name && touchedIds.length) {
     const existing = collections.find((collection) => collection.name === name);
     if (existing) {
       const merged = [...existing.puzzleIds];
@@ -129,7 +140,12 @@ export function applyImport(
     }
   }
 
-  return { state: { ...state, puzzles, collections }, added, refreshed };
+  return {
+    state: { ...state, puzzles, collections },
+    added,
+    refreshed,
+    collections: touchedCollections,
+  };
 }
 
 /**

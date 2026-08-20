@@ -33,7 +33,7 @@ export function importLichessCsv(
   options: LichessImportOptions = {},
   existingKeys = new Set<string>(),
 ): ImportResult {
-  const result: ImportResult = { inserted: [], updated: [], rejected: [] };
+  const result: ImportResult = { groups: [], inserted: [], updated: [], rejected: [] };
   const seen = new Set(existingKeys);
   const lines = text.split('\n');
 
@@ -111,5 +111,8 @@ export function importLichessCsv(
     }
   }
 
+  // The dump has no chapters, so everything lands in one unnamed group and
+  // the import screen supplies a name.
+  result.groups.push({ puzzles: [...result.inserted, ...result.updated] });
   return result;
 }

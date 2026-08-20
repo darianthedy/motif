@@ -219,6 +219,25 @@ try {
   await page.waitForTimeout(400);
   const reviewButton = page.getByRole('button', { name: /Review mistakes \(\d+\)/ });
   check('the missed puzzle is offered for review', await reviewButton.isVisible());
+
+  // ---- Multi-collection file ----
+  // Synthetic positions, not book content: a file may carry several chapters,
+  // each becoming its own collection with no name asked for.
+  const multi = JSON.stringify([
+    { collection: 'Chapter A', puzzles: [
+      { fen: '7k/5ppp/8/8/8/8/8/R6K w - - 0 1', solutions: [['a1a8']] } ] },
+    { collection: 'Chapter B', puzzles: [
+      { fen: '4r1k1/5ppp/8/8/8/8/5PPP/4R1K1 w - - 0 1', solutions: [['e1e8']] } ] },
+  ]);
+  await page.getByRole('button', { name: 'Import puzzles' }).click();
+  await page.locator('textarea').fill(multi);
+  await page.waitForTimeout(300);
+  check('a multi-collection file lists its chapters',
+    (await page.locator('.groups li').count()) === 2);
+  await page.getByRole('button', { name: /Add 2 puzzles/ }).click();
+  await page.waitForTimeout(400);
+  check('each chapter becomes its own collection',
+    (await page.locator('.card').count()) === 3);
 } catch (error) {
   console.log(`FAIL  threw: ${error.message}`);
   failures.push('exception');

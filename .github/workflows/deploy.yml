@@ -35,6 +35,12 @@ jobs:
       # and every reason not to publish a build that fails its own suite.
       - run: npm test
 
+      # Unit tests prove the model; only a browser proves that a tap on a
+      # square becomes the right move, that the promotion picker commits the
+      # piece you picked, and that a mis-drag stays free.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run check:e2e
+
       - run: npm run build
 
       - uses: actions/upload-pages-artifact@v5

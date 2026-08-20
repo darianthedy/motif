@@ -1,0 +1,144 @@
+.board-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  aspect-ratio: 1;
+  width: 100%;
+  border-radius: 6px;
+  overflow: hidden;
+  /* The board is the only drag surface; letting the browser scroll or
+     text-select from a press makes dragging a piece unreliable on touch. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.square {
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: #ebecd0;
+}
+
+.square[data-dark] {
+  background: #779556;
+}
+
+.square[data-selected]::after,
+.square[data-highlight]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(255 214 0 / 45%);
+  pointer-events: none;
+}
+
+.square[data-highlight]::after {
+  background: rgb(93 168 255 / 45%);
+}
+
+.piece {
+  font-size: min(10.5vw, 3rem);
+  line-height: 1;
+  pointer-events: none;
+  /* Solid glyphs tinted per colour; the outline keeps a white piece legible on
+     a light square and a black piece legible on a dark one. */
+  color: #fff;
+  text-shadow:
+    0 0 1px #000,
+    0 1px 2px rgb(0 0 0 / 45%);
+}
+
+.piece[data-color='b'] {
+  color: #2a2a2a;
+  text-shadow:
+    0 0 1px #000,
+    0 1px 2px rgb(0 0 0 / 35%);
+}
+
+.piece[data-ghost] {
+  opacity: 0.25;
+}
+
+.piece.dragging {
+  position: fixed;
+  z-index: 20;
+  translate: -50% -55%;
+  font-size: min(11vw, 3.2rem);
+  pointer-events: none;
+}
+
+/* A dot for a quiet move, a ring for a capture: the destination reads
+   differently when something is standing on it. */
+.target {
+  position: absolute;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 22%);
+  pointer-events: none;
+}
+
+.target[data-capture] {
+  width: 88%;
+  height: 88%;
+  background: none;
+  border: 4px solid rgb(0 0 0 / 22%);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+.board[data-shake] {
+  animation: shake 220ms ease-in-out;
+}
+
+.promotion-backdrop {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(0 0 0 / 55%);
+  z-index: 30;
+}
+
+.promotion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: #24252c;
+  box-shadow: 0 8px 30px rgb(0 0 0 / 50%);
+}
+
+.promotion button {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border: none;
+  border-radius: 8px;
+  background: #33343d;
+  cursor: pointer;
+}
+
+.promotion button:active {
+  background: #43444f;
+}
+
+.promotion-cancel {
+  width: 3.5rem !important;
+  height: 2rem !important;
+  color: var(--muted);
+  font-size: 0.75rem;
+}

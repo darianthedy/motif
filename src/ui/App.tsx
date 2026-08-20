@@ -1,31 +1,44 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { importJson } from '../model/import/json';
+import type { SessionMode } from '../model/session';
+import { SessionScreen } from './SessionScreen';
+import './App.css';
 import sample from '../../samples/back-rank.json?raw';
 
 /**
- * Placeholder shell. The model layer is built and tested; the board and the
- * session UI are the next piece of work. This renders the sample import so the
- * build, the PWA manifest and the deploy path can all be verified before any
- * of the real UI exists.
+ * Temporary shell: the sample collection, hard-wired, so the solve loop is
+ * usable end to end. Collections, import and persistence come next; this exists
+ * so the board and session can be played with on a real phone before then.
  */
 export function App() {
-  const result = useMemo(() => importJson(sample), []);
+  const puzzles = useMemo(() => importJson(sample).inserted, []);
+  const [mode, setMode] = useState<SessionMode | null>(null);
+
+  if (mode) {
+    return (
+      <main className="app">
+        <SessionScreen
+          puzzles={puzzles}
+          mode={mode}
+          collectionId="sample"
+          onExit={() => setMode(null)}
+        />
+      </main>
+    );
+  }
 
   return (
-    <main style={{ padding: '2rem', maxWidth: '32rem', margin: '0 auto' }}>
-      <h1 style={{ marginBottom: '0.25rem' }}>Motif</h1>
-      <p style={{ color: 'var(--muted)', marginTop: 0 }}>
-        Model layer ready — {result.inserted.length} sample puzzles parsed from{' '}
-        {result.collectionName ?? 'an unnamed collection'}.
-      </p>
-      <ul style={{ color: 'var(--muted)', lineHeight: 1.7 }}>
-        {result.inserted.map((puzzle) => (
-          <li key={puzzle.id}>
-            {puzzle.solutions.length} solution{puzzle.solutions.length === 1 ? '' : 's'}
-            {puzzle.rating ? ` · rated ${puzzle.rating}` : ''}
-          </li>
-        ))}
-      </ul>
+    <main className="app">
+      <h1>Motif</h1>
+      <p className="muted">Back-rank mates · {puzzles.length} puzzles</p>
+      <div className="menu">
+        <button type="button" onClick={() => setMode('ordered')}>
+          Solve in order
+        </button>
+        <button type="button" onClick={() => setMode('randomInCollection')}>
+          Solve shuffled
+        </button>
+      </div>
     </main>
   );
 }

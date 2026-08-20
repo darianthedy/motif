@@ -1,0 +1,98 @@
+.app {
+  max-width: 30rem;
+  margin: 0 auto;
+  padding: 1rem 1rem 2rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.good {
+  color: #7ac74f;
+}
+
+.bad {
+  color: #e2716a;
+}
+
+.hint {
+  color: #f0c05a;
+}
+
+button {
+  font: inherit;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background: #33343d;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+button:active {
+  background: #43444f;
+}
+
+button.link {
+  background: none;
+  color: var(--muted);
+  padding: 0.4rem 0;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+}
+
+.session-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.progress {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: #2c2d35;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #7ac74f;
+  transition: width 240ms ease-out;
+}
+
+.count {
+  min-width: 1.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.puzzle-status {
+  margin-top: 0.9rem;
+  min-height: 6rem;
+}
+
+.result p {
+  margin: 0 0 0.5rem;
+}
+
+.comment {
+  color: var(--fg);
+}
+
+.tags {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.session-done {
+  text-align: center;
+  padding-top: 3rem;
+}

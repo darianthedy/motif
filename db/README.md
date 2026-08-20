@@ -55,14 +55,32 @@ Paste `0001_libraries.neon.sql` into the Neon SQL Editor. Doing it in the
 console rather than over a connection string means no credential has to be
 shared with anyone to set this up.
 
-### 4. Give the deployed app its endpoint
+### 4. Give the deployed app its base URL
+
+Only the *base* URL is configured. The client derives both the auth service and
+the Data API from it by inserting `neonauth` / `apirest` into the hostname, so
+there is one value to get right instead of two that must agree:
 
 ```bash
-gh secret set VITE_NEON_DATA_API_URL --body "https://<endpoint>"
+gh secret set VITE_NEON_BASE_URL --body "https://<endpoint>.<region>.aws.neon.tech/neondb"
 ```
 
 Read at build time and inlined into the bundle. That is fine: the endpoint is
 public by design, and RLS is the security boundary.
+
+### 5. Verify it, rather than assuming
+
+```bash
+npm run check:sync
+```
+
+Two independent browser contexts stand in for two devices — separate cookie
+jars, separate IndexedDB. Device A imports and syncs, device B signs into the
+same account and must receive a library it never imported, and a *third*
+account must not see it at all. That last check is the privacy claim, and it is
+RLS's alone, so it is tested rather than trusted.
+
+It creates throwaway accounts. Delete them from Neon Console → Auth when done.
 
 Absent it, the app builds and runs exactly as before, local-only, with the sync
 UI hidden.

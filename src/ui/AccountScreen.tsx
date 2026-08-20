@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import type { User } from '@supabase/supabase-js';
-import { signInWithPassword, signOut, signUp, syncAvailable } from '../model/supabase';
+import { signInWithPassword, signOut, signUp, syncAvailable } from '../model/neon';
+import type { SyncUser } from '../model/neon';
 import type { SyncStatus } from '../useSync';
 
 interface Props {
-  user: User | null;
+  user: SyncUser | null;
   status: SyncStatus;
   onSyncNow: () => void;
+  onAuthChanged: () => void;
   onExit: () => void;
 }
 
@@ -25,7 +26,7 @@ function describe(status: SyncStatus): string {
   }
 }
 
-export function AccountScreen({ user, status, onSyncNow, onExit }: Props) {
+export function AccountScreen({ user, status, onSyncNow, onAuthChanged, onExit }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -46,6 +47,7 @@ export function AccountScreen({ user, status, onSyncNow, onExit }: Props) {
         await signInWithPassword(email.trim(), password);
       }
       setPassword('');
+      onAuthChanged();
     } catch (caught) {
       setError((caught as Error).message);
     } finally {
@@ -66,7 +68,7 @@ export function AccountScreen({ user, status, onSyncNow, onExit }: Props) {
 
       {!syncAvailable && (
         <p className="muted small">
-          Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY at build time to enable it.
+          Set VITE_NEON_BASE_URL at build time to enable it.
         </p>
       )}
 
@@ -123,7 +125,7 @@ export function AccountScreen({ user, status, onSyncNow, onExit }: Props) {
             <button type="button" onClick={onSyncNow} disabled={status.kind === 'syncing'}>
               Sync now
             </button>
-            <button type="button" className="link" onClick={() => void signOut()}>
+            <button type="button" className="link" onClick={() => void signOut().then(onAuthChanged)}>
               Sign out
             </button>
           </div>

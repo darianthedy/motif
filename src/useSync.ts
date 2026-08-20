@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { User } from '@supabase/supabase-js';
 import type { AppState } from './model/state';
-import { currentUser, onAuthChange, syncAvailable, syncOnce } from './model/supabase';
+import { currentUser, syncAvailable, syncOnce } from './model/neon';
+import type { SyncUser } from './model/neon';
 
 export type SyncStatus =
   | { kind: 'off' }
@@ -20,7 +20,7 @@ interface Options {
 }
 
 export function useSync({ state, onMerged }: Options) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SyncUser | null>(null);
   const [status, setStatus] = useState<SyncStatus>(
     syncAvailable ? { kind: 'signedOut' } : { kind: 'off' },
   );
@@ -31,14 +31,21 @@ export function useSync({ state, onMerged }: Options) {
   latest.current = state;
   const running = useRef(false);
 
-  useEffect(() => {
+  // Better Auth's vanilla client exposes no stable subscription, so the
+  // session is read on mount and re-read after a sign-in or sign-out rather
+  // than watched. Polling would be the alternative, and there is nothing to
+  // poll for: the session only changes when this app changes it.
+  const refreshUser = useCallback(async () => {
     if (!syncAvailable) return;
-    void currentUser().then(setUser);
-    return onAuthChange((session) => setUser(session?.user ?? null));
+    setUser(await currentUser());
   }, []);
 
+  useEffect(() => {
+    void refreshUser();
+  }, [refreshUser]);
+
   const run = useCallback(
-    async (who: User) => {
+    async (who: SyncUser) => {
       const current = latest.current;
       if (!current || running.current) return;
       running.current = true;
@@ -89,5 +96,5 @@ export function useSync({ state, onMerged }: Options) {
     if (user) void run(user);
   }, [run, user]);
 
-  return { user, status, syncNow };
+  return { user, status, syncNow, refreshUser };
 }

@@ -41,15 +41,14 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run check:e2e
 
-      # Injected at build time, since Vite inlines them into the bundle. They
-      # live in repo secrets rather than the tree so the key is not scraped off
-      # a public repo and spent against the project's free-tier quota — it is
-      # not a security boundary (RLS is), just quota hygiene. Absent, the build
+      # Injected at build time, since Vite inlines it into the bundle. The
+      # endpoint is public by design — RLS is the security boundary — but it
+      # lives in a repo secret so the project is not trivially scraped off a
+      # public repo and hammered against its free-tier quota. Absent, the build
       # still succeeds and ships a local-only app.
       - run: npm run build
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_NEON_BASE_URL: ${{ secrets.VITE_NEON_BASE_URL }}
 
       - uses: actions/upload-pages-artifact@v5
         with:

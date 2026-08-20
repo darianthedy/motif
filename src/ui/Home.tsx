@@ -3,7 +3,7 @@ import { exportState, parseState } from '../model/storage';
 import { allPuzzles, failedPuzzleIds, statsFor } from '../model/state';
 import type { AppState } from '../model/state';
 import type { Collection } from '../model/puzzle';
-import { syncAvailable } from '../model/supabase';
+import { syncAvailable } from '../model/neon';
 import type { SyncStatus } from '../useSync';
 
 interface Props {

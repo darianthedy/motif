@@ -50,7 +50,7 @@ export function App() {
   const [route, setRoute] = useState<Route>({ name: 'home' });
   // Sync adopts whatever the merge produced; it is a superset of what this
   // device had, so replacing local state with it never loses work.
-  const { user, status, syncNow } = useSync({ state, onMerged: replace });
+  const { user, status, syncNow, refreshUser } = useSync({ state, onMerged: replace });
   const [notice, setNotice] = useState<string | null>(null);
 
   // The store is read asynchronously; rendering an empty library first would
@@ -115,6 +115,7 @@ export function App() {
           user={user}
           status={status}
           onSyncNow={syncNow}
+          onAuthChanged={() => void refreshUser()}
           onExit={() => setRoute({ name: 'home' })}
         />
       </main>

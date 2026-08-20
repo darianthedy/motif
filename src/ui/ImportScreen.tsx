@@ -21,6 +21,29 @@ interface Props {
  */
 function detectAndParse(text: string): { result: ImportResult; format: string } {
   const trimmed = text.trim();
+
+  // A URL that returns a web page — a share page, a login wall, a 404 handler,
+  // an SPA fallback — is the most likely way this goes wrong, and it arrives
+  // with a 200 status. Without this it would be parsed as CSV and reported as
+  // "0 puzzles read", which says nothing about what actually happened.
+  if (trimmed.startsWith('<')) {
+    return {
+      format: 'HTML',
+      result: {
+        groups: [],
+        inserted: [],
+        updated: [],
+        rejected: [
+          {
+            index: -1,
+            reason:
+              'That is a web page, not a puzzle file. If it came from a URL, use the raw or direct-download link.',
+          },
+        ],
+      },
+    };
+  }
+
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
     return { result: importJson(trimmed), format: 'JSON' };
   }
@@ -31,6 +54,9 @@ export function ImportScreen({ state, onApply, onExit }: Props) {
   const [text, setText] = useState('');
   const [name, setName] = useState('');
   const [preview, setPreview] = useState<{ result: ImportResult; format: string } | null>(null);
+  const [url, setUrl] = useState('');
+  const [fetching, setFetching] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const parse = (raw: string) => {
@@ -47,6 +73,33 @@ export function ImportScreen({ state, onApply, onExit }: Props) {
   const onFile = async (file: File | undefined) => {
     if (!file) return;
     parse(await file.text());
+  };
+
+  /**
+   * Fetches a collection from a URL.
+   *
+   * Exists because typing or pasting a quarter of a megabyte of JSON into a
+   * phone is not a workflow. The host must send CORS headers — raw.github,
+   * gists and most static hosts do; a Drive or Dropbox *share page* does not,
+   * so those need their direct-download form.
+   */
+  const fetchUrl = async () => {
+    const target = url.trim();
+    if (!target) return;
+    setFetching(true);
+    setFetchError(null);
+    try {
+      const response = await fetch(target);
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      parse(await response.text());
+    } catch (error) {
+      setFetchError(
+        `${(error as Error).message}. If the host does not allow cross-origin reads, ` +
+          'download the file and use "Choose a file" instead.',
+      );
+    } finally {
+      setFetching(false);
+    }
   };
 
   const result = preview?.result;
@@ -90,6 +143,22 @@ export function ImportScreen({ state, onApply, onExit }: Props) {
         Choose a file
       </button>
 
+      <div className="url-row">
+        <input
+          value={url}
+          onChange={(event) => setUrl(event.target.value)}
+          placeholder="…or paste a URL"
+          inputMode="url"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+        />
+        <button type="button" onClick={() => void fetchUrl()} disabled={!url.trim() || fetching}>
+          {fetching ? 'Fetching…' : 'Fetch'}
+        </button>
+      </div>
+      {fetchError && <p className="bad small">{fetchError}</p>}
+
       <textarea
         value={text}
         onChange={(event) => parse(event.target.value)}
@@ -113,7 +182,10 @@ export function ImportScreen({ state, onApply, onExit }: Props) {
             <ul className="rejects">
               {result.rejected.slice(0, 5).map((reject) => (
                 <li key={`${reject.index}-${reject.reason}`} className="muted small">
-                  row {reject.index + 1}: {reject.reason}
+                  {/* A negative index means the problem is with the file as a
+                      whole, not a row in it. "row 0" would be a lie. */}
+                  {reject.index >= 0 && <>row {reject.index + 1}: </>}
+                  {reject.reason}
                 </li>
               ))}
               {result.rejected.length > 5 && (

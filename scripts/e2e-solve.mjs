@@ -238,6 +238,26 @@ try {
   await page.waitForTimeout(400);
   check('each chapter becomes its own collection',
     (await page.locator('.card').count()) === 3);
+
+  // ---- Import from a URL ----
+  // The dev server serves the repo root, so the sample is fetchable. This
+  // checks the fetch-and-parse path, not the adding — the sample is already in
+  // the library by now, which is why the preview counts rather than inserts.
+  await page.getByRole('button', { name: 'Import puzzles' }).click();
+  await page.locator('.url-row input').fill(`${url}/samples/back-rank.json`);
+  await page.getByRole('button', { name: 'Fetch' }).click();
+  await page.waitForTimeout(600);
+  check('fetching a collection from a URL parses it',
+    await page.getByRole('button', { name: /Add 3 puzzles/ }).isVisible());
+
+  await page.locator('.url-row input').fill(`${url}/does-not-exist.json`);
+  await page.getByRole('button', { name: 'Fetch' }).click();
+  await page.waitForTimeout(600);
+  // The dev server answers unknown paths with the SPA shell, status 200 —
+  // the same shape as a share page or a login wall.
+  const rejects = (await page.locator('.rejects').textContent().catch(() => '')) ?? '';
+  check(`a URL returning a web page says so (${rejects.trim().slice(0, 40)}…)`,
+    /web page, not a puzzle file/.test(rejects));
 } catch (error) {
   console.log(`FAIL  threw: ${error.message}`);
   failures.push('exception');

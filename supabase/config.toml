@@ -1,8 +1,0 @@
-# Motif's backend is one table and Supabase Auth — no Edge Functions.
-#
-# Unlike battery-monitor, which locks its table down and reaches it only via
-# service_role inside functions, this app has a real signed-in user. So the
-# browser talks to PostgREST directly with the anon key, and RLS does the
-# enforcing. That is what the anon key is for; it is safe to ship in the bundle
-# precisely because every policy is scoped to auth.uid().
-project_id = "motif"

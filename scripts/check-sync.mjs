@@ -45,6 +45,10 @@ async function device(name) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   page.on('pageerror', (e) => console.log(`  [${name}] page error: ${e.message}`));
+  page.libraryCalls = 0;
+  page.on('request', (r) => {
+    if (r.url().includes('/rest/v1/libraries')) page.libraryCalls++;
+  });
   await page.goto(url);
   await page.waitForTimeout(400);
   return { context, page };
@@ -100,6 +104,16 @@ try {
     console.log('  device B home:', ((await b.page.locator('.screen').textContent()) ?? '').replace(/\s+/g, ' ').slice(0, 200));
   }
   await b.page.screenshot({ path: '/tmp/motif-sync-b.png' });
+
+  // ---- Idle must be silent ----
+  // Adopting the merge unconditionally once changed state identity on every
+  // sync, which retriggered the push effect and synced again four seconds
+  // later, forever. Nothing in the feature's behaviour looked wrong; it just
+  // talked to the database until someone opened devtools.
+  a.page.libraryCalls = 0;
+  await a.page.waitForTimeout(15000);
+  check(`an idle signed-in tab stops talking to the database (${a.page.libraryCalls} requests in 15s)`,
+    a.page.libraryCalls === 0);
 
   // ---- Device C: a different account must see nothing ----
   // The privacy claim is RLS's alone, so it gets tested rather than trusted.

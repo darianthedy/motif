@@ -13,6 +13,16 @@ export type SyncStatus =
 /** Quiet period after a change before pushing, so a session is not a write per move. */
 const PUSH_DEBOUNCE_MS = 4000;
 
+/**
+ * Floor on the gap between syncs.
+ *
+ * A backstop, not the mechanism: the loop below is broken by not scheduling
+ * pointless work, and this only bounds the damage if some future edit
+ * reintroduces a cycle. Without it, a feedback loop is invisible locally and
+ * shows up as a quota bill.
+ */
+const MIN_SYNC_INTERVAL_MS = 10_000;
+
 interface Options {
   state: AppState | null;
   /** Adopt the merged library returned by the server. */
@@ -25,6 +35,15 @@ export function useSync({ state, onMerged }: Options) {
     syncAvailable ? { kind: 'signedOut' } : { kind: 'off' },
   );
   const timer = useRef<number | undefined>(undefined);
+  /**
+   * The library as it stood after the last completed sync.
+   *
+   * Compared by reference, which is exactly right for an immutable state that
+   * is replaced wholesale: a genuine edit produces a new object, and a sync
+   * that changed nothing leaves this pointing at the same one.
+   */
+  const synced = useRef<AppState | null>(null);
+  const lastRunAt = useRef(0);
   // Read inside the debounced callback so it always pushes the latest library
   // rather than whatever it was when the timer was set.
   const latest = useRef(state);
@@ -45,14 +64,28 @@ export function useSync({ state, onMerged }: Options) {
   }, [refreshUser]);
 
   const run = useCallback(
-    async (who: SyncUser) => {
+    async (who: SyncUser, force = false) => {
       const current = latest.current;
       if (!current || running.current) return;
+      if (!force && Date.now() - lastRunAt.current < MIN_SYNC_INTERVAL_MS) return;
+
       running.current = true;
+      lastRunAt.current = Date.now();
       setStatus({ kind: 'syncing' });
       try {
         const { state: merged } = await syncOnce(who.id, current);
-        onMerged(merged);
+
+        // Adopt the merge only when it actually differs. `mergeStates` always
+        // returns a fresh object, so handing it over unconditionally would
+        // change state identity, retrigger the push effect, and sync again in
+        // four seconds — forever. That loop shipped, and idled at ten requests
+        // every twenty seconds.
+        if (JSON.stringify(merged) === JSON.stringify(current)) {
+          synced.current = current;
+        } else {
+          synced.current = merged;
+          onMerged(merged);
+        }
         setStatus({ kind: 'idle', at: Date.now() });
       } catch (error) {
         setStatus({ kind: 'error', message: (error as Error).message });
@@ -70,12 +103,15 @@ export function useSync({ state, onMerged }: Options) {
       setStatus(syncAvailable ? { kind: 'signedOut' } : { kind: 'off' });
       return;
     }
-    void run(user);
+    // Forced: signing in is the moment a new device has nothing and the remote
+    // has everything, so it must not be swallowed by the rate limit.
+    void run(user, true);
   }, [run, user]);
 
-  // Push changes, debounced.
+  // Push changes, debounced. Nothing to push when the library has not moved
+  // since the last sync, which is what stops the feedback loop at its source.
   useEffect(() => {
-    if (!user || !state) return;
+    if (!user || !state || state === synced.current) return;
     clearTimeout(timer.current);
     timer.current = window.setTimeout(() => void run(user), PUSH_DEBOUNCE_MS);
     return () => clearTimeout(timer.current);
@@ -86,14 +122,20 @@ export function useSync({ state, onMerged }: Options) {
   useEffect(() => {
     if (!user) return;
     const flush = () => {
-      if (document.visibilityState === 'hidden') void run(user);
+      // Forced: a backgrounded tab may never get another chance, and the point
+      // of flushing is to not lose the session.
+      if (document.visibilityState === 'hidden' && latest.current !== synced.current) {
+        void run(user, true);
+      }
     };
     document.addEventListener('visibilitychange', flush);
     return () => document.removeEventListener('visibilitychange', flush);
   }, [run, user]);
 
+  // Explicit: the user asked, so neither the rate limit nor "nothing changed"
+  // should make the button do nothing.
   const syncNow = useCallback(() => {
-    if (user) void run(user);
+    if (user) void run(user, true);
   }, [run, user]);
 
   return { user, status, syncNow, refreshUser };

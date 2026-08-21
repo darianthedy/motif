@@ -258,6 +258,63 @@ try {
   check(`a skip records neither a solve nor a miss (${chapterCard.replace(/\s+/g, ' ').trim()})`,
     /0 solved/.test(chapterCard) && !/to review/.test(chapterCard));
 
+  // ---- Puzzle detail ----
+  // The one screen that shows a solution deliberately, and the only way to
+  // correct a library built from OCR.
+  await page.getByText('Back-rank mates').click();
+  await page.getByRole('button', { name: 'Browse puzzles' }).click();
+  await page.waitForTimeout(400);
+  const rows = await page.locator('.puzzle-row').count();
+  check(`browsing lists the collection's puzzles (${rows})`, rows === 3);
+
+  await page.getByRole('button', { name: 'to review' }).first().click();
+  await page.waitForTimeout(300);
+  check('filtering narrows the list',
+    (await page.locator('.puzzle-row').count()) < rows);
+  await page.getByRole('button', { name: 'All' }).click();
+  await page.waitForTimeout(200);
+
+  await page.locator('.puzzle-row').first().click();
+  await page.waitForSelector('.facts');
+  await page.waitForTimeout(300);
+  check('the detail view shows the solution in SAN',
+    (await page.locator('.move').first().textContent()) === 'Ra8#');
+  check('and the board renders the position',
+    (await page.locator('[data-square]').count()) === 64);
+  if (SHOTS) await page.screenshot({ path: '/tmp/motif-detail.png' });
+
+  // Stepping through must actually change the position.
+  const beforeStep = await page.locator('[data-square="a1"]').innerHTML();
+  await page.locator('.move').first().click();
+  await page.waitForTimeout(400);
+  check('stepping to a move updates the board',
+    (await page.locator('[data-square="a1"]').innerHTML()) !== beforeStep);
+
+  // Editing a comment, then confirming it survives a round trip to storage.
+  await page.locator('textarea').fill('Deflection, not a pin');
+  await page.getByRole('button', { name: 'Save comment' }).click();
+  await page.waitForTimeout(500);
+  await page.reload();
+  await page.waitForTimeout(900);
+  await page.getByText('Back-rank mates').click();
+  await page.getByRole('button', { name: 'Browse puzzles' }).click();
+  await page.waitForTimeout(300);
+  await page.locator('.puzzle-row').first().click();
+  await page.waitForSelector('.facts');
+  check('an edited comment persists',
+    (await page.locator('textarea').inputValue()) === 'Deflection, not a pin');
+
+  // Deleting removes it from the collection.
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: 'Delete puzzle' }).click();
+  await page.waitForTimeout(600);
+  check(`deleting removes the puzzle (${rows} to ${await page.locator('.puzzle-row').count()})`,
+    (await page.locator('.puzzle-row').count()) === rows - 1);
+  await page.getByRole('button', { name: /← Back-rank mates/ }).click();
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: '← Collections' }).click();
+  await page.waitForTimeout(400);
+
   // ---- Import from a URL ----
   // The dev server serves the repo root, so the sample is fetchable. This
   // checks the fetch-and-parse path, not the adding — the sample is already in

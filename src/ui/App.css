@@ -258,3 +258,104 @@ button:disabled {
 .url-row button {
   white-space: nowrap;
 }
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.8rem 0;
+}
+
+.chip {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+  border-radius: 999px;
+  background: #24252c;
+  color: var(--muted);
+}
+
+.chip[data-active] {
+  background: #3a4a2f;
+  color: #b6d99a;
+}
+
+.puzzle-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.puzzle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  text-align: left;
+  background: #21222a;
+  padding: 0.55rem 0.8rem;
+}
+
+.index {
+  min-width: 2.2rem;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+}
+
+.row-main { flex: 1; font-size: 0.9rem; }
+
+.status {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #2c2d35;
+  color: var(--muted);
+}
+
+.status[data-status='solved'] { background: #2a3a22; color: #b6d99a; }
+.status[data-status='failed'] { background: #402a28; color: #e2a49e; }
+
+.replay {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.7rem;
+}
+
+.moves {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.move {
+  padding: 0.2rem 0.45rem;
+  font-size: 0.85rem;
+  background: #24252c;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.move[data-solver] { color: var(--fg); }
+.move[data-current] { background: #3a4a2f; color: #b6d99a; }
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.8rem;
+  margin: 1rem 0 0;
+  font-size: 0.85rem;
+}
+
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; }
+
+.fen {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  word-break: break-all;
+  color: var(--muted);
+}

@@ -188,3 +188,36 @@ export function firstIllegalMove(
 export function setupMoveIsLegal(fen: string, setupMove: Uci | undefined): boolean {
   return !setupMove || applyUci(fen, setupMove) !== null;
 }
+
+export interface ReplayStep {
+  /** SAN for display, e.g. `Ra8#`. */
+  san: string;
+  /** UCI, for highlighting the squares. */
+  move: Uci;
+  /** Position after the move. */
+  fen: string;
+  /** True when this ply belongs to the solver rather than the opponent. */
+  bySolver: boolean;
+}
+
+/**
+ * Expands a solution line into positions and SAN, for browsing a puzzle.
+ *
+ * Stops at the first move that will not play rather than throwing, so a
+ * detail view can still render — and show how far it got — for a puzzle that
+ * predates the import-time legality check.
+ */
+export function replayLine(fen: string, setupMove: Uci | undefined, line: Uci[]): ReplayStep[] {
+  const steps: ReplayStep[] = [];
+  let position = startingFen(fen, setupMove);
+
+  for (let ply = 0; ply < line.length; ply++) {
+    const move = line[ply];
+    const san = sanFor(position, move);
+    const next = san ? applyUci(position, move) : null;
+    if (!san || !next) break;
+    steps.push({ san, move, fen: next, bySolver: ply % 2 === 0 });
+    position = next;
+  }
+  return steps;
+}

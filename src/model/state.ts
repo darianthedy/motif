@@ -2,7 +2,7 @@ import type { ImportResult } from './import/json';
 import { contentKey, newProgress } from './puzzle';
 import type { Collection, Progress, Puzzle } from './puzzle';
 import type { PuzzleResult } from './runner';
-import { RECENT_MEMORY } from './session';
+import { RECENT_MEMORY, reconcile } from './session';
 import type { SessionState } from './session';
 
 /** Key used for the library-wide session, which belongs to no collection. */
@@ -233,5 +233,61 @@ export function deleteCollection(state: AppState, id: string): AppState {
     progress,
     sessions,
     recent: state.recent.filter((puzzleId) => stillReferenced.has(puzzleId)),
+  };
+}
+
+/** Replaces a puzzle's comment. Empty text clears it rather than storing "". */
+export function setPuzzleComment(state: AppState, puzzleId: string, comment: string): AppState {
+  const puzzle = state.puzzles[puzzleId];
+  if (!puzzle) return state;
+  const trimmed = comment.trim();
+  return {
+    ...state,
+    puzzles: {
+      ...state.puzzles,
+      [puzzleId]: { ...puzzle, comment: trimmed || undefined },
+    },
+  };
+}
+
+/**
+ * Removes one puzzle from the library entirely.
+ *
+ * Everything that referenced it has to be cleaned up together — collection
+ * membership, progress, recency, and any live session — or a resumed session
+ * points at a puzzle that no longer exists. Sessions go through `reconcile`
+ * rather than being filtered by hand, so deletion and a collection edited on
+ * another device take exactly the same path.
+ */
+export function deletePuzzle(state: AppState, puzzleId: string): AppState {
+  if (!state.puzzles[puzzleId]) return state;
+
+  const puzzles = { ...state.puzzles };
+  delete puzzles[puzzleId];
+
+  const progress = { ...state.progress };
+  delete progress[puzzleId];
+
+  const collections = state.collections.map((collection) => ({
+    ...collection,
+    puzzleIds: collection.puzzleIds.filter((id) => id !== puzzleId),
+  }));
+
+  const alive = new Set(Object.keys(puzzles));
+  const sessions: Record<string, SessionState> = {};
+  for (const [key, session] of Object.entries(state.sessions)) {
+    const trimmed = reconcile(session, alive);
+    // A session with nothing left to serve is over; keeping it would show a
+    // "Resume" button that opens an empty screen.
+    if (trimmed.queue.length) sessions[key] = trimmed;
+  }
+
+  return {
+    ...state,
+    puzzles,
+    collections,
+    progress,
+    sessions,
+    recent: state.recent.filter((id) => id !== puzzleId),
   };
 }

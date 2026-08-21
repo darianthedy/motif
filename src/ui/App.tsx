@@ -8,10 +8,12 @@ import {
   allPuzzles,
   clearSession,
   deleteCollection,
+  deletePuzzle,
   failedPuzzleIds,
   puzzlesIn,
   recordResult,
   saveSession,
+  setPuzzleComment,
 } from '../model/state';
 import type { AppState } from '../model/state';
 import { useAppState } from '../useAppState';
@@ -20,6 +22,8 @@ import { AccountScreen } from './AccountScreen';
 import { CollectionView } from './CollectionView';
 import { Home } from './Home';
 import { ImportScreen } from './ImportScreen';
+import { PuzzleDetailScreen } from './PuzzleDetailScreen';
+import { PuzzleListScreen } from './PuzzleListScreen';
 import { SessionScreen } from './SessionScreen';
 import './App.css';
 
@@ -43,6 +47,8 @@ type Route =
   | { name: 'collection'; id: string }
   | { name: 'import' }
   | { name: 'account' }
+  | { name: 'puzzles'; collectionId: string }
+  | { name: 'puzzle'; collectionId: string; puzzleId: string }
   | { name: 'session'; key: string };
 
 export function App() {
@@ -138,6 +144,50 @@ export function App() {
     );
   }
 
+  if (route.name === 'puzzle') {
+    const puzzle = state.puzzles[route.puzzleId];
+    if (!puzzle) {
+      setRoute({ name: 'puzzles', collectionId: route.collectionId });
+      return <main className="app" />;
+    }
+    return (
+      <main className="app">
+        <PuzzleDetailScreen
+          state={state}
+          puzzle={puzzle}
+          onSaveComment={(comment) =>
+            update((current) => setPuzzleComment(current, puzzle.id, comment))
+          }
+          onDelete={() => {
+            update((current) => deletePuzzle(current, puzzle.id));
+            setRoute({ name: 'puzzles', collectionId: route.collectionId });
+          }}
+          onExit={() => setRoute({ name: 'puzzles', collectionId: route.collectionId })}
+        />
+      </main>
+    );
+  }
+
+  if (route.name === 'puzzles') {
+    const collection = collectionOf(route.collectionId);
+    if (!collection) {
+      setRoute({ name: 'home' });
+      return <main className="app" />;
+    }
+    return (
+      <main className="app">
+        <PuzzleListScreen
+          state={state}
+          collection={collection}
+          onOpen={(puzzle) =>
+            setRoute({ name: 'puzzle', collectionId: collection.id, puzzleId: puzzle.id })
+          }
+          onExit={() => setRoute({ name: 'collection', id: collection.id })}
+        />
+      </main>
+    );
+  }
+
   if (route.name === 'collection') {
     const collection = collectionOf(route.id);
     if (!collection) {
@@ -150,6 +200,7 @@ export function App() {
           state={state}
           collection={collection}
           onStart={(mode) => begin(collection.id, mode, collection)}
+          onBrowse={() => setRoute({ name: 'puzzles', collectionId: collection.id })}
           onResume={() => setRoute({ name: 'session', key: collection.id })}
           onDiscardSession={() => update((current) => clearSession(current, collection.id))}
           onDelete={() => {

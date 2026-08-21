@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
+import { replayLine } from './board';
 import { importJson } from './import/json';
+import { uci } from './move';
+import { startSession } from './session';
 import { contentKey } from './puzzle';
 import {
   applyImport,
   deleteCollection,
+  deletePuzzle,
   emptyState,
   failedPuzzleIds,
   recordResult,
+  saveSession,
+  setPuzzleComment,
   statsFor,
   statusOf,
 } from './state';
@@ -247,5 +253,76 @@ describe('importing a multi-chapter file', () => {
     expect(second.refreshed).toBe(2);
     expect(second.state.collections).toHaveLength(2);
     expect(Object.keys(second.state.puzzles)).toHaveLength(2);
+  });
+});
+
+describe('editing and deleting a single puzzle', () => {
+  it('sets and clears a comment', () => {
+    let state = seeded();
+    const id = state.collections[0].puzzleIds[0];
+
+    state = setPuzzleComment(state, id, '  Deflection, not a pin  ');
+    expect(state.puzzles[id].comment, 'trimmed').toBe('Deflection, not a pin');
+
+    state = setPuzzleComment(state, id, '   ');
+    expect(state.puzzles[id].comment, 'blank clears rather than storing ""').toBeUndefined();
+  });
+
+  it('removes the puzzle, its membership and its progress', () => {
+    let state = seeded();
+    const [doomed, kept] = state.collections[0].puzzleIds;
+    state = recordResult(state, doomed, 'failed', 2);
+
+    state = deletePuzzle(state, doomed);
+    expect(state.puzzles[doomed]).toBeUndefined();
+    expect(state.puzzles[kept], 'the other puzzle survives').toBeDefined();
+    expect(state.collections[0].puzzleIds).toEqual([kept]);
+    expect(state.progress[doomed]).toBeUndefined();
+    expect(state.recent).not.toContain(doomed);
+  });
+
+  it('keeps a live session pointing at something that exists', () => {
+    let state = seeded();
+    const [first, second] = state.collections[0].puzzleIds;
+    const session = startSession('ordered', 'c1', [first, second], () => 0.5);
+    state = saveSession(state, 'c1', session);
+    expect(state.sessions['c1'].current).toBe(first);
+
+    state = deletePuzzle(state, first);
+    expect(state.sessions['c1'].current, 'moves on rather than dangling').toBe(second);
+    expect(state.sessions['c1'].queue).toEqual([second]);
+  });
+
+  it('drops a session left with nothing to serve', () => {
+    let state = seeded();
+    const [first, second] = state.collections[0].puzzleIds;
+    state = saveSession(state, 'c1', startSession('ordered', 'c1', [first], () => 0.5));
+
+    state = deletePuzzle(state, first);
+    expect(state.sessions['c1'], 'no Resume button onto an empty screen').toBeUndefined();
+    expect(state.puzzles[second]).toBeDefined();
+  });
+
+  it('ignores a puzzle that is not there', () => {
+    const state = seeded();
+    expect(deletePuzzle(state, 'ghost')).toBe(state);
+  });
+});
+
+describe('replaying a solution for display', () => {
+  it('expands a line into SAN and positions', () => {
+    const steps = replayLine('1r1k4/2R4R/8/8/8/6pP/PPP4q/K1B5 w - - 0 1', undefined, [
+      uci('c1g5'),
+      uci('d8e8'),
+      uci('h7h8'),
+    ]);
+    expect(steps.map((s) => s.san)).toEqual(['Bg5+', 'Ke8', 'Rh8#']);
+    expect(steps.map((s) => s.bySolver)).toEqual([true, false, true]);
+  });
+
+  it('stops at the first unplayable move rather than throwing', () => {
+    const steps = replayLine(MATE_FEN, undefined, [uci('a1a8'), uci('a1a7')]);
+    expect(steps).toHaveLength(1);
+    expect(steps[0].san).toBe('Ra8#');
   });
 });

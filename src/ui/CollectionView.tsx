@@ -8,6 +8,7 @@ interface Props {
   state: AppState;
   collection: Collection;
   onStart: (mode: SessionMode) => void;
+  onBrowse: () => void;
   onResume: () => void;
   onDiscardSession: () => void;
   onDelete: () => void;
@@ -18,6 +19,7 @@ export function CollectionView({
   state,
   collection,
   onStart,
+  onBrowse,
   onResume,
   onDiscardSession,
   onDelete,
@@ -66,6 +68,12 @@ export function CollectionView({
           disabled={stats.total === 0}
         >
           Solve shuffled
+        </button>
+      </div>
+
+      <div className="menu">
+        <button type="button" onClick={onBrowse} disabled={stats.total === 0}>
+          Browse puzzles
         </button>
       </div>
 

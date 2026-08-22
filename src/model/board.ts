@@ -1,7 +1,7 @@
 import { Chess } from 'chess.js';
 import { makeMove, moveFrom, moveTo, movePromotion, parseUci } from './move';
 import type { PromotionPiece, Uci } from './move';
-import type { Side } from './puzzle';
+import type { PieceType, Placement, Side } from './puzzle';
 
 /**
  * The only file that knows chess rules.
@@ -13,7 +13,7 @@ import type { Side } from './puzzle';
  * nothing else in the app should import chess.js.
  */
 
-export type PieceType = 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
+export type { PieceType };
 
 export interface Piece {
   square: string;
@@ -187,6 +187,81 @@ export function firstIllegalMove(
 /** Whether a setup move can actually be played into the stored position. */
 export function setupMoveIsLegal(fen: string, setupMove: Uci | undefined): boolean {
   return !setupMove || applyUci(fen, setupMove) !== null;
+}
+
+export function pieceAt(fen: string, square: string): Piece | null {
+  try {
+    const found = new Chess(fen).get(square as never);
+    return found ? { square, type: found.type, color: found.color } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The position with a piece added, or null if it cannot be added there.
+ *
+ * The mirror of `applyUci` for the missing-piece kind, and null for the same
+ * undramatic reasons: a tap on an occupied square is an ordinary mis-hit, not
+ * an error worth throwing over.
+ */
+export function withPiece(fen: string, placement: Placement): string | null {
+  const rank = placement.square[1];
+  // A pawn on the first or last rank is not a position chess.js will refuse to
+  // hold, but it is not a position either.
+  if (placement.type === 'p' && (rank === '1' || rank === '8')) return null;
+
+  try {
+    const chess = new Chess(fen);
+    // Adding onto an occupied square would silently replace the piece standing
+    // there, which is a different puzzle than the one that was authored.
+    if (chess.get(placement.square as never)) return null;
+    if (!chess.put({ type: placement.type, color: placement.color }, placement.square as never)) {
+      return null;
+    }
+    const next = chess.fen();
+    // `put` will build a position it cannot then load — a second king, a side
+    // already to move while the other is in check. Loading it is the check.
+    new Chess(next);
+    return next;
+  } catch {
+    return null;
+  }
+}
+
+/** Squares with nothing on them: the only ones a piece can be added to. */
+export function emptySquares(fen: string): string[] {
+  try {
+    const chess = new Chess(fen);
+    return SQUARES.filter((square) => !chess.get(square as never));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Every piece and square that would checkmate the side to move.
+ *
+ * Used to audit an authored missing-piece puzzle: the answer is one placement,
+ * so a position where two different pieces both mate has more than one right
+ * answer and will mark a correct one wrong. Kings are not candidates.
+ */
+export function matingPlacements(fen: string, color: Side): Placement[] {
+  const types: PieceType[] = ['q', 'r', 'b', 'n', 'p'];
+  const found: Placement[] = [];
+  for (const square of emptySquares(fen)) {
+    for (const type of types) {
+      const placement: Placement = { color, type, square };
+      const next = withPiece(fen, placement);
+      if (!next) continue;
+      try {
+        if (new Chess(next).isCheckmate()) found.push(placement);
+      } catch {
+        // Not a position that loads; not a candidate.
+      }
+    }
+  }
+  return found;
 }
 
 export interface ReplayStep {

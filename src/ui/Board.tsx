@@ -5,7 +5,7 @@ import type { PieceDropHandlerArgs, SquareHandlerArgs } from 'react-chessboard';
 import { needsPromotion, targetsFrom, turnOf } from '../model/board';
 import { makeMove } from '../model/move';
 import type { PromotionPiece, Uci } from '../model/move';
-import type { Side } from '../model/puzzle';
+import type { PieceType, Side } from '../model/puzzle';
 import './Board.css';
 
 /**
@@ -44,18 +44,43 @@ const CAPTURE_RING_STYLE: React.CSSProperties = {
 
 const PROMOTION_CHOICES: PromotionPiece[] = ['q', 'r', 'b', 'n'];
 
-const PROMOTION_GLYPH: Record<PromotionPiece, string> = {
+/**
+ * A pawn is offered when adding a piece but not when promoting, which is the
+ * only difference between the two pickers — promoting to a pawn is not a move,
+ * whereas the missing piece is a pawn often enough to matter. A king is never
+ * offered: there is already one of those.
+ */
+const PLACEMENT_CHOICES: PieceType[] = ['q', 'r', 'b', 'n', 'p'];
+
+const PIECE_NAME: Record<PieceType, string> = {
   q: 'Queen',
   r: 'Rook',
   b: 'Bishop',
   n: 'Knight',
+  p: 'Pawn',
+  k: 'King',
 };
+
+/**
+ * What the picker is currently asking about: which piece a pawn becomes, or
+ * which piece belongs on an empty square. Both are the same interaction — a
+ * square is chosen, then the piece — so they are the same component and the
+ * same "cancelling costs nothing" rule.
+ */
+type Pending =
+  | { kind: 'promotion'; from: string; to: string }
+  | { kind: 'placement'; square: string };
 
 export interface BoardProps {
   fen: string;
   orientation: Side;
   /** Called only with moves already verified legal against `fen`. */
   onMove: (move: Uci) => void;
+  /**
+   * Turns the board into a placement board: taps choose an empty square and
+   * then a piece, and nothing can be moved. This is the missing-piece kind.
+   */
+  placing?: { color: Side; onPlace: (square: string, type: PieceType) => void } | null;
   /** Squares to mark, e.g. a revealed hint or the move just played. */
   highlight?: { from: string; to: string } | null;
   /** Changing this value replays the "wrong move" shake. */
@@ -67,12 +92,13 @@ export function Board({
   fen,
   orientation,
   onMove,
+  placing,
   highlight,
   shakeKey,
   interactive = true,
 }: BoardProps) {
   const [selected, setSelected] = useState<string | null>(null);
-  const [pending, setPending] = useState<{ from: string; to: string } | null>(null);
+  const [pending, setPending] = useState<Pending | null>(null);
 
   const turn = turnOf(fen);
   const targets = useMemo(
@@ -96,20 +122,20 @@ export function Board({
    */
   const play = useCallback(
     (from: string, to: string): boolean => {
-      if (!interactive) return false;
+      if (!interactive || placing) return false;
       if (!targetsFrom(fen, from).has(to)) return false;
 
       setSelected(null);
       if (needsPromotion(fen, from, to)) {
         // Held rather than played: the picker decides which piece, and
         // cancelling it is the same as never having moved.
-        setPending({ from, to });
+        setPending({ kind: 'promotion', from, to });
         return false;
       }
       onMove(makeMove(from, to));
       return true;
     },
-    [fen, interactive, onMove],
+    [fen, interactive, onMove, placing],
   );
 
   const onPieceDrop = useCallback(
@@ -127,6 +153,16 @@ export function Board({
   const onSquareClick = useCallback(
     ({ piece, square }: SquareHandlerArgs) => {
       if (!interactive) return;
+
+      if (placing) {
+        // Only empty squares can take a piece. Tapping an occupied one is the
+        // placement board's version of a mis-drag: nothing happens, and nothing
+        // is counted against you.
+        if (piece) return;
+        setPending({ kind: 'placement', square });
+        return;
+      }
+
       const isOwnPiece = piece ? piece.pieceType[0] === turn : false;
 
       if (!selected) {
@@ -145,7 +181,7 @@ export function Board({
       // a move to an illegal square.
       setSelected(isOwnPiece ? square : null);
     },
-    [interactive, play, selected, targets, turn],
+    [interactive, placing, play, selected, targets, turn],
   );
 
   const squareStyles = useMemo(() => {
@@ -153,6 +189,11 @@ export function Board({
     if (highlight) {
       styles[highlight.from] = { ...HIGHLIGHT_STYLE };
       styles[highlight.to] = { ...HIGHLIGHT_STYLE };
+    }
+    // The square being asked about stays lit under the picker, so the choice
+    // is visibly about somewhere in particular.
+    if (pending?.kind === 'placement') {
+      styles[pending.square] = { ...styles[pending.square], ...SELECTED_STYLE };
     }
     if (selected) {
       styles[selected] = { ...styles[selected], ...SELECTED_STYLE };
@@ -164,14 +205,19 @@ export function Board({
       }
     }
     return styles;
-  }, [highlight, selected, targets]);
+  }, [highlight, pending, selected, targets]);
 
-  const choosePromotion = (piece: PromotionPiece) => {
+  const choose = (piece: PieceType) => {
     if (!pending) return;
-    const { from, to } = pending;
     setPending(null);
-    onMove(makeMove(from, to, piece));
+    if (pending.kind === 'promotion') {
+      onMove(makeMove(pending.from, pending.to, piece as PromotionPiece));
+    } else {
+      placing?.onPlace(pending.square, piece);
+    }
   };
+
+  const choices = pending?.kind === 'placement' ? PLACEMENT_CHOICES : PROMOTION_CHOICES;
 
   return (
     <div className="board-wrap" data-shake={shakeKey || undefined} key={shakeKey}>
@@ -183,18 +229,22 @@ export function Board({
           onSquareClick,
           squareStyles,
           boardOrientation: orientation === 'w' ? 'white' : 'black',
-          allowDragging: interactive,
+          // Nothing on a placement board is draggable: the pieces already there
+          // are the puzzle, not the answer.
+          allowDragging: interactive && !placing,
           animationDurationInMs: 150,
         }}
       />
 
       {pending && (
-        <div className="promotion-backdrop" onClick={() => setPending(null)}>
-          <div className="promotion" onClick={(event) => event.stopPropagation()}>
-            <p className="promotion-title">Promote to</p>
-            {PROMOTION_CHOICES.map((choice) => (
-              <button key={choice} type="button" onClick={() => choosePromotion(choice)}>
-                {PROMOTION_GLYPH[choice]}
+        <div className="picker-backdrop" onClick={() => setPending(null)}>
+          <div className="picker" onClick={(event) => event.stopPropagation()}>
+            <p className="picker-title">
+              {pending.kind === 'promotion' ? 'Promote to' : `Add on ${pending.square}`}
+            </p>
+            {choices.map((choice) => (
+              <button key={choice} type="button" onClick={() => choose(choice)}>
+                {PIECE_NAME[choice]}
               </button>
             ))}
             <button type="button" className="link" onClick={() => setPending(null)}>

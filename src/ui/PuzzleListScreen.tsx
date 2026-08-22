@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { solverSide } from '../model/puzzle';
+import { isMissingPiece, solverSide } from '../model/puzzle';
 import type { Collection, Puzzle, PuzzleStatus } from '../model/puzzle';
 import { puzzlesIn, statusOf } from '../model/state';
 import type { AppState } from '../model/state';
@@ -72,7 +72,11 @@ export function PuzzleListScreen({ state, collection, onOpen, onExit }: Props) {
                 <button type="button" className="puzzle-row" onClick={() => onOpen(puzzle)}>
                   <span className="muted index">{index}</span>
                   <span className="row-main">
-                    {puzzle.sourceId ? `#${puzzle.sourceId}` : `${solverSide(puzzle) === 'w' ? 'White' : 'Black'} to play`}
+                    {puzzle.sourceId
+                      ? `#${puzzle.sourceId}`
+                      : isMissingPiece(puzzle)
+                        ? `${solverSide(puzzle) === 'w' ? 'White' : 'Black'} piece missing`
+                        : `${solverSide(puzzle) === 'w' ? 'White' : 'Black'} to play`}
                   </span>
                   <span className="status" data-status={status}>
                     {STATUS_LABEL[status]}

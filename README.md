@@ -46,6 +46,15 @@ sharing a prefix merge into shared nodes, so a puzzle where two moves both win �
 or where the winning line branches at move three — needs no special casing. Each
 edge carries the opponent's scripted reply, so divergent lines answer correctly.
 
+**Where a line stops.** A solution may end on either side's move. Odd length
+ends on yours. Even length ends on the opponent's forced reply — you play the
+key move, the answer is played for you, and the puzzle stops there. That is how
+you author "and now he *must* take, which is the whole point" without demanding
+a follow-up move that isn't the idea. The reply animates first and the result
+card comes up after it, so the last move is something you watch rather than
+something the card tells you about. Everything downstream is unchanged: comment,
+motif, every accepted line, and Continue when you're ready.
+
 **Failing.** Any legal move that is not an accepted continuation marks the run
 failed, permanently, even if everything after it is right. `mistakes` never
 resets. Re-solving cleanly later flips the stored status to solved while keeping

@@ -294,6 +294,61 @@ try {
   await page.getByRole('button', { name: 'Done' }).click();
   await page.waitForTimeout(400);
 
+  // ---- A line that ends on the opponent's move ----
+  // Rd8+ and the king has exactly one square. The idea is the check and the box
+  // it puts the king in, so the line is authored to stop after the forced reply
+  // rather than demand a follow-up move that isn't the point.
+  //
+  // The claim only a browser can settle is the ordering. The runner reports the
+  // reply and "finished" in the same breath, and a caller that reads either one
+  // as the end of the story gets it wrong in a different way: honour the reply
+  // and the puzzle never resolves, honour finished and the card is up before
+  // the move it is talking about has been played. So: card absent immediately,
+  // king on g7 and card present once the reply has landed.
+  const endsOnReply = JSON.stringify({
+    collection: 'Forced reply',
+    puzzles: [
+      {
+        fen: '6k1/5p1p/8/8/8/8/8/3R2K1 w - - 0 1',
+        solutions: [['d1d8', 'g8g7']],
+        comment: 'Only square.',
+      },
+    ],
+  });
+  await page.getByRole('button', { name: 'Import puzzles' }).click();
+  await page.locator('textarea').fill(endsOnReply);
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: /Add 1 puzzle/ }).click();
+  await page.waitForTimeout(400);
+  await page.getByText('Forced reply').click();
+  await page.getByRole('button', { name: 'Solve in order' }).click();
+  await page.waitForSelector('[data-square="d1"]');
+  await page.waitForTimeout(300);
+
+  await drag(page, 'd1', 'd8');
+  check('the puzzle does not resolve before the opponent has answered',
+    !(await page.locator('.result').isVisible().catch(() => false)));
+
+  await page.waitForTimeout(700);
+  check('the scripted reply is played for you',
+    (await page.locator('[data-square="g7"] svg').count()) === 1 &&
+      (await page.locator('[data-square="g8"] svg').count()) === 0);
+  check('and only then does the puzzle end, cleanly',
+    await page.locator('.result .good').isVisible().catch(() => false));
+  check('the comment it withheld appears as on any other puzzle',
+    Boolean(await page.locator('.comment').textContent().catch(() => '')));
+  const replyLine = (await page.locator('.solution').first().textContent()) ?? '';
+  check(`and the line is shown through the reply (${replyLine.replace(/\s+/g, ' ').trim()})`,
+    /Rd8\+/.test(replyLine) && /Kg7/.test(replyLine));
+  if (SHOTS) await page.screenshot({ path: '/tmp/motif-ends-on-reply.png' });
+
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.waitForTimeout(400);
+  check('and Continue moves on exactly as it does elsewhere',
+    await page.getByText('Session complete').isVisible().catch(() => false));
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.waitForTimeout(400);
+
   // ---- Missing piece ----
   // The other kind of puzzle: nothing to move, a piece to put back. The claims
   // worth checking in a browser are that the board stops being a move board,

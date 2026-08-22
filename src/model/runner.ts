@@ -14,7 +14,15 @@ export const ATTEMPTS_BEFORE_HINT = 3;
 export const REPLY_MS = 450;
 
 export type MoveOutcome =
-  /** Accepted. `reply` is the opponent's answer, null when the line ends. */
+  /**
+   * Accepted. `reply` is the opponent's answer, null when nothing answers this
+   * move; `finished` says the puzzle is over.
+   *
+   * The two are independent, and the caller must honour both. A line ending on
+   * the opponent's move — you play the key move, the forced answer is played for
+   * you, and that is the puzzle — arrives here as a reply *and* `finished`, so
+   * treating a reply as proof there is more to come strands the puzzle.
+   */
   | { kind: 'correct'; reply: Uci | null; finished: boolean }
   /**
    * Legal on the board but not an accepted continuation. The caller reverts the

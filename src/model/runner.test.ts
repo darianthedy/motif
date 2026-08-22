@@ -62,6 +62,34 @@ describe('solution matching', () => {
     expect(runner.result).toBe('solved');
   });
 
+  it('ends on the opponent’s move when the line is written that way', () => {
+    const runner = new PuzzleRunner(puzzle([['a1a8', 'g8g7']]));
+    // Reply and finished together: you make the key move, the answer is played
+    // for you, and that is the whole puzzle.
+    expect(runner.submit(uci('a1a8'))).toEqual({
+      kind: 'correct',
+      reply: 'g8g7',
+      finished: true,
+    });
+    expect(runner.complete).toBe(true);
+    expect(runner.result).toBe('solved');
+    // The reply is the opponent's, so it is not a move the solver made.
+    expect(runner.accepted).toEqual(['a1a8']);
+  });
+
+  it('takes a reply from a longer line when a shorter one got there first', () => {
+    // The shorter line stops after a1a8 and so declares no reply. Left as null,
+    // the second line's a8a7 would be asked for from a position where g8g7 was
+    // never played — a board a ply behind the move it expects.
+    const runner = new PuzzleRunner(puzzle([['a1a8'], ['a1a8', 'g8g7', 'a8a7']]));
+    expect(runner.submit(uci('a1a8'))).toEqual({
+      kind: 'correct',
+      reply: 'g8g7',
+      finished: false,
+    });
+    expect(runner.submit(uci('a8a7'))).toMatchObject({ finished: true });
+  });
+
   it('accepts either of two solutions from the start', () => {
     const p = puzzle([['a1a8'], ['a1b1']]);
     for (const move of ['a1a8', 'a1b1']) {

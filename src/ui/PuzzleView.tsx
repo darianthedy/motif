@@ -7,6 +7,7 @@ import type { Puzzle } from '../model/puzzle';
 import { PuzzleRunner, REPLY_MS } from '../model/runner';
 import type { PuzzleResult } from '../model/runner';
 import { Board } from './Board';
+import { MissingPieceView } from './MissingPieceView';
 
 type Phase = 'setup' | 'solving' | 'solved' | 'failed';
 
@@ -42,7 +43,23 @@ interface Props {
   onSkip: () => void;
 }
 
-export function PuzzleView({ puzzle, onComplete, onSkip }: Props) {
+/**
+ * One puzzle, of whichever kind it is.
+ *
+ * The kind is read off the puzzle rather than passed in, and the two views are
+ * separate components: a session hands over a puzzle and gets back a result,
+ * and nothing above here — the session, the queue, the progress bar — needs to
+ * know which sort of question was asked.
+ */
+export function PuzzleView(props: Props) {
+  const { puzzle } = props;
+  if (puzzle.addPiece) {
+    return <MissingPieceView {...props} addPiece={puzzle.addPiece} />;
+  }
+  return <MovePuzzleView {...props} />;
+}
+
+function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
   const runner = useMemo(() => new PuzzleRunner(puzzle), [puzzle]);
   const solverStart = useMemo(
     () => startingFen(puzzle.fen, puzzle.setupMove),

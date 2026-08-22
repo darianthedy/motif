@@ -1,7 +1,8 @@
 import { get, set } from 'idb-keyval';
 import { parseUci } from './move';
 import type { Uci } from './move';
-import type { Collection, Progress, Puzzle, PuzzleStatus } from './puzzle';
+import { parsePlacement } from './puzzle';
+import type { Collection, Placement, Progress, Puzzle, PuzzleStatus } from './puzzle';
 import type { SessionState } from './session';
 import { emptyState } from './state';
 import type { AppState } from './state';
@@ -123,12 +124,28 @@ export function parseState(raw: unknown): AppState {
   return { version: 1, puzzles, collections, progress, sessions, recent };
 }
 
+/**
+ * A stored placement, from an export or from a hand-edited file.
+ *
+ * Exports carry the model's object form; a file edited by hand is likelier to
+ * carry the written one it was imported with, so both are read.
+ */
+function parseStoredPlacement(value: unknown): Placement | undefined {
+  if (typeof value === 'string') return parsePlacement(value) ?? undefined;
+  if (typeof value !== 'object' || value === null) return undefined;
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.color !== 'string' || typeof raw.type !== 'string') return undefined;
+  if (typeof raw.square !== 'string') return undefined;
+  return parsePlacement(`${raw.color}${raw.type}${raw.square}`) ?? undefined;
+}
+
 function parsePuzzle(id: string, value: unknown): Puzzle | null {
   const raw = value as Record<string, unknown>;
-  if (typeof raw?.fen !== 'string' || !Array.isArray(raw.solutions)) return null;
+  if (typeof raw?.fen !== 'string') return null;
+  if (!Array.isArray(raw.solutions) && raw.solutions !== undefined) return null;
 
   const solutions: Uci[][] = [];
-  for (const line of raw.solutions) {
+  for (const line of raw.solutions ?? []) {
     if (!Array.isArray(line)) return null;
     const moves: Uci[] = [];
     for (const move of line) {
@@ -138,7 +155,11 @@ function parsePuzzle(id: string, value: unknown): Puzzle | null {
     }
     if (moves.length) solutions.push(moves);
   }
-  if (!solutions.length) return null;
+
+  // A missing-piece puzzle is answered by its placement and has no lines, so
+  // "no solutions" only condemns a puzzle that has no placement either.
+  const addPiece = parseStoredPlacement(raw.addPiece);
+  if (!solutions.length && !addPiece) return null;
 
   const setupMove = typeof raw.setupMove === 'string' ? parseUci(raw.setupMove) : null;
 
@@ -147,6 +168,7 @@ function parsePuzzle(id: string, value: unknown): Puzzle | null {
     fen: raw.fen,
     setupMove: setupMove ?? undefined,
     solutions,
+    addPiece,
     tags: Array.isArray(raw.tags) ? raw.tags.filter((t): t is string => typeof t === 'string') : [],
     comment: typeof raw.comment === 'string' ? raw.comment : undefined,
     sourceId: typeof raw.sourceId === 'string' ? raw.sourceId : undefined,

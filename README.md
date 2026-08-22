@@ -13,15 +13,15 @@ solving, because naming the idea gives the puzzle away.
 
 ## Status
 
-The model layer is written and tested — **50 tests, all passing**. It holds
+The model layer is written and tested — **146 tests, all passing**. It holds
 every decision that is easy to get subtly wrong: what counts as solving a
-puzzle, how multiple solutions are matched, when the answer is revealed, how a
-session resumes, how missed puzzles come back, and how imports dedupe.
+puzzle, how multiple solutions are matched, what a missing-piece puzzle accepts,
+when the answer is revealed, how a session resumes, how missed puzzles come
+back, and how imports dedupe.
 
-The UI is a placeholder. The board and session screens are the next piece of
-work.
-
-    npm test        # 50 tests, ~130ms
+    npm test              # 146 tests, ~140ms
+    npm run check:e2e     # the whole app in a real browser
+    npm run check:external puzzles.json   # audit a puzzle file against the rules
     npm run dev
     npm run build
 
@@ -75,6 +75,25 @@ model has no board and so cannot normalize this at import time. Underpromotions
 carry `n`/`r`/`b`, never take that fallback, and correctly fail a line expecting
 a queen.
 
+**The missing piece.** A second kind of puzzle, answered by placing a piece
+rather than by playing a move: the position is one piece short of the idea, and
+the question is which piece and where. The board stops being a move board —
+nothing drags, occupied squares do nothing — and a tap on an empty square opens
+the same picker a promotion does, with a pawn added and the king left out. The
+two acts are separate on purpose: choosing the square commits to nothing, and
+cancelling the picker is free, exactly as a cancelled promotion is. Only a
+complete guess can be wrong, and the three-tries-then-reveal rule is the same
+one, deliberately sharing its constant.
+
+The kind is derived from the data rather than declared: a puzzle with an
+`add_piece` is a missing-piece puzzle and one without is not, so the two can
+never disagree. The piece is written FEN-style, so its case is its colour —
+`Ng6` is a white knight — which matters because the answer is often not the
+side to move: in the archetype the position is Black to move and a white knight
+mates. Since the puzzle accepts exactly one placement, an authored position
+where two different pieces would do marks a correct answer wrong;
+`check:external` audits for that specifically.
+
 **Sessions.** The queue is materialized up front, not regenerated from a seed.
 Resume is exact and no-repeats-within-a-session is free. A collection edited
 between sessions is handled by `reconcile`, which drops dead puzzles while
@@ -88,7 +107,16 @@ detail, alongside a disclosure of any alternative solutions you didn't play.
 
 Two front doors, both producing the same `ImportResult`:
 
-- **JSON** — the hand-authored format, see `samples/back-rank.json`.
+- **JSON** — the hand-authored format, see `samples/back-rank.json`, and
+  `samples/missing-piece.json` for the other kind:
+
+      { "id": 187,
+        "fen": "6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1",
+        "solutions": [],
+        "tags": ["missingPiece"],
+        "comment": "Add a knight and it's mate",
+        "add_piece": "Ng6" }
+
 - **Lichess CSV** — the public puzzle dump, with rating/theme/limit filters,
   because the dump is four million rows. Its quirk is handled explicitly: the
   FEN is one ply early and the first move is the opponent's, kept as `setupMove`
@@ -105,12 +133,16 @@ being silently dropped.
 
     src/model/          # pure logic, no React — this is the tested part
       move.ts           # UCI parsing
-      puzzle.ts         # puzzle, collection, progress, content key
+      puzzle.ts         # puzzle, placement, collection, progress, content key
       trie.ts           # accepted-continuation tree
-      runner.ts         # one puzzle: validation, mistakes, hints
+      runner.ts         # one puzzle: validation, mistakes, hints — both kinds
+      board.ts          # the only file that knows the rules of chess
       session.ts        # queue, retries, resume, reconcile
       import/           # JSON and Lichess CSV adapters
-    src/ui/             # React (placeholder for now)
+    src/ui/
+      Board.tsx         # moves, promotion, and the placement board
+      PuzzleView.tsx    # dispatches on the kind
+      MissingPieceView.tsx
 
 ## Prior art in this repo family
 

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { replayLine, startingFen } from '../model/board';
+import { replayLine, startingFen, withPiece } from '../model/board';
 import { moveFrom, moveTo } from '../model/move';
 import { solverSide } from '../model/puzzle';
 import type { Puzzle, PuzzleStatus } from '../model/puzzle';
 import type { AppState } from '../model/state';
 import { Board } from './Board';
+import { describePlacement } from './MissingPieceView';
 
 const STATUS_LABEL: Record<PuzzleStatus, string> = {
   solved: 'Solved',
@@ -43,6 +44,13 @@ export function PuzzleDetailScreen({ state, puzzle, onSaveComment, onDelete, onE
     () => replayLine(puzzle.fen, puzzle.setupMove, puzzle.solutions[lineIndex] ?? []),
     [lineIndex, puzzle],
   );
+  // A missing-piece puzzle is browsed as the position with its answer already
+  // in it: there is no line to step through, and the whole point of this screen
+  // is to see whether the answer is right.
+  const placed = useMemo(
+    () => (puzzle.addPiece ? withPiece(start, puzzle.addPiece) : null),
+    [puzzle.addPiece, start],
+  );
 
   // Switching lines rewinds; leaving the cursor where it was would show a
   // position from the previous variation.
@@ -52,9 +60,10 @@ export function PuzzleDetailScreen({ state, puzzle, onSaveComment, onDelete, onE
 
   const progress = state.progress[puzzle.id];
   const status: PuzzleStatus = progress?.status ?? 'unseen';
-  const shown = ply === 0 ? start : steps[ply - 1]?.fen ?? start;
+  const missingPiece = puzzle.addPiece;
+  const shown = missingPiece ? placed ?? start : ply === 0 ? start : steps[ply - 1]?.fen ?? start;
   const lastMove = ply > 0 ? steps[ply - 1]?.move : undefined;
-  const truncated = steps.length < (puzzle.solutions[lineIndex]?.length ?? 0);
+  const truncated = !missingPiece && steps.length < (puzzle.solutions[lineIndex]?.length ?? 0);
 
   const save = () => {
     onSaveComment(comment);
@@ -78,9 +87,21 @@ export function PuzzleDetailScreen({ state, puzzle, onSaveComment, onDelete, onE
         // would raise the question of what they mean.
         onMove={() => {}}
         interactive={false}
-        highlight={lastMove ? { from: moveFrom(lastMove), to: moveTo(lastMove) } : null}
+        highlight={
+          missingPiece
+            ? { from: missingPiece.square, to: missingPiece.square }
+            : lastMove
+              ? { from: moveFrom(lastMove), to: moveTo(lastMove) }
+              : null
+        }
       />
 
+      {missingPiece ? (
+        <p className="replay answer">
+          {describePlacement(missingPiece)}
+          {!placed && <span className="bad small"> — which is not a legal placement</span>}
+        </p>
+      ) : (
       <div className="replay">
         {/* Latin-1 guillemet rather than U+23EE: that codepoint has an emoji
             presentation and renders as a tofu box in the system font, the same
@@ -120,6 +141,7 @@ export function PuzzleDetailScreen({ state, puzzle, onSaveComment, onDelete, onE
           →
         </button>
       </div>
+      )}
 
       {truncated && (
         <p className="bad small">

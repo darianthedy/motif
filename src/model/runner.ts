@@ -1,5 +1,6 @@
 import type { Uci } from './move';
-import type { Puzzle } from './puzzle';
+import { samePlacement } from './puzzle';
+import type { PieceType, Placement, Puzzle } from './puzzle';
 import { buildTrie, findEdge, isTerminal } from './trie';
 import type { TrieNode } from './trie';
 
@@ -109,5 +110,71 @@ export class PuzzleRunner {
     this.wrongAtThisPly = 0;
     this.complete = isTerminal(edge.next);
     return { kind: 'correct', reply: edge.reply, finished: this.complete };
+  }
+}
+
+/**
+ * Drives a missing-piece puzzle: one square, one piece, one answer.
+ *
+ * A separate class rather than a mode on `PuzzleRunner`, because almost nothing
+ * survives the change: there is no line to walk, no opponent reply, no trie, and
+ * the answer is not a move. What is shared is the part that is actually a
+ * decision — three wrong tries buys the answer, and any mistake at all costs
+ * the clean solve — so those rules are the same constants, deliberately.
+ *
+ * Like the move runner it validates nothing about chess. The UI offers only
+ * empty squares, so an unplaceable answer never reaches here.
+ */
+export class MissingPieceRunner {
+  readonly puzzle: Puzzle;
+  readonly answer: Placement;
+
+  /** Wrong guesses this run. There is one ply, so this is also the ply's count. */
+  mistakes = 0;
+  complete = false;
+  hinted = false;
+
+  constructor(puzzle: Puzzle, answer: Placement) {
+    this.puzzle = puzzle;
+    this.answer = answer;
+  }
+
+  get clean(): boolean {
+    return this.mistakes === 0;
+  }
+
+  get result(): PuzzleResult {
+    return this.clean ? 'solved' : 'failed';
+  }
+
+  get shouldRevealHint(): boolean {
+    return this.mistakes >= ATTEMPTS_BEFORE_HINT;
+  }
+
+  /** As on the move runner, reading the answer is what records that it was shown. */
+  revealHint(): Placement | null {
+    if (!this.shouldRevealHint) return null;
+    this.hinted = true;
+    return this.answer;
+  }
+
+  /**
+   * Submits a square and a piece.
+   *
+   * Choosing the square is not itself an answer — cancelling the piece picker
+   * costs nothing, exactly as a cancelled promotion does. Only a complete guess
+   * can be wrong.
+   */
+  submit(square: string, type: PieceType): { kind: 'correct' | 'wrong' } {
+    if (this.complete) return { kind: 'wrong' };
+
+    const guess: Placement = { color: this.answer.color, type, square };
+    if (!samePlacement(guess, this.answer)) {
+      this.mistakes++;
+      return { kind: 'wrong' };
+    }
+
+    this.complete = true;
+    return { kind: 'correct' };
   }
 }

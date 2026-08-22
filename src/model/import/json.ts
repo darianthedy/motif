@@ -1,8 +1,8 @@
-import { firstIllegalMove, setupMoveIsLegal } from '../board';
+import { firstIllegalMove, pieceAt, setupMoveIsLegal, startingFen, withPiece } from '../board';
 import { parseUci } from '../move';
 import type { Uci } from '../move';
-import { contentKey } from '../puzzle';
-import type { Puzzle } from '../puzzle';
+import { contentKey, parsePlacement, placementText } from '../puzzle';
+import type { Placement, Puzzle } from '../puzzle';
 
 /**
  * The JSON import format.
@@ -16,6 +16,17 @@ import type { Puzzle } from '../puzzle';
  *       "comment": "No luft.",
  *       "rating": 900 }
  *   ] }
+ * ```
+ *
+ * A missing-piece puzzle carries `add_piece` and no solutions. The piece is
+ * written FEN-style, so its case is its colour — `Ng6` is a white knight:
+ *
+ * ```json
+ * { "fen": "6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1",
+ *   "solutions": [],
+ *   "tags": ["missingPiece"],
+ *   "comment": "Add a knight and it's mate",
+ *   "add_piece": "Ng6" }
  * ```
  */
 /**
@@ -100,6 +111,9 @@ interface RawEntry {
   comment?: unknown;
   sourceId?: unknown;
   rating?: unknown;
+  /** Snake case, as the puzzle files are written. `addPiece` is also accepted. */
+  add_piece?: unknown;
+  addPiece?: unknown;
 }
 
 /**
@@ -168,6 +182,37 @@ function parseEntry(raw: RawEntry, index: number, result: ImportResult): Puzzle 
     return null;
   }
 
+  let setupMove: Uci | undefined;
+  if (raw.setupMove !== undefined) {
+    const parsedSetup = typeof raw.setupMove === 'string' ? parseUci(raw.setupMove) : null;
+    if (!parsedSetup) {
+      result.rejected.push({ index, reason: 'Malformed setup move' });
+      return null;
+    }
+    setupMove = parsedSetup;
+  }
+
+  if (!setupMoveIsLegal(raw.fen, setupMove)) {
+    result.rejected.push({ index, reason: `Setup move ${setupMove} is illegal in this position` });
+    return null;
+  }
+
+  // The two kinds are told apart by the data rather than by a declared type,
+  // and the same file may hold both.
+  const rawPlacement = raw.add_piece ?? raw.addPiece;
+  if (rawPlacement !== undefined && rawPlacement !== null) {
+    if (Array.isArray(raw.solutions) && raw.solutions.length > 0) {
+      result.rejected.push({
+        index,
+        reason: 'A missing-piece puzzle answers with a piece, so it can carry no solution',
+      });
+      return null;
+    }
+    const addPiece = parseAddPiece(rawPlacement, startingFen(raw.fen, setupMove), index, result);
+    if (!addPiece) return null;
+    return { ...common(raw), fen: raw.fen, setupMove, solutions: [], addPiece };
+  }
+
   if (!Array.isArray(raw.solutions) || raw.solutions.length === 0) {
     result.rejected.push({ index, reason: 'Puzzle has no solution' });
     return null;
@@ -189,21 +234,6 @@ function parseEntry(raw: RawEntry, index: number, result: ImportResult): Puzzle 
     solutions.push(line);
   }
 
-  let setupMove: Uci | undefined;
-  if (raw.setupMove !== undefined) {
-    const parsedSetup = typeof raw.setupMove === 'string' ? parseUci(raw.setupMove) : null;
-    if (!parsedSetup) {
-      result.rejected.push({ index, reason: 'Malformed setup move' });
-      return null;
-    }
-    setupMove = parsedSetup;
-  }
-
-  if (!setupMoveIsLegal(raw.fen, setupMove)) {
-    result.rejected.push({ index, reason: `Setup move ${setupMove} is illegal in this position` });
-    return null;
-  }
-
   // Legality is checked once, here, rather than discovered when someone is
   // three wrong tries deep into a puzzle that cannot be solved.
   const illegal = firstIllegalMove(raw.fen, setupMove, solutions);
@@ -215,11 +245,13 @@ function parseEntry(raw: RawEntry, index: number, result: ImportResult): Puzzle 
     return null;
   }
 
+  return { ...common(raw), fen: raw.fen, setupMove, solutions };
+}
+
+/** The fields both kinds share, so neither can drift from the other. */
+function common(raw: RawEntry) {
   return {
     id: crypto.randomUUID(),
-    fen: raw.fen,
-    setupMove,
-    solutions,
     tags: Array.isArray(raw.tags) ? raw.tags.filter((t): t is string => typeof t === 'string') : [],
     comment: typeof raw.comment === 'string' ? raw.comment : undefined,
     // The book numbers its puzzles; keeping that as the source id makes a
@@ -233,4 +265,50 @@ function parseEntry(raw: RawEntry, index: number, result: ImportResult): Puzzle 
     rating: typeof raw.rating === 'number' ? raw.rating : undefined,
     addedAt: Date.now(),
   };
+}
+
+/**
+ * Validates the piece a missing-piece puzzle asks for.
+ *
+ * Everything here is checked at import for the same reason the move legality is:
+ * a placement that cannot be made is a puzzle with no right answer, and the only
+ * good time to find that out is before it is in the library.
+ */
+function parseAddPiece(
+  rawPlacement: unknown,
+  start: string,
+  index: number,
+  result: ImportResult,
+): Placement | null {
+  const placement = typeof rawPlacement === 'string' ? parsePlacement(rawPlacement) : null;
+  if (!placement) {
+    result.rejected.push({
+      index,
+      reason: 'Malformed piece to add — write it FEN-style, like "Ng6" or "ng6"',
+    });
+    return null;
+  }
+
+  if (placement.type === 'k') {
+    result.rejected.push({ index, reason: 'A king cannot be added — there is already one' });
+    return null;
+  }
+
+  if (pieceAt(start, placement.square)) {
+    result.rejected.push({
+      index,
+      reason: `Square ${placement.square} is not empty, so nothing can be added to it`,
+    });
+    return null;
+  }
+
+  if (!withPiece(start, placement)) {
+    result.rejected.push({
+      index,
+      reason: `${placementText(placement)} does not make a legal position`,
+    });
+    return null;
+  }
+
+  return placement;
 }

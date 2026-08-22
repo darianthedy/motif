@@ -20,6 +20,7 @@ import { createServer } from 'vite';
 const HEADED = process.argv.includes('--headed');
 const SHOTS = process.argv.includes('--shots');
 const SAMPLE = readFileSync(new URL('../samples/back-rank.json', import.meta.url), 'utf8');
+const PIECES = readFileSync(new URL('../samples/missing-piece.json', import.meta.url), 'utf8');
 
 const failures = [];
 function check(label, condition) {
@@ -291,6 +292,70 @@ try {
   check('finishing the last puzzle ends the session',
     await page.getByText('Session complete').isVisible().catch(() => false));
   await page.getByRole('button', { name: 'Done' }).click();
+  await page.waitForTimeout(400);
+
+  // ---- Missing piece ----
+  // The other kind of puzzle: nothing to move, a piece to put back. The claims
+  // worth checking in a browser are that the board stops being a move board,
+  // that choosing a square and choosing a piece are two separate acts, and that
+  // backing out of the second one is free.
+  await page.getByRole('button', { name: 'Import puzzles' }).click();
+  await page.locator('textarea').fill(PIECES);
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: /Add 3 puzzles/ }).click();
+  await page.waitForTimeout(400);
+  await page.getByText('Missing pieces').click();
+  await page.getByRole('button', { name: 'Solve in order' }).click();
+  await page.waitForSelector('[data-square="g6"]');
+  await page.waitForTimeout(300);
+
+  await tap(page, 'g7');
+  check('a square with a piece on it offers nothing to add',
+    !(await page.locator('.picker').isVisible().catch(() => false)));
+  await tap(page, 'h1');
+  check('and a piece cannot be selected to move either',
+    (await markedTargets(page)).length === 0);
+
+  await tap(page, 'g6');
+  check('an empty square asks which piece belongs there',
+    await page.locator('.picker').isVisible().catch(() => false));
+  check('offering a pawn as well as the promotion pieces',
+    (await page.locator('.picker button').count()) === 6);
+  if (SHOTS) await page.screenshot({ path: '/tmp/motif-picker.png' });
+
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await page.waitForTimeout(200);
+  check('cancelling puts nothing on the board',
+    (await page.locator('[data-square="g6"] svg').count()) === 0);
+  check('and costs nothing',
+    !(await page.locator('.result').isVisible().catch(() => false)));
+
+  await tap(page, 'g6');
+  await page.getByRole('button', { name: 'Queen' }).click();
+  await page.waitForTimeout(250);
+  check('the right square with the wrong piece is a miss, not an answer',
+    !(await page.locator('.result').isVisible().catch(() => false)));
+  check('and still leaves the square empty',
+    (await page.locator('[data-square="g6"] svg').count()) === 0);
+
+  await tap(page, 'g6');
+  await page.getByRole('button', { name: 'Knight' }).click();
+  await page.waitForTimeout(300);
+  check('the right piece resolves the puzzle',
+    await page.locator('.result').isVisible().catch(() => false));
+  check('and stands on the board where it belongs',
+    (await page.locator('[data-square="g6"] svg').count()) === 1);
+  check('the card names the answer',
+    /Ng6/.test((await page.locator('.solution').textContent()) ?? ''));
+  check('and shows the comment it withheld',
+    /pins it/.test((await page.locator('.comment').textContent()) ?? ''));
+  if (SHOTS) await page.screenshot({ path: '/tmp/motif-missing-piece.png' });
+
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.waitForTimeout(400);
+  check('and the session moves on to the next one',
+    await page.locator('[data-square="f8"]').isVisible());
+  await page.getByRole('button', { name: 'Stop' }).click();
   await page.waitForTimeout(400);
 
   // ---- Puzzle detail ----

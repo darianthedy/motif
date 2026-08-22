@@ -15,7 +15,7 @@
   animation: shake 220ms ease-in-out;
 }
 
-.promotion-backdrop {
+.picker-backdrop {
   position: absolute;
   inset: 0;
   display: grid;
@@ -24,7 +24,7 @@
   z-index: 30;
 }
 
-.promotion {
+.picker {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -35,13 +35,13 @@
   min-width: 9rem;
 }
 
-.promotion-title {
+.picker-title {
   margin: 0 0 0.2rem;
   color: var(--muted);
   font-size: 0.8rem;
   text-align: center;
 }
 
-.promotion button {
+.picker button {
   width: 100%;
 }

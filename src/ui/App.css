@@ -352,6 +352,12 @@ button:disabled {
   margin-top: 0.7rem;
 }
 
+/* A missing-piece puzzle has an answer rather than a line, so it takes the
+   replay row's place instead of sitting under an empty one. */
+.answer {
+  justify-content: center;
+}
+
 .moves {
   flex: 1;
   display: flex;

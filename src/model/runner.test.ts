@@ -113,10 +113,10 @@ describe('solution matching', () => {
     expect(runner.mistakes).toBe(0);
   });
 
-  it('reports the other accepted first moves for disclosure', () => {
+  it('records the accepted moves, so the card can mark the line played', () => {
     const runner = new PuzzleRunner(puzzle([['a1a8'], ['a1b1']]));
-    runner.submit(uci('a1a8'));
-    expect(runner.otherFirstMoves).toEqual(['a1b1']);
+    runner.submit(uci('a1b1'));
+    expect(runner.accepted).toEqual(['a1b1']);
   });
 });
 

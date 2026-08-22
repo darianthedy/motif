@@ -92,6 +92,34 @@ button.link {
   font-size: 0.85rem;
 }
 
+.solutions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.6rem 0 0.9rem;
+}
+
+.solution {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+/* The line just played, so several accepted answers stay tellable apart. */
+.solution[data-played] .move[data-solver] {
+  background: #3a4a2f;
+  color: #b6d99a;
+}
+
+.line-label {
+  min-width: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.solution .move {
+  border-radius: 8px;
+}
+
 .session-done {
   text-align: center;
   padding-top: 3rem;

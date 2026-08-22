@@ -225,12 +225,10 @@ function parseEntry(raw: RawEntry, index: number, result: ImportResult): Puzzle 
       result.rejected.push({ index, reason: 'Solution contains a malformed move' });
       return null;
     }
-    // A line must end on the solver's move; a trailing opponent reply would
-    // mean the puzzle ends without the solver doing anything.
-    if (line.length % 2 !== 1) {
-      result.rejected.push({ index, reason: 'Solution line ends on an opponent move' });
-      return null;
-    }
+    // Either parity is a real line. Odd length ends on the solver's move; even
+    // length ends on the opponent's forced reply, which is how you author "and
+    // now he must take, and that's the point" — the last move is played for you
+    // and the puzzle stops there.
     solutions.push(line);
   }
 

@@ -9,7 +9,13 @@ import type { PuzzleResult } from '../model/runner';
 import { Board } from './Board';
 import { MissingPieceView } from './MissingPieceView';
 
-type Phase = 'setup' | 'solving' | 'solved' | 'failed';
+/**
+ * `replying` is the window while the opponent's scripted answer animates: the
+ * solver's move is on the board but the reply is not, so the position on screen
+ * is one the next expected move is not written for. Its own phase rather than a
+ * flag, because the thing it controls is whether the board takes input.
+ */
+type Phase = 'setup' | 'solving' | 'replying' | 'solved' | 'failed';
 
 /**
  * Whether two UCI strings name the same move, tolerating the queening
@@ -122,25 +128,31 @@ function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
       setHighlight({ from: moveFrom(move), to: moveTo(move) });
       setHint(null);
 
+      // Both outcomes stop the puzzle. The post-mortem — comment, motif, every
+      // accepted line — is the part worth reading, and a clean solve is exactly
+      // when you have the attention to read it. Advancing is always a
+      // deliberate press.
+      const resolved: Phase = runner.result === 'solved' ? 'solved' : 'failed';
+
       if (outcome.reply) {
         const reply = outcome.reply;
+        setPhase('replying');
         after(REPLY_MS, () => {
           const replied = applyUci(next, reply);
           if (replied) {
             setFen(replied);
             setHighlight({ from: moveFrom(reply), to: moveTo(reply) });
           }
+          // A line may end on the opponent's move. Resolving after the reply has
+          // landed rather than before is the whole point of authoring it that
+          // way: the last move is something you watch, not something the result
+          // card tells you about.
+          setPhase(outcome.finished ? resolved : 'solving');
         });
         return;
       }
 
-      if (outcome.finished) {
-        // Both outcomes stop here. The post-mortem — comment, motif, every
-        // accepted line — is the part worth reading, and a clean solve is
-        // exactly when you have the attention to read it. Advancing is always
-        // a deliberate press.
-        setPhase(runner.result === 'solved' ? 'solved' : 'failed');
-      }
+      if (outcome.finished) setPhase(resolved);
     },
     [after, fen, phase, runner],
   );
@@ -159,6 +171,9 @@ function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
 
   const hintSquares = hint ? { from: moveFrom(hint), to: moveTo(hint) } : null;
   const done = phase === 'solved' || phase === 'failed';
+  // The status line reads the same while a reply animates as it does while you
+  // are being asked, so a mid-line reply doesn't blink the text out and back.
+  const asking = phase === 'solving' || phase === 'replying';
 
   // Every accepted line, in SAN, for the card at the end. Built only once the
   // puzzle has resolved: replaying costs a board per ply, and before then it is
@@ -200,13 +215,13 @@ function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
           </div>
         )}
 
-        {phase === 'solving' && !unplayable && !hint && (
+        {asking && !unplayable && !hint && (
           <span className="muted">
             {solverSide(puzzle) === 'w' ? 'White' : 'Black'} to play
           </span>
         )}
 
-        {phase === 'solving' && !unplayable && hint && (
+        {asking && !unplayable && hint && (
           <span className="hint">Play the highlighted move</span>
         )}
 

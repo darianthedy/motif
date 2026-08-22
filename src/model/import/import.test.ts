@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { importJson, isPlausibleFen } from './json';
 import { importLichessCsv } from './lichess';
 import { contentKey } from '../puzzle';
+import { uci } from '../move';
 import { PuzzleRunner } from '../runner';
 
 const MATE_FEN = '6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1';
@@ -55,9 +56,30 @@ describe('JSON import', () => {
     expect(result.rejected.map((r) => r.reason)).toEqual([
       'Malformed FEN',
       'Puzzle has no solution',
-      'Solution line ends on an opponent move',
+      // Not rejected for its parity — an even line is allowed now — but because
+      // a1a8 is mate, so the opponent has no reply to script.
+      'Move g8g7 is illegal at ply 2',
       'Solution contains a malformed move',
     ]);
+  });
+
+  it('accepts a line that ends on the opponent’s forced reply', () => {
+    // Rd8+ and the king has exactly one square. The idea is the check and the
+    // box it puts the king in, so the line is authored to run out after the
+    // reply rather than demand a follow-up move that isn't the point.
+    const result = importJson(`
+      { "puzzles": [
+          { "fen": "6k1/5p1p/8/8/8/8/8/3R2K1 w - - 0 1",
+            "solutions": [["d1d8", "g8g7"]],
+            "comment": "Only square." }
+        ] }
+    `);
+    expect(result.rejected).toEqual([]);
+    expect(result.inserted[0].solutions[0]).toEqual(['d1d8', 'g8g7']);
+
+    // And it plays: one accepted move ends the puzzle, carrying the reply.
+    const runner = new PuzzleRunner(result.inserted[0]);
+    expect(runner.submit(uci('d1d8'))).toEqual({ kind: 'correct', reply: 'g8g7', finished: true });
   });
 
   it('reports invalid JSON rather than throwing', () => {
@@ -108,6 +130,17 @@ describe('Lichess CSV import', () => {
       tags: ['mate', 'mateIn1', 'short'],
     });
     expect(result.inserted[0].solutions[0]).toEqual(['a1a8']);
+  });
+
+  it('keeps a row whose line ends on the opponent’s move', () => {
+    // The dump's own rows always end on the solver's move, so this is not a
+    // shape it produces — but a hand-edited or trimmed CSV can hold one, and
+    // the runner plays it, so dropping it would be gratuitous.
+    const row =
+      '00xYz,7k/5p1p/8/8/8/8/8/3R2K1 b - - 0 1,h8g8 d1d8 g8g7,1500,74,90,120,mate,https://lichess.org/x,';
+    const result = importLichessCsv(row);
+    expect(result.rejected).toEqual([]);
+    expect(result.inserted[0].solutions[0]).toEqual(['d1d8', 'g8g7']);
   });
 
   it('filters by rating', () => {

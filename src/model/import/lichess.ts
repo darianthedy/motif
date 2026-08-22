@@ -77,11 +77,10 @@ export function importLichessCsv(
       continue;
     }
 
+    // The dump's own lines always end on the solver's move, but a line ending on
+    // the opponent's reply is a shape the runner now plays, so there is nothing
+    // to reject here — see `parseEntry` in the JSON importer.
     const solution = moves.slice(1);
-    if (solution.length % 2 !== 1) {
-      result.rejected.push({ index, reason: 'Solution line ends on an opponent move' });
-      continue;
-    }
 
     if (!setupMoveIsLegal(fen, moves[0])) {
       result.rejected.push({ index, reason: `Setup move ${moves[0]} is illegal in this position` });

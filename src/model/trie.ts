@@ -25,7 +25,13 @@ export interface TrieNode {
 }
 
 export interface TrieEdge {
-  /** The opponent's scripted reply, or null when the line ends here. */
+  /**
+   * The opponent's scripted reply, or null when nothing answers this move.
+   *
+   * Not the same question as whether the line ends: a line may end *on* the
+   * reply, in which case this is set and `next` is terminal. Ending is
+   * `isTerminal(next)`, and only that.
+   */
   reply: Uci | null;
   next: TrieNode;
 }
@@ -50,6 +56,13 @@ export function buildTrie(solutions: Uci[][]): TrieNode {
 
       const existing = node.edges.get(solverMove);
       if (existing) {
+        // A shorter line reaching here first may have declared no reply simply
+        // because it stopped. A longer line through the same move knows what the
+        // opponent plays, so let it fill the blank — otherwise the reply is
+        // dropped and the board sits a ply behind the position the next expected
+        // move is written for. Never overwrites a reply that is already set: the
+        // earliest declaration still wins where two lines actually disagree.
+        existing.reply ??= reply;
         node = existing.next;
       } else {
         const next = emptyNode();

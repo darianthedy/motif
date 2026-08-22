@@ -93,12 +93,6 @@ export class PuzzleRunner {
     return this.node.preferredMove;
   }
 
-  /** Accepted first moves other than the one taken, for disclosure at the end. */
-  get otherFirstMoves(): Uci[] {
-    const taken = this.accepted[0];
-    return [...this.root.edges.keys()].filter((move) => move !== taken);
-  }
-
   /** Submits a move the UI has already verified is legal. */
   submit(move: Uci): MoveOutcome {
     if (this.complete) return { kind: 'wrong' };

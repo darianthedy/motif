@@ -117,9 +117,16 @@ being silently dropped.
 `../chess-repertoire` is an opening-repertoire trainer with spaced repetition.
 Different domain, but its drill loop was tuned against real use and three of its
 findings are baked in here: `REPLY_MS = 450` (measured, not guessed), the
-retry-gap idea, and the rule that a correct move gets no confirmation step —
+retry-gap idea, and the rule that a correct *move* gets no confirmation step —
 "being right is the unremarkable case," and a card between every move doubled
-how long a line took to walk. Only a miss should stop the flow.
+how long a line took to walk.
+
+A finished *puzzle* is the exception, and this app departs from the trainer
+there. Every puzzle now ends on a card — solved or missed alike — showing the
+comment, the motif and every accepted line, with the one you played marked.
+The comment is written for the moment the puzzle resolves, and a clean solve is
+exactly when there is attention left to read it; flashing it for 700ms meant
+the puzzles you understood taught you nothing. Advancing is always a press.
 
 ## Next
 

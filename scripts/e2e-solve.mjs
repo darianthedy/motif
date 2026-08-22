@@ -180,15 +180,26 @@ try {
   await page.waitForTimeout(300);
 
   // ---- Clean solve by dragging ----
+  // A solve is a card too, not a flash: the comment and the line are the part
+  // worth reading, and getting it right is when there is attention to read.
   const remainingBefore = Number(await page.locator('.count').textContent());
   await drag(page, 'd1', 'd8');
-  // Longer than SOLVED_PAUSE_MS, or the auto-advance has not yet recorded it.
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(400);
+  check('a clean drag solve stops on the result card',
+    await page.locator('.result .good').isVisible().catch(() => false));
+  check('showing the comment it withheld while solving',
+    Boolean(await page.locator('.comment').textContent().catch(() => '')));
+  const solvedLine = (await page.locator('.solution').first().textContent()) ?? '';
+  check(`and the solution in SAN (${solvedLine.trim()})`, /d8/.test(solvedLine));
+  check('and does not advance on its own',
+    Number(await page.locator('.count').textContent()) === remainingBefore);
+  if (SHOTS) await page.screenshot({ path: '/tmp/motif-solved.png' });
+
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.waitForTimeout(400);
   const remainingAfter = Number(await page.locator('.count').textContent());
-  check(`a clean drag solve advances by itself (${remainingBefore} to ${remainingAfter})`,
+  check(`Continue moves to the next puzzle (${remainingBefore} to ${remainingAfter})`,
     remainingAfter < remainingBefore);
-  check('with no confirmation step',
-    !(await page.locator('.result').isVisible().catch(() => false)));
 
   // ---- Stop, reload, resume ----
   await page.getByRole('button', { name: 'Stop' }).click();
@@ -228,7 +239,9 @@ try {
       { fen: '7k/5ppp/8/8/8/8/8/R6K w - - 0 1', solutions: [['a1a8']] },
       { fen: '6k1/5ppp/8/8/8/8/8/1R4K1 w - - 0 1', solutions: [['b1b8']] } ] },
     { collection: 'Chapter B', puzzles: [
-      { fen: '4r1k1/5ppp/8/8/8/8/5PPP/4R1K1 w - - 0 1', solutions: [['e1e8']] } ] },
+      // Two accepted first moves, so the result card has more than one line to
+      // disclose and has to mark the one actually played.
+      { fen: '4r1k1/5ppp/8/8/8/8/5PPP/4R1K1 w - - 0 1', solutions: [['e1e8'], ['e1d1']] } ] },
   ]);
   await page.getByRole('button', { name: 'Import puzzles' }).click();
   await page.locator('textarea').fill(multi);
@@ -257,6 +270,28 @@ try {
   const chapterCard = (await page.locator('.card').filter({ hasText: 'Chapter A' }).textContent()) ?? '';
   check(`a skip records neither a solve nor a miss (${chapterCard.replace(/\s+/g, ' ').trim()})`,
     /0 solved/.test(chapterCard) && !/to review/.test(chapterCard));
+
+  // ---- Every solution, disclosed at the end ----
+  await page.getByText('Chapter B').click();
+  await page.getByRole('button', { name: 'Solve in order' }).click();
+  await page.waitForSelector('[data-square="e1"]');
+  await page.waitForTimeout(300);
+  // The second line, not the mainline: the card must mark what was played.
+  await drag(page, 'e1', 'd1');
+  await page.waitForTimeout(400);
+  const shownLines = await page.locator('.solution').count();
+  check(`a solve discloses every accepted line (${shownLines})`, shownLines === 2);
+  const playedIndex = await page.locator('.solution').evaluateAll((nodes) =>
+    nodes.findIndex((node) => node.hasAttribute('data-played')),
+  );
+  check(`and marks the one played (line ${playedIndex + 1})`, playedIndex === 1);
+  if (SHOTS) await page.screenshot({ path: '/tmp/motif-solutions.png' });
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.waitForTimeout(400);
+  check('finishing the last puzzle ends the session',
+    await page.getByText('Session complete').isVisible().catch(() => false));
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.waitForTimeout(400);
 
   // ---- Puzzle detail ----
   // The one screen that shows a solution deliberately, and the only way to

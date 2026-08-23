@@ -121,7 +121,12 @@ export function parseState(raw: unknown): AppState {
     ? obj.recent.filter((id): id is string => typeof id === 'string' && Boolean(puzzles[id]))
     : [];
 
-  return { version: 1, puzzles, collections, progress, sessions, recent };
+  // Must round-trip: the marker is what stops a sync from restoring history the
+  // user cleared, so losing it on reload would undo the reset at the next merge.
+  const progressResetAt =
+    typeof obj.progressResetAt === 'number' ? obj.progressResetAt : undefined;
+
+  return { version: 1, puzzles, collections, progress, sessions, recent, progressResetAt };
 }
 
 /**

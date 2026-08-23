@@ -18,6 +18,16 @@ export interface AppState {
   sessions: Record<string, SessionState>;
   /** Recently served puzzle ids, most recent first. */
   recent: string[];
+  /**
+   * When the user last asked for a clean slate, if ever.
+   *
+   * Kept as a timestamp rather than being implied by an empty `progress`,
+   * because sync merges by union: without a marker saying "everything older
+   * than this was discarded on purpose", the next merge cannot tell a reset
+   * apart from a device that simply has not solved anything yet, and hands the
+   * old history straight back.
+   */
+  progressResetAt?: number;
 }
 
 export function emptyState(): AppState {
@@ -181,6 +191,22 @@ export function recordResult(
   );
 
   return { ...state, progress: { ...state.progress, [puzzleId]: updated }, recent };
+}
+
+/**
+ * Forgets every attempt, keeping the library itself.
+ *
+ * Puzzles and collections are untouched — the point is to solve them again,
+ * not to re-import them. Suspended sessions go too: a session carries its own
+ * solved and failed lists and a cursor into a queue, so leaving one alive would
+ * resume into a scoreboard the reset was meant to clear.
+ *
+ * `progressResetAt` is what makes this survive a sync. `mergeStates` is a union
+ * — deleting the local rows alone would see them restored from the remote on
+ * the next round, which is exactly the complaint that motivated this.
+ */
+export function resetProgress(state: AppState, now = Date.now()): AppState {
+  return { ...state, progress: {}, sessions: {}, recent: [], progressResetAt: now };
 }
 
 export function saveSession(state: AppState, key: string, session: SessionState): AppState {

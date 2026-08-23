@@ -136,10 +136,21 @@ export function mergeStates(local: AppState, remote: AppState): AppState {
   merged.collections = [...collections.values()].sort((a, b) => a.createdAt - b.createdAt);
 
   // --- Progress ---
+  // A reset on either device is authoritative for everything that happened
+  // before it. Union is the right default for history, but "I asked to forget
+  // this" is not history — without this the other device's copy is handed back
+  // on the next round and the reset appears not to have worked.
+  const resetAt = Math.max(local.progressResetAt ?? 0, remote.progressResetAt ?? 0);
+  if (resetAt) merged.progressResetAt = resetAt;
+
   for (const source of [local, remote]) {
     for (const entry of Object.values(source.progress)) {
       const id = remap(entry.puzzleId);
       if (!alive(id)) continue;
+      // An attempt older than the newest reset was discarded on purpose. An
+      // entry with no attempt recorded at all counts as older: it carries
+      // nothing worth keeping either way.
+      if ((entry.lastAttemptAt ?? 0) < resetAt) continue;
       const moved = { ...entry, puzzleId: id };
       const existing = merged.progress[id];
       merged.progress[id] = existing ? mergeProgress(existing, moved) : moved;
@@ -163,6 +174,9 @@ export function mergeStates(local: AppState, remote: AppState): AppState {
         failedIds: session.failedIds.map(remap).filter(alive),
       };
       if (!moved.queue.length) continue;
+      // Same rule as progress: a session suspended before the reset holds the
+      // cleared scoreboard, so it does not come back either.
+      if (session.lastActiveAt < resetAt) continue;
 
       const existing = merged.sessions[key];
       if (!existing || moved.lastActiveAt > existing.lastActiveAt) {

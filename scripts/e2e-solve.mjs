@@ -489,6 +489,35 @@ try {
   const rejects = (await page.locator('.rejects').textContent().catch(() => '')) ?? '';
   check(`a URL returning a web page says so (${rejects.trim().slice(0, 40)}…)`,
     /web page, not a puzzle file/.test(rejects));
+
+  // ---- Reset progress ----
+  // Last, because it clears the solve history every check above built up.
+  await page.getByRole('button', { name: '← Back' }).click();
+  await page.waitForTimeout(400);
+  const before = (await page.locator('.card').first().textContent()) ?? '';
+  check(`solves are on the board before the reset (${before.replace(/\s+/g, ' ').trim()})`,
+    /[1-9]\d* solved/.test(before));
+
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: 'Reset progress' }).click();
+  await page.waitForTimeout(600);
+
+  const collectionsAfter = await page.locator('.card').count();
+  const after = (await page.locator('.card').first().textContent()) ?? '';
+  check('resetting keeps the collections', collectionsAfter > 0);
+  check(`and zeroes the solve counts (${after.replace(/\s+/g, ' ').trim()})`,
+    /0 solved/.test(after));
+  check('and clears the in-progress marker',
+    (await page.locator('.pill').count()) === 0);
+  check('and there is nothing left to review',
+    await page.getByRole('button', { name: 'Review mistakes' }).isDisabled());
+
+  // The point of the whole exercise: it has to still be gone after a reload.
+  await page.reload();
+  await page.waitForTimeout(900);
+  const reloaded = (await page.locator('.card').first().textContent()) ?? '';
+  check(`the reset survives a reload (${reloaded.replace(/\s+/g, ' ').trim()})`,
+    /0 solved/.test(reloaded));
 } catch (error) {
   console.log(`FAIL  threw: ${error.message.split('\n')[0]}`);
   await page.screenshot({ path: '/tmp/e2e-failure.png' }).catch(() => {});

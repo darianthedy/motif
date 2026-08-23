@@ -13,6 +13,7 @@ interface Props {
   onReviewMistakes: () => void;
   onImport: () => void;
   onRestore: (state: AppState) => void;
+  onResetProgress: () => void;
   onAccount: () => void;
   syncStatus: SyncStatus;
   signedIn: boolean;
@@ -25,6 +26,7 @@ export function Home({
   onReviewMistakes,
   onImport,
   onRestore,
+  onResetProgress,
   onAccount,
   syncStatus,
   signedIn,
@@ -32,6 +34,7 @@ export function Home({
   const restoreInput = useRef<HTMLInputElement>(null);
   const total = allPuzzles(state).length;
   const failed = failedPuzzleIds(state).length;
+  const attempted = Object.keys(state.progress).length;
 
   const download = () => {
     const blob = new Blob([exportState(state)], { type: 'application/json' });
@@ -41,6 +44,19 @@ export function Home({
     link.download = `motif-backup-${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  const resetProgress = () => {
+    if (
+      !confirm(
+        `Forget every attempt on ${attempted} puzzle${attempted === 1 ? '' : 's'}?\n\n` +
+          'Your puzzles and collections stay. Solved, mistakes and in-progress ' +
+          'sessions are cleared, on this device and on any device you sync with. ' +
+          'Export a backup first if you want to keep the history.',
+      )
+    )
+      return;
+    onResetProgress();
   };
 
   const restore = async (file: File | undefined) => {
@@ -128,6 +144,14 @@ export function Home({
         </button>
         <button type="button" className="link" onClick={() => restoreInput.current?.click()}>
           Restore from backup
+        </button>
+        <button
+          type="button"
+          className="link danger"
+          onClick={resetProgress}
+          disabled={attempted === 0}
+        >
+          Reset progress
         </button>
         <input
           ref={restoreInput}

@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { importJson } from './import/json';
 import { contentKey } from './puzzle';
 import { completeCurrent, startSession } from './session';
-import { applyImport, emptyState, recordResult, saveSession, statusOf } from './state';
+import {
+  applyImport,
+  emptyState,
+  recordResult,
+  resetProgress,
+  saveSession,
+  statusOf,
+} from './state';
 import type { AppState } from './state';
 import { mergeStates } from './sync';
 
@@ -120,6 +127,44 @@ describe('merging progress', () => {
     const merged = mergeStates(advanced, shared);
     expect(merged.progress[id].attempts, 'max, not sum').toBe(3);
     expect(merged.progress[id].mistakes).toBe(2);
+  });
+
+  it('does not restore history the other device reset away', () => {
+    const phone = device('Test', [MATE_FEN]);
+    const laptop = device('Test', [MATE_FEN]);
+
+    // Both devices know the puzzle was solved; only the phone was reset after.
+    const solvedOnPhone = recordResult(phone, idFor(phone, MATE_FEN), 'solved', 0, 1000);
+    const solvedOnLaptop = recordResult(laptop, idFor(laptop, MATE_FEN), 'solved', 0, 1000);
+    const wiped = resetProgress(solvedOnPhone, 2000);
+
+    const merged = mergeStates(wiped, solvedOnLaptop);
+    expect(merged.progress, 'union would hand the solve straight back').toEqual({});
+    expect(merged.progressResetAt).toBe(2000);
+  });
+
+  it('keeps attempts made after the reset', () => {
+    const phone = device('Test', [MATE_FEN]);
+    const laptop = device('Test', [MATE_FEN]);
+
+    const wiped = resetProgress(recordResult(phone, idFor(phone, MATE_FEN), 'solved', 0, 1000), 2000);
+    // The laptop solved it again afterwards; that is new work, not old history.
+    const resolved = recordResult(laptop, idFor(laptop, MATE_FEN), 'solved', 0, 3000);
+
+    const merged = mergeStates(wiped, resolved);
+    expect(Object.values(merged.progress)).toHaveLength(1);
+    expect(Object.values(merged.progress)[0].status).toBe('solved');
+  });
+
+  it('survives a round trip, so the reset does not undo itself on the next sync', () => {
+    const phone = device('Test', [MATE_FEN]);
+    const laptop = recordResult(device('Test', [MATE_FEN]), idFor(phone, MATE_FEN), 'solved', 0, 1000);
+    const wiped = resetProgress(recordResult(phone, idFor(phone, MATE_FEN), 'solved', 0, 1000), 2000);
+
+    // The laptop adopts the merge, then pushes it back at the stale device.
+    const first = mergeStates(wiped, laptop);
+    const second = mergeStates(laptop, first);
+    expect(second.progress).toEqual({});
   });
 
   it('keeps the earliest first solve', () => {

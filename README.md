@@ -13,13 +13,13 @@ solving, because naming the idea gives the puzzle away.
 
 ## Status
 
-The model layer is written and tested — **146 tests, all passing**. It holds
+The model layer is written and tested — **157 tests, all passing**. It holds
 every decision that is easy to get subtly wrong: what counts as solving a
 puzzle, how multiple solutions are matched, what a missing-piece puzzle accepts,
 when the answer is revealed, how a session resumes, how missed puzzles come
 back, and how imports dedupe.
 
-    npm test              # 146 tests, ~140ms
+    npm test              # 157 tests, ~140ms
     npm run check:e2e     # the whole app in a real browser
     npm run check:external puzzles.json   # audit a puzzle file against the rules
     npm run dev
@@ -59,6 +59,16 @@ motif, every accepted line, and Continue when you're ready.
 failed, permanently, even if everything after it is right. `mistakes` never
 resets. Re-solving cleanly later flips the stored status to solved while keeping
 the miss on record.
+
+**Starting over.** *Reset progress* on the home screen forgets every attempt and
+leaves the library alone — the point is to solve the puzzles again, not to
+re-import them. Suspended sessions go with it, since a session carries its own
+solved and failed lists. It stamps `progressResetAt` rather than merely emptying
+`progress`, because sync merges by union: without a marker saying this history
+was discarded on purpose, the next merge cannot tell a reset apart from a device
+that has not solved anything yet, and hands it all straight back. Both the merge
+and the store round-trip that timestamp, and every attempt older than the newest
+reset — on either side — is dropped rather than merged.
 
 **Input and fairness.** The model validates moves; it does not know chess. The
 UI generates legal moves with chess.js and calls `submit` only for moves legal

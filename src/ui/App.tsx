@@ -12,6 +12,7 @@ import {
   failedPuzzleIds,
   puzzlesIn,
   recordResult,
+  resetProgress,
   saveSession,
   setPuzzleComment,
 } from '../model/state';
@@ -232,6 +233,10 @@ export function App() {
         onRestore={(restored) => {
           replace(restored);
           setNotice('Backup restored.');
+        }}
+        onResetProgress={() => {
+          update((current) => resetProgress(current));
+          setNotice('Progress reset. Every puzzle is unseen again.');
         }}
       />
     </main>

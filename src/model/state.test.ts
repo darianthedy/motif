@@ -11,6 +11,7 @@ import {
   emptyState,
   failedPuzzleIds,
   recordResult,
+  resetProgress,
   saveSession,
   setPuzzleComment,
   statsFor,
@@ -172,7 +173,44 @@ describe('deleting a collection', () => {
   });
 });
 
+describe('resetting progress', () => {
+  it('clears attempts but keeps the library', () => {
+    let state = seeded();
+    const [first, second] = state.collections[0].puzzleIds;
+    state = recordResult(state, first, 'solved');
+    state = recordResult(state, second, 'failed', 2);
+
+    const after = resetProgress(state, 5000);
+    expect(Object.keys(after.puzzles), 'puzzles are not re-imported').toHaveLength(2);
+    expect(after.collections).toHaveLength(1);
+    expect(statusOf(after, first)).toBe('unseen');
+    expect(statusOf(after, second)).toBe('unseen');
+    expect(failedPuzzleIds(after)).toEqual([]);
+    expect(statsFor(after, after.collections[0]).unseen).toBe(2);
+  });
+
+  it('drops suspended sessions, which carry their own scoreboard', () => {
+    let state = seeded();
+    state = saveSession(
+      state,
+      state.collections[0].id,
+      startSession('ordered', state.collections[0].id, state.collections[0].puzzleIds),
+    );
+    expect(Object.keys(resetProgress(state).sessions)).toHaveLength(0);
+    expect(resetProgress(state).recent).toEqual([]);
+  });
+
+  it('records when it happened, so a sync cannot undo it', () => {
+    expect(resetProgress(seeded(), 5000).progressResetAt).toBe(5000);
+  });
+});
+
 describe('persistence round trip', () => {
+  it('keeps the reset marker, which sync depends on', () => {
+    const state = resetProgress(recordResult(seeded(), seeded().collections[0].puzzleIds[0], 'solved'), 5000);
+    expect(parseState(JSON.parse(JSON.stringify(state))).progressResetAt).toBe(5000);
+  });
+
   it('survives export and re-parse', () => {
     let state = seeded();
     const id = state.collections[0].puzzleIds[0];

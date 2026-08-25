@@ -85,6 +85,9 @@ button.link {
 
 .comment {
   color: var(--fg);
+  /* Comments are written in a textarea, so the line breaks the author put
+     there are part of what they meant. Keep them. */
+  white-space: pre-wrap;
 }
 
 .tags {

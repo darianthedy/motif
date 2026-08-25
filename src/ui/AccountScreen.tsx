@@ -6,7 +6,10 @@ import type { SyncStatus } from '../useSync';
 interface Props {
   user: SyncUser | null;
   status: SyncStatus;
+  /** Sized in the confirm prompt, so "replace" is a number and not a leap of faith. */
+  puzzleCount: number;
   onSyncNow: () => void;
+  onReplaceCloud: () => Promise<void>;
   onAuthChanged: () => void;
   onExit: () => void;
 }
@@ -26,7 +29,15 @@ function describe(status: SyncStatus): string {
   }
 }
 
-export function AccountScreen({ user, status, onSyncNow, onAuthChanged, onExit }: Props) {
+export function AccountScreen({
+  user,
+  status,
+  puzzleCount,
+  onSyncNow,
+  onReplaceCloud,
+  onAuthChanged,
+  onExit,
+}: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -48,6 +59,39 @@ export function AccountScreen({ user, status, onSyncNow, onAuthChanged, onExit }
       }
       setPassword('');
       onAuthChanged();
+    } catch (caught) {
+      setError((caught as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * The way out of a deletion that will not stick.
+   *
+   * Sync merges rather than overwrites, so anything removed on this device is
+   * handed back by the stored copy that still has it. This pushes over that
+   * copy instead. It is the one destructive button here, hence the count and
+   * the warning: the prompt has to say what is about to be lost.
+   */
+  const replaceCloud = async () => {
+    if (
+      !confirm(
+        `Replace the cloud copy with this device's ${puzzleCount} puzzle` +
+          `${puzzleCount === 1 ? '' : 's'}?\n\n` +
+          'Use this when something you deleted keeps coming back. Anything ' +
+          'another device saved and has not synced here yet is discarded. ' +
+          'Export a backup first if you are unsure.',
+      )
+    )
+      return;
+
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await onReplaceCloud();
+      setNotice('The cloud copy now matches this device.');
     } catch (caught) {
       setError((caught as Error).message);
     } finally {
@@ -122,13 +166,25 @@ export function AccountScreen({ user, status, onSyncNow, onAuthChanged, onExit }
               of truth for the running session, and wiping it would turn a
               mis-tap into data loss. */}
           <div className="menu">
-            <button type="button" onClick={onSyncNow} disabled={status.kind === 'syncing'}>
+            <button type="button" onClick={onSyncNow} disabled={busy || status.kind === 'syncing'}>
               Sync now
+            </button>
+            <button
+              type="button"
+              className="link"
+              disabled={busy || status.kind === 'syncing'}
+              onClick={() => void replaceCloud()}
+            >
+              Replace cloud copy with this device
             </button>
             <button type="button" className="link" onClick={() => void signOut().then(onAuthChanged)}>
               Sign out
             </button>
           </div>
+          <p className="muted small">
+            Syncing merges both libraries, so a puzzle or collection deleted here comes
+            back from the cloud copy. Replacing it is how a deletion sticks.
+          </p>
         </>
       )}
 

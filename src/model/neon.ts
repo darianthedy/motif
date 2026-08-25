@@ -180,3 +180,38 @@ export async function syncOnce(
 
   throw lastError ?? new Error('Sync failed');
 }
+
+/**
+ * Overwrites the stored library with this device's copy.
+ *
+ * The escape hatch for the one thing `mergeStates` cannot express: a deletion.
+ * The merge is a union, so a puzzle or collection removed here comes back on
+ * the next sync from the remote copy that still has it. Pushing without merging
+ * is how "I meant to delete that" becomes true everywhere.
+ *
+ * The read is still made, purely for the version, so the write stays a
+ * compare-and-set and a concurrent push is retried rather than half-applied.
+ * The retry re-reads and pushes the same local copy: unlike a sync, losing the
+ * race must not change the outcome, because the outcome is what the user asked
+ * for. What it discards is anything another device pushed and this one never
+ * merged — that is the point, and it is why the caller confirms first.
+ */
+export async function replaceRemote(
+  userId: string,
+  local: AppState,
+  attempts = 3,
+): Promise<number> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      const remote = await fetchRemote(userId);
+      return await pushRemote(userId, local, remote?.version ?? null);
+    } catch (error) {
+      if (!(error instanceof SyncConflict)) throw error;
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error('Replacing the cloud copy failed');
+}

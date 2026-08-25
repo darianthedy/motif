@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AppState } from './model/state';
-import { currentUser, syncAvailable, syncOnce } from './model/neon';
+import { currentUser, replaceRemote, syncAvailable, syncOnce } from './model/neon';
 import type { SyncUser } from './model/neon';
 
 export type SyncStatus =
@@ -138,5 +138,36 @@ export function useSync({ state, onMerged }: Options) {
     if (user) void run(user, true);
   }, [run, user]);
 
-  return { user, status, syncNow, refreshUser };
+  /**
+   * Pushes this device's library over the stored one, merging nothing.
+   *
+   * A deletion cannot survive an ordinary sync: the merge is a union, so the
+   * remote copy hands back whatever was removed here. This is the way out, and
+   * it is destructive by design — the caller confirms before calling.
+   *
+   * Marking the pushed state as synced afterwards is what stops the debounced
+   * push effect from firing straight into `run`, which would merge against the
+   * copy just written and undo nothing, but would waste a round trip and could
+   * re-adopt a state the user just replaced.
+   */
+  const replaceCloud = useCallback(async () => {
+    const current = latest.current;
+    if (!user || !current || running.current) return;
+
+    running.current = true;
+    lastRunAt.current = Date.now();
+    setStatus({ kind: 'syncing' });
+    try {
+      await replaceRemote(user.id, current);
+      synced.current = current;
+      setStatus({ kind: 'idle', at: Date.now() });
+    } catch (error) {
+      setStatus({ kind: 'error', message: (error as Error).message });
+      throw error;
+    } finally {
+      running.current = false;
+    }
+  }, [user]);
+
+  return { user, status, syncNow, replaceCloud, refreshUser };
 }

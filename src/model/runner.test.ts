@@ -110,6 +110,25 @@ describe('solution matching', () => {
     }
   });
 
+  it('keeps the played defence’s continuation when a key move has two answers', () => {
+    // A mate in two with both defences written out: same key move, different
+    // opponent answers, and finishes that only work against their own answer.
+    // The first line is the one played, so only its finish may be accepted —
+    // the other mates in a position that is not on the board.
+    const p = puzzle([
+      ['a1a8', 'g8g7', 'a8a7'],
+      ['a1a8', 'h7h6', 'a8h8'],
+    ]);
+
+    const first = new PuzzleRunner(p);
+    expect(first.submit(uci('a1a8'))).toEqual({ kind: 'correct', reply: 'g8g7', finished: false });
+    expect(first.submit(uci('a8a7'))).toEqual({ kind: 'correct', reply: null, finished: true });
+
+    const second = new PuzzleRunner(p);
+    expect(second.submit(uci('a1a8'))).toMatchObject({ reply: 'g8g7' });
+    expect(second.submit(uci('a8h8'))).toEqual({ kind: 'wrong' });
+  });
+
   it('keeps each divergent line’s own opponent reply', () => {
     const p = puzzle([
       ['a1a8', 'g8g7', 'a8a7'],

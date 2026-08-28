@@ -15,7 +15,22 @@ import type { Uci } from './move';
  * when several disagree. The tree makes both questions structural.
  */
 export interface TrieNode {
-  edges: Map<Uci, TrieEdge>;
+  /**
+   * Accepted solver moves, each mapped to its variants: one per distinct
+   * opponent answer, in declaration order.
+   *
+   * A move needs more than one node behind it because the opponent's answer is
+   * part of the position the next move is judged against. A mate in two where
+   * both defences are written out — `Qg6 Rf7 Qxf7#` and `Qg6 hxg6 Ng7#` — shares
+   * the key move and nothing after it: `Ng7` mates only in the line where the
+   * pawn took. Collapsing the two onto one node would play one defence on the
+   * board and accept the other line's finish against it.
+   *
+   * Only the first variant is reachable, because only one answer can be played;
+   * the rest are kept so that adding an alternative defence to a puzzle can
+   * never silently widen what the played line accepts.
+   */
+  edges: Map<Uci, TrieEdge[]>;
   /**
    * The move from the earliest-declared solution reaching this node. Hints use
    * it, so a hint is the author's mainline rather than whichever move happens
@@ -54,21 +69,33 @@ export function buildTrie(solutions: Uci[][]): TrieNode {
       const reply = ply + 1 < line.length ? line[ply + 1] : null;
       if (node.preferredMove === null) node.preferredMove = solverMove;
 
-      const existing = node.edges.get(solverMove);
-      if (existing) {
-        // A shorter line reaching here first may have declared no reply simply
-        // because it stopped. A longer line through the same move knows what the
-        // opponent plays, so let it fill the blank — otherwise the reply is
-        // dropped and the board sits a ply behind the position the next expected
-        // move is written for. Never overwrites a reply that is already set: the
-        // earliest declaration still wins where two lines actually disagree.
-        existing.reply ??= reply;
-        node = existing.next;
-      } else {
-        const next = emptyNode();
-        node.edges.set(solverMove, { reply, next });
-        node = next;
+      let variants = node.edges.get(solverMove);
+      if (!variants) {
+        variants = [];
+        node.edges.set(solverMove, variants);
       }
+
+      // A line that declares no reply does so because it stopped, not because
+      // it claims the opponent is out of moves — so it joins the first variant
+      // rather than forking one of its own. Conversely a line that names a reply
+      // fills the blank a shorter line left, so the board never sits a ply
+      // behind the position the next expected move is written for. Only two
+      // lines that name *different* replies fork, because only then do they
+      // reach different positions.
+      const existing =
+        reply === null
+          ? variants[0]
+          : (variants.find((edge) => edge.reply === reply) ??
+            variants.find((edge) => edge.reply === null));
+
+      let edge = existing;
+      if (edge) {
+        edge.reply ??= reply;
+      } else {
+        edge = { reply, next: emptyNode() };
+        variants.push(edge);
+      }
+      node = edge.next;
     }
   }
 
@@ -78,13 +105,17 @@ export function buildTrie(solutions: Uci[][]): TrieNode {
 /**
  * Looks up a solver move, applying the queening fallback described on
  * `stripQueenPromotion`.
+ *
+ * Returns the first variant: the opponent's answer is the author's, from the
+ * earliest line declaring one, the same way `preferredMove` is.
  */
 export function findEdge(node: TrieNode, move: Uci): TrieEdge | null {
   const exact = node.edges.get(move);
-  if (exact) return exact;
+  if (exact?.length) return exact[0];
 
   const stripped = stripQueenPromotion(move);
-  return stripped ? (node.edges.get(stripped) ?? null) : null;
+  if (!stripped) return null;
+  return node.edges.get(stripped)?.[0] ?? null;
 }
 
 /** Every accepted first move, for the "other solutions" disclosure. */

@@ -1,28 +1,70 @@
 # Sync backend
 
-One table, one row per user, holding the whole library as JSON. No server code.
+One row per thing, tied to the account by `user_id`: every puzzle, collection,
+collection membership, progress entry and suspended session is its own row. No
+server code beyond the schema's triggers.
 
-Two schema variants are kept here because the app has been pointed at both:
+- `0001_libraries.neon.sql` — the original single-blob table. Still applied
+  first: the app reads an account's old blob once, uploads it as rows and
+  deletes it. `0002` makes the table read-only.
+- `0002_rows.neon.sql` — **current**. The row tables, their triggers and RLS.
 
-- `0001_libraries.neon.sql` — **current**. Neon's Data API.
-- `0001_libraries.supabase.sql` — the original. Kept because it is the same
-  design and switching back is a change of client library, not of model.
+## Tables
 
-They differ only in the identity function and grants: Neon exposes
-`auth.user_id()` (text, the JWT subject) with predefined `authenticated` and
-`anonymous` roles; Supabase has `auth.uid()` (uuid) and grants implicitly.
+- `library_settings` — one row per user. Holds `progress_reset_at`.
+- `puzzles` — position, solutions and metadata. Unique per user on
+  `content_key` among live rows, so two devices importing the same file cannot
+  both store it.
+- `collections` — name and creation time. Unique per user on `name` among live
+  rows.
+- `collection_puzzles` — one row per puzzle in a collection, with a `position`.
+  A puzzle can be in several collections.
+- `progress` — one row per puzzle attempted: status, attempts, mistakes, times.
+  The recently-seen list used by the random draw is read from
+  `last_attempt_at` here rather than stored separately.
+- `sessions` — one row per suspended session. The queue and cursor are one
+  `jsonb` value, since they only mean something together.
 
-## Why a blob, and why it is safe
+## How a sync works
 
-A blob rather than normalized tables, because the client is a blob everywhere
-else and a second schema would be a second model to keep in step. What makes a
-blob safe to sync is that the client **merges** rather than overwrites — see
-`src/model/sync.ts`. Last-write-wins would mean solving ten puzzles on a phone
-and losing them the moment a laptop with stale state pushed.
+The client keeps, inside its local library, a copy of the rows as the server
+last had them (the *base*) and the highest `revision` it has seen per table.
+Each sync:
 
-`version` is optimistic concurrency: a writer sends the version its merge was
-based on, and the update matches nothing if the row has moved on. The client
-re-reads, re-merges and retries. A trigger bumps it, so the client cannot forget.
+1. **Pulls** rows with `revision` above that, including deleted ones.
+2. **Merges** them into its own rows (`src/model/rows.ts`). A row unchanged
+   here since the base takes the server's version. A row changed on both sides
+   follows its table's rule: progress takes the higher counts and the latest
+   status, a session goes to whichever device played it last, and so on.
+3. **Pushes** every row that differs from the base, parents first.
+
+The base is what makes deletion work. A row in the base but gone locally was
+deleted here, so it is pushed as a deletion. A row the server marks deleted
+goes locally too. The old blob merge had no base, only a union, which is why
+deleted things used to come back.
+
+## Rows are marked deleted, never removed
+
+Deleting sets `deleted_at` instead. A device asking for changes can't see a row
+that no longer exists, so a real delete would never reach it, and the device
+would push the thing back. There is no DELETE grant. Marked rows are kept
+indefinitely: even a 1001-puzzle book leaves only a few thousand small rows.
+Once a puzzle, collection or membership is marked deleted it stays that way.
+Re-importing a deleted puzzle creates a new row with a new id.
+
+## Conflicts are settled on the server too
+
+Two devices can push the same row at once. `BEFORE` triggers apply the same
+rules as the client, so the result doesn't depend on which push lands second:
+attempts take the max, a deletion only beats attempts made before it, the most
+recently played session wins, and the latest reset applies to anything older.
+If two devices add the same puzzle or collection name at once, the unique index
+turns the second insert into a conflict. The client then pulls again, folds the
+two together and retries.
+
+Every write takes a `revision` from one sequence under a per-user advisory
+lock. So a user's writes are numbered in commit order, and a device pulling
+"above revision N" can never skip a row that commits late.
 
 ## Neon setup
 
@@ -33,7 +75,7 @@ is readable by anyone. A Postgres connection string is a database owner
 credential, so it can only ever live server-side — which a static host does not
 have. That is why this uses the Data API and JWTs rather than a direct
 connection: the Data API endpoint is meant to be public and RLS does the
-enforcing, exactly as an anon key does on Supabase.
+enforcing.
 
 If a connection string has ever been pasted somewhere it should not be — chat,
 an issue, a commit — rotate it in **Neon Console → Roles → Reset password**.
@@ -51,9 +93,15 @@ Networking.
 
 ### 3. Apply the schema
 
-Paste `0001_libraries.neon.sql` into the Neon SQL Editor. Doing it in the
-console rather than over a connection string means no credential has to be
-shared with anyone to set this up.
+Paste `0001_libraries.neon.sql`, then `0002_rows.neon.sql`, into the Neon SQL
+Editor. Doing it in the console rather than over a connection string means no
+credential has to be shared with anyone to set this up. Both files can be
+re-run safely.
+
+Apply `0002` **right before** deploying the app that uses it. From the moment
+it runs, old copies of the app can no longer write their blob and show "Sync
+failed" until they reload into the new version. If the Data API doesn't see the
+new tables straight away, refresh its schema cache from the Data API page.
 
 ### 4. Give the deployed app its base URL
 
@@ -90,9 +138,16 @@ npm run check:sync
 
 Two independent browser contexts stand in for two devices — separate cookie
 jars, separate IndexedDB. Device A imports and syncs, device B signs into the
-same account and must receive a library it never imported, and a *third*
-account must not see it at all. That last check is the privacy claim, and it is
-RLS's alone, so it is tested rather than trusted.
+same account and must receive a library it never imported. Then a puzzle
+deleted on A must disappear from B and not come back, and a collection deleted
+on B must disappear from A. A *third* account must not see any of it. That last
+check is the privacy claim, and it is RLS's alone, so it is tested rather than
+trusted.
+
+The schema and conflict rules are also covered without a network by
+`npm test`. `src/model/rowSync.test.ts` runs the real `0001` and `0002` files in
+an in-process Postgres (PGlite) and syncs simulated devices against it,
+including races.
 
 Add `--url=https://<user>.github.io/motif/` to run it against the deployed site
 instead of a dev server. Do that before believing sync works: the trusted-origin
@@ -112,11 +167,9 @@ UI hidden.
 
 ## What sync does not do
 
-
 - **No realtime.** A push happens on a debounce, on backgrounding, and on
   sign-in. Two devices open at once will converge, but not instantly.
 - **No sharing.** A library is private to one account by construction; there is
   no policy that would let one user read another's row.
-- **No server-side merge.** The merge is client-side and deterministic, so both
-  devices compute the same result and whichever writes second stores a superset
-  rather than a replacement.
+- **No undelete.** A deleted puzzle or collection is gone on every device.
+  Re-importing brings it back as a new puzzle with fresh progress.

@@ -4,6 +4,7 @@ import type { Collection, Progress, Puzzle } from './puzzle';
 import type { PuzzleResult } from './runner';
 import { RECENT_MEMORY, reconcile } from './session';
 import type { SessionState } from './session';
+import type { SyncMeta } from './rows';
 
 /** Key used for the library-wide session, which belongs to no collection. */
 export const GLOBAL_SESSION = '*';
@@ -16,8 +17,6 @@ export interface AppState {
   progress: Record<string, Progress>;
   /** Suspended sessions, keyed by collection id or GLOBAL_SESSION. */
   sessions: Record<string, SessionState>;
-  /** Recently served puzzle ids, most recent first. */
-  recent: string[];
   /**
    * When the user last asked for a clean slate, if ever.
    *
@@ -28,10 +27,34 @@ export interface AppState {
    * old history straight back.
    */
   progressResetAt?: number;
+  /**
+   * What this device last agreed with the server, for the signed-in account.
+   *
+   * Travels inside the library rather than beside it so the two are always
+   * saved together: a library written without its sync record, or a record
+   * written without its library, would make the next sync mistake one for
+   * the other and push deletions nobody made. Never exported.
+   */
+  sync?: SyncMeta;
 }
 
 export function emptyState(): AppState {
-  return { version: 1, puzzles: {}, collections: [], progress: {}, sessions: {}, recent: [] };
+  return { version: 1, puzzles: {}, collections: [], progress: {}, sessions: {} };
+}
+
+/**
+ * Recently served puzzle ids, most recent first, for biasing the global draw.
+ *
+ * Derived from progress rather than kept as its own list: every served puzzle
+ * gets a result, and the result stamps `lastAttemptAt`, so a second list could
+ * only ever disagree with the first — and would be one more thing to sync.
+ */
+export function recentPuzzleIds(state: AppState): string[] {
+  return Object.values(state.progress)
+    .filter((entry) => entry.lastAttemptAt !== undefined && state.puzzles[entry.puzzleId])
+    .sort((a, b) => b.lastAttemptAt! - a.lastAttemptAt! || (a.puzzleId < b.puzzleId ? -1 : 1))
+    .slice(0, RECENT_MEMORY)
+    .map((entry) => entry.puzzleId);
 }
 
 export function allPuzzles(state: AppState): Puzzle[] {
@@ -185,12 +208,7 @@ export function recordResult(
       previous.firstSolvedAt ?? (result === 'solved' ? now : undefined),
   };
 
-  const recent = [puzzleId, ...state.recent.filter((id) => id !== puzzleId)].slice(
-    0,
-    RECENT_MEMORY,
-  );
-
-  return { ...state, progress: { ...state.progress, [puzzleId]: updated }, recent };
+  return { ...state, progress: { ...state.progress, [puzzleId]: updated } };
 }
 
 /**
@@ -206,7 +224,7 @@ export function recordResult(
  * the next round, which is exactly the complaint that motivated this.
  */
 export function resetProgress(state: AppState, now = Date.now()): AppState {
-  return { ...state, progress: {}, sessions: {}, recent: [], progressResetAt: now };
+  return { ...state, progress: {}, sessions: {}, progressResetAt: now };
 }
 
 export function saveSession(state: AppState, key: string, session: SessionState): AppState {
@@ -258,7 +276,6 @@ export function deleteCollection(state: AppState, id: string): AppState {
     puzzles,
     progress,
     sessions,
-    recent: state.recent.filter((puzzleId) => stillReferenced.has(puzzleId)),
   };
 }
 
@@ -280,7 +297,7 @@ export function setPuzzleComment(state: AppState, puzzleId: string, comment: str
  * Removes one puzzle from the library entirely.
  *
  * Everything that referenced it has to be cleaned up together — collection
- * membership, progress, recency, and any live session — or a resumed session
+ * membership, progress, and any live session — or a resumed session
  * points at a puzzle that no longer exists. Sessions go through `reconcile`
  * rather than being filtered by hand, so deletion and a collection edited on
  * another device take exactly the same path.
@@ -314,6 +331,5 @@ export function deletePuzzle(state: AppState, puzzleId: string): AppState {
     collections,
     progress,
     sessions,
-    recent: state.recent.filter((id) => id !== puzzleId),
   };
 }

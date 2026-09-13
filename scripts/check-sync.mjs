@@ -3,9 +3,13 @@
  *
  * Two independent browser contexts stand in for two devices: separate cookie
  * jars, separate IndexedDB. Device A imports and syncs; device B signs into the
- * same account and must end up with the library it never imported. Anything
- * short of that — mocking the transport, reusing one context — would test the
- * plumbing while assuming the thing that actually matters.
+ * same account and must end up with the library it never imported. Then each
+ * deletes something and the other must lose it too — the thing the old
+ * single-blob sync could not do. Anything short of that — mocking the
+ * transport, reusing one context — would test the plumbing while assuming the
+ * thing that actually matters.
+ *
+ * Requires db/0002_rows.neon.sql to have been applied to the target database.
  *
  * Requires VITE_NEON_BASE_URL for the local run. Creates a throwaway account;
  * pass --email to reuse one, or --url to run against the deployed site instead
@@ -45,13 +49,35 @@ async function device(name) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   page.on('pageerror', (e) => console.log(`  [${name}] page error: ${e.message}`));
-  page.libraryCalls = 0;
+  page.dataCalls = 0;
   page.on('request', (r) => {
-    if (r.url().includes('/rest/v1/libraries')) page.libraryCalls++;
+    if (r.url().includes('/rest/v1/')) page.dataCalls++;
   });
+  // Deletions ask for confirmation; a device in this script always means it.
+  page.on('dialog', (dialog) => void dialog.accept());
   await page.goto(url);
   await page.waitForTimeout(400);
   return { context, page };
+}
+
+async function syncNow(page) {
+  await page.getByRole('button', { name: /Sign in to sync|Account/ }).click();
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: 'Sync now' }).click();
+  await page.waitForTimeout(4000);
+  await page.getByRole('button', { name: '← Back' }).click();
+  await page.waitForTimeout(500);
+}
+
+async function puzzleCount(page) {
+  await page.getByText('Back-rank mates').click();
+  await page.getByRole('button', { name: 'Browse puzzles' }).click();
+  await page.waitForTimeout(300);
+  const count = await page.locator('.puzzle-row').count();
+  await page.getByRole('button', { name: /←/ }).first().click();
+  await page.getByRole('button', { name: /←/ }).first().click();
+  await page.waitForTimeout(300);
+  return count;
 }
 
 async function auth(page, mode) {
@@ -110,10 +136,39 @@ try {
   // sync, which retriggered the push effect and synced again four seconds
   // later, forever. Nothing in the feature's behaviour looked wrong; it just
   // talked to the database until someone opened devtools.
-  a.page.libraryCalls = 0;
+  a.page.dataCalls = 0;
   await a.page.waitForTimeout(15000);
-  check(`an idle signed-in tab stops talking to the database (${a.page.libraryCalls} requests in 15s)`,
-    a.page.libraryCalls === 0);
+  check(`an idle signed-in tab stops talking to the database (${a.page.dataCalls} requests in 15s)`,
+    a.page.dataCalls === 0);
+
+  // ---- A deletion on one device reaches the other ----
+  await a.page.getByRole('button', { name: '← Back' }).click();
+  await a.page.waitForTimeout(300);
+  await a.page.getByText('Back-rank mates').click();
+  await a.page.getByRole('button', { name: 'Browse puzzles' }).click();
+  await a.page.locator('.puzzle-row').first().click();
+  await a.page.getByRole('button', { name: 'Delete puzzle' }).click();
+  await a.page.waitForTimeout(300);
+  await a.page.getByRole('button', { name: /←/ }).first().click();
+  await a.page.getByRole('button', { name: /←/ }).first().click();
+  await a.page.waitForTimeout(300);
+  await syncNow(a.page);
+
+  await syncNow(b.page);
+  check('a puzzle deleted on device A is gone from device B', (await puzzleCount(b.page)) === 2);
+
+  // ...and does not come back to A from B's older copy.
+  await syncNow(a.page);
+  check('and device B does not hand it back to device A', (await puzzleCount(a.page)) === 2);
+
+  // ---- Deleting a whole collection, the other way round ----
+  await b.page.getByText('Back-rank mates').click();
+  await b.page.getByRole('button', { name: 'Delete collection' }).click();
+  await b.page.waitForTimeout(500);
+  await syncNow(b.page);
+  await syncNow(a.page);
+  check('a collection deleted on device B is gone from device A',
+    !(await a.page.getByText('Back-rank mates').isVisible().catch(() => false)));
 
   // ---- Device C: a different account must see nothing ----
   // The privacy claim is RLS's alone, so it gets tested rather than trusted.

@@ -1,7 +1,7 @@
 import { createClient } from '@neondatabase/neon-js';
-import { mergeStates } from './sync';
-import { parseState } from './storage';
-import type { AppState } from './state';
+import { RowConflict } from './rowSync';
+import type { Transport, WireRow } from './rowSync';
+import type { TableName } from './rows';
 
 /**
  * Cross-device sync on Neon's Data API, optional.
@@ -19,7 +19,7 @@ import type { AppState } from './state';
  * Nothing secret lives here. A Postgres connection string could never appear in
  * this file: the app is a public static site, so anything in the bundle is
  * readable by anyone. The Data API endpoint is public by design and RLS is the
- * security boundary — see db/0001_libraries.neon.sql.
+ * security boundary — see db/0002_rows.neon.sql.
  */
 const baseUrl = import.meta.env.VITE_NEON_BASE_URL as string | undefined;
 
@@ -81,137 +81,64 @@ export async function signOut() {
   await client?.auth.signOut();
 }
 
-export interface RemoteLibrary {
-  state: AppState;
-  version: number;
+interface PostgrestError {
+  code?: string;
+  message: string;
 }
 
-/** Reads the stored library, or null when the user has never pushed one. */
-export async function fetchRemote(userId: string): Promise<RemoteLibrary | null> {
-  if (!client) return null;
-  const { data, error } = await client
-    .from('libraries')
-    .select('state, version')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (error) throw new Error(error.message);
-  if (!data) return null;
-  // Parsed rather than trusted: the row is JSON that may predate a schema
-  // change or have been hand-edited in the console, and the same leniency that
-  // protects the local store should protect this.
-  return { state: parseState(data.state), version: Number(data.version) };
-}
-
-export class SyncConflict extends Error {
-  constructor() {
-    super('The remote library changed while syncing');
-    this.name = 'SyncConflict';
-  }
+function fail(error: PostgrestError): never {
+  // A unique violation is two devices adding the same puzzle or collection at
+  // once — a race the sync resolves by pulling and retrying, not a failure.
+  if (error.code === '23505') throw new RowConflict();
+  throw new Error(error.message);
 }
 
 /**
- * Pushes a merged library, refusing to overwrite a newer one.
+ * Rows over the Data API, scoped to one account.
  *
- * `expectedVersion` is the version the merge was based on. If the row has moved
- * on, the update matches no rows and this throws `SyncConflict` — the caller
- * re-reads and re-merges rather than clobbering. Null means "there was no row
- * when I looked", which becomes an insert.
+ * Every query filters on user_id even though RLS already restricts rows to the
+ * signed-in user: the filter is what lets Postgres use the (user_id, revision)
+ * indexes, and it keeps a query honest if a policy is ever loosened.
  */
-export async function pushRemote(
-  userId: string,
-  state: AppState,
-  expectedVersion: number | null,
-): Promise<number> {
+export function transportFor(userId: string): Transport {
   if (!client) throw new Error('Sync is not configured');
+  const db = client;
 
-  if (expectedVersion === null) {
-    const { data, error } = await client
-      .from('libraries')
-      .insert({ user_id: userId, state })
-      .select('version')
-      .single();
-    // A concurrent insert from another device trips the primary key; that is a
-    // conflict, not a failure, and resolves on the next round.
-    if (error) throw error.code === '23505' ? new SyncConflict() : new Error(error.message);
-    return Number(data.version);
-  }
+  return {
+    async pull(table: TableName, after: number, limit: number) {
+      const { data, error } = await db
+        .from(table)
+        .select('*')
+        .eq('user_id', userId)
+        .gt('revision', after)
+        .order('revision', { ascending: true })
+        .limit(limit);
+      if (error) fail(error);
+      return (data ?? []) as WireRow[];
+    },
 
-  const { data, error } = await client
-    .from('libraries')
-    .update({ state })
-    .eq('user_id', userId)
-    .eq('version', expectedVersion)
-    .select('version')
-    .maybeSingle();
+    async upsert(table: TableName, rows: WireRow[], conflict: readonly string[]) {
+      const { data, error } = await db
+        .from(table)
+        .upsert(rows, { onConflict: conflict.join(',') })
+        .select('*');
+      if (error) fail(error);
+      return (data ?? []) as WireRow[];
+    },
 
-  if (error) throw new Error(error.message);
-  if (!data) throw new SyncConflict();
-  return Number(data.version);
-}
+    async fetchLegacy() {
+      const { data, error } = await db
+        .from('libraries')
+        .select('state')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (error) fail(error);
+      return (data as { state?: unknown } | null)?.state ?? null;
+    },
 
-/**
- * One full reconciliation: read, merge, write, retrying on conflict.
- *
- * Returns the merged library so the caller can adopt it. Both devices compute
- * the same merge, so whichever writes second still stores a superset rather
- * than a replacement.
- */
-export async function syncOnce(
-  userId: string,
-  local: AppState,
-  attempts = 3,
-): Promise<{ state: AppState; version: number }> {
-  let lastError: unknown;
-
-  for (let attempt = 0; attempt < attempts; attempt++) {
-    try {
-      const remote = await fetchRemote(userId);
-      const merged = remote ? mergeStates(local, remote.state) : local;
-      const version = await pushRemote(userId, merged, remote?.version ?? null);
-      return { state: merged, version };
-    } catch (error) {
-      if (!(error instanceof SyncConflict)) throw error;
-      lastError = error;
-      // Someone else wrote between our read and our write. Loop: the next read
-      // sees their version and merges on top of it.
-    }
-  }
-
-  throw lastError ?? new Error('Sync failed');
-}
-
-/**
- * Overwrites the stored library with this device's copy.
- *
- * The escape hatch for the one thing `mergeStates` cannot express: a deletion.
- * The merge is a union, so a puzzle or collection removed here comes back on
- * the next sync from the remote copy that still has it. Pushing without merging
- * is how "I meant to delete that" becomes true everywhere.
- *
- * The read is still made, purely for the version, so the write stays a
- * compare-and-set and a concurrent push is retried rather than half-applied.
- * The retry re-reads and pushes the same local copy: unlike a sync, losing the
- * race must not change the outcome, because the outcome is what the user asked
- * for. What it discards is anything another device pushed and this one never
- * merged — that is the point, and it is why the caller confirms first.
- */
-export async function replaceRemote(
-  userId: string,
-  local: AppState,
-  attempts = 3,
-): Promise<number> {
-  let lastError: unknown;
-
-  for (let attempt = 0; attempt < attempts; attempt++) {
-    try {
-      const remote = await fetchRemote(userId);
-      return await pushRemote(userId, local, remote?.version ?? null);
-    } catch (error) {
-      if (!(error instanceof SyncConflict)) throw error;
-      lastError = error;
-    }
-  }
-
-  throw lastError ?? new Error('Replacing the cloud copy failed');
+    async deleteLegacy() {
+      const { error } = await db.from('libraries').delete().eq('user_id', userId);
+      if (error) fail(error);
+    },
+  };
 }

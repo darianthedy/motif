@@ -10,6 +10,7 @@ import {
   deletePuzzle,
   emptyState,
   failedPuzzleIds,
+  recentPuzzleIds,
   recordResult,
   resetProgress,
   saveSession,
@@ -127,10 +128,10 @@ describe('recording results', () => {
   it('tracks recency for the global draw', () => {
     let state = seeded();
     const [first, second] = state.collections[0].puzzleIds;
-    state = recordResult(state, first, 'solved');
-    state = recordResult(state, second, 'solved');
-    expect(state.recent[0]).toBe(second);
-    expect(state.recent).toHaveLength(2);
+    state = recordResult(state, first, 'solved', 0, 1000);
+    state = recordResult(state, second, 'solved', 0, 2000);
+    expect(recentPuzzleIds(state)[0]).toBe(second);
+    expect(recentPuzzleIds(state)).toHaveLength(2);
   });
 });
 
@@ -197,7 +198,7 @@ describe('resetting progress', () => {
       startSession('ordered', state.collections[0].id, state.collections[0].puzzleIds),
     );
     expect(Object.keys(resetProgress(state).sessions)).toHaveLength(0);
-    expect(resetProgress(state).recent).toEqual([]);
+    expect(recentPuzzleIds(resetProgress(state))).toEqual([]);
   });
 
   it('records when it happened, so a sync cannot undo it', () => {
@@ -316,7 +317,7 @@ describe('editing and deleting a single puzzle', () => {
     expect(state.puzzles[kept], 'the other puzzle survives').toBeDefined();
     expect(state.collections[0].puzzleIds).toEqual([kept]);
     expect(state.progress[doomed]).toBeUndefined();
-    expect(state.recent).not.toContain(doomed);
+    expect(recentPuzzleIds(state)).not.toContain(doomed);
   });
 
   it('keeps a live session pointing at something that exists', () => {

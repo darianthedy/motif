@@ -63,12 +63,11 @@ the miss on record.
 **Starting over.** *Reset progress* on the home screen forgets every attempt and
 leaves the library alone — the point is to solve the puzzles again, not to
 re-import them. Suspended sessions go with it, since a session carries its own
-solved and failed lists. It stamps `progressResetAt` rather than merely emptying
-`progress`, because sync merges by union: without a marker saying this history
-was discarded on purpose, the next merge cannot tell a reset apart from a device
-that has not solved anything yet, and hands it all straight back. Both the merge
-and the store round-trip that timestamp, and every attempt older than the newest
-reset — on either side — is dropped rather than merged.
+solved and failed lists. It stamps `progressResetAt` as well as emptying
+`progress`, because another device may not have heard about the reset yet and
+can still push attempts from before it. Sync stores the timestamp in the
+account's settings row, and every attempt or session older than the newest
+reset is dropped, whether the device or the server is the one that sees it.
 
 **Input and fairness.** The model validates moves; it does not know chess. The
 UI generates legal moves with chess.js and calls `submit` only for moves legal

@@ -11,6 +11,7 @@ import {
   deletePuzzle,
   failedPuzzleIds,
   puzzlesIn,
+  recentPuzzleIds,
   recordResult,
   resetProgress,
   saveSession,
@@ -55,12 +56,10 @@ type Route =
 export function App() {
   const { state, update, replace } = useAppState();
   const [route, setRoute] = useState<Route>({ name: 'home' });
-  // Sync adopts whatever the merge produced; it is a superset of what this
-  // device had, so replacing local state with it never loses work.
-  const { user, status, syncNow, replaceCloud, refreshUser } = useSync({
-    state,
-    onMerged: replace,
-  });
+  // Sync hands back a function rather than a library, so anything recorded
+  // while it was talking to the server is replayed onto its result instead of
+  // being overwritten by it.
+  const { user, status, syncNow, refreshUser } = useSync({ state, adopt: update });
   const [notice, setNotice] = useState<string | null>(null);
 
   // The store is read asynchronously; rendering an empty library first would
@@ -80,7 +79,7 @@ export function App() {
       // sessions in a row do not serve the same handful.
       ids = orderForGlobalDraw(
         allPuzzles(state).map((puzzle) => puzzle.id),
-        state.recent,
+        recentPuzzleIds(state),
       );
     }
     if (!ids.length) return;
@@ -124,9 +123,7 @@ export function App() {
         <AccountScreen
           user={user}
           status={status}
-          puzzleCount={Object.keys(state.puzzles).length}
           onSyncNow={syncNow}
-          onReplaceCloud={replaceCloud}
           onAuthChanged={() => void refreshUser()}
           onExit={() => setRoute({ name: 'home' })}
         />

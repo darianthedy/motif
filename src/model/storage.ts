@@ -3,6 +3,8 @@ import { parseUci } from './move';
 import type { Uci } from './move';
 import { parsePlacement } from './puzzle';
 import type { Collection, Placement, Progress, Puzzle, PuzzleStatus } from './puzzle';
+import { TABLES, emptyMeta } from './rows';
+import type { SyncMeta } from './rows';
 import type { SessionState } from './session';
 import { emptyState } from './state';
 import type { AppState } from './state';
@@ -43,8 +45,17 @@ export async function requestPersistence(): Promise<boolean> {
   }
 }
 
+/**
+ * The library as a backup file.
+ *
+ * Without its sync record: that describes what this device last agreed with
+ * one account's server, and restoring it anywhere else — another device,
+ * another account, a later date — would make the next sync read every
+ * difference as a deletion.
+ */
 export function exportState(state: AppState): string {
-  return JSON.stringify(state, null, 2);
+  const { sync: _sync, ...library } = state;
+  return JSON.stringify(library, null, 2);
 }
 
 /**
@@ -117,16 +128,43 @@ export function parseState(raw: unknown): AppState {
     }
   }
 
-  const recent = Array.isArray(obj.recent)
-    ? obj.recent.filter((id): id is string => typeof id === 'string' && Boolean(puzzles[id]))
-    : [];
-
   // Must round-trip: the marker is what stops a sync from restoring history the
   // user cleared, so losing it on reload would undo the reset at the next merge.
   const progressResetAt =
     typeof obj.progressResetAt === 'number' ? obj.progressResetAt : undefined;
 
-  return { version: 1, puzzles, collections, progress, sessions, recent, progressResetAt };
+  const state: AppState = { version: 1, puzzles, collections, progress, sessions, progressResetAt };
+  const sync = parseSyncMeta(obj.sync);
+  if (sync) state.sync = sync;
+  return state;
+}
+
+/**
+ * The sync record, checked for shape only.
+ *
+ * It is written by this app and never by hand, so the rows inside are trusted.
+ * Anything malformed is dropped whole, which is safe: with no record the next
+ * sync starts from nothing and merges by union, as a new device would.
+ */
+function parseSyncMeta(raw: unknown): SyncMeta | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined;
+  const meta = raw as Record<string, unknown>;
+  if (typeof meta.userId !== 'string') return undefined;
+  if (typeof meta.cursors !== 'object' || meta.cursors === null) return undefined;
+  if (typeof meta.base !== 'object' || meta.base === null) return undefined;
+
+  const fresh = emptyMeta(meta.userId);
+  const cursors = meta.cursors as Record<string, unknown>;
+  const base = meta.base as Record<string, unknown>;
+  for (const table of TABLES) {
+    const cursor = cursors[table];
+    const rows = base[table];
+    if (typeof cursor !== 'number' || typeof rows !== 'object' || rows === null) return undefined;
+    fresh.cursors[table] = cursor;
+    (fresh.base as unknown as Record<string, unknown>)[table] = rows;
+  }
+  fresh.legacyDone = meta.legacyDone === true;
+  return fresh;
 }
 
 /**

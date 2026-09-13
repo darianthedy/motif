@@ -1,18 +1,18 @@
 import { contentKey } from './puzzle';
 import type { Collection, Progress, Puzzle } from './puzzle';
-import { RECENT_MEMORY } from './session';
 import type { SessionState } from './session';
 import { emptyState } from './state';
 import type { AppState } from './state';
 
 /**
- * Merging two divergent libraries.
+ * Merging two divergent libraries by union.
  *
- * Sync is whole-state rather than per-row, because the app is a blob everywhere
- * else and a normalized schema would be a second model to keep in step. What
- * makes a blob safe to sync is that it can be merged deterministically instead
- * of overwritten: last-write-wins would mean solving ten puzzles on a phone and
- * then losing them the moment a laptop with stale state pushed.
+ * This was the whole sync when the server held one blob per account. Sync is
+ * row-by-row now (rows.ts, rowSync.ts), and this survives for one job: folding
+ * an account's old blob into the library the first time a device syncs rows.
+ * A union is the only merge a blob supports — it has no record of what was
+ * deleted — which is exactly why deletions used to come back, and why the blob
+ * is going.
  *
  * The merge is deterministic and symmetric in effect — both devices computing
  * it independently reach the same library — which is what lets each one push
@@ -184,15 +184,6 @@ export function mergeStates(local: AppState, remote: AppState): AppState {
       }
     }
   }
-
-  // --- Recency ---
-  // Interleaved by nothing better than order seen; it only biases a shuffle,
-  // so approximate is fine.
-  const recent: string[] = [];
-  for (const id of [...local.recent, ...remote.recent].map(remap)) {
-    if (alive(id) && !recent.includes(id)) recent.push(id);
-  }
-  merged.recent = recent.slice(0, RECENT_MEMORY);
 
   return merged;
 }

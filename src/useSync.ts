@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AppState } from './model/state';
-import { currentUser, replaceRemote, syncAvailable, syncOnce } from './model/neon';
+import { currentUser, syncAvailable, transportFor } from './model/neon';
 import type { SyncUser } from './model/neon';
+import { rebase } from './model/rows';
+import { syncRows } from './model/rowSync';
 
 export type SyncStatus =
   | { kind: 'off' }
@@ -25,11 +27,11 @@ const MIN_SYNC_INTERVAL_MS = 10_000;
 
 interface Options {
   state: AppState | null;
-  /** Adopt the merged library returned by the server. */
-  onMerged: (state: AppState) => void;
+  /** Functional state update, as useAppState's `update`. */
+  adopt: (fn: (current: AppState) => AppState) => void;
 }
 
-export function useSync({ state, onMerged }: Options) {
+export function useSync({ state, adopt }: Options) {
   const [user, setUser] = useState<SyncUser | null>(null);
   const [status, setStatus] = useState<SyncStatus>(
     syncAvailable ? { kind: 'signedOut' } : { kind: 'off' },
@@ -73,18 +75,20 @@ export function useSync({ state, onMerged }: Options) {
       lastRunAt.current = Date.now();
       setStatus({ kind: 'syncing' });
       try {
-        const { state: merged } = await syncOnce(who.id, current);
+        const merged = await syncRows(current, who.id, transportFor(who.id));
 
-        // Adopt the merge only when it actually differs. `mergeStates` always
-        // returns a fresh object, so handing it over unconditionally would
-        // change state identity, retrigger the push effect, and sync again in
-        // four seconds — forever. That loop shipped, and idled at ten requests
-        // every twenty seconds.
-        if (JSON.stringify(merged) === JSON.stringify(current)) {
-          synced.current = current;
-        } else {
-          synced.current = merged;
-          onMerged(merged);
+        // Recorded as synced *before* adopting, so the push effect that the
+        // adoption triggers finds nothing to do. `syncRows` returns the very
+        // same object when nothing moved, and otherwise a new one that this
+        // marks as already pushed — either way no second sync follows. That
+        // loop shipped once, and idled at ten requests every twenty seconds.
+        synced.current = merged;
+        if (merged !== current) {
+          // Anything recorded during the round trip is in the live state but
+          // not in `merged`; rebase replays it on top. If there was any, the
+          // result differs from `merged`, so the push effect schedules the
+          // next sync to send it — which is exactly right.
+          adopt((live) => rebase(current, live, merged));
         }
         setStatus({ kind: 'idle', at: Date.now() });
       } catch (error) {
@@ -93,7 +97,7 @@ export function useSync({ state, onMerged }: Options) {
         running.current = false;
       }
     },
-    [onMerged],
+    [adopt],
   );
 
   // Sync once on sign-in: this is the moment a new device has nothing and the
@@ -138,36 +142,5 @@ export function useSync({ state, onMerged }: Options) {
     if (user) void run(user, true);
   }, [run, user]);
 
-  /**
-   * Pushes this device's library over the stored one, merging nothing.
-   *
-   * A deletion cannot survive an ordinary sync: the merge is a union, so the
-   * remote copy hands back whatever was removed here. This is the way out, and
-   * it is destructive by design — the caller confirms before calling.
-   *
-   * Marking the pushed state as synced afterwards is what stops the debounced
-   * push effect from firing straight into `run`, which would merge against the
-   * copy just written and undo nothing, but would waste a round trip and could
-   * re-adopt a state the user just replaced.
-   */
-  const replaceCloud = useCallback(async () => {
-    const current = latest.current;
-    if (!user || !current || running.current) return;
-
-    running.current = true;
-    lastRunAt.current = Date.now();
-    setStatus({ kind: 'syncing' });
-    try {
-      await replaceRemote(user.id, current);
-      synced.current = current;
-      setStatus({ kind: 'idle', at: Date.now() });
-    } catch (error) {
-      setStatus({ kind: 'error', message: (error as Error).message });
-      throw error;
-    } finally {
-      running.current = false;
-    }
-  }, [user]);
-
-  return { user, status, syncNow, replaceCloud, refreshUser };
+  return { user, status, syncNow, refreshUser };
 }

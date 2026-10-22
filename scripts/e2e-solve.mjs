@@ -175,6 +175,18 @@ try {
     await page.locator('.result').isVisible().catch(() => false));
   check('the comment appears only after the puzzle resolves',
     Boolean(await page.locator('.comment').textContent().catch(() => '')));
+
+  // The wrong moves themselves, in SAN, against the move that was wanted. The
+  // count alone ("3 wrong moves") never said what was played.
+  const missText = (await page.locator('.misses').textContent().catch(() => '')) ?? '';
+  check(`the card lists the wrong moves in SAN (${missText.replace(/\s+/g, ' ').trim()})`,
+    /Ra7/.test(missText) && /Ra6/.test(missText) && /Ra5/.test(missText));
+  check('and the move that was wanted instead', /Ra8/.test(missText));
+  const missRows = await page.locator('.miss').count();
+  check(`a one-move puzzle groups them into a single row (${missRows})`, missRows === 1);
+  const verdict = (await page.locator('.result .bad').textContent()) ?? '';
+  check(`and the verdict does not number a move there is only one of (${verdict.trim()})`,
+    !/move \d+ of/.test(verdict));
   if (SHOTS) await page.screenshot({ path: '/tmp/motif-missed.png' });
 
   await page.getByRole('button', { name: 'Continue' }).click();
@@ -349,6 +361,60 @@ try {
   await page.getByRole('button', { name: 'Done' }).click();
   await page.waitForTimeout(400);
 
+  // ---- Failing in the middle of a line ----
+  // The case a mistake count cannot describe: the first move was right, the
+  // second was not. The card has to name which move broke — "on move 2 of 2" —
+  // and put the wrong move next to the one that was wanted, or the post-mortem
+  // reads as though the whole line was wrong.
+  const twoMove = JSON.stringify({
+    collection: 'Two movers',
+    puzzles: [
+      {
+        fen: '6k1/5p1p/8/8/8/8/8/3R2KQ w - - 0 1',
+        solutions: [['d1d8', 'g8g7', 'h1h7']],
+        comment: 'Drive the king out, then take with check.',
+      },
+    ],
+  });
+  await page.getByRole('button', { name: 'Import puzzles' }).click();
+  await page.locator('textarea').fill(twoMove);
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: /Add 1 puzzle/ }).click();
+  await page.waitForTimeout(400);
+  await page.getByText('Two movers').click();
+  await page.getByRole('button', { name: 'Solve in order' }).click();
+  await page.waitForSelector('[data-square="d1"]');
+  await page.waitForTimeout(300);
+
+  await drag(page, 'd1', 'd8');
+  await page.waitForTimeout(700);
+  await drag(page, 'd8', 'd7');
+  await page.waitForTimeout(250);
+  check('a wrong second move does not end the puzzle',
+    !(await page.locator('.result').isVisible().catch(() => false)));
+
+  await drag(page, 'h1', 'h7');
+  await page.waitForTimeout(400);
+  const midVerdict = (await page.locator('.result .bad').textContent()) ?? '';
+  check(`the verdict names the move that broke (${midVerdict.replace(/\s+/g, ' ').trim()})`,
+    /move 2 of 2/.test(midVerdict));
+  const midMiss = (await page.locator('.misses').textContent().catch(() => '')) ?? '';
+  check(`the wrong move is listed against the right one (${midMiss.replace(/\s+/g, ' ').trim()})`,
+    /Rd7/.test(midMiss) && /Qxh7/.test(midMiss));
+  check('and nothing accuses the first move, which was right', !/Rd8/.test(midMiss));
+  check('the row is labelled with which move it was',
+    /2nd/.test((await page.locator('.miss-label').textContent().catch(() => '')) ?? ''));
+  if (SHOTS) await page.screenshot({ path: '/tmp/motif-missed-midline.png' });
+
+  // A missed puzzle comes back in the same session, so this one is left rather
+  // than finished: Stop, not Done.
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.waitForTimeout(400);
+  check('the missed puzzle is asked again before the session can end',
+    await page.locator('[data-square="d1"]').isVisible().catch(() => false));
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await page.waitForTimeout(400);
+
   // ---- Missing piece ----
   // The other kind of puzzle: nothing to move, a piece to put back. The claims
   // worth checking in a browser are that the board stops being a move board,
@@ -404,6 +470,9 @@ try {
     /Ng6/.test((await page.locator('.solution').textContent()) ?? ''));
   check('and shows the comment it withheld',
     /pins it/.test((await page.locator('.comment').textContent()) ?? ''));
+  const guessText = (await page.locator('.misses').textContent().catch(() => '')) ?? '';
+  check(`the wrong guess is named too, not just counted (${guessText.replace(/\s+/g, ' ').trim()})`,
+    /Qg6/.test(guessText) && /Ng6/.test(guessText));
   if (SHOTS) await page.screenshot({ path: '/tmp/motif-missing-piece.png' });
 
   await page.getByRole('button', { name: 'Continue' }).click();

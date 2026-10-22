@@ -114,6 +114,35 @@ button.link {
   color: #b6d99a;
 }
 
+/* What was played instead. One row per move that was missed, so a long line
+   shows at a glance which move broke it and which one didn't. */
+.misses {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0.5rem 0 0.2rem;
+}
+
+.miss {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.miss-label {
+  min-width: 2.1rem;
+}
+
+.miss .move {
+  border-radius: 8px;
+}
+
+.move.wrong {
+  background: #40262a;
+  color: #e2716a;
+  text-decoration: line-through;
+}
+
 .line-label {
   min-width: 0.8rem;
   font-variant-numeric: tabular-nums;

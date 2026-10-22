@@ -135,6 +135,20 @@ describe('running a missing-piece puzzle', () => {
     expect(runner.result).toBe('failed');
   });
 
+  it('keeps the wrong guesses themselves, for the card at the end', () => {
+    const runner = new MissingPieceRunner(puzzle(), KNIGHT);
+    runner.submit('g6', 'q');
+    runner.submit('f6', 'n');
+    runner.submit('g6', 'n');
+
+    // The colour is never chosen — it is the puzzle's — so a guess is only ever
+    // wrong about the piece, the square, or both.
+    expect(runner.wrongGuesses).toEqual([
+      { color: 'w', type: 'q', square: 'g6' },
+      { color: 'w', type: 'n', square: 'f6' },
+    ]);
+  });
+
   it('reveals the answer after the same three tries a move puzzle allows', () => {
     const runner = new MissingPieceRunner(puzzle(), KNIGHT);
     for (let i = 0; i < ATTEMPTS_BEFORE_HINT - 1; i++) runner.submit('a3', 'q');

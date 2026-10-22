@@ -13,13 +13,13 @@ solving, because naming the idea gives the puzzle away.
 
 ## Status
 
-The model layer is written and tested — **157 tests, all passing**. It holds
+The model layer is written and tested — **194 tests, all passing**. It holds
 every decision that is easy to get subtly wrong: what counts as solving a
 puzzle, how multiple solutions are matched, what a missing-piece puzzle accepts,
 when the answer is revealed, how a session resumes, how missed puzzles come
 back, and how imports dedupe.
 
-    npm test              # 157 tests, ~140ms
+    npm test              # 194 tests
     npm run check:e2e     # the whole app in a real browser
     npm run check:external puzzles.json   # audit a puzzle file against the rules
     npm run dev
@@ -59,6 +59,13 @@ motif, every accepted line, and Continue when you're ready.
 failed, permanently, even if everything after it is right. `mistakes` never
 resets. Re-solving cleanly later flips the stored status to solved while keeping
 the miss on record.
+
+Each wrong move is also kept, tagged with the move of the line it was played
+for, and the result card shows them in SAN against the move that was wanted:
+`2nd  Rd7 → Qxh7+`. On a multi-move puzzle the verdict names where the line
+broke — "Missed on move 2 of 3" — because a count alone cannot say whether you
+missed the idea or only the follow-up. The number counts your own moves, so
+opponent replies sitting between them never shift it.
 
 **Starting over.** *Reset progress* on the home screen forgets every attempt and
 leaves the library alone — the point is to solve the puzzles again, not to

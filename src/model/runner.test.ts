@@ -167,6 +167,50 @@ describe('solution matching', () => {
   });
 });
 
+describe('the record of wrong moves', () => {
+  it('remembers nothing on a clean solve', () => {
+    const runner = new PuzzleRunner(puzzle([['a1a8']]));
+    runner.submit(uci('a1a8'));
+    expect(runner.misses).toEqual([]);
+    expect(runner.missedPlies).toEqual([]);
+  });
+
+  it('tags each wrong move with the move it was played for', () => {
+    const runner = new PuzzleRunner(puzzle([['d1h5', 'g7g6', 'h5g6']]));
+    runner.submit(uci('d1h4'));
+    runner.submit(uci('d1h5'));
+    runner.submit(uci('h5h6'));
+    runner.submit(uci('h5h7'));
+    runner.submit(uci('h5g6'));
+
+    expect(runner.misses).toEqual([
+      { ply: 0, move: 'd1h4' },
+      { ply: 1, move: 'h5h6' },
+      { ply: 1, move: 'h5h7' },
+    ]);
+    expect(runner.missedPlies).toEqual([0, 1]);
+    expect(runner.result).toBe('failed');
+  });
+
+  it('counts solver moves, not the plies of the line', () => {
+    // The second solver move is ply 2 of the line and move 1 for the runner:
+    // "missed on move 2" has to survive the opponent's reply sitting between.
+    const runner = new PuzzleRunner(puzzle([['d1h5', 'g7g6', 'h5g6']]));
+    runner.submit(uci('d1h5'));
+    runner.submit(uci('h5h6'));
+    expect(runner.misses).toEqual([{ ply: 1, move: 'h5h6' }]);
+  });
+
+  it('lists a repeated wrong move once per try, and its move once', () => {
+    const runner = new PuzzleRunner(puzzle([['a1a8']]));
+    runner.submit(uci('a1a7'));
+    runner.submit(uci('a1a7'));
+    expect(runner.misses).toHaveLength(2);
+    expect(runner.missedPlies).toEqual([0]);
+    expect(runner.mistakes).toBe(2);
+  });
+});
+
 describe('hints and the retry budget', () => {
   it('reveals only after three wrong tries', () => {
     const runner = new PuzzleRunner(puzzle([['a1a8']]));

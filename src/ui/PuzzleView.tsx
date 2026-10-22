@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { applyUci, isLegal, replayLine, startingFen } from '../model/board';
+import { applyUci, isLegal, replayLine, sanFor, startingFen } from '../model/board';
 import { moveFrom, moveTo, stripQueenPromotion } from '../model/move';
 import type { Uci } from '../model/move';
 import { solverSide } from '../model/puzzle';
@@ -41,6 +41,28 @@ function playedLine(line: Uci[], accepted: Uci[]): boolean {
   );
 }
 
+const ORDINALS = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
+
+/** "2nd", for naming which move of the line broke. */
+function ordinal(index: number): string {
+  return ORDINALS[index] ?? `${index + 1}th`;
+}
+
+/**
+ * "on move 2 of 3" — the part of the failure headline that says *where* the
+ * line broke.
+ *
+ * Null for a one-move puzzle, where there is only one move it could have been
+ * and saying so is noise.
+ */
+function whereItBroke(plies: number[], total: number): string | null {
+  if (plies.length === 0 || total <= 1) return null;
+  const numbers = plies.map((ply) => ply + 1);
+  if (numbers.length === 1) return `on move ${numbers[0]} of ${total}`;
+  const last = numbers[numbers.length - 1];
+  return `on moves ${numbers.slice(0, -1).join(', ')} and ${last} of ${total}`;
+}
+
 interface Props {
   puzzle: Puzzle;
   /** `mistakes` is the count for this attempt, for cumulative stats. */
@@ -78,6 +100,16 @@ function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
   const [hint, setHint] = useState<Uci | null>(null);
   const [shakeKey, setShakeKey] = useState(0);
   const timers = useRef<number[]>([]);
+  /**
+   * The position each of the solver's moves was asked from, indexed by move.
+   *
+   * The runner records a wrong move as UCI, having no board; SAN is what the
+   * card should show, and SAN only exists relative to a position. This is that
+   * position, kept as it goes past rather than reconstructed at the end —
+   * reconstruction would mean replaying a line that, by definition, was not the
+   * one played.
+   */
+  const askedFrom = useRef<string[]>([]);
 
   const after = useCallback((ms: number, fn: () => void) => {
     timers.current.push(window.setTimeout(fn, ms));
@@ -90,6 +122,9 @@ function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
     return () => {
       timers.current.forEach(clearTimeout);
       timers.current = [];
+      // Positions belong to the puzzle they were asked from, for the same
+      // reason the timers do.
+      askedFrom.current = [];
     };
   }, [puzzle.id]);
 
@@ -109,6 +144,7 @@ function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
     (move: Uci) => {
       if (phase !== 'solving') return;
 
+      askedFrom.current[runner.accepted.length] = fen;
       const outcome = runner.submit(move);
 
       if (outcome.kind === 'wrong') {
@@ -192,6 +228,43 @@ function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
     });
   }, [done, puzzle, runner]);
 
+  // The line that was actually played, and how many moves of it were yours:
+  // the denominator in "move 2 of 3".
+  const played = lines.find((line) => line.played);
+  const solverMoves = played
+    ? played.steps.filter((step) => step.bySolver).length
+    : runner.accepted.length;
+
+  /**
+   * Wrong moves grouped by the move they were played for, each group carrying
+   * the move that was wanted instead.
+   *
+   * Grouped rather than listed flat because the question a failed puzzle raises
+   * is "where did I go wrong", and three tries at one move is a different
+   * answer to that than one try at each of three.
+   */
+  const missed = useMemo(() => {
+    if (!done || runner.misses.length === 0) return [];
+    const groups = new Map<number, string[]>();
+    for (const miss of runner.misses) {
+      const from = askedFrom.current[miss.ply];
+      // Falling back to the raw UCI keeps a mistake visible even if the
+      // position it was played in somehow went missing.
+      const san = (from && sanFor(from, miss.move)) || miss.move;
+      groups.set(miss.ply, [...(groups.get(miss.ply) ?? []), san]);
+    }
+    return [...groups].map(([ply, tried]) => ({
+      ply,
+      tried,
+      wanted: played?.steps[ply * 2]?.san ?? null,
+    }));
+  }, [done, played, runner]);
+
+  const broke = whereItBroke(
+    missed.map((group) => group.ply),
+    solverMoves,
+  );
+
   return (
     <div className="puzzle">
       <Board
@@ -231,9 +304,40 @@ function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
               <p className="good">Solved</p>
             ) : (
               <p className="bad">
-                Missed{runner.hinted ? ' — answer shown' : ''} · {runner.mistakes} wrong move
+                Missed{broke ? ` ${broke}` : ''} · {runner.mistakes} wrong move
                 {runner.mistakes === 1 ? '' : 's'}
+                {runner.hinted ? ' · answer shown' : ''}
               </p>
+            )}
+
+            {/* What you played, against what was wanted. Directly under the
+                verdict, because on a failed puzzle it is the thing being looked
+                for — the comment and the full lines are read after. */}
+            {missed.length > 0 && (
+              <div className="misses">
+                {missed.map((group) => (
+                  <div key={group.ply} className="miss">
+                    {solverMoves > 1 && (
+                      <span className="muted small miss-label">{ordinal(group.ply)}</span>
+                    )}
+                    <span className="moves">
+                      {group.tried.map((san, index) => (
+                        <span key={`${san}-${index}`} className="move wrong">
+                          {san}
+                        </span>
+                      ))}
+                      {group.wanted && (
+                        <>
+                          <span className="muted small">→</span>
+                          <span className="move" data-solver>
+                            {group.wanted}
+                          </span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
 
             {/* Tags and comment appear only now. Before the puzzle resolves

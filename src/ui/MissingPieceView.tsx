@@ -132,9 +132,30 @@ export function MissingPieceView({ puzzle, addPiece, onComplete, onSkip }: Props
               <p className="good">Solved</p>
             ) : (
               <p className="bad">
-                Missed{runner.hinted ? ' — answer shown' : ''} · {runner.mistakes} wrong guess
+                Missed · {runner.mistakes} wrong guess
                 {runner.mistakes === 1 ? '' : 'es'}
+                {runner.hinted ? ' · answer shown' : ''}
               </p>
+            )}
+
+            {/* One question, so no move numbers to give — just what was tried
+                against what was wanted, in the same shape a missed line uses. */}
+            {runner.wrongGuesses.length > 0 && (
+              <div className="misses">
+                <div className="miss">
+                  <span className="moves">
+                    {runner.wrongGuesses.map((guess, index) => (
+                      <span key={`${placementText(guess)}-${index}`} className="move wrong">
+                        {placementText(guess)}
+                      </span>
+                    ))}
+                    <span className="muted small">→</span>
+                    <span className="move" data-solver>
+                      {placementText(addPiece)}
+                    </span>
+                  </span>
+                </div>
+              </div>
             )}
 
             {/* Withheld until now for the same reason as everywhere else: the

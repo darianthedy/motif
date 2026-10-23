@@ -242,7 +242,7 @@ button.link {
 
 .danger { color: #e2716a; }
 
-textarea, .field input {
+textarea, .field input, .field select {
   width: 100%;
   margin-top: 0.6rem;
   padding: 0.6rem;

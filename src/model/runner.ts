@@ -61,13 +61,10 @@ export interface Miss {
  */
 export class PuzzleRunner {
   readonly puzzle: Puzzle;
-  private readonly root: TrieNode;
   private node: TrieNode;
 
   /** Solver moves accepted so far, for the move list. */
   accepted: Uci[] = [];
-  /** Total incorrect moves this run. Never resets — one slip is not clean. */
-  mistakes = 0;
   /**
    * Every wrong move, in the order played, tagged with the move it was played
    * for. Kept rather than only counted because "two wrong moves" does not tell
@@ -87,13 +84,12 @@ export class PuzzleRunner {
 
   constructor(puzzle: Puzzle) {
     this.puzzle = puzzle;
-    this.root = buildTrie(puzzle.solutions);
-    this.node = this.root;
+    this.node = buildTrie(puzzle.solutions);
   }
 
-  /** A puzzle with no solutions is unsolvable; flagged so it can be skipped. */
-  get degenerate(): boolean {
-    return isTerminal(this.root);
+  /** Total incorrect moves this run. One slip is not clean. */
+  get mistakes(): number {
+    return this.misses.length;
   }
 
   get clean(): boolean {
@@ -106,19 +102,6 @@ export class PuzzleRunner {
 
   get shouldRevealHint(): boolean {
     return this.wrongAtThisPly >= ATTEMPTS_BEFORE_HINT;
-  }
-
-  /** The moves that were missed at least once, ascending, each listed once. */
-  get missedPlies(): number[] {
-    return [...new Set(this.misses.map((miss) => miss.ply))].sort((a, b) => a - b);
-  }
-
-  /**
-   * Peeks at the expected move without marking the run as hinted. For the
-   * post-mortem on the result card.
-   */
-  get expectedMove(): Uci | null {
-    return this.node.preferredMove;
   }
 
   /**
@@ -137,7 +120,6 @@ export class PuzzleRunner {
 
     const edge = findEdge(this.node, move);
     if (!edge) {
-      this.mistakes++;
       this.wrongAtThisPly++;
       this.misses.push({ ply: this.accepted.length, move });
       return { kind: 'wrong' };
@@ -167,12 +149,10 @@ export class MissingPieceRunner {
   readonly puzzle: Puzzle;
   readonly answer: Placement;
 
-  /** Wrong guesses this run. There is one ply, so this is also the ply's count. */
-  mistakes = 0;
   /**
-   * The wrong placements themselves, in order. The counterpart of the move
-   * runner's `misses`, without the ply: there is only ever one question here,
-   * so what you played is the whole story.
+   * The wrong placements, in order. The counterpart of the move runner's
+   * `misses`, without the ply: there is only ever one question here, so what
+   * you played is the whole story.
    */
   wrongGuesses: Placement[] = [];
   complete = false;
@@ -181,6 +161,11 @@ export class MissingPieceRunner {
   constructor(puzzle: Puzzle, answer: Placement) {
     this.puzzle = puzzle;
     this.answer = answer;
+  }
+
+  /** Wrong guesses this run. There is one ply, so this is also the ply's count. */
+  get mistakes(): number {
+    return this.wrongGuesses.length;
   }
 
   get clean(): boolean {
@@ -214,7 +199,6 @@ export class MissingPieceRunner {
 
     const guess: Placement = { color: this.answer.color, type, square };
     if (!samePlacement(guess, this.answer)) {
-      this.mistakes++;
       this.wrongGuesses.push(guess);
       return { kind: 'wrong' };
     }

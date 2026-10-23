@@ -132,16 +132,32 @@ try {
     await page.getByText('Back-rank mates').isVisible());
   if (SHOTS) await page.screenshot({ path: '/tmp/motif-home.png' });
 
-  // Re-importing the same file must not duplicate anything.
+  // Re-importing the same file into its collection must not duplicate anything.
   await page.getByRole('button', { name: 'Import puzzles' }).click();
   await page.locator('textarea').fill(SAMPLE);
   await page.waitForTimeout(200);
+  await page.locator('select').selectOption({ label: 'Back-rank mates' });
+  check('an existing collection can be chosen as the target',
+    !(await page.getByText('Collection name').isVisible().catch(() => false)));
   await page.getByRole('button', { name: /Add 3 puzzles/ }).click();
   await page.waitForTimeout(300);
-  check('re-importing adds nothing new',
+  check('re-importing into it adds nothing new',
     await page.getByText(/No new puzzles/).isVisible());
   const cards = await page.locator('.card').count();
   check('and does not create a second collection', cards === 1);
+
+  // ---- Rename ----
+  await page.getByText('Back-rank mates').click();
+  page.once('dialog', (d) => d.accept('Back rank'));
+  await page.getByRole('button', { name: 'Rename collection' }).click();
+  await page.waitForTimeout(400);
+  check('a collection can be renamed',
+    (await page.locator('.screen-bar h2').textContent()) === 'Back rank');
+  page.once('dialog', (d) => d.accept('Back-rank mates'));
+  await page.getByRole('button', { name: 'Rename collection' }).click();
+  await page.waitForTimeout(400);
+  await page.getByRole('button', { name: '← Collections' }).click();
+  await page.waitForTimeout(300);
 
   // ---- Start a session ----
   await page.getByText('Back-rank mates').click();

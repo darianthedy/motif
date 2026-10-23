@@ -5,6 +5,8 @@ puzzle, solve it, move to the next one — Duolingo's pacing rather than a
 puzzle-of-the-day.
 
 A React PWA, deployable to GitHub Pages, installable to an iPhone home screen.
+Your library lives in your account (Neon Postgres), so it is the same on every
+device; solving also works offline.
 
 Named for the chess term: a motif is the idea behind a tactic — the pin, the
 fork, the deflection, the back rank. It is also, not by accident, the field on
@@ -13,17 +15,23 @@ solving, because naming the idea gives the puzzle away.
 
 ## Status
 
-The model layer is written and tested — **194 tests, all passing**. It holds
+The model layer is written and tested — **132 tests, all passing**. It holds
 every decision that is easy to get subtly wrong: what counts as solving a
 puzzle, how multiple solutions are matched, what a missing-piece puzzle accepts,
-when the answer is revealed, how a session resumes, how missed puzzles come
-back, and how imports dedupe.
+when the answer is revealed, where a run has got to, how missed puzzles come
+back, and how imports dedupe. The schema's access rules are tested against a
+real Postgres in-process.
 
-    npm test              # 194 tests
-    npm run check:e2e     # the whole app in a real browser
-    npm run check:external puzzles.json   # audit a puzzle file against the rules
+    npm test              # 132 tests
+    npm run check:e2e     # the whole app in a real browser, on the in-memory backend
+    npm run check:sync    # two devices against the real database (see db/README.md)
+    npm run check:external -- puzzles.json   # audit a puzzle file against the rules
     npm run dev
     npm run build
+
+Without `VITE_NEON_BASE_URL` (see `.env.example`), `npm run dev` uses an
+in-memory stand-in for the database: any email and password signs in, and each
+account's library is kept in that browser's localStorage.
 
 ## Why a web app
 
@@ -35,9 +43,10 @@ local.
 
 The costs are real and accepted: drag feel and haptics are worse than native,
 and iOS evicts script-writable storage after ~7 days of disuse for sites that
-aren't installed to the home screen. Mitigations: request
-`navigator.storage.persist()`, and ship progress export/import early. Puzzles
-can always be re-imported; solve history cannot.
+aren't installed to the home screen. That matters less now the library lives in
+the database: the device only keeps a copy to solve from offline, plus the
+attempts waiting to upload, and it still asks `navigator.storage.persist()` for
+those.
 
 ## The rules, as implemented
 
@@ -55,10 +64,10 @@ card comes up after it, so the last move is something you watch rather than
 something the card tells you about. Everything downstream is unchanged: comment,
 motif, every accepted line, and Continue when you're ready.
 
-**Failing.** Any legal move that is not an accepted continuation marks the run
-failed, permanently, even if everything after it is right. `mistakes` never
-resets. Re-solving cleanly later flips the stored status to solved while keeping
-the miss on record.
+**Failing.** Any legal move that is not an accepted continuation marks the
+attempt failed, permanently, even if everything after it is right. A puzzle's
+status is its latest result, so re-solving cleanly later makes it solved again,
+while the failed attempt stays on record and in its mistake count.
 
 Each wrong move is also kept, tagged with the move of the line it was played
 for, and the result card shows them in SAN against the move that was wanted:
@@ -67,14 +76,10 @@ broke — "Missed on move 2 of 3" — because a count alone cannot say whether y
 missed the idea or only the follow-up. The number counts your own moves, so
 opponent replies sitting between them never shift it.
 
-**Starting over.** *Reset progress* on the home screen forgets every attempt and
-leaves the library alone — the point is to solve the puzzles again, not to
-re-import them. Suspended sessions go with it, since a session carries its own
-solved and failed lists. It stamps `progressResetAt` as well as emptying
-`progress`, because another device may not have heard about the reset yet and
-can still push attempts from before it. Sync stores the timestamp in the
-account's settings row, and every attempt or session older than the newest
-reset is dropped, whether the device or the server is the one that sees it.
+**Starting over.** *Reset progress* on the home screen deletes every attempt
+and run and leaves the library alone — the point is to solve the puzzles again,
+not to re-import them. One edge case is accepted: attempts another device made
+offline before the reset still upload afterwards, and count.
 
 **Input and fairness.** The model validates moves; it does not know chess. The
 UI generates legal moves with chess.js and calls `submit` only for moves legal
@@ -89,10 +94,11 @@ is the earliest-declared solution rather than whatever map iteration yields
 first. The budget is per ply, not per puzzle — a long line gives three tries at
 each move. Revealing does not end the puzzle; you play the move and continue.
 
-**Retries.** A missed puzzle is re-served later in the *same* session, after
-`RETRY_GAP = 3` others so the answer isn't just echoed back, capped at
-`MAX_RETRIES = 10` so a bad run can't build a backlog. Progress is measured
-against the original queue length, so retries never make the bar slip backwards.
+**Retries.** A missed puzzle is re-served once later in the *same* session,
+after `RETRY_GAP = 3` others so the answer isn't just echoed back, with at most
+`MAX_RETRIES = 10` waiting so a bad run can't build a backlog. Progress is
+measured against the original queue length, so retries never make the bar slip
+backwards.
 
 **Promotion.** Moves are 5-char UCI (`e7e8q`). Source data that writes a
 queening as plain `e7e8` still matches, via a lookup fallback in the trie — the
@@ -119,10 +125,16 @@ mates. Since the puzzle accepts exactly one placement, an authored position
 where two different pieces would do marks a correct answer wrong;
 `check:external` audits for that specifically.
 
-**Sessions.** The queue is materialized up front, not regenerated from a seed.
-Resume is exact and no-repeats-within-a-session is free. A collection edited
-between sessions is handled by `reconcile`, which drops dead puzzles while
-keeping the cursor in place.
+**Sessions.** A session is a *run*: its queue is fixed when it starts, and
+that, with its scope, mode and start time, is all that is stored. Where it has
+got to — the current puzzle, retries owed, the progress bar — is worked out
+from the attempts made in it (`src/model/derive.ts`), so resuming on another
+device is exact and two devices playing one run can never conflict; the worst
+case is seeing a puzzle twice. A skip is an attempt too, with result `skipped`:
+the puzzle doesn't come back that run and counts as neither solved nor failed.
+Puzzles deleted since the run started drop out of its queue. Each collection,
+the library-wide draw and review each hold one run; starting another replaces
+it.
 
 **Tags and comments.** Both live on the puzzle, and neither is rendered while
 solving — they are spoilers. They surface on the result card and in puzzle
@@ -130,40 +142,72 @@ detail, alongside a disclosure of any alternative solutions you didn't play.
 
 ## Import
 
-Two front doors, both producing the same `ImportResult`:
+A JSON file, chosen or pasted. See `samples/back-rank.json`, and
+`samples/missing-piece.json` for the other kind:
 
-- **JSON** — the hand-authored format, see `samples/back-rank.json`, and
-  `samples/missing-piece.json` for the other kind:
+    { "collection": "Missing pieces",
+      "puzzles": [
+        { "id": 187,
+          "fen": "6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1",
+          "solutions": [],
+          "tags": ["missingPiece"],
+          "comment": "Add a knight and it's mate",
+          "add_piece": "Ng6" } ] }
 
-      { "id": 187,
-        "fen": "6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1",
-        "solutions": [],
-        "tags": ["missingPiece"],
-        "comment": "Add a knight and it's mate",
-        "add_piece": "Ng6" }
+`id` is the puzzle's number in its source, shown as `#187`; `rating` is
+optional. A file may also be an array of such objects — a book's chapters —
+and then each becomes a new collection of its own. A single-collection file
+goes where you choose: into an existing collection, or a new one named after
+the file's `collection` by default.
 
-- **Lichess CSV** — the public puzzle dump, with rating/theme/limit filters,
-  because the dump is four million rows. Its quirk is handled explicitly: the
-  FEN is one ply early and the first move is the opponent's, kept as `setupMove`
-  and animated before your clock starts rather than folded into the FEN.
+Each puzzle belongs to exactly one collection; the same position imported into
+two collections is two puzzles, with their own progress and comment. Within a
+collection, identity is a canonical string of position + accepted solutions
+(+ placement) — not a digest, so it cannot collide and stays legible. Move
+counters are stripped and solution order normalized. A puzzle listed twice in a
+file appears once, and re-importing a file into the same collection updates its
+puzzles' tags, comment, rating and number instead of adding them again — the
+file wins over a comment edited in the app. Rejected rows come back with
+reasons rather than being silently dropped.
 
-Identity for dedupe is a canonical string of position + accepted solutions — not
-a digest, so it cannot collide and stays legible in a store dump. Move counters
-are stripped and solution order normalized. Tags, comment, rating and source are
-excluded, so re-importing a file with edited metadata updates the existing
-puzzle instead of forking it. Rejected rows come back with reasons rather than
-being silently dropped.
+## Data
+
+The database is the source of truth (`db/0001_schema.sql`, set up as described
+in `db/README.md`): collections, puzzles, runs and attempts, each row private
+to its account by row-level security. Signing in is required.
+
+- **Edits** — importing, renaming and deleting collections, editing comments,
+  deleting puzzles, resetting progress — are written straight to the database,
+  and the library is then read back. They need a connection; offline they are
+  disabled, with a note saying so.
+- **Play** works offline. The device keeps a read-only copy of the library to
+  solve from (`src/data/cache.ts`), and starting a run or finishing a puzzle
+  goes into an outbox (`src/data/outbox.ts`) that uploads on opening, on
+  returning to the foreground, on reconnecting and after each solve. Runs and
+  attempts are only ever inserted, so uploading late cannot conflict with
+  anything, and uploading twice stores once.
+- The copy is replaced, never merged, whenever the server is reached, with the
+  outbox laid on top.
 
 ## Layout
 
     src/model/          # pure logic, no React — this is the tested part
       move.ts           # UCI parsing
-      puzzle.ts         # puzzle, placement, collection, progress, content key
+      puzzle.ts         # puzzle, placement, collection, content key
       trie.ts           # accepted-continuation tree
       runner.ts         # one puzzle: validation, mistakes, hints — both kinds
       board.ts          # the only file that knows the rules of chess
-      session.ts        # queue, retries, resume, reconcile
-      import/           # JSON and Lichess CSV adapters
+      session.ts        # queue order, retry rules, the library-wide draw
+      derive.ts         # status, counts, review set, run progress — from attempts
+      library.ts        # reading the library; planning an import
+      import/json.ts    # the import format
+    src/data/
+      backend.ts        # the Backend interface: PostgREST and in-memory
+      neon.ts           # Neon's Data API and Neon Auth
+      account.ts        # signing in; the dev stand-in when there is no database
+      cache.ts          # this device's copy of the library
+      outbox.ts         # runs and attempts waiting to upload
+    src/useLibrary.ts   # the signed-in library, as the UI sees it
     src/ui/
       Board.tsx         # moves, promotion, and the placement board
       PuzzleView.tsx    # dispatches on the kind
@@ -184,12 +228,3 @@ comment, the motif and every accepted line, with the one you played marked.
 The comment is written for the moment the puzzle resolves, and a clean solve is
 exactly when there is attention left to read it; flashing it for 700ms meant
 the puzzles you understood taught you nothing. Advancing is always a press.
-
-## Next
-
-1. Board component: tap-to-move and drag, legal-destination dots, promotion sheet.
-2. Session screen: progress bar, hint reveal, result card with alternate-solution disclosure.
-3. Persistence via `idb-keyval`, plus export/import of progress.
-4. Collection management and the import screen.
-5. Review-mistakes mode and stats.
-6. GitHub Pages deploy.

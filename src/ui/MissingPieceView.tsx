@@ -42,19 +42,18 @@ interface Props {
   puzzle: Puzzle;
   addPiece: Placement;
   onComplete: (result: PuzzleResult, mistakes: number, hinted: boolean) => void;
-  onSkip: () => void;
 }
 
-export function MissingPieceView({ puzzle, addPiece, onComplete, onSkip }: Props) {
+export function MissingPieceView({ puzzle, addPiece, onComplete }: Props) {
   const runner = useMemo(
     () => new MissingPieceRunner(puzzle, addPiece),
     [addPiece, puzzle],
   );
 
   const start = puzzle.fen;
-  // The position with the answer in it, computed once. Also the check for
-  // whether the puzzle is answerable at all.
-  const answered = useMemo(() => withPiece(start, addPiece), [addPiece, start]);
+  // The position with the answer in it, computed once. The importer has
+  // checked that there is one.
+  const answered = useMemo(() => withPiece(start, addPiece) ?? start, [addPiece, start]);
 
   const [phase, setPhase] = useState<Phase>('solving');
   const [hint, setHint] = useState<Placement | null>(null);
@@ -88,7 +87,7 @@ export function MissingPieceView({ puzzle, addPiece, onComplete, onSkip }: Props
   // The answer goes on the board when the puzzle resolves — after a miss as
   // much as after a solve. Being told the piece and left to picture it on the
   // square is the part that would not stick.
-  const shown = done && answered ? answered : start;
+  const shown = done ? answered : start;
   const marked = done || hint ? { from: addPiece.square, to: addPiece.square } : null;
 
   return (
@@ -97,27 +96,18 @@ export function MissingPieceView({ puzzle, addPiece, onComplete, onSkip }: Props
         fen={shown}
         orientation={side}
         onMove={() => {}}
-        placing={phase === 'solving' && answered ? { color: addPiece.color, onPlace } : null}
+        placing={phase === 'solving' ? { color: addPiece.color, onPlace } : null}
         highlight={marked}
         shakeKey={shakeKey}
         interactive={phase === 'solving'}
       />
 
       <div className="puzzle-status">
-        {!answered && (
-          <div className="result">
-            <p className="bad">This puzzle looks broken — its piece cannot go where it says.</p>
-            <button type="button" onClick={onSkip}>
-              Skip it
-            </button>
-          </div>
-        )}
-
-        {phase === 'solving' && answered && !hint && (
+        {phase === 'solving' && !hint && (
           <span className="muted">Add a {sideName} piece</span>
         )}
 
-        {phase === 'solving' && answered && hint && (
+        {phase === 'solving' && hint && (
           <span className="hint">
             Add the {PIECE_NAME[hint.type]} on the highlighted square
           </span>

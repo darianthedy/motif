@@ -117,8 +117,3 @@ export function findEdge(node: TrieNode, move: Uci): TrieEdge | null {
   if (!stripped) return null;
   return node.edges.get(stripped)?.[0] ?? null;
 }
-
-/** Every accepted first move, for the "other solutions" disclosure. */
-export function alternativeCount(root: TrieNode): number {
-  return Math.max(0, root.edges.size - 1);
-}

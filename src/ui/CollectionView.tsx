@@ -15,6 +15,7 @@ interface Props {
   onBrowse: () => void;
   onResume: () => void;
   onDiscardRun: () => void;
+  onRename: (name: string) => void;
   onDelete: () => void;
   onExit: () => void;
 }
@@ -29,6 +30,7 @@ export function CollectionView({
   onBrowse,
   onResume,
   onDiscardRun,
+  onRename,
   onDelete,
   onExit,
 }: Props) {
@@ -82,6 +84,17 @@ export function CollectionView({
       </div>
 
       <div className="menu subtle">
+        <button
+          type="button"
+          className="link"
+          disabled={!online}
+          onClick={() => {
+            const name = prompt('Rename the collection', collection.name)?.trim();
+            if (name && name !== collection.name) onRename(name);
+          }}
+        >
+          Rename collection
+        </button>
         <button
           type="button"
           className="link danger"

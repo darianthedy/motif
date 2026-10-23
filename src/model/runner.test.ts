@@ -174,7 +174,7 @@ describe('the record of wrong moves', () => {
     const runner = new PuzzleRunner(puzzle([['a1a8']]));
     runner.submit(uci('a1a8'));
     expect(runner.misses).toEqual([]);
-    expect(runner.missedPlies).toEqual([]);
+    expect(runner.mistakes).toBe(0);
   });
 
   it('tags each wrong move with the move it was played for', () => {
@@ -190,7 +190,7 @@ describe('the record of wrong moves', () => {
       { ply: 1, move: 'h5h6' },
       { ply: 1, move: 'h5h7' },
     ]);
-    expect(runner.missedPlies).toEqual([0, 1]);
+    expect(runner.mistakes).toBe(3);
     expect(runner.result).toBe('failed');
   });
 
@@ -203,12 +203,12 @@ describe('the record of wrong moves', () => {
     expect(runner.misses).toEqual([{ ply: 1, move: 'h5h6' }]);
   });
 
-  it('lists a repeated wrong move once per try, and its move once', () => {
+  it('lists a repeated wrong move once per try', () => {
     const runner = new PuzzleRunner(puzzle([['a1a8']]));
     runner.submit(uci('a1a7'));
     runner.submit(uci('a1a7'));
     expect(runner.misses).toHaveLength(2);
-    expect(runner.missedPlies).toEqual([0]);
+    expect(runner.misses.map((m) => m.ply)).toEqual([0, 0]);
     expect(runner.mistakes).toBe(2);
   });
 });
@@ -247,15 +247,7 @@ describe('hints and the retry budget', () => {
     expect(runner.revealHint()).toBe('a1a8');
   });
 
-  it('does not mark the run hinted just for peeking', () => {
-    const runner = new PuzzleRunner(puzzle([['a1a8']]));
-    expect(runner.expectedMove).toBe('a1a8');
-    expect(runner.hinted).toBe(false);
-  });
 
-  it('flags a puzzle with no solutions rather than trapping the session', () => {
-    expect(new PuzzleRunner(puzzle([])).degenerate).toBe(true);
-  });
 });
 
 describe('puzzle identity', () => {

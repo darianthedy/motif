@@ -1,4 +1,4 @@
-import { firstIllegalMove, pieceAt, withPiece } from '../board';
+import { firstIllegalMove, isValidFen, pieceAt, withPiece } from '../board';
 import { parseUci } from '../move';
 import type { Uci } from '../move';
 import { contentKey, parsePlacement, placementText } from '../puzzle';
@@ -54,34 +54,6 @@ function emptyResult(): ImportResult {
   return { groups: [], rejected: [] };
 }
 
-/**
- * A cheap structural check, not a legality check. The model has no board; a
- * position that parses here but is illegal is caught by chess.js when the UI
- * first renders it, which is early enough.
- */
-export function isPlausibleFen(fen: string): boolean {
-  const fields = fen.trim().split(/\s+/);
-  if (fields.length < 2) return false;
-  if (fields[1] !== 'w' && fields[1] !== 'b') return false;
-
-  const ranks = fields[0].split('/');
-  if (ranks.length !== 8) return false;
-
-  for (const rank of ranks) {
-    let count = 0;
-    for (const ch of rank) {
-      if (ch >= '1' && ch <= '8') count += Number(ch);
-      else if ('prnbqkPRNBQK'.includes(ch)) count += 1;
-      else return false;
-    }
-    if (count !== 8) return false;
-  }
-
-  // Exactly one king per side, or the position cannot be played.
-  const kings = (side: string) => [...fields[0]].filter((c) => c === side).length;
-  return kings('K') === 1 && kings('k') === 1;
-}
-
 /** Parses a line of UCI moves, returning null if any move is malformed. */
 function parseLine(raw: unknown): Uci[] | null {
   if (!Array.isArray(raw)) return null;
@@ -101,11 +73,8 @@ interface RawEntry {
   solutions?: unknown;
   tags?: unknown;
   comment?: unknown;
-  sourceId?: unknown;
   rating?: unknown;
-  /** Snake case, as the puzzle files are written. `addPiece` is also accepted. */
   add_piece?: unknown;
-  addPiece?: unknown;
 }
 
 /**
@@ -156,14 +125,14 @@ export function importJson(text: string): ImportResult {
 
 /** Validates one entry, recording a reason on the result if it is rejected. */
 function parseEntry(raw: RawEntry, index: number, result: ImportResult): PuzzleContent | null {
-  if (typeof raw?.fen !== 'string' || !isPlausibleFen(raw.fen)) {
+  if (typeof raw?.fen !== 'string' || !isValidFen(raw.fen)) {
     result.rejected.push({ index, reason: 'Malformed FEN' });
     return null;
   }
 
   // The two kinds are told apart by the data rather than by a declared type,
   // and the same file may hold both.
-  const rawPlacement = raw.add_piece ?? raw.addPiece;
+  const rawPlacement = raw.add_piece;
   if (rawPlacement !== undefined && rawPlacement !== null) {
     if (Array.isArray(raw.solutions) && raw.solutions.length > 0) {
       result.rejected.push({
@@ -218,11 +187,7 @@ function common(raw: RawEntry) {
     // The book numbers its puzzles; keeping that as the source id makes a
     // puzzle findable in the original.
     sourceId:
-      typeof raw.sourceId === 'string'
-        ? raw.sourceId
-        : typeof raw.id === 'number'
-          ? String(raw.id)
-          : undefined,
+      typeof raw.id === 'number' || typeof raw.id === 'string' ? String(raw.id) : undefined,
     rating: typeof raw.rating === 'number' ? raw.rating : undefined,
   };
 }

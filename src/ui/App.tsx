@@ -17,6 +17,7 @@ import { useLibrary } from '../useLibrary';
 import { CollectionView } from './CollectionView';
 import { Home } from './Home';
 import { ImportScreen } from './ImportScreen';
+import type { ImportTarget } from './ImportScreen';
 import { PuzzleDetailScreen } from './PuzzleDetailScreen';
 import { PuzzleListScreen } from './PuzzleListScreen';
 import { SessionScreen } from './SessionScreen';
@@ -123,33 +124,39 @@ export function App() {
     }
   };
 
-  const applyImport = async (result: ImportResult, collectionName?: string) => {
-    const singleGroup = result.groups.length === 1;
+  /**
+   * A single-collection file goes where the import screen says; a file of
+   * several makes a new collection of each. Re-importing into a collection
+   * updates the puzzles it already has rather than adding them twice.
+   */
+  const applyImport = async (result: ImportResult, target?: ImportTarget) => {
     const created: Collection[] = [];
-    const collections = [...library.collections];
-    let added = 0;
-    let refreshed = 0;
     const puzzles: NewPuzzle[] = [];
+    let added = 0;
 
     for (const group of result.groups) {
-      const name = (singleGroup ? collectionName : undefined) ?? group.name ?? collectionName;
-      if (!name || !group.puzzles.length) continue;
-      let target = collections.find((c) => c.name === name);
-      if (!target) {
-        target = { id: crypto.randomUUID(), name, createdAt: Date.now() + created.length };
-        created.push(target);
-        collections.push(target);
+      if (!group.puzzles.length) continue;
+      let collectionId: string;
+      if (target && 'collectionId' in target) {
+        collectionId = target.collectionId;
+      } else {
+        collectionId = crypto.randomUUID();
+        created.push({
+          id: collectionId,
+          name: target?.name ?? group.name ?? 'Imported',
+          // Apart, so a book's chapters keep their order.
+          createdAt: Date.now() + created.length,
+        });
       }
-      const plan = planImport(puzzlesIn(library, target.id), group.puzzles, target.id);
+      const plan = planImport(puzzlesIn(library, collectionId), group.puzzles, collectionId);
       puzzles.push(...plan.puzzles);
       added += plan.added;
-      refreshed += plan.puzzles.length - plan.added;
     }
 
     const saved = await edit(async (backend) => {
       await backend.createCollections(created);
       await backend.importPuzzles(puzzles);
-    }, describeImport(added, refreshed));
+    }, describeImport(added, puzzles.length - added));
     if (saved) setRoute({ name: 'home' });
   };
 
@@ -192,8 +199,9 @@ export function App() {
     return (
       <main className="app">
         <ImportScreen
+          collections={collectionsOf(library)}
           online={online}
-          onApply={(result, name) => void applyImport(result, name)}
+          onApply={(result, target) => void applyImport(result, target)}
           onExit={() => setRoute({ name: 'home' })}
         />
       </main>
@@ -266,6 +274,7 @@ export function App() {
           onBrowse={() => setRoute({ name: 'puzzles', collectionId: collection.id })}
           onResume={() => setRoute({ name: 'session', scope: collection.id })}
           onDiscardRun={() => run && void edit((backend) => backend.deleteRun(run.id))}
+          onRename={(name) => void edit((backend) => backend.renameCollection(collection.id, name))}
           onDelete={() =>
             void edit((backend) => backend.deleteCollection(collection.id)).then((deleted) => {
               if (deleted) setRoute({ name: 'home' });

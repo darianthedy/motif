@@ -20,9 +20,8 @@ export function SessionScreen({ progress, puzzles, onAttempt, onFinished, onExit
     [progress.current, puzzles],
   );
 
-  // Always available, not only for puzzles detected as broken: a position can
-  // be legal and still be wrong, and being stuck with no way forward is worse
-  // than an occasional skip. Recorded, so the puzzle does not come back this
+  // Always available: a position can be legal and still be wrong, and being
+  // stuck with no way forward is worse than an occasional skip. Recorded, so the puzzle does not come back this
   // run, but as neither a solve nor a miss.
   const handleSkip = () => onAttempt('skipped', 0, false);
 
@@ -62,8 +61,7 @@ export function SessionScreen({ progress, puzzles, onAttempt, onFinished, onExit
       <PuzzleView
         key={`${current.id}:${progress.played}`}
         puzzle={current}
-        onComplete={(result, mistakes, hinted) => onAttempt(result, mistakes, hinted)}
-        onSkip={handleSkip}
+        onComplete={onAttempt}
       />
     </div>
   );

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { importJson, isPlausibleFen } from './json';
+import { isValidFen } from '../board';
+import { importJson } from './json';
 import type { ImportResult } from './json';
 import { uci } from '../move';
 import { PuzzleRunner } from '../runner';
@@ -9,22 +10,34 @@ const MATE_FEN = '6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1';
 /** Every puzzle read, across groups. */
 const read = (result: ImportResult) => result.groups.flatMap((group) => group.puzzles);
 
-describe('FEN plausibility', () => {
+describe('FEN validity', () => {
   it('accepts real positions', () => {
-    expect(isPlausibleFen(MATE_FEN)).toBe(true);
-    expect(isPlausibleFen('7k/5ppp/8/8/8/8/8/R5K1 w - - 0 1'), '7 + king is 8').toBe(true);
+    expect(isValidFen(MATE_FEN)).toBe(true);
+    expect(isValidFen('7k/5ppp/8/8/8/8/8/R5K1 w - - 0 1'), '7 + king is 8').toBe(true);
   });
 
   it('catches the common breakages', () => {
-    expect(isPlausibleFen('6k1/5ppp/8/8/8/8/8 w - - 0 1'), 'seven ranks').toBe(false);
-    expect(isPlausibleFen('6k1/5ppp/8/8/8/8/8/R5K1 x - - 0 1'), 'bad side').toBe(false);
-    expect(isPlausibleFen('8k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1'), 'rank totals 10').toBe(false);
-    expect(isPlausibleFen('6k1/5ppp/8/8/8/8/8/R5R1 w - - 0 1'), 'no white king').toBe(false);
-    expect(isPlausibleFen('6k1/5ppp/8/8/8/8/8/R5K1x w - - 0 1'), 'bad piece letter').toBe(false);
+    expect(isValidFen('6k1/5ppp/8/8/8/8/8 w - - 0 1'), 'seven ranks').toBe(false);
+    expect(isValidFen('6k1/5ppp/8/8/8/8/8/R5K1 x - - 0 1'), 'bad side').toBe(false);
+    expect(isValidFen('8k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1'), 'rank totals 10').toBe(false);
+    expect(isValidFen('6k1/5ppp/8/8/8/8/8/R5R1 w - - 0 1'), 'no white king').toBe(false);
+    expect(isValidFen('6k1/5ppp/8/8/8/8/8/R5K1x w - - 0 1'), 'bad piece letter').toBe(false);
   });
 });
 
 describe('JSON import', () => {
+  it('reads the puzzle number from id, as a number or a string', () => {
+    const result = importJson(
+      JSON.stringify({
+        puzzles: [
+          { id: 187, fen: MATE_FEN, solutions: [['a1a8']] },
+          { id: '12b', fen: MATE_FEN, solutions: [['a1a7']] },
+        ],
+      }),
+    );
+    expect(read(result).map((p) => p.sourceId)).toEqual(['187', '12b']);
+  });
+
   it('imports a well-formed file', () => {
     const result = importJson(`
       { "collection": "Back-rank mates",

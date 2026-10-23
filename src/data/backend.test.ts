@@ -166,6 +166,17 @@ describe.each(backends)('%s backend', (_, make) => {
     expect((await backend.load()).puzzles[0].comment).toBeUndefined();
   });
 
+  it('flags and unflags a puzzle, and a re-import keeps the flag', async () => {
+    const { collection: c, puzzles } = await seeded(1);
+    expect((await backend.load()).puzzles[0].flagged).toBeUndefined();
+    await backend.setFlagged(puzzles[0].id, true);
+    expect((await backend.load()).puzzles[0].flagged).toBe(true);
+    await backend.importPuzzles([puzzle(c.id, 0, { comment: 'again' })]);
+    expect((await backend.load()).puzzles[0].flagged).toBe(true);
+    await backend.setFlagged(puzzles[0].id, false);
+    expect((await backend.load()).puzzles[0].flagged).toBeUndefined();
+  });
+
   it('deletes a puzzle with its attempts', async () => {
     const { puzzles } = await seeded(2);
     await backend.recordAttempts([attempt(puzzles[0].id), attempt(puzzles[1].id)]);

@@ -21,6 +21,7 @@ interface Props {
   online: boolean;
   /** Resolves once saved, to whether it was. */
   onSaveComment: (comment: string) => Promise<boolean>;
+  onFlag: (flagged: boolean) => void;
   onDelete: () => void;
   onExit: () => void;
 }
@@ -39,6 +40,7 @@ export function PuzzleDetailScreen({
   record,
   online,
   onSaveComment,
+  onFlag,
   onDelete,
   onExit,
 }: Props) {
@@ -172,6 +174,12 @@ export function PuzzleDetailScreen({
             ? ` · ${record.attempts} attempt${record.attempts === 1 ? '' : 's'}, ${record.mistakes} mistake${record.mistakes === 1 ? '' : 's'}`
             : ''}
         </dd>
+        {puzzle.flagged && (
+          <>
+            <dt>Review</dt>
+            <dd>Flagged as possibly broken</dd>
+          </>
+        )}
         {puzzle.tags.length > 0 && (
           <>
             <dt>Motif</dt>
@@ -208,6 +216,15 @@ export function PuzzleDetailScreen({
       </div>
 
       <div className="menu subtle">
+        <button
+          type="button"
+          className="link"
+          data-flagged={puzzle.flagged || undefined}
+          disabled={!online}
+          onClick={() => onFlag(!puzzle.flagged)}
+        >
+          {puzzle.flagged ? 'Unflag puzzle' : 'Flag for review'}
+        </button>
         <button
           type="button"
           className="link danger"

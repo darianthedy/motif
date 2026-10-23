@@ -13,8 +13,11 @@ import type { SessionMode } from '../model/session';
  * same rules, and `backend.test.ts` runs one suite against each.
  */
 
-/** A puzzle on its way in: the database assigns the id and the time. */
-export type NewPuzzle = Omit<Puzzle, 'id' | 'addedAt'>;
+/**
+ * A puzzle on its way in: the database assigns the id and the time. The flag
+ * is left out so an import never clears one.
+ */
+export type NewPuzzle = Omit<Puzzle, 'id' | 'addedAt' | 'flagged'>;
 
 /** A collection id, or one of the two scopes that span the whole library. */
 export type RunScope = string;
@@ -79,6 +82,8 @@ export interface Backend {
   importPuzzles(puzzles: NewPuzzle[]): Promise<Puzzle[]>;
   /** Empty text clears the comment. */
   setComment(puzzleId: string, comment: string): Promise<void>;
+  /** Marks a puzzle as needing a look, or clears the mark. */
+  setFlagged(puzzleId: string, flagged: boolean): Promise<void>;
   /** Takes its attempts with it. */
   deletePuzzle(id: string): Promise<void>;
 
@@ -190,6 +195,7 @@ function puzzleFrom(row: Row): Puzzle {
     comment: optional(row.comment as string | null),
     sourceId: optional(row.source_id as string | null),
     rating: optional(row.rating as number | null),
+    flagged: row.flagged === true || undefined,
     addedAt: time(row.added_at),
   };
 }
@@ -303,6 +309,10 @@ export function restBackend(rest: Rest, userId: string): Backend {
       ]);
     },
 
+    async setFlagged(puzzleId, flagged) {
+      await rest.update('puzzles', { flagged }, [{ column: 'id', eq: puzzleId }]);
+    },
+
     async deletePuzzle(id) {
       await rest.delete('puzzles', [{ column: 'id', eq: id }]);
     },
@@ -412,7 +422,12 @@ export function memoryBackend(initial: Library = emptyLibrary()): Backend & { li
         const now = Date.now();
         const puzzle: Puzzle =
           index >= 0
-            ? { ...copy(incoming), id: library.puzzles[index].id, addedAt: library.puzzles[index].addedAt }
+            ? {
+                ...copy(incoming),
+                id: library.puzzles[index].id,
+                addedAt: library.puzzles[index].addedAt,
+                flagged: library.puzzles[index].flagged,
+              }
             : { ...copy(incoming), id: crypto.randomUUID(), addedAt: now };
         if (index >= 0) library.puzzles[index] = puzzle;
         else library.puzzles.push(puzzle);
@@ -424,6 +439,12 @@ export function memoryBackend(initial: Library = emptyLibrary()): Backend & { li
     async setComment(puzzleId, comment) {
       for (const puzzle of library.puzzles) {
         if (puzzle.id === puzzleId) puzzle.comment = cleanComment(comment);
+      }
+    },
+
+    async setFlagged(puzzleId, flagged) {
+      for (const puzzle of library.puzzles) {
+        if (puzzle.id === puzzleId) puzzle.flagged = flagged || undefined;
       }
     },
 

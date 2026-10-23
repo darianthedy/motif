@@ -184,6 +184,8 @@ export function App() {
         <SessionScreen
           progress={progress}
           puzzles={library.puzzles}
+          online={online}
+          onFlag={(puzzle, flagged) => void edit((backend) => backend.setFlagged(puzzle.id, flagged))}
           onAttempt={(result, mistakes, hinted) =>
             progress.current && onAttempt(run.id, progress.current)(result, mistakes, hinted)
           }
@@ -221,6 +223,7 @@ export function App() {
           record={records.get(puzzle.id)}
           online={online}
           onSaveComment={(comment) => edit((backend) => backend.setComment(puzzle.id, comment))}
+          onFlag={(flagged) => void edit((backend) => backend.setFlagged(puzzle.id, flagged))}
           onDelete={() =>
             void edit((backend) => backend.deletePuzzle(puzzle.id)).then((deleted) => {
               if (deleted) setRoute({ name: 'puzzles', collectionId: route.collectionId });

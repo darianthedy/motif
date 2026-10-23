@@ -1,98 +1,95 @@
-import { useRef } from 'react';
-import { exportState, parseState } from '../model/storage';
-import { allPuzzles, failedPuzzleIds, statsFor } from '../model/state';
-import type { AppState } from '../model/state';
+import type { User } from '../data/account';
+import type { Library } from '../data/backend';
+import { statsFor } from '../model/derive';
+import type { PuzzleRecord } from '../model/derive';
+import { puzzlesIn, resumable } from '../model/library';
 import type { Collection } from '../model/puzzle';
-import { syncAvailable } from '../model/neon';
-import type { SyncStatus } from '../useSync';
+import type { SyncStatus } from '../useLibrary';
+import { OfflineNote } from './OfflineNote';
 
 interface Props {
-  state: AppState;
+  library: Library;
+  collections: Collection[];
+  records: Map<string, PuzzleRecord>;
+  user: User;
+  online: boolean;
+  status: SyncStatus;
+  /** Runs and attempts waiting to upload. */
+  pending: number;
   onOpen: (collection: Collection) => void;
   onGlobalRandom: () => void;
   onReviewMistakes: () => void;
   onImport: () => void;
-  onRestore: (state: AppState) => void;
   onResetProgress: () => void;
-  onAccount: () => void;
-  syncStatus: SyncStatus;
-  signedIn: boolean;
+  onSignOut: () => void;
 }
 
 export function Home({
-  state,
+  library,
+  collections,
+  records,
+  user,
+  online,
+  status,
+  pending,
   onOpen,
   onGlobalRandom,
   onReviewMistakes,
   onImport,
-  onRestore,
   onResetProgress,
-  onAccount,
-  syncStatus,
-  signedIn,
+  onSignOut,
 }: Props) {
-  const restoreInput = useRef<HTMLInputElement>(null);
-  const total = allPuzzles(state).length;
-  const failed = failedPuzzleIds(state).length;
-  const attempted = Object.keys(state.progress).length;
-
-  const download = () => {
-    const blob = new Blob([exportState(state)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `motif-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
+  const total = library.puzzles.length;
+  const ids = new Set(library.puzzles.map((p) => p.id));
+  const failed = [...records].filter(([id, r]) => r.status === 'failed' && ids.has(id)).length;
+  const attempted = [...records.keys()].filter((id) => ids.has(id)).length;
 
   const resetProgress = () => {
     if (
       !confirm(
         `Forget every attempt on ${attempted} puzzle${attempted === 1 ? '' : 's'}?\n\n` +
           'Your puzzles and collections stay. Solved, mistakes and in-progress ' +
-          'sessions are cleared, on this device and on any device you sync with. ' +
-          'Export a backup first if you want to keep the history.',
+          'sessions are cleared, on every device.',
       )
     )
       return;
     onResetProgress();
   };
 
-  const restore = async (file: File | undefined) => {
-    if (!file) return;
-    try {
-      onRestore(parseState(JSON.parse(await file.text())));
-    } catch (error) {
-      alert(`Could not read that backup: ${(error as Error).message}`);
-    }
-  };
-
   return (
     <div className="screen">
       <h1>Motif</h1>
 
-      {total === 0 ? (
-        <p className="muted">
-          Nothing here yet. Import a collection to start.
+      {!online && (
+        <p className="offline small">
+          Offline{pending > 0 && ` · ${pending} to upload`}
         </p>
+      )}
+      {online && status.kind === 'error' && (
+        <p className="bad small">Couldn't reach the server: {status.message}</p>
+      )}
+
+      {total === 0 ? (
+        <p className="muted">Nothing here yet. Import a collection to start.</p>
       ) : (
         <p className="muted small">
-          {total} puzzle{total === 1 ? '' : 's'} in {state.collections.length} collection
-          {state.collections.length === 1 ? '' : 's'}
+          {total} puzzle{total === 1 ? '' : 's'} in {collections.length} collection
+          {collections.length === 1 ? '' : 's'}
         </p>
       )}
 
       <ul className="collections">
-        {state.collections.map((collection) => {
-          const stats = statsFor(state, collection);
-          const resumable = Boolean(state.sessions[collection.id]);
+        {collections.map((collection) => {
+          const stats = statsFor(
+            puzzlesIn(library, collection.id).map((p) => p.id),
+            records,
+          );
           return (
             <li key={collection.id}>
               <button type="button" className="card" onClick={() => onOpen(collection)}>
                 <span className="card-title">
                   {collection.name}
-                  {resumable && <span className="pill">in progress</span>}
+                  {resumable(library, collection.id) && <span className="pill">in progress</span>}
                 </span>
                 <span className="muted small">
                   {stats.total} puzzles · {stats.solved} solved
@@ -122,44 +119,24 @@ export function Home({
       )}
 
       <div className="menu">
-        <button type="button" onClick={onImport}>
+        <button type="button" onClick={onImport} disabled={!online}>
           Import puzzles
         </button>
-        {syncAvailable && (
-          <button type="button" onClick={onAccount}>
-            {signedIn ? 'Account' : 'Sign in to sync'}
-            {syncStatus.kind === 'syncing' && ' · syncing…'}
-            {syncStatus.kind === 'error' && ' · sync failed'}
-          </button>
-        )}
       </div>
 
-      {/* Export is not a nicety here. iOS evicts script-writable storage for
-          origins it considers unused, and `navigator.storage.persist()` is a
-          request rather than a guarantee — puzzles can be re-imported, solve
-          history cannot. */}
       <div className="menu subtle">
-        <button type="button" className="link" onClick={download} disabled={total === 0}>
-          Export backup
-        </button>
-        <button type="button" className="link" onClick={() => restoreInput.current?.click()}>
-          Restore from backup
-        </button>
         <button
           type="button"
           className="link danger"
           onClick={resetProgress}
-          disabled={attempted === 0}
+          disabled={attempted === 0 || !online}
         >
           Reset progress
         </button>
-        <input
-          ref={restoreInput}
-          type="file"
-          accept=".json"
-          style={{ display: 'none' }}
-          onChange={(event) => void restore(event.target.files?.[0])}
-        />
+        <button type="button" className="link" onClick={onSignOut} disabled={!online}>
+          Sign out of {user.email}
+        </button>
+        <OfflineNote online={online} />
       </div>
     </div>
   );

@@ -44,9 +44,12 @@ jobs:
       # Injected at build time, since Vite inlines it into the bundle. The
       # endpoint is public by design — RLS is the security boundary — but it
       # lives in a repo secret so the project is not trivially scraped off a
-      # public repo and hammered against its free-tier quota. Absent, the build
-      # still succeeds and ships a local-only app.
-      - run: npm run build
+      # public repo and hammered against its free-tier quota. Required: without
+      # it the app would build with the dev stand-in for the database, which
+      # keeps everything in one browser.
+      - run: |
+          test -n "$VITE_NEON_BASE_URL" || { echo "VITE_NEON_BASE_URL is not set"; exit 1; }
+          npm run build
         env:
           VITE_NEON_BASE_URL: ${{ secrets.VITE_NEON_BASE_URL }}
 

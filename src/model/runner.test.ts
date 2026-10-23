@@ -9,6 +9,8 @@ const MATE_FEN = '6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1';
 function puzzle(solutions: string[][], overrides: Partial<Puzzle> = {}): Puzzle {
   return {
     id: 'p1',
+    collectionId: 'c1',
+    position: 0,
     fen: MATE_FEN,
     solutions: solutions.map((line) => line.map(uci)),
     tags: [],
@@ -263,13 +265,13 @@ describe('puzzle identity', () => {
     expect(contentKey(a)).toBe(contentKey(b));
   });
 
-  it('treats a different setup move as a different puzzle', () => {
+  it('treats a different answer as a different puzzle', () => {
     const base = { fen: MATE_FEN, solutions: [[uci('a1a8')]] };
-    expect(contentKey(base)).not.toBe(contentKey({ ...base, setupMove: uci('g1h1') }));
+    expect(contentKey(base)).not.toBe(contentKey({ ...base, solutions: [[uci('a1b1')]] }));
   });
 
-  it('flips the solver side when a setup move is played in', () => {
+  it('plays the side to move', () => {
     expect(solverSide({ fen: MATE_FEN })).toBe('w');
-    expect(solverSide({ fen: MATE_FEN, setupMove: uci('g1h1') })).toBe('b');
+    expect(solverSide({ fen: MATE_FEN.replace(' w ', ' b ') })).toBe('b');
   });
 });

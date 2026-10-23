@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { applyUci, isLegal, replayLine, sanFor, startingFen } from '../model/board';
+import { applyUci, isLegal, replayLine, sanFor } from '../model/board';
 import { moveFrom, moveTo, stripQueenPromotion } from '../model/move';
 import type { Uci } from '../model/move';
 import { solverSide } from '../model/puzzle';
@@ -15,7 +15,7 @@ import { MissingPieceView } from './MissingPieceView';
  * is one the next expected move is not written for. Its own phase rather than a
  * flag, because the thing it controls is whether the board takes input.
  */
-type Phase = 'setup' | 'solving' | 'replying' | 'solved' | 'failed';
+type Phase = 'solving' | 'replying' | 'solved' | 'failed';
 
 /**
  * Whether two UCI strings name the same move, tolerating the queening
@@ -65,9 +65,9 @@ function whereItBroke(plies: number[], total: number): string | null {
 
 interface Props {
   puzzle: Puzzle;
-  /** `mistakes` is the count for this attempt, for cumulative stats. */
-  onComplete: (result: PuzzleResult, mistakes: number) => void;
-  /** Move past a puzzle without recording a result. */
+  /** `mistakes` is the count for this attempt; `hinted`, whether the answer was shown. */
+  onComplete: (result: PuzzleResult, mistakes: number, hinted: boolean) => void;
+  /** Move past a puzzle that cannot be played. */
   onSkip: () => void;
 }
 
@@ -89,13 +89,8 @@ export function PuzzleView(props: Props) {
 
 function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
   const runner = useMemo(() => new PuzzleRunner(puzzle), [puzzle]);
-  const solverStart = useMemo(
-    () => startingFen(puzzle.fen, puzzle.setupMove),
-    [puzzle],
-  );
-
-  const [fen, setFen] = useState(puzzle.setupMove ? puzzle.fen : solverStart);
-  const [phase, setPhase] = useState<Phase>(puzzle.setupMove ? 'setup' : 'solving');
+  const [fen, setFen] = useState(puzzle.fen);
+  const [phase, setPhase] = useState<Phase>('solving');
   const [highlight, setHighlight] = useState<{ from: string; to: string } | null>(null);
   const [hint, setHint] = useState<Uci | null>(null);
   const [shakeKey, setShakeKey] = useState(0);
@@ -127,18 +122,6 @@ function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
       askedFrom.current = [];
     };
   }, [puzzle.id]);
-
-  // The opponent's move into the position, played so it is seen rather than
-  // presented as a fait accompli.
-  useEffect(() => {
-    if (phase !== 'setup' || !puzzle.setupMove) return;
-    const move = puzzle.setupMove;
-    after(REPLY_MS, () => {
-      setFen(startingFen(puzzle.fen, move));
-      setHighlight({ from: moveFrom(move), to: moveTo(move) });
-      setPhase('solving');
-    });
-  }, [after, phase, puzzle.fen, puzzle.setupMove]);
 
   const onMove = useCallback(
     (move: Uci) => {
@@ -217,7 +200,7 @@ function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
   const lines = useMemo(() => {
     if (!done) return [];
     return puzzle.solutions.map((line) => {
-      const steps = replayLine(puzzle.fen, puzzle.setupMove, line);
+      const steps = replayLine(puzzle.fen, line);
       return {
         steps,
         // A line the board will not play through: shown as far as it goes
@@ -277,8 +260,6 @@ function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
       />
 
       <div className="puzzle-status">
-        {phase === 'setup' && <span className="muted">…</span>}
-
         {unplayable && (
           <div className="result">
             <p className="bad">This puzzle looks broken — its answer is not a legal move.</p>
@@ -367,7 +348,7 @@ function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
               ))}
             </div>
 
-            <button type="button" onClick={() => onComplete(runner.result, runner.mistakes)}>
+            <button type="button" onClick={() => onComplete(runner.result, runner.mistakes, runner.hinted)}>
               Continue
             </button>
           </div>

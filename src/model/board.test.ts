@@ -7,7 +7,6 @@ import {
   piecesOn,
   sanFor,
   SQUARES,
-  startingFen,
   targetsFrom,
   turnOf,
 } from './board';
@@ -102,21 +101,5 @@ describe('applying moves', () => {
     const moves = legalMoves(PROMO_FEN);
     expect(moves).toContain('a7a8q');
     expect(moves).toContain('a7a8n');
-  });
-});
-
-describe('puzzle start position', () => {
-  it('plays the setup move in', () => {
-    const start = startingFen(MATE_FEN, uci('a1a8'));
-    expect(start).toContain('R5k1');
-    expect(turnOf(start)).toBe('b');
-  });
-
-  it('falls back to the raw FEN when the setup move does not apply', () => {
-    expect(startingFen(MATE_FEN, uci('h1h8'))).toBe(MATE_FEN);
-  });
-
-  it('is a no-op without a setup move', () => {
-    expect(startingFen(MATE_FEN)).toBe(MATE_FEN);
   });
 });

@@ -1,32 +1,26 @@
-import { useState } from 'react';
-import type { Collection } from '../model/puzzle';
-import type { PuzzleResult } from '../model/runner';
-import { orderForGlobalDraw, startSession } from '../model/session';
-import type { SessionMode } from '../model/session';
+import { useMemo, useState } from 'react';
+import { SCOPE_ALL, SCOPE_REVIEW } from '../data/backend';
+import type { AttemptResult, Collection, NewPuzzle, RunScope } from '../data/backend';
+import { puzzleRecords, recentIds, reviewIds } from '../model/derive';
+import type { ImportResult } from '../model/import/json';
 import {
-  GLOBAL_SESSION,
   allPuzzles,
-  clearSession,
-  deleteCollection,
-  deletePuzzle,
-  failedPuzzleIds,
+  collectionsOf,
+  planImport,
+  progressOf,
   puzzlesIn,
-  recentPuzzleIds,
-  recordResult,
-  resetProgress,
-  saveSession,
-  setPuzzleComment,
-} from '../model/state';
-import type { AppState } from '../model/state';
-import { useAppState } from '../useAppState';
-import { useSync } from '../useSync';
-import { AccountScreen } from './AccountScreen';
+  runIn,
+} from '../model/library';
+import { makeQueue, orderForGlobalDraw } from '../model/session';
+import type { SessionMode } from '../model/session';
+import { useLibrary } from '../useLibrary';
 import { CollectionView } from './CollectionView';
 import { Home } from './Home';
 import { ImportScreen } from './ImportScreen';
 import { PuzzleDetailScreen } from './PuzzleDetailScreen';
 import { PuzzleListScreen } from './PuzzleListScreen';
 import { SessionScreen } from './SessionScreen';
+import { SignInScreen } from './SignInScreen';
 import './App.css';
 
 /**
@@ -48,83 +42,146 @@ type Route =
   | { name: 'home' }
   | { name: 'collection'; id: string }
   | { name: 'import' }
-  | { name: 'account' }
   | { name: 'puzzles'; collectionId: string }
   | { name: 'puzzle'; collectionId: string; puzzleId: string }
-  | { name: 'session'; key: string };
+  | { name: 'session'; scope: RunScope };
 
 export function App() {
-  const { state, update, replace } = useAppState();
+  const {
+    user,
+    library,
+    loaded,
+    online,
+    status,
+    pending,
+    write,
+    startRun,
+    recordAttempt,
+    signIn,
+    signOut,
+  } = useLibrary();
   const [route, setRoute] = useState<Route>({ name: 'home' });
-  // Sync hands back a function rather than a library, so anything recorded
-  // while it was talking to the server is replayed onto its result instead of
-  // being overwritten by it.
-  const { user, status, syncNow, refreshUser } = useSync({ state, adopt: update });
   const [notice, setNotice] = useState<string | null>(null);
+  const records = useMemo(() => puzzleRecords(library?.attempts ?? []), [library]);
 
-  // The store is read asynchronously; rendering an empty library first would
-  // flash "nothing here yet" over an existing collection on every launch.
-  if (!state) return <main className="app" />;
+  // Still finding out who is signed in.
+  if (user === undefined) return <main className="app" />;
 
-  const collectionOf = (id: string) => state.collections.find((c) => c.id === id);
-
-  const begin = (key: string, mode: SessionMode, collection?: Collection) => {
-    let ids: string[];
-    if (mode === 'reviewMistakes') {
-      ids = failedPuzzleIds(state);
-    } else if (collection) {
-      ids = puzzlesIn(state, collection).map((puzzle) => puzzle.id);
-    } else {
-      // Bias the library-wide draw away from what was just seen, so two short
-      // sessions in a row do not serve the same handful.
-      ids = orderForGlobalDraw(
-        allPuzzles(state).map((puzzle) => puzzle.id),
-        recentPuzzleIds(state),
-      );
-    }
-    if (!ids.length) return;
-
-    const session = startSession(mode, collection?.id ?? null, ids);
-    update((current) => saveSession(current, key, session));
-    setRoute({ name: 'session', key });
-  };
-
-  const onResult = (puzzleId: string, result: PuzzleResult, mistakes: number) => {
-    update((current) => recordResult(current, puzzleId, result, mistakes));
-  };
-
-  if (route.name === 'session') {
-    const session = state.sessions[route.key];
-    if (!session) {
-      setRoute({ name: 'home' });
-      return <main className="app" />;
-    }
+  if (user === null) {
     return (
       <main className="app">
-        <SessionScreen
-          session={session}
-          puzzles={state.puzzles}
-          onSession={(next) => update((current) => saveSession(current, route.key, next))}
-          onResult={onResult}
-          onFinished={() => {
-            update((current) => clearSession(current, route.key));
-            setRoute({ name: 'home' });
-          }}
-          // Stopping keeps the session: that is the whole point of resuming.
-          onExit={() => setRoute({ name: 'home' })}
-        />
+        <SignInScreen online={online} onSubmit={signIn} />
       </main>
     );
   }
 
-  if (route.name === 'account') {
+  // The cached copy is read asynchronously; rendering an empty library first
+  // would flash "nothing here yet" over an existing collection on every launch.
+  if (!library) {
     return (
       <main className="app">
-        <AccountScreen
-          user={user}
-          status={status}
-          onSyncNow={syncNow}
-          onAuthChanged={() => void refreshUser()}
+        {loaded && (
+          <div className="screen">
+            <h1>Motif</h1>
+            <p className="muted">
+              {online
+                ? status.kind === 'error'
+                  ? `Could not load your library: ${status.message}`
+                  : 'Loading your library…'
+                : "You're offline, and this device has no copy of your library yet. " +
+                  'Connect once to download it.'}
+            </p>
+          </div>
+        )}
+      </main>
+    );
+  }
+
+  const collectionOf = (id: string) => library.collections.find((c) => c.id === id);
+
+  const begin = (scope: RunScope, mode: SessionMode, ids: string[]) => {
+    if (!ids.length) return;
+    void startRun({
+      id: crypto.randomUUID(),
+      scope,
+      mode,
+      queue: makeQueue(mode, ids),
+      startedAt: Date.now(),
+    });
+    setRoute({ name: 'session', scope });
+  };
+
+  /** Runs an online edit, reporting a failure rather than dropping it. */
+  const edit = async (fn: Parameters<typeof write>[0], done?: string) => {
+    try {
+      await write(fn);
+      if (done) setNotice(done);
+      return true;
+    } catch (error) {
+      setNotice(`That didn't save: ${(error as Error).message}`);
+      return false;
+    }
+  };
+
+  const applyImport = async (result: ImportResult, collectionName?: string) => {
+    const singleGroup = result.groups.length === 1;
+    const created: Collection[] = [];
+    const collections = [...library.collections];
+    let added = 0;
+    let refreshed = 0;
+    const puzzles: NewPuzzle[] = [];
+
+    for (const group of result.groups) {
+      const name = (singleGroup ? collectionName : undefined) ?? group.name ?? collectionName;
+      if (!name || !group.puzzles.length) continue;
+      let target = collections.find((c) => c.name === name);
+      if (!target) {
+        target = { id: crypto.randomUUID(), name, createdAt: Date.now() + created.length };
+        created.push(target);
+        collections.push(target);
+      }
+      const plan = planImport(puzzlesIn(library, target.id), group.puzzles, target.id);
+      puzzles.push(...plan.puzzles);
+      added += plan.added;
+      refreshed += plan.puzzles.length - plan.added;
+    }
+
+    const saved = await edit(async (backend) => {
+      await backend.createCollections(created);
+      await backend.importPuzzles(puzzles);
+    }, describeImport(added, refreshed));
+    if (saved) setRoute({ name: 'home' });
+  };
+
+  const onAttempt = (runId: string, puzzleId: string) =>
+    (result: AttemptResult, mistakes: number, hinted: boolean) =>
+      void recordAttempt({
+        id: crypto.randomUUID(),
+        puzzleId,
+        runId,
+        result,
+        mistakes,
+        hinted,
+        playedAt: Date.now(),
+      });
+
+  if (route.name === 'session') {
+    const run = runIn(library, route.scope);
+    if (!run) {
+      setRoute({ name: 'home' });
+      return <main className="app" />;
+    }
+    const progress = progressOf(library, run);
+    return (
+      <main className="app">
+        <SessionScreen
+          progress={progress}
+          puzzles={library.puzzles}
+          onAttempt={(result, mistakes, hinted) =>
+            progress.current && onAttempt(run.id, progress.current)(result, mistakes, hinted)
+          }
+          onFinished={() => setRoute({ name: 'home' })}
+          // Stopping keeps the run: that is the whole point of resuming.
           onExit={() => setRoute({ name: 'home' })}
         />
       </main>
@@ -135,12 +192,8 @@ export function App() {
     return (
       <main className="app">
         <ImportScreen
-          state={state}
-          onApply={(next: AppState, added, refreshed) => {
-            replace(next);
-            setNotice(describeImport(added, refreshed));
-            setRoute({ name: 'home' });
-          }}
+          online={online}
+          onApply={(result, name) => void applyImport(result, name)}
           onExit={() => setRoute({ name: 'home' })}
         />
       </main>
@@ -148,7 +201,7 @@ export function App() {
   }
 
   if (route.name === 'puzzle') {
-    const puzzle = state.puzzles[route.puzzleId];
+    const puzzle = library.puzzles.find((p) => p.id === route.puzzleId);
     if (!puzzle) {
       setRoute({ name: 'puzzles', collectionId: route.collectionId });
       return <main className="app" />;
@@ -156,15 +209,15 @@ export function App() {
     return (
       <main className="app">
         <PuzzleDetailScreen
-          state={state}
           puzzle={puzzle}
-          onSaveComment={(comment) =>
-            update((current) => setPuzzleComment(current, puzzle.id, comment))
+          record={records.get(puzzle.id)}
+          online={online}
+          onSaveComment={(comment) => edit((backend) => backend.setComment(puzzle.id, comment))}
+          onDelete={() =>
+            void edit((backend) => backend.deletePuzzle(puzzle.id)).then((deleted) => {
+              if (deleted) setRoute({ name: 'puzzles', collectionId: route.collectionId });
+            })
           }
-          onDelete={() => {
-            update((current) => deletePuzzle(current, puzzle.id));
-            setRoute({ name: 'puzzles', collectionId: route.collectionId });
-          }}
           onExit={() => setRoute({ name: 'puzzles', collectionId: route.collectionId })}
         />
       </main>
@@ -180,8 +233,9 @@ export function App() {
     return (
       <main className="app">
         <PuzzleListScreen
-          state={state}
           collection={collection}
+          puzzles={puzzlesIn(library, collection.id)}
+          records={records}
           onOpen={(puzzle) =>
             setRoute({ name: 'puzzle', collectionId: collection.id, puzzleId: puzzle.id })
           }
@@ -197,24 +251,33 @@ export function App() {
       setRoute({ name: 'home' });
       return <main className="app" />;
     }
+    const puzzles = puzzlesIn(library, collection.id);
+    const run = runIn(library, collection.id);
+    const progress = run && progressOf(library, run);
     return (
       <main className="app">
         <CollectionView
-          state={state}
           collection={collection}
-          onStart={(mode) => begin(collection.id, mode, collection)}
+          puzzleIds={puzzles.map((p) => p.id)}
+          records={records}
+          remaining={progress?.current ? progress.remaining : null}
+          online={online}
+          onStart={(mode) => begin(collection.id, mode, puzzles.map((p) => p.id))}
           onBrowse={() => setRoute({ name: 'puzzles', collectionId: collection.id })}
-          onResume={() => setRoute({ name: 'session', key: collection.id })}
-          onDiscardSession={() => update((current) => clearSession(current, collection.id))}
-          onDelete={() => {
-            update((current) => deleteCollection(current, collection.id));
-            setRoute({ name: 'home' });
-          }}
+          onResume={() => setRoute({ name: 'session', scope: collection.id })}
+          onDiscardRun={() => run && void edit((backend) => backend.deleteRun(run.id))}
+          onDelete={() =>
+            void edit((backend) => backend.deleteCollection(collection.id)).then((deleted) => {
+              if (deleted) setRoute({ name: 'home' });
+            })
+          }
           onExit={() => setRoute({ name: 'home' })}
         />
       </main>
     );
   }
+
+  const everything = allPuzzles(library).map((p) => p.id);
 
   return (
     <main className="app">
@@ -224,22 +287,28 @@ export function App() {
         </p>
       )}
       <Home
-        state={state}
+        library={library}
+        collections={collectionsOf(library)}
+        records={records}
+        user={user}
+        online={online}
+        status={status}
+        pending={pending}
         onOpen={(collection) => setRoute({ name: 'collection', id: collection.id })}
-        onGlobalRandom={() => begin(GLOBAL_SESSION, 'randomGlobal')}
-        onReviewMistakes={() => begin('review', 'reviewMistakes')}
+        onGlobalRandom={() =>
+          // Biased away from what was just seen, so two short sessions in a
+          // row do not serve the same handful.
+          begin(SCOPE_ALL, 'randomGlobal', orderForGlobalDraw(everything, recentIds(library.attempts)))
+        }
+        onReviewMistakes={() => begin(SCOPE_REVIEW, 'reviewMistakes', reviewIds(everything, records))}
         onImport={() => setRoute({ name: 'import' })}
-        onAccount={() => setRoute({ name: 'account' })}
-        syncStatus={status}
-        signedIn={Boolean(user)}
-        onRestore={(restored) => {
-          replace(restored);
-          setNotice('Backup restored.');
-        }}
-        onResetProgress={() => {
-          update((current) => resetProgress(current));
-          setNotice('Progress reset. Every puzzle is unseen again.');
-        }}
+        onResetProgress={() =>
+          void edit(
+            (backend) => backend.resetProgress(),
+            'Progress reset. Every puzzle is unseen again.',
+          )
+        }
+        onSignOut={() => void signOut()}
       />
     </main>
   );

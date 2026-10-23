@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { replayLine, startingFen, withPiece } from '../model/board';
+import { replayLine, withPiece } from '../model/board';
+import type { PuzzleRecord } from '../model/derive';
 import { moveFrom, moveTo } from '../model/move';
 import { solverSide } from '../model/puzzle';
 import type { Puzzle, PuzzleStatus } from '../model/puzzle';
-import type { AppState } from '../model/state';
 import { Board } from './Board';
 import { describePlacement } from './MissingPieceView';
+import { OfflineNote } from './OfflineNote';
 
 const STATUS_LABEL: Record<PuzzleStatus, string> = {
   solved: 'Solved',
@@ -14,9 +15,12 @@ const STATUS_LABEL: Record<PuzzleStatus, string> = {
 };
 
 interface Props {
-  state: AppState;
   puzzle: Puzzle;
-  onSaveComment: (comment: string) => void;
+  /** Its attempts so far; none when it has not been played. */
+  record: PuzzleRecord | undefined;
+  online: boolean;
+  /** Resolves once saved, to whether it was. */
+  onSaveComment: (comment: string) => Promise<boolean>;
   onDelete: () => void;
   onExit: () => void;
 }
@@ -30,18 +34,22 @@ interface Props {
  * inspect is one you cannot correct. With puzzles arriving from OCR, being able
  * to see the line and delete a bad one matters more than the spoiler.
  */
-export function PuzzleDetailScreen({ state, puzzle, onSaveComment, onDelete, onExit }: Props) {
+export function PuzzleDetailScreen({
+  puzzle,
+  record,
+  online,
+  onSaveComment,
+  onDelete,
+  onExit,
+}: Props) {
   const [lineIndex, setLineIndex] = useState(0);
   const [ply, setPly] = useState(0);
   const [comment, setComment] = useState(puzzle.comment ?? '');
-  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState<'idle' | 'saving' | 'saved'>('idle');
 
-  const start = useMemo(
-    () => startingFen(puzzle.fen, puzzle.setupMove),
-    [puzzle.fen, puzzle.setupMove],
-  );
+  const start = puzzle.fen;
   const steps = useMemo(
-    () => replayLine(puzzle.fen, puzzle.setupMove, puzzle.solutions[lineIndex] ?? []),
+    () => replayLine(puzzle.fen, puzzle.solutions[lineIndex] ?? []),
     [lineIndex, puzzle],
   );
   // A missing-piece puzzle is browsed as the position with its answer already
@@ -58,17 +66,17 @@ export function PuzzleDetailScreen({ state, puzzle, onSaveComment, onDelete, onE
     setPly(0);
   }, [lineIndex]);
 
-  const progress = state.progress[puzzle.id];
-  const status: PuzzleStatus = progress?.status ?? 'unseen';
+  const status: PuzzleStatus = record?.status ?? 'unseen';
   const missingPiece = puzzle.addPiece;
   const shown = missingPiece ? placed ?? start : ply === 0 ? start : steps[ply - 1]?.fen ?? start;
   const lastMove = ply > 0 ? steps[ply - 1]?.move : undefined;
   const truncated = !missingPiece && steps.length < (puzzle.solutions[lineIndex]?.length ?? 0);
 
-  const save = () => {
-    onSaveComment(comment);
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 1500);
+  const save = async () => {
+    setSaving('saving');
+    const ok = await onSaveComment(comment);
+    setSaving(ok ? 'saved' : 'idle');
+    if (ok) window.setTimeout(() => setSaving('idle'), 1500);
   };
 
   return (
@@ -169,8 +177,8 @@ export function PuzzleDetailScreen({ state, puzzle, onSaveComment, onDelete, onE
         <dt>Status</dt>
         <dd>
           {STATUS_LABEL[status]}
-          {progress?.attempts
-            ? ` · ${progress.attempts} attempt${progress.attempts === 1 ? '' : 's'}, ${progress.mistakes} mistake${progress.mistakes === 1 ? '' : 's'}`
+          {record?.attempts
+            ? ` · ${record.attempts} attempt${record.attempts === 1 ? '' : 's'}, ${record.mistakes} mistake${record.mistakes === 1 ? '' : 's'}`
             : ''}
         </dd>
         {puzzle.tags.length > 0 && (
@@ -199,8 +207,12 @@ export function PuzzleDetailScreen({ state, puzzle, onSaveComment, onDelete, onE
         />
       </label>
       <div className="row">
-        <button type="button" onClick={save} disabled={comment === (puzzle.comment ?? '')}>
-          {saved ? 'Saved' : 'Save comment'}
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={!online || saving === 'saving' || comment.trim() === (puzzle.comment ?? '')}
+        >
+          {saving === 'saved' ? 'Saved' : saving === 'saving' ? 'Saving…' : 'Save comment'}
         </button>
       </div>
 
@@ -208,12 +220,14 @@ export function PuzzleDetailScreen({ state, puzzle, onSaveComment, onDelete, onE
         <button
           type="button"
           className="link danger"
+          disabled={!online}
           onClick={() => {
             if (confirm('Delete this puzzle from the library?')) onDelete();
           }}
         >
           Delete puzzle
         </button>
+        <OfflineNote online={online} />
       </div>
     </div>
   );

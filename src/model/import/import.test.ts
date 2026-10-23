@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { importJson, isPlausibleFen } from './json';
-import { importLichessCsv } from './lichess';
-import { contentKey } from '../puzzle';
+import type { ImportResult } from './json';
 import { uci } from '../move';
 import { PuzzleRunner } from '../runner';
 
 const MATE_FEN = '6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1';
+
+/** Every puzzle read, across groups. */
+const read = (result: ImportResult) => result.groups.flatMap((group) => group.puzzles);
 
 describe('FEN plausibility', () => {
   it('accepts real positions', () => {
@@ -35,8 +37,8 @@ describe('JSON import', () => {
         ] }
     `);
     expect(result.collectionName).toBe('Back-rank mates');
-    expect(result.inserted).toHaveLength(1);
-    expect(result.inserted[0]).toMatchObject({
+    expect(read(result)).toHaveLength(1);
+    expect(read(result)[0]).toMatchObject({
       tags: ['backRank'],
       comment: 'No luft.',
       rating: 900,
@@ -52,7 +54,7 @@ describe('JSON import', () => {
           { "fen": "${MATE_FEN}", "solutions": [["a1z9"]] }
         ] }
     `);
-    expect(result.inserted).toHaveLength(0);
+    expect(read(result)).toHaveLength(0);
     expect(result.rejected.map((r) => r.reason)).toEqual([
       'Malformed FEN',
       'Puzzle has no solution',
@@ -75,10 +77,16 @@ describe('JSON import', () => {
         ] }
     `);
     expect(result.rejected).toEqual([]);
-    expect(result.inserted[0].solutions[0]).toEqual(['d1d8', 'g8g7']);
+    expect(read(result)[0].solutions[0]).toEqual(['d1d8', 'g8g7']);
 
     // And it plays: one accepted move ends the puzzle, carrying the reply.
-    const runner = new PuzzleRunner(result.inserted[0]);
+    const runner = new PuzzleRunner({
+      ...read(result)[0],
+      id: 'p1',
+      collectionId: 'c1',
+      position: 0,
+      addedAt: 0,
+    });
     expect(runner.submit(uci('d1d8'))).toEqual({ kind: 'correct', reply: 'g8g7', finished: true });
   });
 
@@ -87,89 +95,26 @@ describe('JSON import', () => {
     expect(result.rejected[0].reason).toMatch(/Not valid JSON/);
   });
 
-  it('dedupes within a single file', () => {
+  it('keeps a puzzle listed twice in one collection once, where it first appeared', () => {
     const result = importJson(`
       { "puzzles": [
           { "fen": "${MATE_FEN}", "solutions": [["a1a8"]], "tags": ["a"] },
+          { "fen": "7k/5ppp/8/8/8/8/8/R6K w - - 0 1", "solutions": [["a1a8"]] },
           { "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 5 9", "solutions": [["a1a8"]], "tags": ["b"] }
         ] }
     `);
-    expect(result.inserted).toHaveLength(1);
-    expect(result.updated).toHaveLength(1);
+    expect(read(result).map((p) => p.tags)).toEqual([['b'], []]);
   });
 
-  it('routes a re-import to update, not insert', () => {
-    const json = `{ "puzzles": [ { "fen": "${MATE_FEN}", "solutions": [["a1a8"]] } ] }`;
-    const first = importJson(json);
-    const second = importJson(json, new Set(first.inserted.map(contentKey)));
-    expect(second.inserted).toHaveLength(0);
-    expect(second.updated).toHaveLength(1);
-  });
-});
-
-describe('Lichess CSV import', () => {
-  // The dump's exact column layout, with positions written for this test and
-  // verified legal rather than copied from the database. An earlier version of
-  // this fixture claimed to be real rows and was not: its first move was
-  // illegal in its own FEN, which the legality check later caught.
-  const dump = [
-    'PuzzleId,FEN,Moves,Rating,RatingDeviation,Popularity,NbPlays,Themes,GameUrl,OpeningTags',
-    '00sHx,6k1/5ppp/8/8/8/8/8/R5K1 b - - 0 1,g8h8 a1a8,1760,74,93,411,mate mateIn1 short,https://lichess.org/yyznGmXs/black#34,',
-    '00sJ9,4r1k1/5ppp/8/8/8/8/5PPP/4R1K1 b - - 0 1,g8h8 e1e8,2671,74,87,569,advantage fork middlegame veryLong,https://lichess.org/gyFeQsOE#35,',
-  ].join('\n');
-
-  it('parses the dump and splits off the setup move', () => {
-    const result = importLichessCsv(dump);
-    expect(result.inserted).toHaveLength(2);
-    expect(result.rejected, 'the header is skipped, not reported').toHaveLength(0);
-
-    expect(result.inserted[0]).toMatchObject({
-      sourceId: '00sHx',
-      setupMove: 'g8h8',
-      rating: 1760,
-      tags: ['mate', 'mateIn1', 'short'],
-    });
-    expect(result.inserted[0].solutions[0]).toEqual(['a1a8']);
-  });
-
-  it('keeps a row whose line ends on the opponent’s move', () => {
-    // The dump's own rows always end on the solver's move, so this is not a
-    // shape it produces — but a hand-edited or trimmed CSV can hold one, and
-    // the runner plays it, so dropping it would be gratuitous.
-    const row =
-      '00xYz,7k/5p1p/8/8/8/8/8/3R2K1 b - - 0 1,h8g8 d1d8 g8g7,1500,74,90,120,mate,https://lichess.org/x,';
-    const result = importLichessCsv(row);
-    expect(result.rejected).toEqual([]);
-    expect(result.inserted[0].solutions[0]).toEqual(['d1d8', 'g8g7']);
-  });
-
-  it('filters by rating', () => {
-    const result = importLichessCsv(dump, { ratingRange: [1500, 2000] });
-    expect(result.inserted.map((p) => p.sourceId)).toEqual(['00sHx']);
-  });
-
-  it('filters by theme', () => {
-    const result = importLichessCsv(dump, { themes: new Set(['fork']) });
-    expect(result.inserted.map((p) => p.sourceId)).toEqual(['00sJ9']);
-  });
-
-  it('respects the limit', () => {
-    expect(importLichessCsv(dump, { limit: 1 }).inserted).toHaveLength(1);
-  });
-
-  it('produces puzzles that run end to end', () => {
-    const puzzle = importLichessCsv(dump).inserted[0];
-    const runner = new PuzzleRunner(puzzle);
-    const line = puzzle.solutions[0];
-
-    for (let ply = 0; ply < line.length; ply += 2) {
-      expect(runner.submit(line[ply])).toEqual({
-        kind: 'correct',
-        reply: ply + 1 < line.length ? line[ply + 1] : null,
-        finished: ply + 2 >= line.length,
-      });
-    }
-    expect(runner.result).toBe('solved');
+  it('keeps the same puzzle in two collections twice', () => {
+    const entry = { fen: MATE_FEN, solutions: [['a1a8']] };
+    const result = importJson(
+      JSON.stringify([
+        { collection: 'A', puzzles: [entry] },
+        { collection: 'B', puzzles: [entry] },
+      ]),
+    );
+    expect(result.groups.map((g) => g.puzzles.length)).toEqual([1, 1]);
   });
 });
 
@@ -201,7 +146,7 @@ describe('multi-collection files', () => {
     expect(result.groups.map((group) => group.name)).toEqual(['Mate in one', 'Mate in two']);
     expect(result.groups[0].puzzles).toHaveLength(2);
     expect(result.groups[1].puzzles).toHaveLength(1);
-    expect(result.inserted).toHaveLength(3);
+    expect(read(result)).toHaveLength(3);
   });
 
   it('keeps the book number as the source id', () => {
@@ -239,7 +184,7 @@ describe('legality of solutions', () => {
     const result = importJson(
       `{ "puzzles": [ { "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1", "solutions": [["a1b2"]] } ] }`,
     );
-    expect(result.inserted).toHaveLength(0);
+    expect(read(result)).toHaveLength(0);
     expect(result.rejected[0].reason).toBe('Move a1b2 is illegal at ply 1');
   });
 
@@ -249,17 +194,8 @@ describe('legality of solutions', () => {
       `{ "puzzles": [ { "fen": "2rrk1n1/1nQ1p2N/pB5p/6p1/qP3p2/2P4P/P3BPP1/3R2K1 w - - 0 1",
          "solutions": [["c7d8", "e8d8", "d1d8"]] } ] }`,
     );
-    expect(result.inserted).toHaveLength(0);
+    expect(read(result)).toHaveLength(0);
     expect(result.rejected[0].reason).toBe('Move e8d8 is illegal at ply 2');
-  });
-
-  it('rejects an illegal setup move', () => {
-    const result = importJson(
-      `{ "puzzles": [ { "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
-         "setupMove": "h1h8", "solutions": [["a1a8"]] } ] }`,
-    );
-    expect(result.inserted).toHaveLength(0);
-    expect(result.rejected[0].reason).toMatch(/Setup move h1h8 is illegal/);
   });
 
   it('accepts a line that is legal throughout', () => {
@@ -267,7 +203,7 @@ describe('legality of solutions', () => {
       `{ "puzzles": [ { "fen": "1r1k4/2R4R/8/8/8/6pP/PPP4q/K1B5 w - - 0 1",
          "solutions": [["c1g5", "d8e8", "h7h8"]] } ] }`,
     );
-    expect(result.inserted).toHaveLength(1);
+    expect(read(result)).toHaveLength(1);
     expect(result.rejected).toHaveLength(0);
   });
 
@@ -276,6 +212,6 @@ describe('legality of solutions', () => {
       `{ "puzzles": [ { "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
          "solutions": [["a1a8"], ["a1b2"]] } ] }`,
     );
-    expect(result.inserted, 'one bad line rejects the puzzle').toHaveLength(0);
+    expect(read(result), 'one bad line rejects the puzzle').toHaveLength(0);
   });
 });

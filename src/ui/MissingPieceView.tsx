@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { startingFen, withPiece } from '../model/board';
+import { withPiece } from '../model/board';
 import { placementText, solverSide } from '../model/puzzle';
 import type { PieceType, Placement, Puzzle } from '../model/puzzle';
 import { MissingPieceRunner } from '../model/runner';
@@ -41,7 +41,7 @@ type Phase = 'solving' | 'solved' | 'failed';
 interface Props {
   puzzle: Puzzle;
   addPiece: Placement;
-  onComplete: (result: PuzzleResult, mistakes: number) => void;
+  onComplete: (result: PuzzleResult, mistakes: number, hinted: boolean) => void;
   onSkip: () => void;
 }
 
@@ -51,10 +51,7 @@ export function MissingPieceView({ puzzle, addPiece, onComplete, onSkip }: Props
     [addPiece, puzzle],
   );
 
-  const start = useMemo(
-    () => startingFen(puzzle.fen, puzzle.setupMove),
-    [puzzle.fen, puzzle.setupMove],
-  );
+  const start = puzzle.fen;
   // The position with the answer in it, computed once. Also the check for
   // whether the puzzle is answerable at all.
   const answered = useMemo(() => withPiece(start, addPiece), [addPiece, start]);
@@ -174,7 +171,7 @@ export function MissingPieceView({ puzzle, addPiece, onComplete, onSkip }: Props
               </div>
             </div>
 
-            <button type="button" onClick={() => onComplete(runner.result, runner.mistakes)}>
+            <button type="button" onClick={() => onComplete(runner.result, runner.mistakes, runner.hinted)}>
               Continue
             </button>
           </div>

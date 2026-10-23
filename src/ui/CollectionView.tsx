@@ -1,32 +1,38 @@
+import type { PuzzleRecord } from '../model/derive';
+import { statsFor } from '../model/derive';
 import type { Collection } from '../model/puzzle';
-import type { SessionMode, SessionState } from '../model/session';
-import { remainingCount } from '../model/session';
-import { statsFor } from '../model/state';
-import type { AppState } from '../model/state';
+import type { SessionMode } from '../model/session';
+import { OfflineNote } from './OfflineNote';
 
 interface Props {
-  state: AppState;
   collection: Collection;
+  puzzleIds: string[];
+  records: Map<string, PuzzleRecord>;
+  /** Puzzles left in the collection's run, or null when there is none to resume. */
+  remaining: number | null;
+  online: boolean;
   onStart: (mode: SessionMode) => void;
   onBrowse: () => void;
   onResume: () => void;
-  onDiscardSession: () => void;
+  onDiscardRun: () => void;
   onDelete: () => void;
   onExit: () => void;
 }
 
 export function CollectionView({
-  state,
   collection,
+  puzzleIds,
+  records,
+  remaining,
+  online,
   onStart,
   onBrowse,
   onResume,
-  onDiscardSession,
+  onDiscardRun,
   onDelete,
   onExit,
 }: Props) {
-  const stats = statsFor(state, collection);
-  const saved: SessionState | undefined = state.sessions[collection.id];
+  const stats = statsFor(puzzleIds, records);
 
   return (
     <div className="screen">
@@ -42,16 +48,14 @@ export function CollectionView({
         {stats.unseen} new
       </p>
 
-      {saved && (
+      {remaining !== null && (
         <div className="resume">
-          <p className="muted small">
-            A session is in progress — {remainingCount(saved)} left.
-          </p>
+          <p className="muted small">A session is in progress — {remaining} left.</p>
           <div className="row">
             <button type="button" onClick={onResume}>
               Resume
             </button>
-            <button type="button" className="link" onClick={onDiscardSession}>
+            <button type="button" className="link" onClick={onDiscardRun} disabled={!online}>
               Discard
             </button>
           </div>
@@ -81,12 +85,14 @@ export function CollectionView({
         <button
           type="button"
           className="link danger"
+          disabled={!online}
           onClick={() => {
             if (confirm(`Delete "${collection.name}" and its puzzles?`)) onDelete();
           }}
         >
           Delete collection
         </button>
+        <OfflineNote online={online} />
       </div>
     </div>
   );

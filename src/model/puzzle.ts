@@ -53,17 +53,11 @@ export function samePlacement(a: Placement, b: Placement): boolean {
 
 export interface Puzzle {
   id: string;
-  /** Full FEN of the position *before* `setupMove` is played. */
+  /** Each puzzle belongs to exactly one collection. */
+  collectionId: string;
+  /** Order within the collection. */
+  position: number;
   fen: string;
-  /**
-   * A move the opponent plays into the position before the solver's turn.
-   *
-   * Lichess stores puzzles this way — the FEN is one ply early and the first
-   * listed move is the opponent's. Rather than mutate the FEN at import time,
-   * the ply is kept as data and animated by the UI before the clock starts,
-   * which is also better to watch. Hand-written puzzles leave it undefined.
-   */
-  setupMove?: Uci;
   /**
    * Each solution is an ordered line alternating solver move, opponent reply,
    * solver move, ... Lines may share prefixes; the trie merges them.
@@ -84,29 +78,19 @@ export interface Puzzle {
   tags: string[];
   /** Free-form note. Also never rendered while solving. */
   comment?: string;
-  /** Upstream identifier, e.g. a Lichess puzzle id. Not a dedupe key. */
+  /** The puzzle number from the file, shown as `#187`. Not a dedupe key. */
   sourceId?: string;
   rating?: number;
   addedAt: number;
 }
 
-/** Progress is global, not per-collection: solving a puzzle anywhere counts. */
-export interface Progress {
-  puzzleId: string;
-  status: PuzzleStatus;
-  attempts: number;
-  /** Cumulative incorrect moves across every attempt. Never reset. */
-  mistakes: number;
-  lastAttemptAt?: number;
-  firstSolvedAt?: number;
-}
+/** What a puzzle is, apart from where it is kept: the part a file supplies. */
+export type PuzzleContent = Omit<Puzzle, 'id' | 'collectionId' | 'position' | 'addedAt'>;
 
 export interface Collection {
   id: string;
   name: string;
   createdAt: number;
-  /** Puzzle ids in insertion order. Order is the collection's own, not global. */
-  puzzleIds: string[];
 }
 
 /** A puzzle answered by placing a piece rather than by playing moves. */
@@ -114,10 +98,6 @@ export function isMissingPiece(
   puzzle: Pick<Puzzle, 'addPiece'>,
 ): puzzle is Pick<Puzzle, 'addPiece'> & { addPiece: Placement } {
   return Boolean(puzzle.addPiece);
-}
-
-export function newProgress(puzzleId: string): Progress {
-  return { puzzleId, status: 'unseen', attempts: 0, mistakes: 0 };
 }
 
 /**
@@ -138,35 +118,27 @@ export function normalizeFen(fen: string): string {
  * Tags, comment, rating and source are excluded on purpose, so re-importing a
  * file with edited metadata updates the existing puzzle instead of forking it.
  */
-export function contentKey(
-  puzzle: Pick<Puzzle, 'fen' | 'setupMove' | 'solutions' | 'addPiece'>,
-): string {
+export function contentKey(puzzle: Pick<Puzzle, 'fen' | 'solutions' | 'addPiece'>): string {
   // Solution order must not affect identity: the same two lines listed in the
   // other order are the same puzzle.
   const lines = puzzle.solutions
     .map((line) => line.join(' '))
     .sort()
     .join('|');
-  const key = `${normalizeFen(puzzle.fen)}/${puzzle.setupMove ?? '-'}/${lines}`;
-  // Appended only when there is a placement, so every key already in a library
-  // keeps the value it had — a format change here would fork every puzzle in
-  // the store on the next import. Two missing-piece puzzles do share a FEN and
-  // an empty solution list, so without this they would collide as duplicates.
-  return puzzle.addPiece ? `${key}/+${placementText(puzzle.addPiece)}` : key;
+  // Two missing-piece puzzles can share a FEN and an empty solution list, so
+  // the placement is part of the key too.
+  const placement = puzzle.addPiece ? placementText(puzzle.addPiece) : '-';
+  return `${normalizeFen(puzzle.fen)}/${lines}/${placement}`;
 }
 
 /**
- * Side the solver plays, flipped when a setup move is played in first.
+ * Side the solver plays.
  *
  * A missing-piece puzzle is answered for the colour of the piece being added,
  * which is not always the side to move: in the archetypal example the position
  * is Black to move and the answer is a white knight that mates.
  */
-export function solverSide(
-  puzzle: Pick<Puzzle, 'fen' | 'setupMove' | 'addPiece'>,
-): Side {
+export function solverSide(puzzle: Pick<Puzzle, 'fen' | 'addPiece'>): Side {
   if (puzzle.addPiece) return puzzle.addPiece.color;
-  const fenSide: Side = normalizeFen(puzzle.fen).split(' ')[1] === 'b' ? 'b' : 'w';
-  if (!puzzle.setupMove) return fenSide;
-  return fenSide === 'w' ? 'b' : 'w';
+  return normalizeFen(puzzle.fen).split(' ')[1] === 'b' ? 'b' : 'w';
 }

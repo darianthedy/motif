@@ -130,19 +130,6 @@ export function sanFor(fen: string, move: Uci): string | null {
 }
 
 /**
- * The position a puzzle is actually solved from.
- *
- * Lichess puzzles store the FEN one ply early with the opponent's move first
- * (see `Puzzle.setupMove`). The UI animates that ply, so the solver's starting
- * position is the one after it. Falls back to the raw FEN if the setup move
- * does not apply, rather than rendering nothing.
- */
-export function startingFen(fen: string, setupMove?: Uci): string {
-  if (!setupMove) return fen;
-  return applyUci(fen, setupMove) ?? fen;
-}
-
-/**
  * Whether moving from → to needs a promotion choice, without committing to one.
  * Used to decide whether to open the picker before submitting.
  */
@@ -168,13 +155,10 @@ export function legalUci(fen: string, text: string): Uci | null {
  */
 export function firstIllegalMove(
   fen: string,
-  setupMove: Uci | undefined,
   solutions: Uci[][],
 ): { move: Uci; ply: number } | null {
-  const start = startingFen(fen, setupMove);
-
   for (const line of solutions) {
-    let position = start;
+    let position = fen;
     for (let ply = 0; ply < line.length; ply++) {
       const next = applyUci(position, line[ply]);
       if (!next) return { move: line[ply], ply };
@@ -182,11 +166,6 @@ export function firstIllegalMove(
     }
   }
   return null;
-}
-
-/** Whether a setup move can actually be played into the stored position. */
-export function setupMoveIsLegal(fen: string, setupMove: Uci | undefined): boolean {
-  return !setupMove || applyUci(fen, setupMove) !== null;
 }
 
 export function pieceAt(fen: string, square: string): Piece | null {
@@ -282,9 +261,9 @@ export interface ReplayStep {
  * detail view can still render — and show how far it got — for a puzzle that
  * predates the import-time legality check.
  */
-export function replayLine(fen: string, setupMove: Uci | undefined, line: Uci[]): ReplayStep[] {
+export function replayLine(fen: string, line: Uci[]): ReplayStep[] {
   const steps: ReplayStep[] = [];
-  let position = startingFen(fen, setupMove);
+  let position = fen;
 
   for (let ply = 0; ply < line.length; ply++) {
     const move = line[ply];

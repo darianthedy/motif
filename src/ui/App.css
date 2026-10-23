@@ -360,6 +360,9 @@ button:disabled {
 
 .status[data-status='solved'] { background: #2a3a22; color: #b6d99a; }
 .status[data-status='failed'] { background: #402a28; color: #e2a49e; }
+.status[data-status='flagged'] { background: #3a3322; color: #f0c05a; }
+
+button.link[data-flagged] { color: #f0c05a; }
 
 .replay {
   display: flex;

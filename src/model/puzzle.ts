@@ -78,6 +78,11 @@ export interface Puzzle {
   tags: string[];
   /** Free-form note. Also never rendered while solving. */
   comment?: string;
+  /**
+   * Marked as needing a look — a wrong solution, a bad position. Set in the
+   * app, never by a file, so a re-import keeps it. Absent means not flagged.
+   */
+  flagged?: boolean;
   /** The puzzle number from the file, shown as `#187`. Not a dedupe key. */
   sourceId?: string;
   rating?: number;
@@ -85,7 +90,7 @@ export interface Puzzle {
 }
 
 /** What a puzzle is, apart from where it is kept: the part a file supplies. */
-export type PuzzleContent = Omit<Puzzle, 'id' | 'collectionId' | 'position' | 'addedAt'>;
+export type PuzzleContent = Omit<Puzzle, 'id' | 'collectionId' | 'position' | 'addedAt' | 'flagged'>;
 
 export interface Collection {
   id: string;

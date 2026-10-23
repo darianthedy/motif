@@ -61,6 +61,11 @@ create table if not exists public.puzzles (
     references public.collections (user_id, id) on delete cascade
 );
 
+-- Marked as needing a look: a wrong solution, a bad position, anything broken.
+-- Set in the app only; an import never writes it, so re-importing a file keeps
+-- the mark. Added separately so an existing table picks it up on a re-run.
+alter table public.puzzles add column if not exists flagged boolean not null default false;
+
 create index if not exists puzzles_collection on public.puzzles (user_id, collection_id);
 
 -- ---------------------------------------------------------------------------

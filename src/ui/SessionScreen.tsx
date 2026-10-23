@@ -9,12 +9,23 @@ interface Props {
   puzzles: Puzzle[];
   /** Records the current puzzle's result, which moves the run on. */
   onAttempt: (result: AttemptResult, mistakes: number, hinted: boolean) => void;
+  online: boolean;
+  /** Marks the current puzzle as needing a look, or clears the mark. */
+  onFlag: (puzzle: Puzzle, flagged: boolean) => void;
   /** The run reached its end. */
   onFinished: () => void;
   onExit: () => void;
 }
 
-export function SessionScreen({ progress, puzzles, onAttempt, onFinished, onExit }: Props) {
+export function SessionScreen({
+  progress,
+  puzzles,
+  online,
+  onAttempt,
+  onFlag,
+  onFinished,
+  onExit,
+}: Props) {
   const current = useMemo(
     () => puzzles.find((puzzle) => puzzle.id === progress.current),
     [progress.current, puzzles],
@@ -50,6 +61,18 @@ export function SessionScreen({ progress, puzzles, onAttempt, onFinished, onExit
           <div className="progress-fill" style={{ width: `${progress.progress * 100}%` }} />
         </div>
         <span className="muted count">{progress.remaining}</span>
+        {/* Only marks it: a broken puzzle is usually noticed mid-solve, and
+            this keeps the note without leaving the run. Skip moves on. */}
+        <button
+          type="button"
+          className="link"
+          data-flagged={current.flagged || undefined}
+          disabled={!online}
+          onClick={() => onFlag(current, !current.flagged)}
+          title={online ? 'Flag this puzzle for review' : 'Flagging needs a connection'}
+        >
+          {current.flagged ? 'Flagged' : 'Flag'}
+        </button>
         <button type="button" className="link" onClick={handleSkip} title="Skip this puzzle">
           Skip
         </button>

@@ -10,7 +10,7 @@ const STATUS_LABEL: Record<PuzzleStatus, string> = {
   unseen: 'new',
 };
 
-type Filter = 'all' | PuzzleStatus;
+type Filter = 'all' | PuzzleStatus | 'flagged';
 
 interface Props {
   collection: Collection;
@@ -32,8 +32,12 @@ interface Props {
 export function PuzzleListScreen({ collection, puzzles, records, onOpen, onExit }: Props) {
   const [filter, setFilter] = useState<Filter>('all');
 
-  const shown = puzzles.filter(
-    (puzzle) => filter === 'all' || statusOf(records, puzzle.id) === filter,
+  const shown = puzzles.filter((puzzle) =>
+    filter === 'all'
+      ? true
+      : filter === 'flagged'
+        ? puzzle.flagged
+        : statusOf(records, puzzle.id) === filter,
   );
 
   return (
@@ -46,7 +50,7 @@ export function PuzzleListScreen({ collection, puzzles, records, onOpen, onExit 
       </header>
 
       <div className="filters">
-        {(['all', 'unseen', 'failed', 'solved'] as Filter[]).map((option) => (
+        {(['all', 'unseen', 'failed', 'solved', 'flagged'] as Filter[]).map((option) => (
           <button
             key={option}
             type="button"
@@ -54,7 +58,7 @@ export function PuzzleListScreen({ collection, puzzles, records, onOpen, onExit 
             data-active={filter === option || undefined}
             onClick={() => setFilter(option)}
           >
-            {option === 'all' ? 'All' : STATUS_LABEL[option]}
+            {option === 'all' ? 'All' : option === 'flagged' ? 'flagged' : STATUS_LABEL[option]}
           </button>
         ))}
       </div>
@@ -79,6 +83,11 @@ export function PuzzleListScreen({ collection, puzzles, records, onOpen, onExit 
                         ? `${solverSide(puzzle) === 'w' ? 'White' : 'Black'} piece missing`
                         : `${solverSide(puzzle) === 'w' ? 'White' : 'Black'} to play`}
                   </span>
+                  {puzzle.flagged && (
+                    <span className="status" data-status="flagged">
+                      flagged
+                    </span>
+                  )}
                   <span className="status" data-status={status}>
                     {STATUS_LABEL[status]}
                   </span>

@@ -118,6 +118,17 @@ try {
   check('signing in opens the library',
     await page.getByRole('button', { name: 'Import puzzles' }).isVisible());
 
+  // ---- Menu ----
+  const tab = (name) => page.locator('.nav-menu').getByRole('button', { name });
+  check('the menu opens on Puzzles',
+    (await tab('Puzzles').getAttribute('aria-current')) === 'page');
+  await tab('Account').click();
+  check('Account shows who is signed in',
+    await page.getByText('e2e@example.com').isVisible());
+  check('and is where signing out lives',
+    await page.getByRole('button', { name: 'Sign out' }).isVisible());
+  await tab('Puzzles').click();
+
   // ---- Import ----
   await page.getByRole('button', { name: 'Import puzzles' }).click();
   await page.locator('textarea').fill(SAMPLE);
@@ -162,6 +173,7 @@ try {
   // ---- Start a session ----
   await page.getByText('Back-rank mates').click();
   await page.getByRole('button', { name: 'Solve in order' }).click();
+  check('the menu stays out of a session', (await page.locator('.nav-menu').count()) === 0);
   await page.waitForSelector('[data-square="a1"]');
   await page.waitForTimeout(300);
 

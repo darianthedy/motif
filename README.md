@@ -76,7 +76,7 @@ broke — "Missed on move 2 of 3" — because a count alone cannot say whether y
 missed the idea or only the follow-up. The number counts your own moves, so
 opponent replies sitting between them never shift it.
 
-**Starting over.** *Reset progress* on the home screen deletes every attempt
+**Starting over.** *Reset progress* on the Puzzles page deletes every attempt
 and run and leaves the library alone — the point is to solve the puzzles again,
 not to re-import them. One edge case is accepted: attempts another device made
 offline before the reset still upload afterwards, and count.
@@ -209,6 +209,9 @@ to its account by row-level security. Signing in is required.
       outbox.ts         # runs and attempts waiting to upload
     src/useLibrary.ts   # the signed-in library, as the UI sees it
     src/ui/
+      App.tsx           # the shell: sign-in, loading, and the menu between sections
+      PuzzlesSection.tsx  # the Puzzles section's screens and what they do
+      AccountScreen.tsx # who is signed in, sync state, signing out
       Board.tsx         # moves, promotion, and the placement board
       PuzzleView.tsx    # dispatches on the kind
       MissingPieceView.tsx

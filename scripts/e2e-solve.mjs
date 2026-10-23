@@ -1,5 +1,10 @@
 /**
- * Drives the whole app in a real browser: import, solve, stop, reload, resume.
+ * Drives the whole app in a real browser: sign in, import, solve, stop,
+ * reload, resume, and solve offline.
+ *
+ * Runs against the in-memory backend (src/data/account.ts), whatever .env
+ * says, so it needs no database and leaves nothing behind. Cross-device
+ * behaviour against the real database is check-sync.mjs's job.
  *
  * The model layer is unit-tested, but nothing there proves a tap on a square
  * turns into the right UCI string, that the board is actually square, or that
@@ -88,6 +93,8 @@ async function selectedSquare(page) {
   return found[0] ?? null;
 }
 
+// Set before Vite reads .env, which it lets the process environment override.
+process.env.VITE_NEON_BASE_URL = '';
 const server = await createServer({ server: { port: 5199 } });
 await server.listen();
 const url = 'http://localhost:5199';
@@ -99,6 +106,17 @@ const page = await context.newPage();
 
 try {
   await page.goto(url);
+
+  // ---- Sign in ----
+  // Nothing is shown before it: the library belongs to the account.
+  check('the app opens on the sign-in screen',
+    await page.getByRole('button', { name: 'Sign in' }).isVisible());
+  await page.locator('input[type="email"]').fill('e2e@example.com');
+  await page.locator('input[type="password"]').fill('anything');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.waitForTimeout(400);
+  check('signing in opens the library',
+    await page.getByRole('button', { name: 'Import puzzles' }).isVisible());
 
   // ---- Import ----
   await page.getByRole('button', { name: 'Import puzzles' }).click();
@@ -539,30 +557,50 @@ try {
   await page.getByRole('button', { name: '← Collections' }).click();
   await page.waitForTimeout(400);
 
-  // ---- Import from a URL ----
-  // The dev server serves the repo root, so the sample is fetchable. This
-  // checks the fetch-and-parse path, not the adding — the sample is already in
-  // the library by now, which is why the preview counts rather than inserts.
-  await page.getByRole('button', { name: 'Import puzzles' }).click();
-  await page.locator('.url-row input').fill(`${url}/samples/back-rank.json`);
-  await page.getByRole('button', { name: 'Fetch' }).click();
-  await page.waitForTimeout(600);
-  check('fetching a collection from a URL parses it',
-    await page.getByRole('button', { name: /Add 3 puzzles/ }).isVisible());
+  // ---- Offline ----
+  // Solving works without a connection; editing does not, and says so. A
+  // solve made offline waits in the outbox and uploads on reconnecting.
+  await context.setOffline(true);
+  await page.waitForTimeout(200);
+  check('going offline shows on the home screen',
+    await page.locator('.offline').isVisible().catch(() => false));
+  check('and disables importing',
+    await page.getByRole('button', { name: 'Import puzzles' }).isDisabled());
 
-  await page.locator('.url-row input').fill(`${url}/does-not-exist.json`);
-  await page.getByRole('button', { name: 'Fetch' }).click();
-  await page.waitForTimeout(600);
-  // The dev server answers unknown paths with the SPA shell, status 200 —
-  // the same shape as a share page or a login wall.
-  const rejects = (await page.locator('.rejects').textContent().catch(() => '')) ?? '';
-  check(`a URL returning a web page says so (${rejects.trim().slice(0, 40)}…)`,
-    /web page, not a puzzle file/.test(rejects));
+  const chapterBefore = (await page.locator('.card').filter({ hasText: 'Chapter A' }).textContent()) ?? '';
+  await page.getByText('Chapter A').click();
+  check('and deleting a collection',
+    await page.getByRole('button', { name: 'Delete collection' }).isDisabled());
+  await page.getByRole('button', { name: 'Solve in order' }).click();
+  await page.waitForSelector('[data-square="a1"]');
+  await page.waitForTimeout(300);
+  await drag(page, 'a1', 'a8');
+  await page.waitForTimeout(400);
+  check('a puzzle can be solved offline',
+    await page.locator('.result .good').isVisible().catch(() => false));
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await page.waitForTimeout(300);
+  await page.waitForTimeout(300);
+  const offlineBadge = (await page.locator('.offline').textContent().catch(() => '')) ?? '';
+  check(`and waits to upload (${offlineBadge.trim()})`, /to upload/.test(offlineBadge));
+  const chapterOffline = (await page.locator('.card').filter({ hasText: 'Chapter A' }).textContent()) ?? '';
+  check(`the solve counts straight away (${chapterBefore.replace(/\s+/g, ' ').trim()} → ${chapterOffline.replace(/\s+/g, ' ').trim()})`,
+    /1 solved/.test(chapterOffline));
+
+  await context.setOffline(false);
+  await page.waitForTimeout(800);
+  check('reconnecting uploads it',
+    !(await page.locator('.offline').isVisible().catch(() => false)));
+  await page.reload();
+  await page.waitForTimeout(900);
+  const chapterOnline = (await page.locator('.card').filter({ hasText: 'Chapter A' }).textContent()) ?? '';
+  check(`and it is kept after a reload (${chapterOnline.replace(/\s+/g, ' ').trim()})`,
+    /1 solved/.test(chapterOnline));
 
   // ---- Reset progress ----
   // Last, because it clears the solve history every check above built up.
-  await page.getByRole('button', { name: '← Back' }).click();
-  await page.waitForTimeout(400);
   const before = (await page.locator('.card').first().textContent()) ?? '';
   check(`solves are on the board before the reset (${before.replace(/\s+/g, ' ').trim()})`,
     /[1-9]\d* solved/.test(before));

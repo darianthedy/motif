@@ -1,21 +1,20 @@
 /**
- * Proves cross-device sync against the real backend.
+ * Proves the app against the real database, from two devices.
  *
  * Two independent browser contexts stand in for two devices: separate cookie
- * jars, separate IndexedDB. Device A imports and syncs; device B signs into the
- * same account and must end up with the library it never imported. Then each
- * deletes something and the other must lose it too — the thing the old
- * single-blob sync could not do. Anything short of that — mocking the
- * transport, reusing one context — would test the plumbing while assuming the
- * thing that actually matters.
+ * jars, separate IndexedDB. Every edit is written straight to the database, so
+ * what this checks is that each device sees the other's: an edit on A appears
+ * on B, a delete on A disappears on B, and attempts made offline on A upload
+ * once A reconnects. A third account must see none of it. That last check is
+ * the privacy claim, and it is RLS's alone, so it is tested rather than
+ * trusted.
  *
- * Requires db/0002_rows.neon.sql to have been applied to the target database.
+ * Requires db/0001_schema.sql to have been applied to the target database, and
+ * VITE_NEON_BASE_URL for the local run. Creates throwaway accounts; pass
+ * --email to reuse one, or --url to run against the deployed site instead of a
+ * dev server.
  *
- * Requires VITE_NEON_BASE_URL for the local run. Creates a throwaway account;
- * pass --email to reuse one, or --url to run against the deployed site instead
- * of a dev server.
- *
- * Running it against production is not redundant. Better Auth rejects origins
+ * Running it against production is not redundant. Neon Auth rejects origins
  * that are not on its trusted-domain list, and localhost is trusted by default
  * — so a local pass says nothing about whether the deployed origin works. That
  * exact gap shipped once already.
@@ -49,25 +48,28 @@ async function device(name) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   page.on('pageerror', (e) => console.log(`  [${name}] page error: ${e.message}`));
-  page.dataCalls = 0;
-  page.on('request', (r) => {
-    if (r.url().includes('/rest/v1/')) page.dataCalls++;
-  });
   // Deletions ask for confirmation; a device in this script always means it.
   page.on('dialog', (dialog) => void dialog.accept());
   await page.goto(url);
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(800);
   return { context, page };
 }
 
-async function syncNow(page) {
-  await page.getByRole('button', { name: /Sign in to sync|Account/ }).click();
-  await page.waitForTimeout(300);
-  await page.getByRole('button', { name: 'Sync now' }).click();
-  await page.waitForTimeout(4000);
-  await page.getByRole('button', { name: '← Back' }).click();
-  await page.waitForTimeout(500);
+async function auth(page, email, mode) {
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[type="password"]').fill(PASSWORD);
+  await page.getByRole('button', { name: mode === 'up' ? 'Create an account' : 'Sign in' }).click();
+  await page.waitForTimeout(3000);
 }
+
+/** Reopens the app, which reads the library afresh from the database. */
+async function reopen(page) {
+  await page.reload();
+  await page.waitForTimeout(3000);
+}
+
+const text = async (page) =>
+  ((await page.locator('.screen').first().textContent().catch(() => '')) ?? '').replace(/\s+/g, ' ');
 
 async function puzzleCount(page) {
   await page.getByText('Back-rank mates').click();
@@ -80,111 +82,81 @@ async function puzzleCount(page) {
   return count;
 }
 
-async function auth(page, mode) {
-  await page.getByRole('button', { name: /Sign in to sync|Account/ }).click();
-  await page.waitForTimeout(300);
-  await page.locator('input[type="email"]').fill(EMAIL);
-  await page.locator('input[type="password"]').fill(PASSWORD);
-  await page.getByRole('button', { name: mode === 'up' ? 'Create an account' : 'Sign in' }).click();
-  await page.waitForTimeout(2500);
-}
-
 try {
   console.log(`account: ${EMAIL}`);
 
-  // ---- Device A: import, sign up, sync ----
+  // ---- Device A: sign up, import ----
   const a = await device('A');
+  await auth(a.page, EMAIL, 'up');
+  const signedIn = await a.page.getByRole('button', { name: 'Import puzzles' }).isVisible().catch(() => false);
+  check('device A signed up', signedIn);
+  if (!signedIn) console.log('  sign-in screen said:', await text(a.page));
+
   await a.page.getByRole('button', { name: 'Import puzzles' }).click();
   await a.page.locator('textarea').fill(SAMPLE);
   await a.page.waitForTimeout(300);
   await a.page.getByRole('button', { name: /Add 3 puzzles/ }).click();
-  await a.page.waitForTimeout(400);
-  check('device A imported the collection',
-    await a.page.getByText('Back-rank mates').isVisible());
+  await a.page.waitForTimeout(3000);
+  check('device A imported the collection', await a.page.getByText('Back-rank mates').isVisible());
 
-  await auth(a.page, 'up');
-  const signedIn = await a.page.getByText(new RegExp(EMAIL.replace(/[.@+]/g, '\\$&'))).isVisible().catch(() => false);
-  check('device A signed up', signedIn);
-  if (!signedIn) {
-    console.log('  account screen said:', (await a.page.locator('.bad, .notice').allTextContents()).join(' | '));
-  }
-
-  await a.page.getByRole('button', { name: 'Sync now' }).click();
-  await a.page.waitForTimeout(4000);
-  const statusA = (await a.page.locator('.screen p.muted').first().textContent()) ?? '';
-  check(`device A synced (${statusA.trim()})`, /Last synced/.test(statusA));
-
-  // ---- Device B: fresh browser, same account ----
+  // ---- Device B: same account, fresh browser ----
   const b = await device('B');
-  check('device B starts empty',
-    await b.page.getByText('Nothing here yet').isVisible().catch(() => false));
-
-  await auth(b.page, 'in');
-  await b.page.waitForTimeout(5000);
-  await b.page.getByRole('button', { name: '← Back' }).click();
-  await b.page.waitForTimeout(1500);
-
+  await auth(b.page, EMAIL, 'in');
   const arrived = await b.page.getByText('Back-rank mates').isVisible().catch(() => false);
-  check('device B received the library it never imported', arrived);
-  if (!arrived) {
-    console.log('  device B home:', ((await b.page.locator('.screen').textContent()) ?? '').replace(/\s+/g, ' ').slice(0, 200));
-  }
-  await b.page.screenshot({ path: '/tmp/motif-sync-b.png' });
+  check('device B sees the library it never imported', arrived);
+  if (!arrived) console.log('  device B home:', (await text(b.page)).slice(0, 200));
 
-  // ---- Idle must be silent ----
-  // Adopting the merge unconditionally once changed state identity on every
-  // sync, which retriggered the push effect and synced again four seconds
-  // later, forever. Nothing in the feature's behaviour looked wrong; it just
-  // talked to the database until someone opened devtools.
-  a.page.dataCalls = 0;
-  await a.page.waitForTimeout(15000);
-  check(`an idle signed-in tab stops talking to the database (${a.page.dataCalls} requests in 15s)`,
-    a.page.dataCalls === 0);
-
-  // ---- A deletion on one device reaches the other ----
-  await a.page.getByRole('button', { name: '← Back' }).click();
-  await a.page.waitForTimeout(300);
+  // ---- An edit on A appears on B ----
   await a.page.getByText('Back-rank mates').click();
   await a.page.getByRole('button', { name: 'Browse puzzles' }).click();
   await a.page.locator('.puzzle-row').first().click();
-  await a.page.getByRole('button', { name: 'Delete puzzle' }).click();
-  await a.page.waitForTimeout(300);
-  await a.page.getByRole('button', { name: /←/ }).first().click();
-  await a.page.getByRole('button', { name: /←/ }).first().click();
-  await a.page.waitForTimeout(300);
-  await syncNow(a.page);
+  await a.page.locator('textarea').fill('Edited on A');
+  await a.page.getByRole('button', { name: 'Save comment' }).click();
+  await a.page.waitForTimeout(2500);
 
-  await syncNow(b.page);
+  await reopen(b.page);
+  await b.page.getByText('Back-rank mates').click();
+  await b.page.getByRole('button', { name: 'Browse puzzles' }).click();
+  await b.page.locator('.puzzle-row').first().click();
+  await b.page.waitForSelector('.facts');
+  check('a comment edited on device A appears on device B',
+    (await b.page.locator('textarea').inputValue()) === 'Edited on A');
+
+  // ---- A delete on A disappears on B ----
+  await a.page.getByRole('button', { name: 'Delete puzzle' }).click();
+  await a.page.waitForTimeout(2500);
+  await reopen(b.page);
   check('a puzzle deleted on device A is gone from device B', (await puzzleCount(b.page)) === 2);
 
-  // ...and does not come back to A from B's older copy.
-  await syncNow(a.page);
-  check('and device B does not hand it back to device A', (await puzzleCount(a.page)) === 2);
+  // ---- Offline attempts on A upload once A reconnects ----
+  await reopen(a.page);
+  await a.context.setOffline(true);
+  await a.page.waitForTimeout(300);
+  await a.page.getByText('Back-rank mates').click();
+  await a.page.getByRole('button', { name: 'Solve in order' }).click();
+  await a.page.waitForSelector('[data-square="a1"]');
+  await a.page.getByRole('button', { name: 'Skip' }).click();
+  await a.page.waitForTimeout(300);
+  await a.page.getByRole('button', { name: 'Stop' }).click();
+  await a.page.waitForTimeout(300);
+  check('device A queues play while offline',
+    /to upload/.test((await a.page.locator('.offline').textContent().catch(() => '')) ?? ''));
 
-  // ---- Deleting a whole collection, the other way round ----
-  await b.page.getByText('Back-rank mates').click();
-  await b.page.getByRole('button', { name: 'Delete collection' }).click();
-  await b.page.waitForTimeout(500);
-  await syncNow(b.page);
-  await syncNow(a.page);
-  check('a collection deleted on device B is gone from device A',
-    !(await a.page.getByText('Back-rank mates').isVisible().catch(() => false)));
+  await reopen(b.page);
+  check('device B does not see it yet',
+    !(await b.page.locator('.pill').isVisible().catch(() => false)));
+
+  await a.context.setOffline(false);
+  await a.page.waitForTimeout(4000);
+  await reopen(b.page);
+  check('once device A reconnects, device B sees the run it started',
+    await b.page.locator('.pill').isVisible().catch(() => false));
 
   // ---- Device C: a different account must see nothing ----
-  // The privacy claim is RLS's alone, so it gets tested rather than trusted.
-  const OTHER = `motif-e2e-other-${Date.now()}@example.com`;
   const c = await device('C');
-  await c.page.getByRole('button', { name: /Sign in to sync|Account/ }).click();
-  await c.page.waitForTimeout(300);
-  await c.page.locator('input[type="email"]').fill(OTHER);
-  await c.page.locator('input[type="password"]').fill(PASSWORD);
-  await c.page.getByRole('button', { name: 'Create an account' }).click();
-  await c.page.waitForTimeout(4000);
-  await c.page.getByRole('button', { name: '← Back' }).click();
-  await c.page.waitForTimeout(2000);
+  await auth(c.page, `motif-e2e-other-${Date.now()}@example.com`, 'up');
   const leaked = await c.page.getByText('Back-rank mates').isVisible().catch(() => false);
   check("a different account cannot see the first account's library", !leaked);
-
 } catch (error) {
   console.log(`FAIL  threw: ${error.message}`);
   failures.push('exception');
@@ -193,5 +165,5 @@ try {
   await server?.close();
 }
 
-console.log(failures.length ? `\n${failures.length} failed` : '\nsync works end to end');
+console.log(failures.length ? `\n${failures.length} failed` : '\nthe database works end to end');
 process.exit(failures.length ? 1 : 0);

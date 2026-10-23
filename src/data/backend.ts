@@ -1,7 +1,6 @@
 import { parseUci } from '../model/move';
-import type { Uci } from '../model/move';
 import { contentKey, parsePlacement, placementText } from '../model/puzzle';
-import type { Placement } from '../model/puzzle';
+import type { Collection, Puzzle } from '../model/puzzle';
 import type { SessionMode } from '../model/session';
 
 /**
@@ -13,33 +12,6 @@ import type { SessionMode } from '../model/session';
  * for unit tests, the e2e run and a dev mode with no database. Both obey the
  * same rules, and `backend.test.ts` runs one suite against each.
  */
-
-export interface Collection {
-  id: string;
-  name: string;
-  createdAt: number;
-}
-
-export interface Puzzle {
-  id: string;
-  collectionId: string;
-  /** Order within the collection. */
-  position: number;
-  fen: string;
-  /**
-   * Each solution is an ordered line alternating solver move, opponent reply,
-   * solver move, ... Empty for a missing-piece puzzle.
-   */
-  solutions: Uci[][];
-  /** The piece missing from the position, for the missing-piece kind. */
-  addPiece?: Placement;
-  tags: string[];
-  comment?: string;
-  /** The puzzle number from the file, shown as `#187`. */
-  sourceId?: string;
-  rating?: number;
-  addedAt: number;
-}
 
 /** A puzzle on its way in: the database assigns the id and the time. */
 export type NewPuzzle = Omit<Puzzle, 'id' | 'addedAt'>;
@@ -74,6 +46,8 @@ export interface Attempt {
   hinted: boolean;
   playedAt: number;
 }
+
+export type { Collection, Puzzle };
 
 export interface Library {
   collections: Collection[];

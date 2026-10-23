@@ -1,55 +1,38 @@
 import { useMemo } from 'react';
+import type { AttemptResult } from '../data/backend';
+import type { RunProgress } from '../model/derive';
 import type { Puzzle } from '../model/puzzle';
-import type { PuzzleResult } from '../model/runner';
-import { completeCurrent, isFinished, progress, remainingCount, skipCurrent } from '../model/session';
-import type { SessionState } from '../model/session';
 import { PuzzleView } from './PuzzleView';
 
 interface Props {
-  session: SessionState;
-  puzzles: Record<string, Puzzle>;
-  /** Persist the advanced session. Called once per completed puzzle. */
-  onSession: (session: SessionState) => void;
-  onResult: (puzzleId: string, result: PuzzleResult, mistakes: number) => void;
-  /** Session reached its end: clear it so the next start is fresh. */
+  progress: RunProgress;
+  puzzles: Puzzle[];
+  /** Records the current puzzle's result, which moves the run on. */
+  onAttempt: (result: AttemptResult, mistakes: number, hinted: boolean) => void;
+  /** The run reached its end. */
   onFinished: () => void;
   onExit: () => void;
 }
 
-export function SessionScreen({
-  session,
-  puzzles,
-  onSession,
-  onResult,
-  onFinished,
-  onExit,
-}: Props) {
-  const current = session.current ? puzzles[session.current] : undefined;
-  const solvedCount = session.solvedIds.length;
-
-  const summary = useMemo(
-    () => ({ solved: solvedCount, missed: session.failedIds.length, total: session.queue.length }),
-    [session.failedIds.length, session.queue.length, solvedCount],
+export function SessionScreen({ progress, puzzles, onAttempt, onFinished, onExit }: Props) {
+  const current = useMemo(
+    () => puzzles.find((puzzle) => puzzle.id === progress.current),
+    [progress.current, puzzles],
   );
-
-  const handleComplete = (result: PuzzleResult, mistakes: number) => {
-    if (!session.current) return;
-    onResult(session.current, result, mistakes);
-    onSession(completeCurrent(session, result));
-  };
 
   // Always available, not only for puzzles detected as broken: a position can
   // be legal and still be wrong, and being stuck with no way forward is worse
-  // than an occasional skip.
-  const handleSkip = () => onSession(skipCurrent(session));
+  // than an occasional skip. Recorded, so the puzzle does not come back this
+  // run, but as neither a solve nor a miss.
+  const handleSkip = () => onAttempt('skipped', 0, false);
 
-  if (isFinished(session) || !current) {
+  if (!current) {
     return (
       <div className="session-done">
         <h2>Session complete</h2>
         <p className="muted">
-          {summary.solved} of {summary.total} solved cleanly
-          {summary.missed > 0 && `, ${summary.missed} missed`}.
+          {progress.solved} of {progress.queue.length} solved cleanly
+          {progress.failed > 0 && `, ${progress.failed} missed`}.
         </p>
         <button type="button" onClick={onFinished}>
           Done
@@ -65,21 +48,21 @@ export function SessionScreen({
           Stop
         </button>
         <div className="progress" aria-label="Session progress">
-          <div className="progress-fill" style={{ width: `${progress(session) * 100}%` }} />
+          <div className="progress-fill" style={{ width: `${progress.progress * 100}%` }} />
         </div>
-        <span className="muted count">{remainingCount(session)}</span>
+        <span className="muted count">{progress.remaining}</span>
         <button type="button" className="link" onClick={handleSkip} title="Skip this puzzle">
           Skip
         </button>
       </header>
 
-      {/* Keyed by puzzle id *and* completion count, so a re-served retry
+      {/* Keyed by puzzle id *and* attempts played, so a re-served retry
           remounts the view and starts a fresh runner rather than reusing the
           one from the first attempt. */}
       <PuzzleView
-        key={`${current.id}:${session.completed}`}
+        key={`${current.id}:${progress.played}`}
         puzzle={current}
-        onComplete={handleComplete}
+        onComplete={(result, mistakes, hinted) => onAttempt(result, mistakes, hinted)}
         onSkip={handleSkip}
       />
     </div>

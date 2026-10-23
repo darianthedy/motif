@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
+import { statusOf } from '../model/derive';
+import type { PuzzleRecord } from '../model/derive';
 import { isMissingPiece, solverSide } from '../model/puzzle';
 import type { Collection, Puzzle, PuzzleStatus } from '../model/puzzle';
-import { puzzlesIn, statusOf } from '../model/state';
-import type { AppState } from '../model/state';
 
 const STATUS_LABEL: Record<PuzzleStatus, string> = {
   solved: 'solved',
@@ -13,8 +13,10 @@ const STATUS_LABEL: Record<PuzzleStatus, string> = {
 type Filter = 'all' | PuzzleStatus;
 
 interface Props {
-  state: AppState;
   collection: Collection;
+  /** In the collection's order. */
+  puzzles: Puzzle[];
+  records: Map<string, PuzzleRecord>;
   onOpen: (puzzle: Puzzle) => void;
   onExit: () => void;
 }
@@ -27,12 +29,11 @@ interface Props {
  * same reason tags stay hidden while solving. You open a puzzle when you have
  * decided to look at it.
  */
-export function PuzzleListScreen({ state, collection, onOpen, onExit }: Props) {
+export function PuzzleListScreen({ collection, puzzles, records, onOpen, onExit }: Props) {
   const [filter, setFilter] = useState<Filter>('all');
-  const puzzles = useMemo(() => puzzlesIn(state, collection), [collection, state]);
 
   const shown = puzzles.filter(
-    (puzzle) => filter === 'all' || statusOf(state, puzzle.id) === filter,
+    (puzzle) => filter === 'all' || statusOf(records, puzzle.id) === filter,
   );
 
   return (
@@ -63,7 +64,7 @@ export function PuzzleListScreen({ state, collection, onOpen, onExit }: Props) {
       ) : (
         <ol className="puzzle-list">
           {shown.map((puzzle) => {
-            const status = statusOf(state, puzzle.id);
+            const status = statusOf(records, puzzle.id);
             // Its number in the collection, not in the filtered view, so the
             // position of a puzzle does not change when a filter is applied.
             const index = puzzles.indexOf(puzzle) + 1;

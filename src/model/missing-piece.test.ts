@@ -11,7 +11,6 @@ import {
 } from './puzzle';
 import type { Placement, Puzzle } from './puzzle';
 import { MissingPieceRunner, ATTEMPTS_BEFORE_HINT } from './runner';
-import { parseState } from './storage';
 
 /**
  * The archetype: Black to move, and a white knight on g6 is mate. The h-pawn
@@ -21,9 +20,13 @@ import { parseState } from './storage';
 const SAMPLE_FEN = '6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1';
 const KNIGHT: Placement = { color: 'w', type: 'n', square: 'g6' };
 
+const read = (text: string) => importJson(text).groups.flatMap((group) => group.puzzles);
+
 function puzzle(overrides: Partial<Puzzle> = {}): Puzzle {
   return {
     id: 'p1',
+    collectionId: 'c1',
+    position: 0,
     fen: SAMPLE_FEN,
     solutions: [],
     addPiece: KNIGHT,
@@ -96,15 +99,9 @@ describe('missing-piece identity', () => {
     expect(contentKey(a)).not.toBe(contentKey(b));
   });
 
-  it('leaves the key of an ordinary puzzle untouched', () => {
-    const moves: Puzzle = {
-      id: 'p2',
-      fen: SAMPLE_FEN,
-      solutions: [[uci('g8g7')]],
-      tags: [],
-      addedAt: 0,
-    };
-    expect(contentKey(moves)).toBe(`${SAMPLE_FEN.split(' ').slice(0, 4).join(' ')}/-/g8g7`);
+  it('keys an ordinary puzzle by position and line alone', () => {
+    const moves = { fen: SAMPLE_FEN, solutions: [[uci('g8g7')]] };
+    expect(contentKey(moves)).toBe(`${SAMPLE_FEN.split(' ').slice(0, 4).join(' ')}/g8g7/-`);
   });
 
   it('is answered for the colour of the piece, not for the side to move', () => {
@@ -173,8 +170,8 @@ describe('importing missing-piece puzzles', () => {
               "add_piece": "Ng6" }`),
     );
     expect(result.rejected).toEqual([]);
-    expect(result.inserted).toHaveLength(1);
-    expect(result.inserted[0]).toMatchObject({
+    const [entry] = result.groups[0].puzzles;
+    expect(entry).toMatchObject({
       solutions: [],
       addPiece: KNIGHT,
       sourceId: '187',
@@ -192,7 +189,7 @@ describe('importing missing-piece puzzles', () => {
     ];
     for (const [field, reason] of cases) {
       const result = importJson(file(`{ "fen": "${SAMPLE_FEN}", "solutions": [], ${field} }`));
-      expect(result.inserted, field).toHaveLength(0);
+      expect(result.groups[0].puzzles, field).toHaveLength(0);
       expect(result.rejected[0].reason, field).toMatch(reason);
     }
   });
@@ -213,42 +210,14 @@ describe('importing missing-piece puzzles', () => {
     const text = await import('../../samples/missing-piece.json?raw').then((m) => m.default);
     const result = importJson(text);
     expect(result.rejected).toEqual([]);
-    expect(result.inserted).toHaveLength(3);
+    expect(read(text)).toHaveLength(3);
     expect(result.collectionName).toBe('Missing pieces');
     // Every answer is the only mate available, so no correct answer is refused.
-    for (const entry of result.inserted) {
+    for (const entry of read(text)) {
       const placement = entry.addPiece!;
       expect(matingPlacements(entry.fen, placement.color).map(placementText)).toEqual([
         placementText(placement),
       ]);
     }
-  });
-});
-
-describe('storing missing-piece puzzles', () => {
-  it('survives a round trip, solutions or not', () => {
-    const stored = parseState({
-      version: 1,
-      puzzles: { p1: puzzle(), p2: { ...puzzle({ id: 'p2' }), addPiece: 'ng3' } },
-      collections: [],
-      progress: {},
-      sessions: {},
-      recent: [],
-    });
-    expect(stored.puzzles.p1.addPiece).toEqual(KNIGHT);
-    // A hand-edited file may carry the written form rather than the object.
-    expect(stored.puzzles.p2.addPiece).toEqual({ color: 'b', type: 'n', square: 'g3' });
-  });
-
-  it('still drops a puzzle with neither a solution nor a piece', () => {
-    const stored = parseState({
-      version: 1,
-      puzzles: { p1: { ...puzzle(), addPiece: undefined } },
-      collections: [],
-      progress: {},
-      sessions: {},
-      recent: [],
-    });
-    expect(stored.puzzles.p1).toBeUndefined();
   });
 });

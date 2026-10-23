@@ -1,8 +1,8 @@
-import { firstIllegalMove, pieceAt, setupMoveIsLegal, startingFen, withPiece } from '../board';
+import { firstIllegalMove, pieceAt, withPiece } from '../board';
 import { parseUci } from '../move';
 import type { Uci } from '../move';
 import { contentKey, parsePlacement, placementText } from '../puzzle';
-import type { Placement, Puzzle } from '../puzzle';
+import type { Placement, PuzzleContent } from '../puzzle';
 
 /**
  * The JSON import format.
@@ -38,19 +38,12 @@ import type { Placement, Puzzle } from '../puzzle';
  */
 export interface ImportGroup {
   name?: string;
-  puzzles: Puzzle[];
+  /** In file order, each puzzle once. */
+  puzzles: PuzzleContent[];
 }
 
 export interface ImportResult {
-  /** Membership, in file order. */
   groups: ImportGroup[];
-  /** Puzzles new to the library. */
-  inserted: Puzzle[];
-  /**
-   * Puzzles already present by content key. Metadata should be refreshed from
-   * these, but no new row created.
-   */
-  updated: Puzzle[];
   /** Rejected entries with reasons, so the import screen can show them. */
   rejected: { index: number; reason: string }[];
   /** Convenience for the common single-collection file. */
@@ -58,7 +51,7 @@ export interface ImportResult {
 }
 
 function emptyResult(): ImportResult {
-  return { groups: [], inserted: [], updated: [], rejected: [] };
+  return { groups: [], rejected: [] };
 }
 
 /**
@@ -105,7 +98,6 @@ function parseLine(raw: unknown): Uci[] | null {
 interface RawEntry {
   id?: unknown;
   fen?: unknown;
-  setupMove?: unknown;
   solutions?: unknown;
   tags?: unknown;
   comment?: unknown;
@@ -120,15 +112,13 @@ interface RawEntry {
  * Parses and validates a JSON import payload.
  *
  * Accepts either a single collection object or an array of them, so a whole
- * multi-chapter book imports in one go. `existingKeys` are the content keys
- * already in the library; entries matching one are routed to `updated` rather
- * than `inserted`. Duplicates *within* the file are collapsed the same way, so
- * a puzzle listed twice yields one row.
+ * multi-chapter book imports in one go. A puzzle listed twice in one group
+ * appears once, where it was first listed, with the later entry's details.
  *
  * Rejection indices are file-wide rather than per group, so a reported row
  * number means something to someone scrolling the file.
  */
-export function importJson(text: string, existingKeys = new Set<string>()): ImportResult {
+export function importJson(text: string): ImportResult {
   const result = emptyResult();
 
   let parsed: unknown;
@@ -140,7 +130,6 @@ export function importJson(text: string, existingKeys = new Set<string>()): Impo
   }
 
   const blocks = Array.isArray(parsed) ? parsed : [parsed];
-  const seen = new Set(existingKeys);
   let index = 0;
 
   for (const block of blocks) {
@@ -151,24 +140,14 @@ export function importJson(text: string, existingKeys = new Set<string>()): Impo
     }
 
     const name = typeof group.collection === 'string' ? group.collection : undefined;
-    const puzzles: Puzzle[] = [];
+    const puzzles = new Map<string, PuzzleContent>();
 
     for (const raw of group.puzzles as RawEntry[]) {
-      const at = index++;
-      const puzzle = parseEntry(raw, at, result);
-      if (!puzzle) continue;
-
-      puzzles.push(puzzle);
-      const key = contentKey(puzzle);
-      if (seen.has(key)) {
-        result.updated.push(puzzle);
-      } else {
-        seen.add(key);
-        result.inserted.push(puzzle);
-      }
+      const puzzle = parseEntry(raw, index++, result);
+      if (puzzle) puzzles.set(contentKey(puzzle), puzzle);
     }
 
-    result.groups.push({ name, puzzles });
+    result.groups.push({ name, puzzles: [...puzzles.values()] });
   }
 
   if (result.groups.length === 1) result.collectionName = result.groups[0].name;
@@ -176,24 +155,9 @@ export function importJson(text: string, existingKeys = new Set<string>()): Impo
 }
 
 /** Validates one entry, recording a reason on the result if it is rejected. */
-function parseEntry(raw: RawEntry, index: number, result: ImportResult): Puzzle | null {
+function parseEntry(raw: RawEntry, index: number, result: ImportResult): PuzzleContent | null {
   if (typeof raw?.fen !== 'string' || !isPlausibleFen(raw.fen)) {
     result.rejected.push({ index, reason: 'Malformed FEN' });
-    return null;
-  }
-
-  let setupMove: Uci | undefined;
-  if (raw.setupMove !== undefined) {
-    const parsedSetup = typeof raw.setupMove === 'string' ? parseUci(raw.setupMove) : null;
-    if (!parsedSetup) {
-      result.rejected.push({ index, reason: 'Malformed setup move' });
-      return null;
-    }
-    setupMove = parsedSetup;
-  }
-
-  if (!setupMoveIsLegal(raw.fen, setupMove)) {
-    result.rejected.push({ index, reason: `Setup move ${setupMove} is illegal in this position` });
     return null;
   }
 
@@ -208,9 +172,9 @@ function parseEntry(raw: RawEntry, index: number, result: ImportResult): Puzzle 
       });
       return null;
     }
-    const addPiece = parseAddPiece(rawPlacement, startingFen(raw.fen, setupMove), index, result);
+    const addPiece = parseAddPiece(rawPlacement, raw.fen, index, result);
     if (!addPiece) return null;
-    return { ...common(raw), fen: raw.fen, setupMove, solutions: [], addPiece };
+    return { ...common(raw), fen: raw.fen, solutions: [], addPiece };
   }
 
   if (!Array.isArray(raw.solutions) || raw.solutions.length === 0) {
@@ -234,7 +198,7 @@ function parseEntry(raw: RawEntry, index: number, result: ImportResult): Puzzle 
 
   // Legality is checked once, here, rather than discovered when someone is
   // three wrong tries deep into a puzzle that cannot be solved.
-  const illegal = firstIllegalMove(raw.fen, setupMove, solutions);
+  const illegal = firstIllegalMove(raw.fen, solutions);
   if (illegal) {
     result.rejected.push({
       index,
@@ -243,13 +207,12 @@ function parseEntry(raw: RawEntry, index: number, result: ImportResult): Puzzle 
     return null;
   }
 
-  return { ...common(raw), fen: raw.fen, setupMove, solutions };
+  return { ...common(raw), fen: raw.fen, solutions };
 }
 
 /** The fields both kinds share, so neither can drift from the other. */
 function common(raw: RawEntry) {
   return {
-    id: crypto.randomUUID(),
     tags: Array.isArray(raw.tags) ? raw.tags.filter((t): t is string => typeof t === 'string') : [],
     comment: typeof raw.comment === 'string' ? raw.comment : undefined,
     // The book numbers its puzzles; keeping that as the source id makes a
@@ -261,7 +224,6 @@ function common(raw: RawEntry) {
           ? String(raw.id)
           : undefined,
     rating: typeof raw.rating === 'number' ? raw.rating : undefined,
-    addedAt: Date.now(),
   };
 }
 

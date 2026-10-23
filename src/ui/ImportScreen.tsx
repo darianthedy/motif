@@ -1,18 +1,27 @@
 import { useRef, useState } from 'react';
 import { importJson } from '../model/import/json';
 import type { ImportResult } from '../model/import/json';
+import type { Collection } from '../model/puzzle';
 import { OfflineNote } from './OfflineNote';
 
+/** Where a single-collection file goes: into a collection, or a new one by name. */
+export type ImportTarget = { collectionId: string } | { name: string };
+
 interface Props {
+  collections: Collection[];
   online: boolean;
-  /** `name` is the collection name to use for a single-collection file. */
-  onApply: (result: ImportResult, name?: string) => void;
+  /** `target` is unset for a file of several collections, which each become new ones. */
+  onApply: (result: ImportResult, target?: ImportTarget) => void;
   onExit: () => void;
 }
 
-export function ImportScreen({ online, onApply, onExit }: Props) {
+const NEW = '';
+
+export function ImportScreen({ collections, online, onApply, onExit }: Props) {
   const [text, setText] = useState('');
   const [name, setName] = useState('');
+  // A collection id, or NEW for a new collection called `name`.
+  const [into, setInto] = useState(NEW);
   const [result, setResult] = useState<ImportResult | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -33,14 +42,17 @@ export function ImportScreen({ online, onApply, onExit }: Props) {
   };
 
   const incoming = result?.groups.reduce((sum, group) => sum + group.puzzles.length, 0) ?? 0;
-  // A file carrying its own chapter names does not need one from us, and
-  // asking would only invite collapsing eighteen chapters into one bucket.
-  const namedGroups = result?.groups.filter((group) => group.name) ?? [];
-  const multiCollection = namedGroups.length > 1;
+  // A file of several collections makes one new collection of each, named by
+  // the file: asking for one target would only invite collapsing eighteen
+  // chapters into one bucket.
+  const groups = result?.groups ?? [];
+  const multiCollection = groups.length > 1;
 
   const apply = () => {
     if (!result) return;
-    onApply(result, multiCollection ? undefined : name.trim() || result.collectionName || 'Imported');
+    if (multiCollection) onApply(result);
+    else if (into !== NEW) onApply(result, { collectionId: into });
+    else onApply(result, { name: name.trim() || result.collectionName || 'Imported' });
   };
 
   return (
@@ -103,12 +115,12 @@ export function ImportScreen({ online, onApply, onExit }: Props) {
           {multiCollection ? (
             <div className="field">
               <span className="muted small">
-                {namedGroups.length} collections in this file
+                {groups.length} new collections from this file
               </span>
               <ul className="groups">
-                {namedGroups.map((group) => (
-                  <li key={group.name} className="small">
-                    {group.name}{' '}
+                {groups.map((group, index) => (
+                  <li key={index} className="small">
+                    {group.name ?? 'Imported'}{' '}
                     <span className="muted">
                       · {group.puzzles.length} puzzle{group.puzzles.length === 1 ? '' : 's'}
                     </span>
@@ -117,14 +129,29 @@ export function ImportScreen({ online, onApply, onExit }: Props) {
               </ul>
             </div>
           ) : (
-            <label className="field">
-              <span className="muted small">Collection name</span>
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Imported"
-              />
-            </label>
+            <>
+              <label className="field">
+                <span className="muted small">Add to</span>
+                <select value={into} onChange={(event) => setInto(event.target.value)}>
+                  <option value={NEW}>A new collection</option>
+                  {collections.map((collection) => (
+                    <option key={collection.id} value={collection.id}>
+                      {collection.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {into === NEW && (
+                <label className="field">
+                  <span className="muted small">Collection name</span>
+                  <input
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="Imported"
+                  />
+                </label>
+              )}
+            </>
           )}
 
           <button type="button" onClick={apply} disabled={incoming === 0 || !online}>

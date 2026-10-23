@@ -2,9 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyUci,
   isLegal,
-  legalMoves,
   needsPromotion,
-  piecesOn,
   sanFor,
   SQUARES,
   targetsFrom,
@@ -22,13 +20,6 @@ describe('board geometry', () => {
     expect(SQUARES[63]).toBe('h8');
   });
 
-  it('reads pieces off a FEN', () => {
-    // Black king, three black pawns, white rook, white king.
-    const pieces = piecesOn(MATE_FEN);
-    expect(pieces).toHaveLength(6);
-    expect(pieces).toContainEqual({ square: 'g8', type: 'k', color: 'b' });
-    expect(pieces).toContainEqual({ square: 'a1', type: 'r', color: 'w' });
-  });
 
   it('reports the side to move', () => {
     expect(turnOf(MATE_FEN)).toBe('w');
@@ -97,9 +88,4 @@ describe('applying moves', () => {
     expect(sanFor(MATE_FEN, uci('a1b2'))).toBeNull();
   });
 
-  it('enumerates every legal move as UCI, promotions included', () => {
-    const moves = legalMoves(PROMO_FEN);
-    expect(moves).toContain('a7a8q');
-    expect(moves).toContain('a7a8n');
-  });
 });

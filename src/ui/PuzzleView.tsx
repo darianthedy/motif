@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { applyUci, isLegal, replayLine, sanFor } from '../model/board';
+import { applyUci, replayLine, sanFor } from '../model/board';
 import { moveFrom, moveTo, stripQueenPromotion } from '../model/move';
 import type { Uci } from '../model/move';
 import { solverSide } from '../model/puzzle';
@@ -67,8 +67,6 @@ interface Props {
   puzzle: Puzzle;
   /** `mistakes` is the count for this attempt; `hinted`, whether the answer was shown. */
   onComplete: (result: PuzzleResult, mistakes: number, hinted: boolean) => void;
-  /** Move past a puzzle that cannot be played. */
-  onSkip: () => void;
 }
 
 /**
@@ -87,7 +85,7 @@ export function PuzzleView(props: Props) {
   return <MovePuzzleView {...props} />;
 }
 
-function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
+function MovePuzzleView({ puzzle, onComplete }: Props) {
   const runner = useMemo(() => new PuzzleRunner(puzzle), [puzzle]);
   const [fen, setFen] = useState(puzzle.fen);
   const [phase, setPhase] = useState<Phase>('solving');
@@ -176,18 +174,6 @@ function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
     [after, fen, phase, runner],
   );
 
-  /**
-   * A puzzle whose expected move cannot be played at all.
-   *
-   * The importer rejects these, but a library predating that check — or one
-   * restored from an old backup — can still hold one, and there is no way to
-   * finish it: the board will never accept the move the hint points at. Say so
-   * and offer a way out, rather than letting the session stick.
-   */
-  const expected = runner.expectedMove;
-  const unplayable =
-    phase === 'solving' && expected !== null && !isLegal(fen, expected);
-
   const hintSquares = hint ? { from: moveFrom(hint), to: moveTo(hint) } : null;
   const done = phase === 'solved' || phase === 'failed';
   // The status line reads the same while a reply animates as it does while you
@@ -200,12 +186,8 @@ function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
   const lines = useMemo(() => {
     if (!done) return [];
     return puzzle.solutions.map((line) => {
-      const steps = replayLine(puzzle.fen, line);
       return {
-        steps,
-        // A line the board will not play through: shown as far as it goes
-        // rather than silently cut, since that is how a bad import surfaces.
-        truncated: steps.length < line.length,
+        steps: replayLine(puzzle.fen, line),
         played: playedLine(line, runner.accepted),
       };
     });
@@ -260,22 +242,13 @@ function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
       />
 
       <div className="puzzle-status">
-        {unplayable && (
-          <div className="result">
-            <p className="bad">This puzzle looks broken — its answer is not a legal move.</p>
-            <button type="button" onClick={onSkip}>
-              Skip it
-            </button>
-          </div>
-        )}
-
-        {asking && !unplayable && !hint && (
+        {asking && !hint && (
           <span className="muted">
             {solverSide(puzzle) === 'w' ? 'White' : 'Black'} to play
           </span>
         )}
 
-        {asking && !unplayable && hint && (
+        {asking && hint && (
           <span className="hint">Play the highlighted move</span>
         )}
 
@@ -342,7 +315,6 @@ function MovePuzzleView({ puzzle, onComplete, onSkip }: Props) {
                         {step.san}
                       </span>
                     ))}
-                    {line.truncated && <span className="move bad">…</span>}
                   </span>
                 </div>
               ))}

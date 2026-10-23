@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js';
-import { makeMove, moveFrom, moveTo, movePromotion, parseUci } from './move';
-import type { PromotionPiece, Uci } from './move';
+import { moveFrom, moveTo, movePromotion } from './move';
+import type { Uci } from './move';
 import type { PieceType, Placement, Side } from './puzzle';
 
 /**
@@ -30,18 +30,30 @@ export const SQUARES: string[] = (() => {
   return out;
 })();
 
-export function turnOf(fen: string): Side {
-  return new Chess(fen).turn();
+/**
+ * Whether chess.js will load the position: eight full ranks, one king a side,
+ * a side to move, and the rest of the fields consistent with them.
+ */
+export function isValidFen(fen: string): boolean {
+  try {
+    new Chess(fen);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-export function piecesOn(fen: string): Piece[] {
-  const out: Piece[] = [];
-  for (const row of new Chess(fen).board()) {
-    for (const cell of row) {
-      if (cell) out.push({ square: cell.square, type: cell.type, color: cell.color });
-    }
+/** Whether the side to move is mated. False for a position that will not load. */
+export function isCheckmate(fen: string): boolean {
+  try {
+    return new Chess(fen).isCheckmate();
+  } catch {
+    return false;
   }
-  return out;
+}
+
+export function turnOf(fen: string): Side {
+  return new Chess(fen).turn();
 }
 
 export interface Target {
@@ -80,13 +92,6 @@ export function targetsFrom(fen: string, from: string): Map<string, Target> {
     }
   }
   return targets;
-}
-
-/** Every legal move in the position, as UCI. */
-export function legalMoves(fen: string): Uci[] {
-  return new Chess(fen)
-    .moves({ verbose: true })
-    .map((move) => makeMove(move.from, move.to, (move.promotion as PromotionPiece) ?? null));
 }
 
 export function isLegal(fen: string, move: Uci): boolean {
@@ -135,12 +140,6 @@ export function sanFor(fen: string, move: Uci): string | null {
  */
 export function needsPromotion(fen: string, from: string, to: string): boolean {
   return targetsFrom(fen, from).get(to)?.promotion ?? false;
-}
-
-/** Parses a UCI string and confirms it is legal here. Null if either fails. */
-export function legalUci(fen: string, text: string): Uci | null {
-  const move = parseUci(text);
-  return move && isLegal(fen, move) ? move : null;
 }
 
 /**
@@ -233,11 +232,7 @@ export function matingPlacements(fen: string, color: Side): Placement[] {
       const placement: Placement = { color, type, square };
       const next = withPiece(fen, placement);
       if (!next) continue;
-      try {
-        if (new Chess(next).isCheckmate()) found.push(placement);
-      } catch {
-        // Not a position that loads; not a candidate.
-      }
+      if (isCheckmate(next)) found.push(placement);
     }
   }
   return found;

@@ -70,7 +70,6 @@ export function PuzzleDetailScreen({
   const missingPiece = puzzle.addPiece;
   const shown = missingPiece ? placed ?? start : ply === 0 ? start : steps[ply - 1]?.fen ?? start;
   const lastMove = ply > 0 ? steps[ply - 1]?.move : undefined;
-  const truncated = !missingPiece && steps.length < (puzzle.solutions[lineIndex]?.length ?? 0);
 
   const save = async () => {
     setSaving('saving');
@@ -107,7 +106,6 @@ export function PuzzleDetailScreen({
       {missingPiece ? (
         <p className="replay answer">
           {describePlacement(missingPiece)}
-          {!placed && <span className="bad small"> — which is not a legal placement</span>}
         </p>
       ) : (
       <div className="replay">
@@ -126,7 +124,6 @@ export function PuzzleDetailScreen({
           ←
         </button>
         <span className="moves">
-          {steps.length === 0 && <span className="muted small">No playable line</span>}
           {steps.map((step, index) => (
             <button
               key={`${step.move}-${index}`}
@@ -149,12 +146,6 @@ export function PuzzleDetailScreen({
           →
         </button>
       </div>
-      )}
-
-      {truncated && (
-        <p className="bad small">
-          The rest of this line is not playable from this position — the puzzle is faulty.
-        </p>
       )}
 
       {puzzle.solutions.length > 1 && (

@@ -1,43 +1,33 @@
-import type { User } from '../data/account';
 import type { Library } from '../data/backend';
 import { statsFor } from '../model/derive';
 import type { PuzzleRecord } from '../model/derive';
 import { puzzlesIn, resumable } from '../model/library';
 import type { Collection } from '../model/puzzle';
-import type { SyncStatus } from '../useLibrary';
 import { OfflineNote } from './OfflineNote';
 
 interface Props {
   library: Library;
   collections: Collection[];
   records: Map<string, PuzzleRecord>;
-  user: User;
   online: boolean;
-  status: SyncStatus;
-  /** Runs and attempts waiting to upload. */
-  pending: number;
   onOpen: (collection: Collection) => void;
   onGlobalRandom: () => void;
   onReviewMistakes: () => void;
   onImport: () => void;
   onResetProgress: () => void;
-  onSignOut: () => void;
 }
 
-export function Home({
+/** The Puzzles section's front page: the collections, and ways into them. */
+export function PuzzlesHome({
   library,
   collections,
   records,
-  user,
   online,
-  status,
-  pending,
   onOpen,
   onGlobalRandom,
   onReviewMistakes,
   onImport,
   onResetProgress,
-  onSignOut,
 }: Props) {
   const total = library.puzzles.length;
   const ids = new Set(library.puzzles.map((p) => p.id));
@@ -58,16 +48,7 @@ export function Home({
 
   return (
     <div className="screen">
-      <h1>Motif</h1>
-
-      {!online && (
-        <p className="offline small">
-          Offline{pending > 0 && ` · ${pending} to upload`}
-        </p>
-      )}
-      {online && status.kind === 'error' && (
-        <p className="bad small">Couldn't reach the server: {status.message}</p>
-      )}
+      <h1>Puzzles</h1>
 
       {total === 0 ? (
         <p className="muted">Nothing here yet. Import a collection to start.</p>
@@ -132,9 +113,6 @@ export function Home({
           disabled={attempted === 0 || !online}
         >
           Reset progress
-        </button>
-        <button type="button" className="link" onClick={onSignOut} disabled={!online}>
-          Sign out of {user.email}
         </button>
         <OfflineNote online={online} />
       </div>

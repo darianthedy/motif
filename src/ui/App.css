@@ -412,3 +412,34 @@ button.link[data-flagged] { color: #f0c05a; }
   word-break: break-all;
   color: var(--muted);
 }
+
+/* Room for the menu, so the last button on the page is not under it. */
+.app.with-nav {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+
+.nav-menu {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  padding: 0.4rem 1rem calc(0.4rem + env(safe-area-inset-bottom));
+  background: #1c1d24;
+  border-top: 1px solid #2c2d35;
+}
+
+.nav-menu button {
+  flex: 1;
+  max-width: 15rem;
+  padding: 0.7rem 0.5rem;
+  background: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.nav-menu button[aria-current='page'] {
+  color: #b6d99a;
+  font-weight: 600;
+}

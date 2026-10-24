@@ -57,72 +57,440 @@
   background: #b6d99a;
 }
 
-.replay .spacer {
+/* ---- A game ----
+   The screen is exactly as tall as the window and never scrolls: the board,
+   the next moves, the comment and the controls stay put, and only the move
+   list scrolls between them. */
+
+.app.full-screen {
+  height: 100dvh;
+  padding: env(safe-area-inset-top) 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app.full-screen > .notice {
+  margin: 0.5rem 1rem 0;
+}
+
+.game {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Moves read as text: the main line runs on, variations sit indented under
-   the move they replace, a little dimmer the deeper they go. */
-.move-list {
-  max-height: 14rem;
-  overflow-y: auto;
-  margin-top: 0.6rem;
-  padding: 0.5rem 0.6rem;
-  border-radius: 8px;
-  background: #1c1d24;
-  font-size: 0.85rem;
-  line-height: 1.9;
+.game-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.25rem;
 }
 
-.move-list .move {
-  padding: 0.1rem 0.3rem;
-  margin-right: 0.15rem;
-  border-radius: 4px;
+.icon-button {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
   background: none;
   color: var(--fg);
 }
 
-.move-list .move[data-current] {
-  background: #3a4a2f;
-  color: #b6d99a;
+.game-heading {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.move-list .move.start {
+.game-heading h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.game-heading h2,
+.game-heading .muted {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-heading .muted {
+  font-size: 0.75rem;
+}
+
+/* Full width, unless the window is too short to leave the move list a few
+   rows under it; then it shrinks to fit. 25rem is everything else on the
+   screen plus those rows. */
+.game-board {
+  flex: none;
+  width: min(100%, 100dvh - 25rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  margin: 0 auto;
+}
+
+.game-problem {
+  margin: 0.4rem 0.75rem 0;
+}
+
+.game-next {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 52px;
+  padding: 0.5rem 0.75rem 0.375rem;
+  overflow-x: auto;
+}
+
+.next-label {
+  margin-right: 0.125rem;
   color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.next-move {
+  flex: none;
+  height: 36px;
+  padding: 0 0.875rem;
+  border-radius: 999px;
+  background: #24252c;
+  white-space: nowrap;
+}
+
+/* The main line is always the first. */
+.next-move[data-main] {
+  background: #3a4a2f;
+  color: #b6d99a;
+  font-weight: 600;
+}
+
+.comment-strip {
+  flex: none;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin: 0.125rem 0.75rem 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: #1f2026;
+  color: #d4c49a;
+  font-size: 0.875rem;
+  font-style: italic;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.comment-strip[data-empty] {
+  color: var(--muted);
+}
+
+.game-moves {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 0.5rem;
+  border-top: 1px solid #24252c;
+}
+
+.no-moves {
+  margin: 0.8rem 0.9rem;
+}
+
+.move-row {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  min-height: 40px;
+}
+
+.move-row[data-odd] {
+  background: #1a1b21;
+}
+
+.move-no {
+  padding-left: 0.875rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.move-cell,
+.var-move {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: none;
+  color: var(--fg);
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+  /* A long press is ours: no text selection, no iOS callout. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.move-cell {
+  height: 40px;
+  padding: 0 0.75rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.move-cell.gap {
+  color: #5d606b;
+}
+
+.move-cell[aria-current],
+.var-move[aria-current] {
+  background: #3a4a2f;
+  color: #b6d99a;
+  font-weight: 600;
+}
+
+.has-comment {
+  flex: none;
+  color: #d4c49a;
+}
+
+/* Variations: a panel under the row they branch from, the moves running on
+   as text. One inside another is indented again, a shade lighter. */
+.var {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0.125rem 0.75rem 0.25rem 2.75rem;
+  padding: 0.125rem 0.25rem;
+  border-left: 2px solid #4a4b57;
+  border-radius: 0 8px 8px 0;
+  background: #1c1d24;
+}
+
+.var .var {
+  flex-basis: 100%;
+  margin: 0.125rem 0 0.125rem 0.5rem;
+  border-left-color: #5a5c6a;
+  background: #22232b;
+}
+
+.var-move {
+  display: inline-flex;
+  gap: 0.25rem;
+  min-height: 34px;
+  padding: 0 0.375rem;
+  border-radius: 7px;
+  color: #b9bcc6;
+  font-size: 0.875rem;
 }
 
 .move-number {
   color: var(--muted);
 }
 
-.move-comment {
-  margin-right: 0.35rem;
-  color: #c9b98a;
+.var-toggle {
+  height: 30px;
+  margin: 2px 4px;
+  padding: 0 0.625rem;
+  border-radius: 999px;
+  background: #2c2d36;
+  color: #b9bcc6;
+  font-size: 0.8rem;
 }
 
-.variations {
-  margin: 0.1rem 0 0.2rem;
-}
-
-.variation {
-  padding-left: 0.7rem;
-  border-left: 2px solid #33343d;
+.var-toggle.fold {
+  margin-left: auto;
+  background: none;
   color: var(--muted);
 }
 
-.variation .move {
-  color: #b9bcc6;
+.game-controls {
+  flex: none;
+  display: flex;
+  gap: 0.375rem;
+  padding: 0.5rem 0.625rem calc(0.5rem + env(safe-area-inset-bottom));
+  border-top: 1px solid #2c2d35;
+  background: #1c1d24;
+}
+
+.game-controls button {
+  display: grid;
+  place-items: center;
+  height: 52px;
+  padding: 0;
+  border-radius: 12px;
+  background: #24252c;
+}
+
+.game-controls .side {
+  width: 48px;
+  background: none;
+  color: #a9acb6;
+}
+
+.game-controls .end {
+  width: 52px;
+}
+
+.game-controls .step {
+  flex: 1;
+}
+
+.game-controls .forward {
+  background: #33343d;
+}
+
+.game-unreadable {
+  padding: 0 1rem;
+  overflow-y: auto;
+}
+
+/* ---- Sheets ---- */
+
+dialog.sheet {
+  width: 100%;
+  max-width: 30rem;
+  max-height: 85dvh;
+  margin: auto auto 0;
+  padding: 0;
+  border: none;
+  border-top: 1px solid #2c2d35;
+  border-radius: 16px 16px 0 0;
+  background: #1c1d24;
+  color: var(--fg);
+}
+
+dialog.sheet::backdrop {
+  background: rgb(8 8 12 / 60%);
+}
+
+.sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem calc(1rem + env(safe-area-inset-bottom));
+}
+
+.sheet-body::before {
+  content: '';
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  margin: 2px 0 8px;
+  border-radius: 2px;
+  background: #43444f;
+}
+
+.sheet-title {
+  margin: 0.25rem 0.75rem 0.25rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.sheet-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0.75rem 0.5rem;
+}
+
+.sheet-heading h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.sheet-heading .aside {
+  margin-left: auto;
+}
+
+.sheet-move {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.tag {
+  padding: 0.1rem 0.5rem;
+  border: 1px dashed #4a4b57;
+  border-radius: 999px;
+  color: #a9acb6;
+  font-size: 0.75rem;
+}
+
+.good-text {
+  color: #b6d99a;
+}
+
+.sheet-action {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  height: 52px;
+  padding: 0 0.75rem;
+  border-radius: 10px;
+  background: none;
+  color: var(--fg);
+  text-align: left;
+}
+
+.sheet-action .aside {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.sheet-action.danger {
+  color: #e2716a;
+}
+
+.sheet-cancel {
+  height: 48px;
+  margin-top: 0.5rem;
+}
+
+.sheet-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.sheet-buttons button {
+  height: 48px;
+}
+
+button.primary {
+  background: #b6d99a;
+  color: #16171d;
+  font-weight: 600;
 }
 
 .comment-editor {
-  margin-top: 0.4rem;
+  margin: 0 0.25rem;
 }
 
+/* 16px, or iOS zooms in on it. */
 .comment-editor textarea {
+  margin: 0;
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: 1rem;
+  line-height: 1.4;
+  resize: none;
+}
+
+.details-form {
+  padding: 0 0.5rem;
 }
 
 .details-form .field {
   margin: 0.5rem 0;
+}
+
+.details-form .primary {
+  width: 100%;
+  margin-top: 0.5rem;
 }

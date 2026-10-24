@@ -189,12 +189,12 @@ try {
     exported.includes('[Black "Anand"]') && exported.includes('1. c4 {The English instead}') && exported.includes('(1. e4'));
 
   // ---- Moving and reordering ----
-  await page.getByRole('button', { name: '← Openings' }).click();
-  await page.getByRole('button', { name: '← Games' }).click();
+  await page.getByRole('button', { name: 'Back to Openings' }).click();
+  await page.getByRole('button', { name: 'Back to games' }).click();
   page.once('dialog', (d) => d.accept('Keepers'));
   await page.getByRole('button', { name: 'New collection' }).click();
   await settle(page);
-  await page.getByRole('button', { name: '← Games' }).click();
+  await page.getByRole('button', { name: 'Back to games' }).click();
   await page.locator('.card', { hasText: 'Openings' }).click();
 
   await page.getByRole('button', { name: 'Reorder' }).click();
@@ -208,7 +208,7 @@ try {
   await page.getByRole('button', { name: 'Move', exact: true }).click();
   await settle(page);
   check('a selected game moves to another collection', (await page.locator('.puzzle-list li').count()) === 1);
-  await page.getByRole('button', { name: '← Games' }).click();
+  await page.getByRole('button', { name: 'Back to games' }).click();
   const cards = await page.locator('.card').allTextContents();
   check(`and the counts follow (${cards.join(' | ')})`,
     cards.some((c) => c.includes('Openings') && c.includes('1 game')) &&

@@ -117,8 +117,8 @@ export function GameScreen({
     return (
       <div className="screen">
         <header className="screen-bar">
-          <button type="button" className="link" onClick={onExit}>
-            ← {collectionName}
+          <button type="button" className="link" aria-label={`Back to ${collectionName}`} onClick={onExit}>
+            ←
           </button>
           <h2>Game</h2>
         </header>
@@ -165,8 +165,8 @@ export function GameScreen({
   return (
     <div className="screen">
       <header className="screen-bar">
-        <button type="button" className="link" onClick={onExit}>
-          ← {collectionName}
+        <button type="button" className="link" aria-label={`Back to ${collectionName}`} onClick={onExit}>
+          ←
         </button>
         <h2>{gameTitle(tree.headers)}</h2>
       </header>

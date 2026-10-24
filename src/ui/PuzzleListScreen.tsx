@@ -43,8 +43,8 @@ export function PuzzleListScreen({ collection, puzzles, records, onOpen, onExit 
   return (
     <div className="screen">
       <header className="screen-bar">
-        <button type="button" className="link" onClick={onExit}>
-          ← {collection.name}
+        <button type="button" className="link" aria-label={`Back to ${collection.name}`} onClick={onExit}>
+          ←
         </button>
         <h2>Puzzles</h2>
       </header>

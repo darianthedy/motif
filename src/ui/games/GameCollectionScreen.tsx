@@ -76,8 +76,8 @@ export function GameCollectionScreen({
   return (
     <div className="screen">
       <header className="screen-bar">
-        <button type="button" className="link" onClick={onExit}>
-          ← Games
+        <button type="button" className="link" aria-label="Back to games" onClick={onExit}>
+          ←
         </button>
         <h2>{collection.name}</h2>
       </header>

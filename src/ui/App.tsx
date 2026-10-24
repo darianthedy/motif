@@ -82,9 +82,11 @@ export function App() {
     (section === 'puzzles' && puzzlesRoute.name === 'home') ||
     (section === 'games' && gamesRoute.name === 'home');
   const showNotice = atFront || section === 'games';
+  // A game fills the screen exactly, so its board never scrolls away.
+  const fullScreen = section === 'games' && gamesRoute.name === 'game';
 
   return (
-    <main className={atFront ? 'app with-nav' : 'app'}>
+    <main className={atFront ? 'app with-nav' : fullScreen ? 'app full-screen' : 'app'}>
       {atFront && (
         <>
           {!online && (

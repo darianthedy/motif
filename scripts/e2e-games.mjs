@@ -117,42 +117,84 @@ try {
   // ---- Viewing ----
   await rows.first().getByRole('button').click();
   await settle(page);
+  const moves = page.locator('.game-moves');
+  const current = page.locator('.game-moves [aria-current]');
+  const strip = page.locator('.comment-strip');
+  const nextMoves = page.locator('.game-next .next-move');
   check('a game opens on its starting position',
-    (await page.locator('.move-list .move[data-current]').textContent()) === 'Start');
-  const variation = page.locator('.move-list .variation');
+    (await current.count()) === 0 && (await text(nextMoves.first())) === '1. e4');
+  const variation = moves.locator('.var');
   check('a variation is shown under its move',
-    (await variation.count()) === 1 && (await text(variation)).includes('3... e5') && (await text(variation)).includes('the other way'));
+    (await variation.count()) === 1 && (await text(variation)).includes('3... e5'));
+  check('its comment is marked, not written out',
+    (await variation.locator('.has-comment').count()) === 1 && !(await text(moves)).includes('the other way'));
+
+  // ---- Fitting the phone ----
+  const fit = await page.evaluate(() => {
+    const board = document.querySelector('.game-board')?.getBoundingClientRect();
+    const controls = document.querySelector('.game-controls')?.getBoundingClientRect();
+    return {
+      scrolls: document.scrollingElement.scrollHeight > window.innerHeight,
+      boardWidth: board?.width ?? 0,
+      controlsBottom: controls?.bottom ?? Infinity,
+      smallest: Math.min(
+        ...[...document.querySelectorAll('.game-controls button, .game-bar button')].map((b) => b.getBoundingClientRect().height),
+      ),
+    };
+  });
+  check(`the game fits the screen without scrolling (${JSON.stringify(fit)})`,
+    !fit.scrolls && fit.boardWidth >= 380 && fit.controlsBottom <= 844 && fit.smallest >= 44);
 
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowRight');
-  check('the arrow keys step through', (await text(page.locator('.move-list .move[data-current]'))) === 'd6');
-  await variation.getByRole('button', { name: '3... e5' }).click();
-  check('tapping a variation move goes to it',
-    (await text(page.locator('.move-list .move[data-current]'))) === '3... e5');
+  check('the arrow keys step through', (await text(current)) === 'd6');
+  await variation.getByRole('button', { name: /^3\.\.\. e5/ }).click();
+  check('tapping a variation move goes to it', (await text(current)) === '3... e5');
+  check('and its comment shows above the list', (await text(strip)) === 'the other way');
   // After the move animation.
   await page.waitForTimeout(300);
   check('and the board shows it', (await page.locator('[data-square="e5"] svg').count()) === 1 && (await page.locator('[data-square="e7"] svg').count()) === 0);
 
+  await page.getByRole('button', { name: 'Go to start' }).click();
+  // 1. e4 d6 2. d4 Nf6 3. Nc3, then the choice between 3... g6 and 3... e5.
+  for (let step = 0; step < 5; step++) await page.getByRole('button', { name: 'Next move' }).click();
+  check(`the next moves offer the main line first (${(await nextMoves.allTextContents()).join(' | ')})`,
+    (await nextMoves.allTextContents()).join(' | ') === '3... g6 | 3... e5');
+  await nextMoves.nth(1).click();
+  check('and the variation second', (await text(current)) === '3... e5');
+
   // ---- Playing a variation in ----
-  await page.getByRole('button', { name: '«' }).click();
+  await page.getByRole('button', { name: 'Go to start' }).click();
   await tap(page, 'c2');
   await tap(page, 'c4');
   await settle(page);
-  const variations = await page.locator('.move-list .variation').allTextContents();
+  const variations = await moves.locator('.var').allTextContents();
   check(`a move played at the start becomes a variation (${variations.join(' | ')})`,
     variations.some((v) => v.replace(/\s+/g, ' ').includes('1. c4')));
-  check('and is the current move', (await text(page.locator('.move-list .move[data-current]'))) === '1. c4');
+  check('and is the current move', (await text(current)) === '1. c4');
 
-  await page.locator('.comment-editor textarea').fill('The English instead');
-  await page.getByRole('button', { name: 'Save comment' }).click();
+  await strip.click();
+  await page.getByRole('dialog', { name: 'Comment' }).locator('textarea').fill('The English instead');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   await settle(page);
-  check('a comment saves and shows in the moves',
-    (await text(page.locator('.move-list'))).includes('The English instead'));
+  check('a comment saves and shows above the moves', (await text(strip)) === 'The English instead');
+  check('and marks its move', (await current.locator('.has-comment').count()) === 1);
 
-  await page.getByRole('button', { name: 'Make main line' }).click();
+  // A long press on a move offers what can be done with it.
+  const c4 = moves.getByRole('button', { name: /^1\. c4/ });
+  const box = await c4.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(650);
+  await page.mouse.up();
+  const actions = page.getByRole('dialog', { name: 'Actions for 1. c4' });
+  check('a long press opens the move\'s actions', await actions.isVisible());
+  check('which say how much a delete would remove', (await text(actions)).includes('Delete from here1 move'));
+  await actions.getByRole('button', { name: 'Make main line' }).click();
   await settle(page);
-  const firstMain = await text(page.locator('.move-list > .move-item').first());
-  check(`the variation can become the main line (${firstMain})`, firstMain.startsWith('1. c4'));
+  const firstRow = moves.locator('.move-row').first();
+  check(`the variation can become the main line (${await text(firstRow)})`,
+    (await text(firstRow.locator('.move-cell').first())) === 'c4');
   await shot(page, 'game');
 
   // ---- Flip, and it stays flipped ----
@@ -168,11 +210,13 @@ try {
   await page.locator('.puzzle-list li').first().getByRole('button').click();
   await settle(page);
   check('the flip survives a reload', (await squareCentre(page, 'a1')).y < a1Before.y);
+  await page.getByRole('button', { name: 'Next move' }).click();
   check('so do the variation and comment',
-    (await text(page.locator('.move-list'))).includes('The English instead'));
+    (await text(moves.locator('.var'))).includes('1. e4') && (await text(strip)) === 'The English instead');
 
   // ---- Details ----
-  await page.getByRole('button', { name: 'Details' }).click();
+  await page.getByRole('button', { name: 'Game actions' }).click();
+  await page.getByRole('button', { name: /^Edit details/ }).click();
   await page.getByLabel('Black', { exact: true }).fill('Anand');
   await page.getByRole('button', { name: 'Save details' }).click();
   await settle(page);
@@ -180,6 +224,7 @@ try {
     await page.getByRole('heading', { name: 'Kasparov – Anand' }).isVisible());
 
   // ---- Export ----
+  await page.getByRole('button', { name: 'Game actions' }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: 'Download PGN' }).click(),
@@ -220,7 +265,7 @@ try {
   await page.locator('.card', { hasText: 'Openings' }).click();
   await page.locator('.puzzle-list li').first().getByRole('button').click();
   await settle(page);
-  check('a game still opens offline', await page.locator('.move-list').isVisible());
+  check('a game still opens offline', await page.locator('.game-moves').isVisible());
   check('but cannot be changed', await page.getByRole('button', { name: 'Flip board' }).isDisabled());
   await context.setOffline(false);
 } catch (error) {

@@ -53,22 +53,7 @@ export function matchesSearch(headers: Record<string, string>, query: string): b
 }
 
 /** How a numeric annotation is shown. Ones without a usual symbol are left out. */
-export const NAG_SYMBOLS: Record<number, string> = {
-  1: '!',
-  2: '?',
-  3: '!!',
-  4: '??',
-  5: '!?',
-  6: '?!',
-  10: '=',
-  13: '∞',
-  14: '⩲',
-  15: '⩱',
-  16: '±',
-  17: '∓',
-  18: '+−',
-  19: '−+',
-};
+export { NAG_SYMBOLS } from './pgn';
 
 /**
  * A comment as it reads. Exports from the big sites carry `[%clk 0:03:12]`

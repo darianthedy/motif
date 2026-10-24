@@ -89,6 +89,15 @@ describe('reading PGN', () => {
     expect(mainNodes(game.moves)[7].nags).toEqual([5]);
   });
 
+  it('reads annotation symbols written as words, as Chess.com exports them', () => {
+    const game = parsePgn('1. e4 e5 = 2. Nf3 ⩱ (2. Qh5 ⨀) Nc6 +/- 3. Bb5 -+ *');
+    const [e4, e5, nf3, nc6, bb5] = mainNodes(game.moves);
+    expect([e4.nags, e5.nags, nf3.nags, nc6.nags, bb5.nags]).toEqual([[], [10], [15], [16], [19]]);
+    expect(e5.children[1].nags).toEqual([22]);
+    // Written back the standard way.
+    expect(writePgn(game).replace(/\s+/g, ' ')).toContain('1. e4 e5 $10 2. Nf3 $15 (2. Qh5 $22) 2... Nc6 $16');
+  });
+
   it('takes the result from the movetext when there is no header for it', () => {
     expect(parsePgn('1. f3 e5 2. g4 Qh4# 0-1').headers.Result).toBe('0-1');
     expect(parsePgn('1. e4').headers.Result).toBe('*');

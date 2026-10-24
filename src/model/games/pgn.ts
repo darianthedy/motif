@@ -55,6 +55,52 @@ const SEVEN_TAG_ROSTER = ['Event', 'Site', 'Date', 'Round', 'White', 'Black', 'R
 /** The suffixes a move can be written with, and the glyph each stands for. */
 const SUFFIX_NAGS: Record<string, number> = { '!': 1, '?': 2, '!!': 3, '??': 4, '!?': 5, '?!': 6 };
 
+/**
+ * Annotation glyphs and the symbol each is usually printed as. The standard
+ * writes them `$15`, but plenty of exports — Chess.com's among them — write
+ * the symbol itself, `⩱`, as a word of its own in the movetext.
+ */
+export const NAG_SYMBOLS: Record<number, string> = {
+  1: '!',
+  2: '?',
+  3: '!!',
+  4: '??',
+  5: '!?',
+  6: '?!',
+  7: '□',
+  10: '=',
+  13: '∞',
+  14: '⩲',
+  15: '⩱',
+  16: '±',
+  17: '∓',
+  18: '+−',
+  19: '−+',
+  22: '⨀',
+  32: '⟳',
+  36: '↑',
+  40: '→',
+  132: '⇆',
+  138: '⊕',
+  140: '∆',
+  146: 'N',
+};
+
+/** Every way a glyph is written as a word: its symbol, and ASCII stand-ins for it. */
+const WORD_NAGS: Record<string, number> = {
+  ...Object.fromEntries(Object.entries(NAG_SYMBOLS).map(([nag, symbol]) => [symbol, Number(nag)])),
+  '+/=': 14,
+  '=/+': 15,
+  '+/-': 16,
+  '-/+': 17,
+  '+-': 18,
+  '-+': 19,
+  '=+': 15,
+  '+=': 14,
+  '⊙': 22,
+  '△': 140,
+};
+
 type Token =
   | { kind: 'header'; name: string; value: string }
   | { kind: 'comment'; text: string }
@@ -127,7 +173,7 @@ function wordTokens(word: string): Token[] {
   // `12.`, `12...`, and `12.e4` with the space left out.
   const rest = word.replace(/^\d+\.+/, '');
   if (!rest) return [];
-  if (rest in SUFFIX_NAGS) return [{ kind: 'nag', nag: SUFFIX_NAGS[rest] }];
+  if (rest in WORD_NAGS) return [{ kind: 'nag', nag: WORD_NAGS[rest] }];
   const match = /^(.*?)([!?]{1,2})?$/.exec(rest)!;
   const tokens: Token[] = [{ kind: 'move', san: match[1].replace(/^0-0(-0)?/, (m) => m.replace(/0/g, 'O')) }];
   if (match[2] && match[2] in SUFFIX_NAGS) tokens.push({ kind: 'nag', nag: SUFFIX_NAGS[match[2]] });

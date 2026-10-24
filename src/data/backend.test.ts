@@ -2,8 +2,8 @@ import type { PGlite } from '@electric-sql/pglite';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { uci } from '../model/move';
 import { asUser, pgRest, startDatabase } from '../test/pgServer';
-import { memoryBackend, restBackend } from './backend';
-import type { Attempt, Backend, Collection, NewPuzzle, Run } from './backend';
+import { emptyLibrary, memoryBackend, restBackend } from './backend';
+import type { Attempt, Backend, Collection, GameCollection, NewGame, NewPuzzle, Run } from './backend';
 
 const FEN = '6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1';
 const square = (i: number) => `${'abcdefgh'[i % 8]}${1 + (Math.floor(i / 8) % 8)}`;
@@ -40,6 +40,23 @@ function attempt(puzzleId: string, extra: Partial<Attempt> = {}): Attempt {
     ...extra,
   };
 }
+
+function newGame(collectionId: string, position: number, extra: Partial<NewGame> = {}): NewGame {
+  return {
+    id: crypto.randomUUID(),
+    collectionId,
+    position,
+    pgn: `[White "Player ${position}"]\n\n1. e4 e5 (1... c5) *\n`,
+    orientation: 'w',
+    ...extra,
+  };
+}
+
+const gameCollection = (name = 'Openings', createdAt = 1_000): GameCollection => ({
+  id: crypto.randomUUID(),
+  name,
+  createdAt,
+});
 
 let db: PGlite;
 let account = 0;
@@ -275,6 +292,74 @@ describe.each(backends)('%s backend', (_, make) => {
     expect(library.puzzles).toHaveLength(2);
     expect(library.collections).toHaveLength(1);
   });
+
+  describe('games', () => {
+    async function seededGames(count = 2) {
+      const c = gameCollection();
+      await backend.createGameCollections([c]);
+      const games = Array.from({ length: count }, (_, n) => newGame(c.id, n));
+      await backend.addGames(games);
+      return { collection: c, games };
+    }
+
+    it('stores and loads collections and games', async () => {
+      const { collection: c, games } = await seededGames(1);
+      await backend.addGames([newGame(c.id, 1, { orientation: 'b' })]);
+      const library = await backend.load();
+      expect(library.gameCollections).toEqual([c]);
+      expect(library.games).toHaveLength(2);
+      expect(library.games.find((g) => g.id === games[0].id)).toEqual({
+        ...games[0],
+        addedAt: expect.any(Number),
+      });
+      expect(library.games.find((g) => g.id !== games[0].id)?.orientation).toBe('b');
+      // Kept apart from puzzle collections.
+      expect(library.collections).toEqual([]);
+    });
+
+    it('updates a game’s text and orientation', async () => {
+      const { games } = await seededGames(1);
+      await backend.updateGame(games[0].id, { pgn: '1. d4 *\n' });
+      await backend.updateGame(games[0].id, { orientation: 'b' });
+      expect((await backend.load()).games[0]).toMatchObject({ pgn: '1. d4 *\n', orientation: 'b' });
+    });
+
+    it('reorders games and moves them to another collection', async () => {
+      const { collection: a, games } = await seededGames(2);
+      const b = gameCollection('Endgames');
+      await backend.createGameCollections([b]);
+      await backend.placeGames([
+        { id: games[0].id, collectionId: a.id, position: 1 },
+        { id: games[1].id, collectionId: b.id, position: 0 },
+      ]);
+      const placed = (await backend.load()).games.map((g) => [g.id, g.collectionId, g.position]);
+      expect(placed).toEqual(
+        expect.arrayContaining([
+          [games[0].id, a.id, 1],
+          [games[1].id, b.id, 0],
+        ]),
+      );
+    });
+
+    it('refuses a game in a collection that does not exist', async () => {
+      await expect(backend.addGames([newGame(crypto.randomUUID(), 0)])).rejects.toThrow();
+    });
+
+    it('renames a collection, and deletes games, and a collection with its games', async () => {
+      const { collection: c, games } = await seededGames(3);
+      const kept = await seededGames(1);
+      await backend.renameGameCollection(c.id, 'Renamed');
+      await backend.deleteGames([games[0].id]);
+      let library = await backend.load();
+      expect(library.gameCollections.find((x) => x.id === c.id)?.name).toBe('Renamed');
+      expect(library.games).toHaveLength(3);
+
+      await backend.deleteGameCollection(c.id);
+      library = await backend.load();
+      expect(library.gameCollections.map((x) => x.id)).toEqual([kept.collection.id]);
+      expect(library.games.map((g) => g.id)).toEqual([kept.games[0].id]);
+    });
+  });
 });
 
 describe('access rules', () => {
@@ -293,9 +378,14 @@ describe('access rules', () => {
     await mine.saveRun(r);
     const a = attempt(p.id, { runId: r.id });
     await mine.recordAttempts([a]);
+
+    const g = gameCollection();
+    await mine.createGameCollections([g]);
+    const game = newGame(g.id, 0);
+    await mine.addGames([game]);
     const before = await mine.load();
 
-    expect(await theirs.load()).toEqual({ collections: [], puzzles: [], runs: [], attempts: [] });
+    expect(await theirs.load()).toEqual(emptyLibrary());
 
     await theirs.renameCollection(c.id, 'Taken');
     await theirs.setComment(p.id, 'defaced');
@@ -303,6 +393,10 @@ describe('access rules', () => {
     await theirs.deleteRun(r.id);
     await theirs.deleteCollection(c.id);
     await theirs.resetProgress();
+    await theirs.renameGameCollection(g.id, 'Taken');
+    await theirs.updateGame(game.id, { pgn: 'defaced', orientation: 'b' });
+    await theirs.deleteGames([game.id]);
+    await theirs.deleteGameCollection(g.id);
     expect(await mine.load()).toEqual(before);
   });
 
@@ -318,6 +412,17 @@ describe('access rules', () => {
 
     // Into Alice's collection: the key includes user_id, so it cannot match.
     await expect(theirs.importPuzzles([puzzle(c.id, 1)])).rejects.toThrow();
+    const g = gameCollection();
+    await mine.createGameCollections([g]);
+    await expect(theirs.addGames([newGame(g.id, 0)])).rejects.toThrow();
+    // Nor can a game of Mallory's be moved into it.
+    const own = gameCollection();
+    await theirs.createGameCollections([own]);
+    const game = newGame(own.id, 0);
+    await theirs.addGames([game]);
+    await expect(
+      theirs.placeGames([{ id: game.id, collectionId: g.id, position: 0 }]),
+    ).rejects.toThrow();
     // On Alice's puzzle: invisible to Mallory, so dropped as deleted.
     await theirs.recordAttempts([attempt(p.id)]);
     expect((await mine.load()).attempts).toEqual([]);
@@ -357,6 +462,8 @@ describe('access rules', () => {
       `update public.runs set mode = 'ordered'`,
       `update public.attempts set result = 'failed'`,
       `update public.collections set created_at = now()`,
+      `update public.game_collections set created_at = now()`,
+      `update public.games set added_at = now()`,
     ]) {
       await expect(asUser(db, aliceId, (q) => q(sql))).rejects.toThrow(/permission denied/);
     }

@@ -1,4 +1,5 @@
 import { get, set } from 'idb-keyval';
+import { emptyLibrary } from './backend';
 import type { Library } from './backend';
 
 /**
@@ -14,7 +15,9 @@ const key = (userId: string) => `motif:cache:${userId}`;
 
 export async function loadCache(userId: string): Promise<Library | null> {
   try {
-    return (await get<Library>(key(userId))) ?? null;
+    const cached = await get<Library>(key(userId));
+    // A copy saved before games existed has no games yet, rather than none at all.
+    return cached ? { ...emptyLibrary(), ...cached } : null;
   } catch {
     // An unreadable copy is the same as none: the next refresh replaces it.
     return null;

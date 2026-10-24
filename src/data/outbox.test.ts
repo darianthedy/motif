@@ -37,6 +37,8 @@ function library(extra: Partial<Library> = {}): Library {
     ],
     runs: [],
     attempts: [],
+    gameCollections: [],
+    games: [],
     ...extra,
   };
 }

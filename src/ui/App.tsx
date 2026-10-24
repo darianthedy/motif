@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useLibrary } from '../useLibrary';
 import { AccountScreen } from './AccountScreen';
+import { GamesSection } from './games/GamesSection';
+import type { GamesRoute } from './games/GamesSection';
 import { NavMenu } from './NavMenu';
 import type { Section } from './NavMenu';
 import { PuzzlesSection } from './PuzzlesSection';
@@ -24,6 +26,7 @@ export function App() {
   } = useLibrary();
   const [section, setSection] = useState<Section>('puzzles');
   const [puzzlesRoute, setPuzzlesRoute] = useState<PuzzlesRoute>({ name: 'home' });
+  const [gamesRoute, setGamesRoute] = useState<GamesRoute>({ name: 'home' });
   const [notice, setNotice] = useState<string | null>(null);
 
   // Still finding out who is signed in.
@@ -71,9 +74,14 @@ export function App() {
     }
   };
 
-  // The menu, the sync state and notices belong to a section's front page;
-  // deeper screens keep the whole screen to themselves.
-  const atFront = section === 'account' || puzzlesRoute.name === 'home';
+  // The menu and the sync state belong to a section's front page; deeper
+  // screens keep the whole screen to themselves. So do notices, except in
+  // Games, whose edits mostly happen on deeper screens and say so there.
+  const atFront =
+    section === 'account' ||
+    (section === 'puzzles' && puzzlesRoute.name === 'home') ||
+    (section === 'games' && gamesRoute.name === 'home');
+  const showNotice = atFront || section === 'games';
 
   return (
     <main className={atFront ? 'app with-nav' : 'app'}>
@@ -87,12 +95,12 @@ export function App() {
           {online && status.kind === 'error' && (
             <p className="bad small">Couldn't reach the server: {status.message}</p>
           )}
-          {notice && (
-            <p className="notice" onClick={() => setNotice(null)}>
-              {notice}
-            </p>
-          )}
         </>
+      )}
+      {showNotice && notice && (
+        <p className="notice" onClick={() => setNotice(null)}>
+          {notice}
+        </p>
       )}
 
       {section === 'puzzles' && (
@@ -106,6 +114,16 @@ export function App() {
           recordAttempt={recordAttempt}
         />
       )}
+      {section === 'games' && (
+        <GamesSection
+          library={library}
+          online={online}
+          route={gamesRoute}
+          onNavigate={setGamesRoute}
+          edit={edit}
+          onClearNotice={() => setNotice(null)}
+        />
+      )}
       {section === 'account' && (
         <AccountScreen
           user={user}
@@ -116,6 +134,7 @@ export function App() {
             // Whoever signs in next starts on the front page, not here.
             setSection('puzzles');
             setPuzzlesRoute({ name: 'home' });
+            setGamesRoute({ name: 'home' });
             void signOut();
           }}
         />

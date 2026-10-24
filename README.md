@@ -4,6 +4,9 @@ Continuous chess puzzle sessions over collections you import yourself. Show a
 puzzle, solve it, move to the next one — Duolingo's pacing rather than a
 puzzle-of-the-day.
 
+Beside the puzzles, a Games section keeps collections of games — your own,
+annotated, with their variations — to read through and add to.
+
 A React PWA, deployable to GitHub Pages, installable to an iPhone home screen.
 Your library lives in your account (Neon Postgres), so it is the same on every
 device; solving also works offline.
@@ -15,15 +18,17 @@ solving, because naming the idea gives the puzzle away.
 
 ## Status
 
-The model layer is written and tested — **132 tests, all passing**. It holds
+The model layer is written and tested — **183 tests, all passing**. It holds
 every decision that is easy to get subtly wrong: what counts as solving a
 puzzle, how multiple solutions are matched, what a missing-piece puzzle accepts,
 when the answer is revealed, where a run has got to, how missed puzzles come
-back, and how imports dedupe. The schema's access rules are tested against a
+back, how imports dedupe, and how a game's PGN is read and written back with
+its variations. The schema's access rules are tested against a
 real Postgres in-process.
 
-    npm test              # 132 tests
+    npm test              # 183 tests
     npm run check:e2e     # the whole app in a real browser, on the in-memory backend
+    npm run check:e2e:games  # the Games section, the same way
     npm run check:sync    # two devices against the real database (see db/README.md)
     npm run check:external -- puzzles.json   # audit a puzzle file against the rules
     npm run dev
@@ -170,11 +175,39 @@ puzzles' tags, comment, rating and number instead of adding them again — the
 file wins over a comment edited in the app. Rejected rows come back with
 reasons rather than being silently dropped.
 
+## Games
+
+A personal take on Chess.com's game collections, without the sharing and the
+community: collections of games, each game one PGN.
+
+- **Adding**: paste PGN or choose `.pgn` files, many games to a file. A game
+  that can't be read is reported with the move that broke it, and the rest
+  still come in. A FEN on its own, or "New game on the board", starts a game
+  with no moves to play into.
+- **Reading**: the board, a move list with variations indented under the move
+  they replace, arrow keys to step. Clock and eval commands that the big sites
+  put in comments are kept in the PGN but not shown.
+- **Annotating**: a move played on the board carries the line on at its end,
+  or starts a variation anywhere else. Comments on any move, a note on the
+  whole game, "Make main line", "Delete from here", and the players, event,
+  date and result in Details. Each change saves straight away.
+- **The board stays as you flipped it**, per game.
+- **Collections**: search by player, event or opening; select games to move,
+  copy, export or delete; reorder by moving a game up or down; export the
+  whole collection as one PGN file.
+
+The stored game is its PGN text; the tree of moves is only ever derived from
+it (`src/model/games/pgn.ts`). chess.js reads PGN too, but drops every
+variation, so the movetext is read here and chess.js checks each move. Games
+open offline from the device's copy and are read-only there, like every other
+edit.
+
 ## Data
 
-The database is the source of truth (`db/0001_schema.sql`, set up as described
-in `db/README.md`): collections, puzzles, runs and attempts, each row private
-to its account by row-level security. Signing in is required.
+The database is the source of truth (`db/0001_schema.sql` and
+`db/0002_games.sql`, set up as described in `db/README.md`): collections,
+puzzles, runs and attempts, game collections and games, each row private to
+its account by row-level security. Signing in is required.
 
 - **Edits** — importing, renaming and deleting collections, editing comments,
   deleting puzzles, resetting progress — are written straight to the database,
@@ -201,6 +234,11 @@ to its account by row-level security. Signing in is required.
       derive.ts         # status, counts, review set, run progress — from attempts
       library.ts        # reading the library; planning an import
       import/json.ts    # the import format
+      games/            # the Games section's model
+        pgn.ts          # reading and writing PGN, variations and all
+        edit.ts         # playing moves in, comments, headers, variations
+        library.ts      # reading game collections; moving, copying, reordering
+        summary.ts      # how a game is named, searched and annotated in a list
     src/data/
       backend.ts        # the Backend interface: PostgREST and in-memory
       neon.ts           # Neon's Data API and Neon Auth
@@ -211,6 +249,7 @@ to its account by row-level security. Signing in is required.
     src/ui/
       App.tsx           # the shell: sign-in, loading, and the menu between sections
       PuzzlesSection.tsx  # the Puzzles section's screens and what they do
+      games/            # the Games section: collections, adding, the game viewer
       AccountScreen.tsx # who is signed in, sync state, signing out
       Board.tsx         # moves, promotion, and the placement board
       PuzzleView.tsx    # dispatches on the kind

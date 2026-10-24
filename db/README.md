@@ -1,7 +1,8 @@
 # Database
 
-The database is the source of truth. `0001_schema.sql` is the whole of it:
-four tables, row-level security, and grants. No triggers, no server code.
+The database is the source of truth. `0001_schema.sql` and `0002_games.sql`
+are the whole of it: six tables, row-level security, and grants. No triggers,
+no server code.
 
 ## Tables
 
@@ -23,6 +24,15 @@ four tables, row-level security, and grants. No triggers, no server code.
   and the outbox can always retry. Deleted with its puzzle; `run_id` is cleared
   when its run is deleted.
 
+- `game_collections` — like `collections`, for games: `id` (set by the
+  device), `name`, `created_at`. Kept apart from puzzle collections, since a
+  game has no runs or progress.
+- `games` — each belongs to one game collection and is deleted with it. The
+  `pgn` column is the whole game — headers, moves, comments, variations — and
+  an edit rewrites it. Also `position` (order in the collection) and
+  `orientation` (`w` or `b`, the side at the bottom of the board). The id is
+  set by the device. No dedupe key: the same game twice is two games.
+
 Status, attempt and mistake counts, the review set and where a run has got to
 are all worked out from attempts on the device (`src/model/derive.ts`), never
 stored. Resetting progress deletes the account's attempts and runs.
@@ -35,7 +45,7 @@ signed-in account's rows. Foreign keys include `user_id`, so a row can only
 point at a row of the same account: key checks bypass RLS, and would otherwise
 let one account attach a puzzle to another's collection.
 
-`npm test` runs `0001_schema.sql` in an in-process Postgres (PGlite) and checks
+`npm test` runs both schema files in an in-process Postgres (PGlite) and checks
 that a second account sees and changes nothing, cannot point at the first
 account's rows, and that runs and attempts cannot be updated
 (`src/data/backend.test.ts`).
@@ -67,9 +77,10 @@ Networking.
 
 ### 3. Apply the schema
 
-Paste `0001_schema.sql` into the Neon SQL Editor. Doing it in the console rather
-than over a connection string means no credential has to be shared with anyone
-to set this up. The file can be re-run safely.
+Paste `0001_schema.sql` into the Neon SQL Editor, then `0002_games.sql`. Doing
+it in the console rather than over a connection string means no credential has
+to be shared with anyone to set this up. Both files can be re-run safely, and a
+database that already has the first needs only the second.
 
 **Replacing the old sync tables.** A database set up for an earlier version of
 the app has tables that clash with these. Drop them first. This deletes every

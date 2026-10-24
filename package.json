@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check:e2e": "node scripts/e2e-solve.mjs",
+    "check:e2e:games": "node scripts/e2e-games.mjs",
     "check:external": "tsx scripts/validate-external.ts",
     "check:sync": "node scripts/check-sync.mjs"
   },

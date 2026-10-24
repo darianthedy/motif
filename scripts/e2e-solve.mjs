@@ -167,7 +167,7 @@ try {
   page.once('dialog', (d) => d.accept('Back-rank mates'));
   await page.getByRole('button', { name: 'Rename collection' }).click();
   await page.waitForTimeout(400);
-  await page.getByRole('button', { name: '← Collections' }).click();
+  await page.getByRole('button', { name: 'Back to collections' }).click();
   await page.waitForTimeout(300);
 
   // ---- Start a session ----
@@ -580,9 +580,9 @@ try {
   await page.waitForTimeout(600);
   check(`deleting removes the puzzle (${rows} to ${await page.locator('.puzzle-row').count()})`,
     (await page.locator('.puzzle-row').count()) === rows - 1);
-  await page.getByRole('button', { name: /← Back-rank mates/ }).click();
+  await page.getByRole('button', { name: 'Back to Back-rank mates' }).click();
   await page.waitForTimeout(300);
-  await page.getByRole('button', { name: '← Collections' }).click();
+  await page.getByRole('button', { name: 'Back to collections' }).click();
   await page.waitForTimeout(400);
 
   // ---- Offline ----

@@ -18,7 +18,7 @@ solving, because naming the idea gives the puzzle away.
 
 ## Status
 
-The model layer is written and tested — **183 tests, all passing**. It holds
+The model layer is written and tested — **184 tests, all passing**. It holds
 every decision that is easy to get subtly wrong: what counts as solving a
 puzzle, how multiple solutions are matched, what a missing-piece puzzle accepts,
 when the answer is revealed, where a run has got to, how missed puzzles come
@@ -26,7 +26,7 @@ back, how imports dedupe, and how a game's PGN is read and written back with
 its variations. The schema's access rules are tested against a
 real Postgres in-process.
 
-    npm test              # 183 tests
+    npm test              # 184 tests
     npm run check:e2e     # the whole app in a real browser, on the in-memory backend
     npm run check:e2e:games  # the Games section, the same way
     npm run check:sync    # two devices against the real database (see db/README.md)

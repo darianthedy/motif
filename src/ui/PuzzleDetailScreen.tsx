@@ -83,8 +83,8 @@ export function PuzzleDetailScreen({
   return (
     <div className="screen">
       <header className="screen-bar">
-        <button type="button" className="link" onClick={onExit}>
-          ← Puzzles
+        <button type="button" className="link" aria-label="Back to puzzles" onClick={onExit}>
+          ←
         </button>
         <h2>{puzzle.sourceId ? `#${puzzle.sourceId}` : 'Puzzle'}</h2>
       </header>

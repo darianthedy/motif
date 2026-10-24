@@ -1,7 +1,8 @@
-export type Section = 'puzzles' | 'account';
+export type Section = 'puzzles' | 'games' | 'account';
 
 const SECTIONS: { id: Section; label: string }[] = [
   { id: 'puzzles', label: 'Puzzles' },
+  { id: 'games', label: 'Games' },
   { id: 'account', label: 'Account' },
 ];
 

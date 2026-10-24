@@ -1,6 +1,8 @@
+import type { Game, GameCollection, GamePlacement, NewGame } from '../model/games/game';
 import { parseUci } from '../model/move';
 import { contentKey, parsePlacement, placementText } from '../model/puzzle';
 import type { Collection, Puzzle } from '../model/puzzle';
+import type { Side } from '../model/puzzle';
 import type { SessionMode } from '../model/session';
 
 /**
@@ -50,17 +52,19 @@ export interface Attempt {
   playedAt: number;
 }
 
-export type { Collection, Puzzle };
+export type { Collection, Game, GameCollection, GamePlacement, NewGame, Puzzle };
 
 export interface Library {
   collections: Collection[];
   puzzles: Puzzle[];
   runs: Run[];
   attempts: Attempt[];
+  gameCollections: GameCollection[];
+  games: Game[];
 }
 
 export function emptyLibrary(): Library {
-  return { collections: [], puzzles: [], runs: [], attempts: [] };
+  return { collections: [], puzzles: [], runs: [], attempts: [], gameCollections: [], games: [] };
 }
 
 export interface Backend {
@@ -104,6 +108,19 @@ export interface Backend {
   recordAttempts(attempts: Attempt[]): Promise<void>;
   /** Deletes every attempt and run. */
   resetProgress(): Promise<void>;
+
+  /** The ids are set by the caller, as for puzzle collections. */
+  createGameCollections(collections: GameCollection[]): Promise<void>;
+  renameGameCollection(id: string, name: string): Promise<void>;
+  /** Takes its games with it. */
+  deleteGameCollection(id: string): Promise<void>;
+
+  /** The ids are set by the caller too, so a new game can be opened straight away. */
+  addGames(games: NewGame[]): Promise<void>;
+  updateGame(id: string, changes: { pgn?: string; orientation?: Side }): Promise<void>;
+  /** Moves games, within their collection or to another. */
+  placeGames(placements: GamePlacement[]): Promise<void>;
+  deleteGames(ids: string[]): Promise<void>;
 }
 
 /** Empty text means no comment, rather than a stored "". */
@@ -227,6 +244,17 @@ function attemptRow(attempt: Attempt): Row {
   };
 }
 
+function gameFrom(row: Row): Game {
+  return {
+    id: row.id as string,
+    collectionId: row.collection_id as string,
+    position: row.position as number,
+    pgn: row.pgn as string,
+    orientation: row.orientation === 'b' ? 'b' : 'w',
+    addedAt: time(row.added_at),
+  };
+}
+
 /** Of `ids`, the ones `table` has. */
 async function existing(rest: Rest, table: string, ids: string[]): Promise<Set<string>> {
   const found = new Set<string>();
@@ -241,11 +269,13 @@ async function existing(rest: Rest, table: string, ids: string[]): Promise<Set<s
 export function restBackend(rest: Rest, userId: string): Backend {
   return {
     async load() {
-      const [collections, puzzles, runs, attempts] = await Promise.all([
+      const [collections, puzzles, runs, attempts, gameCollections, games] = await Promise.all([
         rest.select('collections'),
         rest.select('puzzles'),
         rest.select('runs'),
         rest.select('attempts'),
+        rest.select('game_collections'),
+        rest.select('games'),
       ]);
       return {
         collections: collections.map((row) => ({
@@ -270,6 +300,12 @@ export function restBackend(rest: Rest, userId: string): Backend {
           hinted: row.hinted as boolean,
           playedAt: time(row.played_at),
         })),
+        gameCollections: gameCollections.map((row) => ({
+          id: row.id as string,
+          name: row.name as string,
+          createdAt: time(row.created_at),
+        })),
+        games: games.map(gameFrom),
       };
     },
 
@@ -365,6 +401,60 @@ export function restBackend(rest: Rest, userId: string): Backend {
       await rest.delete('attempts', own);
       await rest.delete('runs', own);
     },
+
+    async createGameCollections(collections) {
+      if (!collections.length) return;
+      await rest.insert(
+        'game_collections',
+        collections.map((c) => ({ id: c.id, name: c.name, created_at: iso(c.createdAt) })),
+      );
+    },
+
+    async renameGameCollection(id, name) {
+      await rest.update('game_collections', { name }, [{ column: 'id', eq: id }]);
+    },
+
+    async deleteGameCollection(id) {
+      await rest.delete('game_collections', [{ column: 'id', eq: id }]);
+    },
+
+    async addGames(games) {
+      for (const chunk of chunks(games)) {
+        await rest.insert(
+          'games',
+          chunk.map((g) => ({
+            id: g.id,
+            collection_id: g.collectionId,
+            position: g.position,
+            pgn: g.pgn,
+            orientation: g.orientation,
+          })),
+        );
+      }
+    },
+
+    async updateGame(id, changes) {
+      const patch: Row = {};
+      if (changes.pgn !== undefined) patch.pgn = changes.pgn;
+      if (changes.orientation !== undefined) patch.orientation = changes.orientation;
+      if (!Object.keys(patch).length) return;
+      await rest.update('games', patch, [{ column: 'id', eq: id }]);
+    },
+
+    async placeGames(placements) {
+      // One row each: the Data API has no update of many rows to different values.
+      for (const p of placements) {
+        await rest.update('games', { collection_id: p.collectionId, position: p.position }, [
+          { column: 'id', eq: p.id },
+        ]);
+      }
+    },
+
+    async deleteGames(ids) {
+      for (const chunk of chunks(ids)) {
+        await rest.delete('games', [{ column: 'id', in: chunk }]);
+      }
+    },
   };
 }
 
@@ -377,7 +467,8 @@ export function restBackend(rest: Rest, userId: string): Backend {
  * without Neon. One account, and data that lasts as long as the page.
  */
 export function memoryBackend(initial: Library = emptyLibrary()): Backend & { library: Library } {
-  const library = structuredClone(initial);
+  // Filled out, for a library saved before it had every kind of row.
+  const library = structuredClone({ ...emptyLibrary(), ...initial });
   const copy = <T>(value: T): T => structuredClone(value);
 
   return {
@@ -483,6 +574,65 @@ export function memoryBackend(initial: Library = emptyLibrary()): Backend & { li
     async resetProgress() {
       library.attempts = [];
       library.runs = [];
+    },
+
+    async createGameCollections(collections) {
+      for (const collection of collections) {
+        if (library.gameCollections.some((c) => c.id === collection.id)) {
+          throw new Error(`Game collection ${collection.id} already exists`);
+        }
+      }
+      library.gameCollections.push(...copy(collections));
+    },
+
+    async renameGameCollection(id, name) {
+      for (const collection of library.gameCollections) {
+        if (collection.id === id) collection.name = name;
+      }
+    },
+
+    async deleteGameCollection(id) {
+      library.gameCollections = library.gameCollections.filter((c) => c.id !== id);
+      library.games = library.games.filter((g) => g.collectionId !== id);
+    },
+
+    async addGames(games) {
+      const now = Date.now();
+      for (const game of games) {
+        if (!library.gameCollections.some((c) => c.id === game.collectionId)) {
+          throw new Error(`No game collection ${game.collectionId}`);
+        }
+        if (library.games.some((g) => g.id === game.id)) {
+          throw new Error(`Game ${game.id} already exists`);
+        }
+      }
+      library.games.push(...games.map((game) => ({ ...copy(game), addedAt: now })));
+    },
+
+    async updateGame(id, changes) {
+      for (const game of library.games) {
+        if (game.id !== id) continue;
+        if (changes.pgn !== undefined) game.pgn = changes.pgn;
+        if (changes.orientation !== undefined) game.orientation = changes.orientation;
+      }
+    },
+
+    async placeGames(placements) {
+      for (const p of placements) {
+        if (!library.gameCollections.some((c) => c.id === p.collectionId)) {
+          throw new Error(`No game collection ${p.collectionId}`);
+        }
+        for (const game of library.games) {
+          if (game.id !== p.id) continue;
+          game.collectionId = p.collectionId;
+          game.position = p.position;
+        }
+      }
+    },
+
+    async deleteGames(ids) {
+      const gone = new Set(ids);
+      library.games = library.games.filter((g) => !gone.has(g.id));
     },
   };
 

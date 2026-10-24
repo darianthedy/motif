@@ -1,5 +1,6 @@
 import { PGlite } from '@electric-sql/pglite';
 import schema from '../../db/0001_schema.sql?raw';
+import gamesSchema from '../../db/0002_games.sql?raw';
 import type { Filter, Rest, Row } from '../data/backend';
 
 /**
@@ -8,7 +9,7 @@ import type { Filter, Rest, Row } from '../data/backend';
  * What Neon provides around the schema is stood in for as thinly as possible:
  * an `authenticated` role, and `auth.user_id()` reading the current user from
  * a setting rather than a JWT. Everything else — tables, policies, grants — is
- * the file that gets pasted into the Neon console, so a test that passes here
+ * the files that get pasted into the Neon console, so a test that passes here
  * has exercised the SQL that ships.
  */
 
@@ -37,6 +38,7 @@ export async function startDatabase(): Promise<PGlite> {
       as $$ select nullif(current_setting('motif.user', true), '') $$;
   `);
   await db.exec(schema);
+  await db.exec(gamesSchema);
   return db;
 }
 

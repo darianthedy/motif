@@ -9,10 +9,10 @@
  * the privacy claim, and it is RLS's alone, so it is tested rather than
  * trusted.
  *
- * Requires db/0001_schema.sql to have been applied to the target database, and
- * VITE_NEON_BASE_URL for the local run. Creates throwaway accounts; pass
- * --email to reuse one, or --url to run against the deployed site instead of a
- * dev server.
+ * Requires db/0001_schema.sql and db/0002_games.sql to have been applied to the
+ * target database, and VITE_NEON_BASE_URL for the local run. Creates throwaway
+ * accounts; pass --email to reuse one, or --url to run against the deployed
+ * site instead of a dev server.
  *
  * Running it against production is not redundant. Neon Auth rejects origins
  * that are not on its trusted-domain list, and localhost is trusted by default

@@ -1,0 +1,128 @@
+/* The Games section. Everything else it uses is the app's own classes. */
+
+.section-title {
+  margin: 1.6rem 0 0;
+  font-size: 1rem;
+}
+
+.search {
+  width: 100%;
+  margin: 0.6rem 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid #33343d;
+  background: #1c1d24;
+  color: var(--fg);
+  font: inherit;
+}
+
+.row.wrap {
+  flex-wrap: wrap;
+}
+
+.bulk {
+  margin: 0.6rem 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  background: #1c1d24;
+}
+
+.bulk .field {
+  margin: 0.4rem 0 0.6rem;
+}
+
+.puzzle-row .row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.game-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.check {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 4px;
+  border: 2px solid var(--muted);
+}
+
+.check[data-checked] {
+  border-color: #b6d99a;
+  background: #b6d99a;
+}
+
+.replay .spacer {
+  flex: 1;
+}
+
+/* Moves read as text: the main line runs on, variations sit indented under
+   the move they replace, a little dimmer the deeper they go. */
+.move-list {
+  max-height: 14rem;
+  overflow-y: auto;
+  margin-top: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  background: #1c1d24;
+  font-size: 0.85rem;
+  line-height: 1.9;
+}
+
+.move-list .move {
+  padding: 0.1rem 0.3rem;
+  margin-right: 0.15rem;
+  border-radius: 4px;
+  background: none;
+  color: var(--fg);
+}
+
+.move-list .move[data-current] {
+  background: #3a4a2f;
+  color: #b6d99a;
+}
+
+.move-list .move.start {
+  color: var(--muted);
+}
+
+.move-number {
+  color: var(--muted);
+}
+
+.move-comment {
+  margin-right: 0.35rem;
+  color: #c9b98a;
+}
+
+.variations {
+  margin: 0.1rem 0 0.2rem;
+}
+
+.variation {
+  padding-left: 0.7rem;
+  border-left: 2px solid #33343d;
+  color: var(--muted);
+}
+
+.variation .move {
+  color: #b9bcc6;
+}
+
+.comment-editor {
+  margin-top: 0.4rem;
+}
+
+.comment-editor textarea {
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.details-form .field {
+  margin: 0.5rem 0;
+}

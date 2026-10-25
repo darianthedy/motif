@@ -241,3 +241,18 @@ and add form were captured and inspected in both appearances. Screenshot
 batches may set `IOS_SCREENSHOT_SKIP_BUILD=1` only after a current passing build;
 the script defaults to building and refuses reuse when no app exists. The game
 viewer is the immediately following P11 slice.
+
+## P11 checkpoint — game viewer
+
+The fixed board/move-list layout supports paired main-line rows, indented
+foldable variations, cursor highlighting/scrolling, next alternatives, stepping
+buttons and keyboard arrows. Play-in extends or branches via Edit; comments,
+headers, orientation and deletions persist immediately. Save snapshots run in
+order and a failed final save restores the stored copy. Offline controls are
+read-only. Clock/eval commands remain in PGN and are hidden from display.
+
+Verification: 193 web and 255 native tests passed. Six viewer tests cover
+existing moves versus new branches, subtree deletion, promotion, ordered rapid
+saves, offline refusal, rollback, and comment-command preservation. Viewer,
+variation, comment and details screenshots were inspected in both appearances;
+the board and controls fit, and only the move list scrolls.

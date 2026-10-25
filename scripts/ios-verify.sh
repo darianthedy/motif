@@ -19,14 +19,12 @@ if [ "${1:-}" != "--ios" ]; then
   npm test --silent
 fi
 
-# The first available iPhone simulator, by name. Names change with each Xcode
-# ("iPhone 17", …), so it is looked up rather than hard-coded.
-sim=$(xcrun simctl list devices available | sed -n 's/^ *\(iPhone[^(]*\) (.*/\1/p' | head -1 | sed 's/ *$//')
-[ -n "$sim" ] || { echo "No iPhone simulator available — install the iOS runtime (Xcode → Settings → Components)." >&2; exit 1; }
+# A UDID distinguishes simulators with the same name on different runtimes.
+sim=$(scripts/ios-simulator.sh)
 
 echo "== xcodebuild test on '$sim'"
 set -- xcodebuild test -project "$PROJECT" -scheme "$SCHEME" \
-  -destination "platform=iOS Simulator,name=$sim" \
+  -destination "platform=iOS Simulator,id=$sim" \
   -derivedDataPath build/DerivedData \
   CODE_SIGNING_ALLOWED=NO
 if command -v xcbeautify >/dev/null 2>&1; then

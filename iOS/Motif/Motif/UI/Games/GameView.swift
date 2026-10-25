@@ -127,7 +127,7 @@ private struct GameContentView: View {
     }
     private func hideAlternatives() { withAnimation(.easeOut(duration: 0.2)) { alternativesHidden = true; alternativesOpen = false } }
     private func control(_ label: String, _ image: String, disabled: Bool, action: @escaping () -> Void) -> some View {
-        Button(label, systemImage: image, action: action).disabled(disabled).accessibilityIdentifier("game-" + label.lowercased().replacingOccurrences(of: " ", with: "-"))
+        Button(action: action) { Label(label, systemImage: image).font(.title3).imageScale(.large).frame(minWidth: 40, minHeight: 40) }.disabled(disabled).accessibilityIdentifier("game-" + label.lowercased().replacingOccurrences(of: " ", with: "-"))
     }
     @ViewBuilder private var gameMenu: some View {
         if let tree = model.tree {

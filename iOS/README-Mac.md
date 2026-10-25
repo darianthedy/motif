@@ -173,3 +173,15 @@ user_id spoofing, and immutable-column grants. They require PostgreSQL RLS and
 schema privileges; a native in-memory fake cannot verify those protections.
 No live account or configured endpoint was used. GitHub publishing and CI
 remain disabled.
+
+## P06 checkpoint — app shell
+
+Sign-in/sign-up, three native tabs, account/sync status, offline/loading
+states and dismissible notices are wired to LibraryStore. Sign-out resets the
+selected section. Debug-only clean memory launches and bundled JSON sample
+seeding support screenshot routes. Normal launches use the durable dev account
+unless NeonBaseURL is configured.
+
+Verification: 193 web tests and 225 native tests passed. All four shell screens
+were captured and inspected in dark and light appearance under
+`build/screenshots/P06-*.png`; no clipped text or overlapping controls found.

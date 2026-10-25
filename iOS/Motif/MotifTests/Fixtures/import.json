@@ -1,0 +1,676 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "metadata",
+      "text": "{\"collection\":\"Fixture\",\"puzzles\":[{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a8\"]],\"id\":187,\"tags\":[\"mate\",7,false,null],\"comment\":\"\",\"rating\":900},{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a7\"]],\"id\":\"12b\",\"tags\":\"mate\",\"comment\":false,\"rating\":true},{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a6\"]],\"id\":false,\"rating\":\"900\"}]}",
+      "expected": {
+        "groups": [
+          {
+            "name": "Fixture",
+            "puzzles": [
+              {
+                "tags": [
+                  "mate"
+                ],
+                "comment": "",
+                "sourceId": "187",
+                "rating": 900,
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a8"
+                  ]
+                ]
+              },
+              {
+                "tags": [],
+                "sourceId": "12b",
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a7"
+                  ]
+                ]
+              },
+              {
+                "tags": [],
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a6"
+                  ]
+                ]
+              }
+            ]
+          }
+        ],
+        "rejected": [],
+        "collectionName": "Fixture"
+      }
+    },
+    {
+      "name": "number-ids",
+      "text": "{\"collection\":\"Fixture\",\"puzzles\":[{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"add_piece\":\"Ng6\",\"id\":0,\"solutions\":[]},{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"add_piece\":\"Ng6\",\"id\":0,\"solutions\":[]},{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"add_piece\":\"Ng6\",\"id\":1.25,\"solutions\":[]},{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"add_piece\":\"Ng6\",\"id\":1e-7,\"solutions\":[]},{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"add_piece\":\"Ng6\",\"id\":0.000001,\"solutions\":[]},{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"add_piece\":\"Ng6\",\"id\":100000000000000000000,\"solutions\":[]},{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"add_piece\":\"Ng6\",\"id\":1e+21,\"solutions\":[]},{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"add_piece\":\"Ng6\",\"id\":-1e+21,\"solutions\":[]},{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"add_piece\":\"Ng6\",\"id\":9007199254740992,\"solutions\":[]}]}",
+      "expected": {
+        "groups": [
+          {
+            "name": "Fixture",
+            "puzzles": [
+              {
+                "tags": [],
+                "sourceId": "9007199254740992",
+                "fen": "6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1",
+                "solutions": [],
+                "addPiece": {
+                  "color": "w",
+                  "type": "n",
+                  "square": "g6"
+                }
+              }
+            ]
+          }
+        ],
+        "rejected": [],
+        "collectionName": "Fixture"
+      }
+    },
+    {
+      "name": "number-id-groups",
+      "text": "[{\"puzzles\":[{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a8\"]],\"id\":0}]},{\"puzzles\":[{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a8\"]],\"id\":0}]},{\"puzzles\":[{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a8\"]],\"id\":1.25}]},{\"puzzles\":[{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a8\"]],\"id\":1e-7}]},{\"puzzles\":[{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a8\"]],\"id\":0.000001}]},{\"puzzles\":[{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a8\"]],\"id\":100000000000000000000}]},{\"puzzles\":[{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a8\"]],\"id\":1e+21}]},{\"puzzles\":[{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a8\"]],\"id\":-1e+21}]},{\"puzzles\":[{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a8\"]],\"id\":9007199254740992}]}]",
+      "expected": {
+        "groups": [
+          {
+            "puzzles": [
+              {
+                "tags": [],
+                "sourceId": "0",
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a8"
+                  ]
+                ]
+              }
+            ]
+          },
+          {
+            "puzzles": [
+              {
+                "tags": [],
+                "sourceId": "0",
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a8"
+                  ]
+                ]
+              }
+            ]
+          },
+          {
+            "puzzles": [
+              {
+                "tags": [],
+                "sourceId": "1.25",
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a8"
+                  ]
+                ]
+              }
+            ]
+          },
+          {
+            "puzzles": [
+              {
+                "tags": [],
+                "sourceId": "1e-7",
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a8"
+                  ]
+                ]
+              }
+            ]
+          },
+          {
+            "puzzles": [
+              {
+                "tags": [],
+                "sourceId": "0.000001",
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a8"
+                  ]
+                ]
+              }
+            ]
+          },
+          {
+            "puzzles": [
+              {
+                "tags": [],
+                "sourceId": "100000000000000000000",
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a8"
+                  ]
+                ]
+              }
+            ]
+          },
+          {
+            "puzzles": [
+              {
+                "tags": [],
+                "sourceId": "1e+21",
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a8"
+                  ]
+                ]
+              }
+            ]
+          },
+          {
+            "puzzles": [
+              {
+                "tags": [],
+                "sourceId": "-1e+21",
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a8"
+                  ]
+                ]
+              }
+            ]
+          },
+          {
+            "puzzles": [
+              {
+                "tags": [],
+                "sourceId": "9007199254740992",
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a8"
+                  ]
+                ]
+              }
+            ]
+          }
+        ],
+        "rejected": []
+      }
+    },
+    {
+      "name": "bad-entries",
+      "text": "{\"collection\":\"Fixture\",\"puzzles\":[null,{},{\"fen\":\"nonsense\"},{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[]},{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a8\",\"g8g7\"]]},{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1z9\"]]},{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[null]},{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[]]},{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[7]]},{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1b2\"]]},{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a8\"],[\"a1b2\"]]}]}",
+      "expected": {
+        "groups": [
+          {
+            "name": "Fixture",
+            "puzzles": []
+          }
+        ],
+        "rejected": [
+          {
+            "index": 0,
+            "reason": "Malformed FEN"
+          },
+          {
+            "index": 1,
+            "reason": "Malformed FEN"
+          },
+          {
+            "index": 2,
+            "reason": "Malformed FEN"
+          },
+          {
+            "index": 3,
+            "reason": "Puzzle has no solution"
+          },
+          {
+            "index": 4,
+            "reason": "Move g8g7 is illegal at ply 2"
+          },
+          {
+            "index": 5,
+            "reason": "Solution contains a malformed move"
+          },
+          {
+            "index": 6,
+            "reason": "Solution contains a malformed move"
+          },
+          {
+            "index": 7,
+            "reason": "Solution contains a malformed move"
+          },
+          {
+            "index": 8,
+            "reason": "Solution contains a malformed move"
+          },
+          {
+            "index": 9,
+            "reason": "Move a1b2 is illegal at ply 1"
+          },
+          {
+            "index": 10,
+            "reason": "Move a1b2 is illegal at ply 1"
+          }
+        ],
+        "collectionName": "Fixture"
+      }
+    },
+    {
+      "name": "normalization",
+      "text": "{\"collection\":7,\"puzzles\":[{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\" A1A8 \"]],\"add_piece\":null}]}",
+      "expected": {
+        "groups": [
+          {
+            "puzzles": [
+              {
+                "tags": [],
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a8"
+                  ]
+                ]
+              }
+            ]
+          }
+        ],
+        "rejected": []
+      }
+    },
+    {
+      "name": "forced-reply",
+      "text": "{\"collection\":\"Fixture\",\"puzzles\":[{\"fen\":\"6k1/5p1p/8/8/8/8/8/3R2K1 w - - 0 1\",\"solutions\":[[\"d1d8\",\"g8g7\"]]},{\"fen\":\"1r1k4/2R4R/8/8/8/6pP/PPP4q/K1B5 w - - 0 1\",\"solutions\":[[\"c1g5\",\"d8e8\",\"h7h8\"]]},{\"fen\":\"2rrk1n1/1nQ1p2N/pB5p/6p1/qP3p2/2P4P/P3BPP1/3R2K1 w - - 0 1\",\"solutions\":[[\"c7d8\",\"e8d8\",\"d1d8\"]]}]}",
+      "expected": {
+        "groups": [
+          {
+            "name": "Fixture",
+            "puzzles": [
+              {
+                "tags": [],
+                "fen": "6k1/5p1p/8/8/8/8/8/3R2K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "d1d8",
+                    "g8g7"
+                  ]
+                ]
+              },
+              {
+                "tags": [],
+                "fen": "1r1k4/2R4R/8/8/8/6pP/PPP4q/K1B5 w - - 0 1",
+                "solutions": [
+                  [
+                    "c1g5",
+                    "d8e8",
+                    "h7h8"
+                  ]
+                ]
+              }
+            ]
+          }
+        ],
+        "rejected": [
+          {
+            "index": 2,
+            "reason": "Move e8d8 is illegal at ply 2"
+          }
+        ],
+        "collectionName": "Fixture"
+      }
+    },
+    {
+      "name": "duplicate-order-last-metadata",
+      "text": "{\"collection\":\"Fixture\",\"puzzles\":[{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a8\"]],\"tags\":[\"a\"]},{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a7\"]]},{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 5 9\",\"solutions\":[[\"a1a8\"]],\"tags\":[\"b\"]}]}",
+      "expected": {
+        "groups": [
+          {
+            "name": "Fixture",
+            "puzzles": [
+              {
+                "tags": [
+                  "b"
+                ],
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 5 9",
+                "solutions": [
+                  [
+                    "a1a8"
+                  ]
+                ]
+              },
+              {
+                "tags": [],
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a7"
+                  ]
+                ]
+              }
+            ]
+          }
+        ],
+        "rejected": [],
+        "collectionName": "Fixture"
+      }
+    },
+    {
+      "name": "multiple-groups",
+      "text": "[{\"collection\":\"A\",\"puzzles\":[{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a8\"]]}]},{\"collection\":\"B\",\"puzzles\":[{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a8\"]]},{\"fen\":\"bad\"}]}]",
+      "expected": {
+        "groups": [
+          {
+            "name": "A",
+            "puzzles": [
+              {
+                "tags": [],
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a8"
+                  ]
+                ]
+              }
+            ]
+          },
+          {
+            "name": "B",
+            "puzzles": [
+              {
+                "tags": [],
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a8"
+                  ]
+                ]
+              }
+            ]
+          }
+        ],
+        "rejected": [
+          {
+            "index": 2,
+            "reason": "Malformed FEN"
+          }
+        ]
+      }
+    },
+    {
+      "name": "missing-arrays-indices",
+      "text": "[null,7,{},{\"puzzles\":[{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a8\"]]}]},{\"puzzles\":\"no\"},{\"puzzles\":[false,{\"fen\":\"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\",\"solutions\":[[\"a1a8\"]]}]}]",
+      "expected": {
+        "groups": [
+          {
+            "puzzles": [
+              {
+                "tags": [],
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a8"
+                  ]
+                ]
+              }
+            ]
+          },
+          {
+            "puzzles": [
+              {
+                "tags": [],
+                "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+                "solutions": [
+                  [
+                    "a1a8"
+                  ]
+                ]
+              }
+            ]
+          }
+        ],
+        "rejected": [
+          {
+            "index": 0,
+            "reason": "Missing a \"puzzles\" array"
+          },
+          {
+            "index": 0,
+            "reason": "Missing a \"puzzles\" array"
+          },
+          {
+            "index": 0,
+            "reason": "Missing a \"puzzles\" array"
+          },
+          {
+            "index": 1,
+            "reason": "Missing a \"puzzles\" array"
+          },
+          {
+            "index": 1,
+            "reason": "Malformed FEN"
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty-groups",
+      "text": "[{\"collection\":\"\",\"puzzles\":[]},{\"puzzles\":[]}]",
+      "expected": {
+        "groups": [
+          {
+            "name": "",
+            "puzzles": []
+          },
+          {
+            "puzzles": []
+          }
+        ],
+        "rejected": []
+      }
+    },
+    {
+      "name": "empty-array",
+      "text": "[]",
+      "expected": {
+        "groups": [],
+        "rejected": []
+      }
+    },
+    {
+      "name": "primitive",
+      "text": "null",
+      "expected": {
+        "groups": [],
+        "rejected": [
+          {
+            "index": 0,
+            "reason": "Missing a \"puzzles\" array"
+          }
+        ]
+      }
+    },
+    {
+      "name": "missing-piece-cases",
+      "text": "{\"collection\":\"Fixture\",\"puzzles\":[{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"add_piece\":\"Ng6\"},{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"add_piece\":\"wng6\",\"solutions\":null},{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"add_piece\":\"Ng6\",\"solutions\":[[\"g8g7\"]]},{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"solutions\":[],\"add_piece\":\"Kg6\"},{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"solutions\":[],\"add_piece\":\"Ng7\"},{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"solutions\":[],\"add_piece\":\"Pg1\"},{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"solutions\":[],\"add_piece\":\"knight to g6\"},{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"solutions\":[],\"add_piece\":7},{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"solutions\":[],\"add_piece\":false},{\"fen\":\"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\"solutions\":[],\"add_piece\":\"\"}]}",
+      "expected": {
+        "groups": [
+          {
+            "name": "Fixture",
+            "puzzles": [
+              {
+                "tags": [],
+                "fen": "6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1",
+                "solutions": [],
+                "addPiece": {
+                  "color": "w",
+                  "type": "n",
+                  "square": "g6"
+                }
+              }
+            ]
+          }
+        ],
+        "rejected": [
+          {
+            "index": 2,
+            "reason": "A missing-piece puzzle answers with a piece, so it can carry no solution"
+          },
+          {
+            "index": 3,
+            "reason": "A king cannot be added — there is already one"
+          },
+          {
+            "index": 4,
+            "reason": "Square g7 is not empty, so nothing can be added to it"
+          },
+          {
+            "index": 5,
+            "reason": "Pg1 does not make a legal position"
+          },
+          {
+            "index": 6,
+            "reason": "Malformed piece to add — write it FEN-style, like \"Ng6\" or \"ng6\""
+          },
+          {
+            "index": 7,
+            "reason": "Malformed piece to add — write it FEN-style, like \"Ng6\" or \"ng6\""
+          },
+          {
+            "index": 8,
+            "reason": "Malformed piece to add — write it FEN-style, like \"Ng6\" or \"ng6\""
+          },
+          {
+            "index": 9,
+            "reason": "Malformed piece to add — write it FEN-style, like \"Ng6\" or \"ng6\""
+          }
+        ],
+        "collectionName": "Fixture"
+      }
+    },
+    {
+      "name": "sample-missing-piece",
+      "text": "{\n  \"collection\": \"Missing pieces\",\n  \"puzzles\": [\n    {\n      \"id\": 187,\n      \"fen\": \"6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1\",\n      \"solutions\": [],\n      \"tags\": [\"missingPiece\", \"mateIn1\"],\n      \"comment\": \"Add a knight and it's mate. The h-pawn cannot take it: the rook on h1 pins it to the king.\",\n      \"add_piece\": \"Ng6\"\n    },\n    {\n      \"id\": 188,\n      \"fen\": \"7k/5p1p/6p1/8/8/8/8/K5R1 b - - 0 1\",\n      \"solutions\": [],\n      \"tags\": [\"missingPiece\", \"mateIn1\"],\n      \"comment\": \"A rook on f8 checks too — and the king walks out to g7. Only the queen covers the flight square as well.\",\n      \"add_piece\": \"Qf8\"\n    },\n    {\n      \"id\": 189,\n      \"fen\": \"1k5r/ppp5/3P4/P7/1P1B4/8/6PP/6RK w - - 0 1\",\n      \"solutions\": [],\n      \"tags\": [\"missingPiece\", \"mateIn1\"],\n      \"comment\": \"The first puzzle with the colours reversed: the piece to add is Black's, so its letter is lower case.\",\n      \"add_piece\": \"ng3\"\n    }\n  ]\n}\n",
+      "expected": {
+        "groups": [
+          {
+            "name": "Missing pieces",
+            "puzzles": [
+              {
+                "tags": [
+                  "missingPiece",
+                  "mateIn1"
+                ],
+                "comment": "Add a knight and it's mate. The h-pawn cannot take it: the rook on h1 pins it to the king.",
+                "sourceId": "187",
+                "fen": "6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1",
+                "solutions": [],
+                "addPiece": {
+                  "color": "w",
+                  "type": "n",
+                  "square": "g6"
+                }
+              },
+              {
+                "tags": [
+                  "missingPiece",
+                  "mateIn1"
+                ],
+                "comment": "A rook on f8 checks too — and the king walks out to g7. Only the queen covers the flight square as well.",
+                "sourceId": "188",
+                "fen": "7k/5p1p/6p1/8/8/8/8/K5R1 b - - 0 1",
+                "solutions": [],
+                "addPiece": {
+                  "color": "w",
+                  "type": "q",
+                  "square": "f8"
+                }
+              },
+              {
+                "tags": [
+                  "missingPiece",
+                  "mateIn1"
+                ],
+                "comment": "The first puzzle with the colours reversed: the piece to add is Black's, so its letter is lower case.",
+                "sourceId": "189",
+                "fen": "1k5r/ppp5/3P4/P7/1P1B4/8/6PP/6RK w - - 0 1",
+                "solutions": [],
+                "addPiece": {
+                  "color": "b",
+                  "type": "n",
+                  "square": "g3"
+                }
+              }
+            ]
+          }
+        ],
+        "rejected": [],
+        "collectionName": "Missing pieces"
+      }
+    },
+    {
+      "name": "invalid-json-0",
+      "text": "{ not json",
+      "expected": {
+        "groups": [],
+        "rejected": [
+          {
+            "index": -1,
+            "reason": "Not valid JSON: Expected property name or '}' in JSON at position 2 (line 1 column 3)"
+          }
+        ]
+      }
+    },
+    {
+      "name": "invalid-json-1",
+      "text": "",
+      "expected": {
+        "groups": [],
+        "rejected": [
+          {
+            "index": -1,
+            "reason": "Not valid JSON: Unexpected end of JSON input"
+          }
+        ]
+      }
+    },
+    {
+      "name": "invalid-json-2",
+      "text": "{\"puzzles\": [}",
+      "expected": {
+        "groups": [],
+        "rejected": [
+          {
+            "index": -1,
+            "reason": "Not valid JSON: Unexpected token '}', \"{\"puzzles\": [}\" is not valid JSON"
+          }
+        ]
+      }
+    },
+    {
+      "name": "invalid-json-3",
+      "text": "{\"puzzles\": []} trailing",
+      "expected": {
+        "groups": [],
+        "rejected": [
+          {
+            "index": -1,
+            "reason": "Not valid JSON: Unexpected non-whitespace character after JSON at position 16 (line 1 column 17)"
+          }
+        ]
+      }
+    }
+  ]
+}

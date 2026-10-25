@@ -1,0 +1,378 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "input": {
+        "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+        "solutions": [
+          [
+            "a1a8"
+          ]
+        ],
+        "tags": []
+      },
+      "key": "6k1/5ppp/8/8/8/8/8/R5K1 w - -/a1a8/-",
+      "normalizedFen": "6k1/5ppp/8/8/8/8/8/R5K1 w - -",
+      "side": "w"
+    },
+    {
+      "input": {
+        "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+        "solutions": [
+          [
+            "a1b1"
+          ],
+          [
+            "a1a8"
+          ]
+        ],
+        "tags": []
+      },
+      "key": "6k1/5ppp/8/8/8/8/8/R5K1 w - -/a1a8|a1b1/-",
+      "normalizedFen": "6k1/5ppp/8/8/8/8/8/R5K1 w - -",
+      "side": "w"
+    },
+    {
+      "input": {
+        "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 9 42",
+        "solutions": [
+          [
+            "a1a8"
+          ],
+          [
+            "a1b1"
+          ]
+        ],
+        "tags": []
+      },
+      "key": "6k1/5ppp/8/8/8/8/8/R5K1 w - -/a1a8|a1b1/-",
+      "normalizedFen": "6k1/5ppp/8/8/8/8/8/R5K1 w - -",
+      "side": "w"
+    },
+    {
+      "input": {
+        "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+        "solutions": [
+          [
+            "d1h5",
+            "g7g6",
+            "h5g6"
+          ],
+          [
+            "d1h5",
+            "g7g6",
+            "h5e8"
+          ]
+        ],
+        "tags": []
+      },
+      "key": "6k1/5ppp/8/8/8/8/8/R5K1 w - -/d1h5 g7g6 h5e8|d1h5 g7g6 h5g6/-",
+      "normalizedFen": "6k1/5ppp/8/8/8/8/8/R5K1 w - -",
+      "side": "w"
+    },
+    {
+      "input": {
+        "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+        "solutions": [
+          [
+            "e7e8"
+          ]
+        ],
+        "tags": []
+      },
+      "key": "6k1/5ppp/8/8/8/8/8/R5K1 w - -/e7e8/-",
+      "normalizedFen": "6k1/5ppp/8/8/8/8/8/R5K1 w - -",
+      "side": "w"
+    },
+    {
+      "input": {
+        "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+        "solutions": [
+          [
+            "e7e8q"
+          ]
+        ],
+        "tags": []
+      },
+      "key": "6k1/5ppp/8/8/8/8/8/R5K1 w - -/e7e8q/-",
+      "normalizedFen": "6k1/5ppp/8/8/8/8/8/R5K1 w - -",
+      "side": "w"
+    },
+    {
+      "input": {
+        "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+        "solutions": [
+          [
+            "e7e8n"
+          ]
+        ],
+        "tags": []
+      },
+      "key": "6k1/5ppp/8/8/8/8/8/R5K1 w - -/e7e8n/-",
+      "normalizedFen": "6k1/5ppp/8/8/8/8/8/R5K1 w - -",
+      "side": "w"
+    },
+    {
+      "input": {
+        "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+        "solutions": [
+          [],
+          [
+            "a1a8"
+          ],
+          [
+            "a1a8"
+          ]
+        ],
+        "tags": []
+      },
+      "key": "6k1/5ppp/8/8/8/8/8/R5K1 w - -/|a1a8|a1a8/-",
+      "normalizedFen": "6k1/5ppp/8/8/8/8/8/R5K1 w - -",
+      "side": "w"
+    },
+    {
+      "input": {
+        "fen": " ﻿6k1/5ppp/8/8/8/8/8/R5K1 \tw \t- \t- \t0 \t1 \n",
+        "solutions": [
+          [
+            "a1a8"
+          ]
+        ],
+        "tags": []
+      },
+      "key": "6k1/5ppp/8/8/8/8/8/R5K1 w - -/a1a8/-",
+      "normalizedFen": "6k1/5ppp/8/8/8/8/8/R5K1 w - -",
+      "side": "w"
+    },
+    {
+      "input": {
+        "fen": "",
+        "solutions": [],
+        "tags": []
+      },
+      "key": "//-",
+      "normalizedFen": "",
+      "side": "w"
+    },
+    {
+      "input": {
+        "fen": "4k3/8/8/8/8/8/8/4K3 b",
+        "solutions": [],
+        "tags": []
+      },
+      "key": "4k3/8/8/8/8/8/8/4K3 b//-",
+      "normalizedFen": "4k3/8/8/8/8/8/8/4K3 b",
+      "side": "b"
+    },
+    {
+      "input": {
+        "fen": "6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1",
+        "solutions": [],
+        "tags": [],
+        "addPiece": {
+          "color": "w",
+          "type": "n",
+          "square": "g6"
+        }
+      },
+      "key": "6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - -//Ng6",
+      "normalizedFen": "6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - -",
+      "side": "w"
+    },
+    {
+      "input": {
+        "fen": "6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1",
+        "solutions": [],
+        "tags": [],
+        "addPiece": {
+          "color": "w",
+          "type": "q",
+          "square": "g6"
+        }
+      },
+      "key": "6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - -//Qg6",
+      "normalizedFen": "6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - -",
+      "side": "w"
+    },
+    {
+      "input": {
+        "fen": "6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1",
+        "solutions": [],
+        "tags": [],
+        "addPiece": {
+          "color": "b",
+          "type": "n",
+          "square": "g6"
+        }
+      },
+      "key": "6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - -//ng6",
+      "normalizedFen": "6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - -",
+      "side": "b"
+    },
+    {
+      "input": {
+        "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+        "solutions": [
+          [
+            "a1a8"
+          ]
+        ],
+        "tags": [
+          "mate"
+        ],
+        "comment": "Unicode ♞ and spoilers",
+        "rating": 900,
+        "sourceId": "187"
+      },
+      "key": "6k1/5ppp/8/8/8/8/8/R5K1 w - -/a1a8/-",
+      "normalizedFen": "6k1/5ppp/8/8/8/8/8/R5K1 w - -",
+      "side": "w"
+    }
+  ],
+  "placements": [
+    {
+      "text": "Ng6",
+      "parsed": {
+        "color": "w",
+        "type": "n",
+        "square": "g6"
+      },
+      "canonical": "Ng6"
+    },
+    {
+      "text": "ng6",
+      "parsed": {
+        "color": "b",
+        "type": "n",
+        "square": "g6"
+      },
+      "canonical": "ng6"
+    },
+    {
+      "text": "  Q f8 ",
+      "parsed": {
+        "color": "w",
+        "type": "q",
+        "square": "f8"
+      },
+      "canonical": "Qf8"
+    },
+    {
+      "text": "bNg6",
+      "parsed": {
+        "color": "b",
+        "type": "n",
+        "square": "g6"
+      },
+      "canonical": "ng6"
+    },
+    {
+      "text": "wng6",
+      "parsed": {
+        "color": "w",
+        "type": "n",
+        "square": "g6"
+      },
+      "canonical": "Ng6"
+    },
+    {
+      "text": "bg6",
+      "parsed": {
+        "color": "b",
+        "type": "b",
+        "square": "g6"
+      },
+      "canonical": "bg6"
+    },
+    {
+      "text": "bBg6",
+      "parsed": {
+        "color": "b",
+        "type": "b",
+        "square": "g6"
+      },
+      "canonical": "bg6"
+    },
+    {
+      "text": "pa2",
+      "parsed": {
+        "color": "b",
+        "type": "p",
+        "square": "a2"
+      },
+      "canonical": "pa2"
+    },
+    {
+      "text": "w - N - g6",
+      "parsed": {
+        "color": "w",
+        "type": "n",
+        "square": "g6"
+      },
+      "canonical": "Ng6"
+    },
+    {
+      "text": "﻿Q f8﻿",
+      "parsed": {
+        "color": "w",
+        "type": "q",
+        "square": "f8"
+      },
+      "canonical": "Qf8"
+    },
+    {
+      "text": "Ng6",
+      "parsed": null,
+      "canonical": null
+    },
+    {
+      "text": "Ng6\n",
+      "parsed": {
+        "color": "w",
+        "type": "n",
+        "square": "g6"
+      },
+      "canonical": "Ng6"
+    },
+    {
+      "text": "",
+      "parsed": null,
+      "canonical": null
+    },
+    {
+      "text": "g6",
+      "parsed": null,
+      "canonical": null
+    },
+    {
+      "text": "Xg6",
+      "parsed": null,
+      "canonical": null
+    },
+    {
+      "text": "Ng9",
+      "parsed": null,
+      "canonical": null
+    },
+    {
+      "text": "Nj6",
+      "parsed": null,
+      "canonical": null
+    },
+    {
+      "text": "Ng6g7",
+      "parsed": null,
+      "canonical": null
+    },
+    {
+      "text": "knight g6",
+      "parsed": null,
+      "canonical": null
+    },
+    {
+      "text": "NG6",
+      "parsed": null,
+      "canonical": null
+    }
+  ]
+}

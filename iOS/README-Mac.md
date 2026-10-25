@@ -62,8 +62,8 @@ GitHub publishing and CI remain disabled.
 `Model/Move.swift` ports the validated UCI value and move helpers.
 `Model/Board.swift` ports the board API, including loose SAN playback,
 first-illegal-move detection, missing-piece placement and mating audits, and
-solution replay. `Model/Puzzle.swift` currently contains only the three value
-types required by the board; the puzzle model remains P03 work.
+solution replay. P02 added the three board-facing value types in
+`Model/Puzzle.swift`; P03 extends that file with the puzzle model.
 
 **Decision: keep ChessKit 0.17.0.** It supplies ordinary legal moves; no
 replacement generator is needed for the verified corpus. The adapter supplies
@@ -91,3 +91,35 @@ Verification passes 193 web tests and 31 simulator tests: the 11 original board
 tests, 9 fixture test groups, 4 UCI boundary tests, and 7 configuration tests.
 The fixture covers 62 positions, 27 invalid FENs, 16 UCI parser inputs, 1,601
 move queries, and 2,331 SAN inputs, including a deterministic move walk.
+
+## P03 checkpoint
+
+The puzzle model is ported: puzzle identity and placement notation, ordered
+solution tries, both runners, per-ply hints, seeded queue building, records,
+review/stats, retry progress, library ordering/resumption, import planning, and
+JSON import validation. `Data/Backend.swift` contains only the puzzle-side
+value types needed here. Games arrive in P04 and backend behavior in P05.
+Timestamps use `Int64` epoch milliseconds.
+
+Every current TypeScript case is ported one-for-one: runner 27, missing-piece
+21, session 4, derive 14, library 2, import 18. These are the actual source
+counts; several counts printed in the original plan are outdated. Six extra
+parity groups compare shared outputs and otherwise untested library helpers.
+
+The exporter now generates `content-keys.json`, `import.json`, and
+`puzzle-model.json` alongside the unchanged board fixture. They cover 15
+content keys (compared as UTF-8 bytes), 20 placement strings, 18 import
+payloads, 20 seeded session cases, six runner traces, and library/derive
+outputs. They check author order, defence isolation, queen-only fallback,
+source-number formatting, metadata filtering, dedupe order, file-wide
+rejection indices, and deterministic retry/resume behavior.
+
+One deliberate platform difference: invalid JSON retains rejection index
+`-1` and the exact `Not valid JSON: ` prefix, followed by Foundation's parser
+diagnostic instead of V8's. Other rejection reasons match verbatim. This
+diagnostic is displayed to the user and is never stored as puzzle identity.
+
+Verification passes 193 web tests and 123 simulator tests. The web build and
+lint pass; the existing Vite chunk-size warning remains. The fixture-staleness
+test was also verified to reject modified `content-keys.json`, then the file
+was restored byte-for-byte. No UI changed in this slice.

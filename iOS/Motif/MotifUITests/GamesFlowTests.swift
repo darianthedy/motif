@@ -19,7 +19,8 @@ import XCTest
         button("game-actions").tap(); wait(button("game-edit-comment")); button("game-edit-comment").tap(); let comment = app.textViews["game-comment-text"]; wait(comment); comment.tap(); comment.typeText("English idea")
         button("game-comment-save").tap(); wait(button("game-comment")); XCTAssertTrue(button("game-comment").label.contains("English idea"))
         button("move-1").press(forDuration: 0.7); wait(app.buttons["Make Main Line"])
-        XCTAssertTrue(labelButton("Delete From Here").label.contains("1 move")); capture("move-actions")
+        // The menu shows the count as the item's subtitle, a separate element.
+        wait(labelButton("Delete From Here")); XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS '1 move'")).firstMatch.exists); capture("move-actions")
         app.buttons["Make Main Line"].tap()
         wait(button("move-0")); XCTAssertTrue(button("move-0").label.contains("c4"))
         let before = square("a1").frame.minY

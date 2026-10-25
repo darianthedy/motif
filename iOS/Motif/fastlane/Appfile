@@ -1,0 +1,5 @@
+app_identifier("com.dthedy.Motif")
+team_id("F73L2977Q8") # Developer Portal team ID
+
+# No apple_id / itc_team_id needed: authentication uses an
+# App Store Connect API key (see Fastfile + CI secrets).

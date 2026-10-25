@@ -1,0 +1,77 @@
+name: iOS TestFlight
+
+# Builds the app on a GitHub-hosted macOS runner, signs it with fastlane match,
+# and uploads it to TestFlight. Install the build on your iPhone via the
+# TestFlight app.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   ASC_KEY_ID                    App Store Connect API key ID
+#   ASC_ISSUER_ID                 App Store Connect API issuer ID
+#   ASC_KEY_CONTENT               base64 of the .p8 API key file
+#   MATCH_GIT_URL                 https URL of the PRIVATE certs repo for match
+#   MATCH_PASSWORD                passphrase used to encrypt the match repo
+#   MATCH_GIT_BASIC_AUTHORIZATION base64 of "user:GITHUB_PAT" (read/write to certs repo)
+#   VITE_NEON_BASE_URL            Neon base URL (shared with the Pages deploy)
+# See iOS/README-TestFlight.md for how to create each one.
+
+on:
+  workflow_dispatch: # run manually from the Actions tab
+  push:
+    branches: [main]
+    paths:
+      - "iOS/**"
+      - "!iOS/**/*.md" # doc-only changes shouldn't burn a macOS build
+      - ".github/workflows/ios-testflight.yml"
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    runs-on: macos-26 # carries Xcode 26 (deployment target is iOS 26.1)
+    defaults:
+      run:
+        working-directory: iOS/Motif
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Set up Ruby + fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+          working-directory: iOS/Motif
+
+      - name: Build & upload to TestFlight
+        run: bundle exec fastlane beta
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          NEON_BASE_URL: ${{ secrets.VITE_NEON_BASE_URL }}
+          BUILD_NUMBER: ${{ github.run_number }}
+          # Set repo Variable MATCH_CREATE_CERTS=true for the FIRST run only, so
+          # match creates + stores the App Store profile for this bundle ID
+          # (setup_ci otherwise forces read-only on CI). Delete the variable
+          # after it succeeds; every later run then stays read-only.
+          MATCH_CREATE_CERTS: ${{ vars.MATCH_CREATE_CERTS }}
+          # xcodebuild -showBuildSettings times out on the first invocation in CI
+          # with the default 3s base timeout; increase to 120s to avoid flaky failures.
+          FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: 120
+
+      - name: Upload IPA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Motif-ipa
+          path: iOS/Motif/build/*.ipa
+          if-no-files-found: ignore

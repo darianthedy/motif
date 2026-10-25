@@ -15,3 +15,8 @@ iOS/**/build/
 DerivedData/
 xcuserdata/
 iOS/Motif/Config/Local.xcconfig
+
+# fastlane run output (CI only)
+iOS/Motif/fastlane/report.xml
+iOS/Motif/fastlane/README.md
+iOS/Motif/vendor/

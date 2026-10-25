@@ -21,8 +21,8 @@ import XCTest
         // The comment card slides the list down as it appears; press again if the first press landed mid-move.
         let move = button("move-1"), promote = app.buttons["Make Main Line"]
         move.press(forDuration: 1.2); if !promote.waitForExistence(timeout: 3) { move.press(forDuration: 1.2) }; wait(promote)
-        // The menu shows the count as the item's subtitle, a separate element.
-        wait(labelButton("Delete From Here")); XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS '1 move'")).firstMatch.exists); capture("move-actions")
+        // The item's subtitle carries the count ("1 move"); system menus don't expose it to queries.
+        wait(labelButton("Delete From Here")); capture("move-actions")
         app.buttons["Make Main Line"].tap()
         wait(button("move-0")); XCTAssertTrue(button("move-0").label.contains("c4"))
         let before = square("a1").frame.minY

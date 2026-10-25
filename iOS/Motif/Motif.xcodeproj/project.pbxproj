@@ -5,6 +5,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		F08DBD5061F249A98C152FF0 /* ChessKit in Frameworks */ = {isa = PBXBuildFile; productRef = DBFB8B57FE6E4336ABE50763 /* ChessKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		7928E797B1BB4F73BC95CE01 /* Motif.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Motif.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B7E4087D086A4DAE952365FA /* MotifTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MotifTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -50,7 +54,7 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		6BB6D64085E145FDB6724EAF /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		6BB6D64085E145FDB6724EAF /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (F08DBD5061F249A98C152FF0 /* ChessKit in Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
 		C697337355D04F72B45FB145 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 		F39A1FF1A79F4EEABB2E4841 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
@@ -97,7 +101,7 @@
 			dependencies = ();
 			fileSystemSynchronizedGroups = (B21AD7790E2B4CCBAC5D136C /* Motif */,);
 			name = Motif;
-			packageProductDependencies = ();
+			packageProductDependencies = (DBFB8B57FE6E4336ABE50763 /* ChessKit */,);
 			productName = Motif;
 			productReference = 7928E797B1BB4F73BC95CE01 /* Motif.app */;
 			productType = "com.apple.product-type.application";
@@ -157,7 +161,7 @@
 			knownRegions = (en, Base,);
 			mainGroup = 03B6486D822349D4810590A1;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = ();
+			packageReferences = (2A4A648903594BA6BD037927 /* chesskit-swift */,);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0668CF65E5924B6CB8049F26 /* Products */;
 			projectDirPath = "";
@@ -341,6 +345,25 @@
 		43BF3C46FD014338B89FEA80 = {isa = XCConfigurationList; buildConfigurations = (31B70F54D9D94301AE32F1BE /* Debug */, 1A10EA9A93AE431091DE68D8 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		B15DB9D1F0F245C3BB70F679 = {isa = XCConfigurationList; buildConfigurations = (5E685EF28BD4451BB01E769B /* Debug */, 4D765974B2424C65B246BA6C /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		2A4A648903594BA6BD037927 /* chesskit-swift */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/chesskit-app/chesskit-swift";
+			requirement = {
+				kind = exactVersion;
+				version = 0.17.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		DBFB8B57FE6E4336ABE50763 /* ChessKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2A4A648903594BA6BD037927 /* chesskit-swift */;
+			productName = ChessKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 544B128CB0054C67B81F54E9 /* Project object */;
 }

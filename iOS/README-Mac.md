@@ -52,6 +52,7 @@ The project shell passes 192 web tests and 7 simulator configuration tests.
 The dark and light placeholder screenshots were inspected. CI, fastlane, and
 TestFlight setup remain W1 work, as specified by Mac Mode.
 
-The remaining P01 item is the exact ChessKit Swift package pin and link.
-Mac Mode prohibits GitHub traffic, and no local copy is cached, so its
-read-only download needs clarification before this item can be completed.
+ChessKit is pinned to exactly 0.17.0 and linked to the app target. Its adapter
+and parity tests arrive in P02; only `Model/Board.swift` may import ChessKit.
+Required read-only package downloads are authorized for this workflow.
+GitHub publishing and CI remain disabled.

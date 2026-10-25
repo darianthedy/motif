@@ -123,3 +123,37 @@ Verification passes 193 web tests and 123 simulator tests. The web build and
 lint pass; the existing Vite chunk-size warning remains. The fixture-staleness
 test was also verified to reject modified `content-keys.json`, then the file
 was restored byte-for-byte. No UI changed in this slice.
+
+## P04 checkpoint
+
+The games model is ported: stored game/collection/placement types, PGN reading
+and writing, navigation and immutable edits, collection placement/reordering,
+game titles/search/comment display, and the move table. `Library` now includes
+game collections and games. The stored game remains its PGN string; the tree
+is derived, and all move checking goes through `Board.playSan`.
+
+All 48 current TypeScript tests are ported one-for-one: PGN 17, edit 13, game
+library 5, summary 5, table 8. The plan's PGN test count is outdated.
+Six extra parity groups compare complete parsed trees, exact error messages,
+UTF-8 writer bytes, header-only reads, move-table rows/paths, immutable edit
+traces, summaries/search, comment display, and collection ordering/movement.
+
+`pgn-roundtrip.json` is generated from the real TypeScript model and covers
+86 payloads, three edit sequences with 19 steps, and three deterministic
+60-ply walks. Coverage includes nested variations, comments before/after
+moves, every supported annotation symbol and suffix, unknown numeric NAGs,
+clock/eval commands, escaped and custom headers, FEN/Black-to-move starts,
+results, malformed syntax, and a multi-game file with a broken middle game.
+
+Headers use explicit ordered storage so updates retain their original place
+and extra headers do not churn. The writer orders the seven roster headers
+first, mirrors JavaScript's numeric header-key order, and counts UTF-16 units
+for wrapping, including emoji comments. Header order is also explicit in the
+fixture because Swift's keyed JSON decoder does not retain object order.
+Parsed trees are never used as the cache or persistence representation.
+
+Verification passes 193 web tests and 177 simulator tests. The web build and
+lint pass, with the existing Vite chunk-size warning. The staleness guard was
+verified to reject modified `pgn-roundtrip.json`, then the file was restored
+byte-for-byte. Previous phase fixtures remain unchanged. No UI or networking
+changed in this slice; P05 is the data layer.

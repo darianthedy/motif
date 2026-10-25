@@ -11,7 +11,7 @@ struct GameView: View {
         }.toolbar(.hidden, for: .tabBar)
     }
 }
-private enum GamePanel: String, Identifiable { case comment, details, actions, move; var id: String { rawValue } }
+private enum GamePanel: String, Identifiable { case comment, details; var id: String { rawValue } }
 private struct GameContentView: View {
     let game: Game
     let app: AppState
@@ -20,6 +20,8 @@ private struct GameContentView: View {
     @State private var panel: GamePanel?
     @State private var deleteMove = false
     @State private var deleteGame = false
+    @State private var alternativesHidden = false
+    @State private var alternativesOpen = false
     init(game: Game, app: AppState) {
         self.game = game; self.app = app
         _model = State(initialValue: GameViewModel(game, online: app.store.online) { changes in
@@ -30,36 +32,47 @@ private struct GameContentView: View {
         Group {
             if let tree = model.tree {
                 GeometryReader { geometry in
-                    let width = min(geometry.size.width - 24, geometry.size.height * 0.57)
-                    VStack(spacing: 6) {
-                        let subtitle = gameSubtitle(tree.headers)
-                        if !subtitle.isEmpty { Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                    let width = min(geometry.size.width, geometry.size.height * 0.6)
+                    VStack(spacing: 0) {
                         BoardView(fen: model.fen, orientation: model.orientation, interactive: model.online,
                                   highlight: model.node.map { (moveFrom($0.uci), moveTo($0.uci)) }, onMove: model.play)
                             .frame(width: width, height: width)
-                        if let problem = model.problem { Text(problem).font(.caption).foregroundStyle(.red) }
-                        nextMoves
-                        commentStrip
-                        MoveListView(game: tree, path: model.path, go: model.go, hold: { model.go($0); panel = .move })
+                        if let problem = model.problem { Text(problem).font(.caption).foregroundStyle(.red).padding(.top, 4) }
+                        MoveListView(game: tree, path: model.path, go: model.go, scrolled: hideAlternatives) { moveMenu($0) }
+                            .safeAreaInset(edge: .top, spacing: 0) { commentCard }
+                            .overlay(alignment: .bottomTrailing) { alternatives(tree) }
                             .frame(maxHeight: .infinity)
-                        controls
-                    }.frame(maxWidth: .infinity).padding(.bottom, 6)
-                }.navigationTitle(gameTitle(tree.headers)).navigationBarTitleDisplayMode(.inline)
+                    }.frame(maxWidth: .infinity)
+                }.navigationTitle(gameTitle(tree.headers)).navigationSubtitle(gameSubtitle(tree.headers)).navigationBarTitleDisplayMode(.inline)
             } else {
                 ScrollView { VStack { Text("This game's PGN can't be read.").foregroundStyle(.red); Text(game.pgn).font(.system(.footnote, design: .monospaced)).textSelection(.enabled) }.padding() }
             }
-        }.toolbar { ToolbarItem(placement: .topBarTrailing) { Button { panel = .actions } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Game actions").accessibilityIdentifier("game-actions") } }
+        }.toolbar {
+            ToolbarItem(placement: .topBarTrailing) { Menu { gameMenu } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Game actions").accessibilityIdentifier("game-actions") }
+            if model.tree != nil {
+                ToolbarItem(placement: .bottomBar) { control("Flip board", "arrow.up.arrow.down", disabled: !model.online, action: model.flip) }
+                ToolbarSpacer(.flexible, placement: .bottomBar)
+                ToolbarItemGroup(placement: .bottomBar) {
+                    control("Go to start", "backward.end.fill", disabled: model.path.isEmpty) { model.go([]) }
+                    control("Previous move", "chevron.left", disabled: model.path.isEmpty, action: model.back)
+                    control("Next move", "chevron.right", disabled: model.following.isEmpty, action: model.next)
+                    control("Go to end", "forward.end.fill", disabled: model.following.isEmpty, action: model.end)
+                }
+            }
+        }
             .sheet(item: $panel) { presented in
                 switch presented {
                 case .comment: CommentSheet(title: model.currentName, value: model.node?.comment ?? (model.path.isEmpty ? model.tree?.comment : nil), online: model.online, save: model.comment)
                 case .details: if let tree = model.tree { GameDetailsSheet(headers: tree.headers, online: model.online, save: model.details).environment(app) }
-                case .actions, .move: actions(presented)
                 }
             }
-            .confirmationDialog("Delete this move and every move after it?", isPresented: $deleteMove, titleVisibility: .visible) { Button("Delete from here", role: .destructive) { model.deleteHere(); panel = nil } }
+            .confirmationDialog("Delete this move and every move after it?", isPresented: $deleteMove, titleVisibility: .visible) { Button("Delete from here", role: .destructive) { model.deleteHere() } }
             .confirmationDialog("Delete this game?", isPresented: $deleteGame, titleVisibility: .visible) {
-                Button("Delete game", role: .destructive) { Task { if await app.edit({ try await $0.deleteGames([game.id]) }) { panel = nil; dismiss() } } }
+                Button("Delete game", role: .destructive) { Task { if await app.edit({ try await $0.deleteGames([game.id]) }) { dismiss() } } }
             }
+            .sensoryFeedback(.selection, trigger: model.path)
+            .sensoryFeedback(.error, trigger: model.problem) { _, problem in problem != nil }
+            .onChange(of: model.path) { alternativesHidden = false; alternativesOpen = false }
             .onChange(of: game) { _, next in model.receive(next) }
             .onChange(of: app.store.online) { _, online in model.online = online }
             .focusable().focusEffectDisabled()
@@ -73,59 +86,68 @@ private struct GameContentView: View {
                 #endif
             }
     }
-    private var nextMoves: some View {
-        HStack(spacing: 8) {
-            Text("Next").font(.caption).foregroundStyle(.secondary)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack {
-                    ForEach(Array(model.following.enumerated()), id: \.offset) { index, node in
-                        Button((moveNumber(model.fen, true) ?? "") + " " + node.san) { model.go(model.path + [index]) }.font(.subheadline).buttonStyle(.bordered)
-                    }
-                    if model.following.isEmpty { Text("End of the line").font(.caption).foregroundStyle(.secondary) }
+    /// Only a position with a comment shows the card; the list scrolls beneath it.
+    @ViewBuilder private var commentCard: some View {
+        if !model.comment.isEmpty {
+            Button { panel = .comment } label: {
+                Text(model.comment).font(.subheadline).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 14).padding(.vertical, 12)
+            }.buttonStyle(.plain).disabled(!model.online)
+                .glassEffect(.regular, in: .rect(cornerRadius: 14)).padding(.horizontal, 16).padding(.top, 8)
+                .accessibilityIdentifier("game-comment")
+        }
+    }
+    /// Alternatives to the current move, main line first; capped at three
+    /// until opened, and the cap always keeps the current move in view.
+    @ViewBuilder private func alternatives(_ tree: ParsedGame) -> some View {
+        let parent = Array(model.path.dropLast())
+        let siblings: [MoveNode] = model.path.isEmpty ? [] : parent.isEmpty ? tree.moves : nodeAt(tree, parent)?.children ?? []
+        if siblings.count > 1, !alternativesHidden, let current = model.path.last {
+            let number = moveNumber(fenAt(tree, parent), true) ?? "", cap = 3
+            let shown: [Int] = alternativesOpen || siblings.count <= cap ? Array(siblings.indices) : current < cap ? Array(0..<cap) : Array(0..<cap - 1) + [current]
+            VStack(alignment: .trailing, spacing: 6) {
+                ForEach(shown, id: \.self) { index in
+                    let selected = index == current
+                    Button { model.go(parent + [index]) } label: {
+                        HStack(spacing: 6) { if selected { Image(systemName: "checkmark").font(.caption.bold()) }; Text(number + " " + siblings[index].san) }
+                            .font(.subheadline.weight(selected ? .semibold : .regular)).foregroundStyle(selected ? Color.white : Color.primary)
+                            .padding(.horizontal, 14).frame(height: 36)
+                    }.buttonStyle(.plain)
+                        .glassEffect(selected ? .regular.tint(.motifAccentStrong).interactive() : .regular.interactive(), in: .capsule)
+                        .accessibilityAddTraits(selected ? .isSelected : []).accessibilityIdentifier("alternative-\(index)")
                 }
+                if siblings.count > cap {
+                    Button { withAnimation(.snappy) { alternativesOpen.toggle() } } label: {
+                        HStack(spacing: 4) { Text(alternativesOpen ? "Show less" : "+\(siblings.count - cap) more"); Image(systemName: alternativesOpen ? "chevron.down" : "chevron.up") }
+                            .font(.footnote.weight(.semibold)).foregroundStyle(Color.motifAccentStrong).padding(.horizontal, 12).frame(height: 32)
+                    }.buttonStyle(.plain).glassEffect(.regular.interactive(), in: .capsule).accessibilityIdentifier("alternatives-toggle")
+                }
+            }.padding(.trailing, 16).padding(.bottom, 8).transition(.opacity)
+                .accessibilityElement(children: .contain).accessibilityLabel("Alternatives to this move")
+        }
+    }
+    private func hideAlternatives() { withAnimation(.easeOut(duration: 0.2)) { alternativesHidden = true; alternativesOpen = false } }
+    private func control(_ label: String, _ image: String, disabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(label, systemImage: image, action: action).disabled(disabled).accessibilityIdentifier("game-" + label.lowercased().replacingOccurrences(of: " ", with: "-"))
+    }
+    @ViewBuilder private var gameMenu: some View {
+        if let tree = model.tree {
+            Button("Edit Details", systemImage: "pencil") { panel = .details }
+            Button(commentAction(model.path.isEmpty, model.comment.isEmpty), systemImage: "text.bubble") { panel = .comment }.disabled(!model.online).accessibilityIdentifier("game-edit-comment")
+            Section {
+                Button("Copy PGN", systemImage: "doc.on.doc") { UIPasteboard.general.string = writePgn(tree); app.notice = "PGN copied." }.accessibilityIdentifier("game-copy-pgn")
+                ShareLink(item: PGNExport(text: writePgn(tree), name: gameTitle(tree.headers)), preview: SharePreview(gameTitle(tree.headers))) { Label("Export PGN…", systemImage: "square.and.arrow.up") }.accessibilityIdentifier("game-export-pgn")
             }
-        }.padding(.horizontal, 12).frame(height: 36)
+        }
+        Section { Button("Delete Game", systemImage: "trash", role: .destructive) { deleteGame = true }.disabled(!model.online) }
     }
-    private var commentStrip: some View {
-        Button { panel = .comment } label: {
-            Text(model.comment.isEmpty ? (model.path.isEmpty ? "Add a note on the game" : "Add a comment") : model.comment)
-                .font(.footnote).foregroundStyle(model.comment.isEmpty ? .secondary : .primary).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 14).padding(.vertical, 6)
-        }.buttonStyle(.plain).disabled(!model.online).accessibilityIdentifier("game-comment")
+    /// Acting on a move from its context menu selects it first.
+    @ViewBuilder private func moveMenu(_ cell: Cell) -> some View {
+        let empty = displayComment(cell.node.comment).isEmpty && displayComment(cell.node.before).isEmpty
+        Button(commentAction(false, empty), systemImage: "text.bubble") { model.go(cell.path); panel = .comment }.disabled(!model.online)
+        if !onMainLine(cell.path) { Button("Make Main Line", systemImage: "arrow.up.to.line") { model.go(cell.path); model.promote() }.disabled(!model.online) }
+        Section {
+            Button(role: .destructive) { model.go(cell.path); deleteMove = true } label: { Label("Delete From Here", systemImage: "trash"); Text(countLabel(movesFrom(cell.node), "move")) }.disabled(!model.online)
+        }
     }
-    private var controls: some View {
-        HStack(spacing: 0) {
-            control("Flip board", "arrow.up.arrow.down", disabled: !model.online, action: model.flip)
-            control("Go to start", "backward.end", disabled: model.path.isEmpty) { model.go([]) }
-            control("Previous move", "chevron.left", disabled: model.path.isEmpty, action: model.back)
-            control("Next move", "chevron.right", disabled: model.following.isEmpty, action: model.next)
-            control("Go to end", "forward.end", disabled: model.following.isEmpty, action: model.end)
-            control("Comment", "text.bubble", disabled: !model.online, id: "game-comment-control") { panel = .comment }
-        }.padding(.horizontal, 8).background(.bar)
-    }
-    private func control(_ label: String, _ image: String, disabled: Bool, id: String? = nil, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Image(systemName: image).frame(maxWidth: .infinity).frame(height: 44) }.disabled(disabled).accessibilityLabel(label).accessibilityIdentifier(id ?? "game-" + label.lowercased().replacingOccurrences(of: " ", with: "-"))
-    }
-    private func actions(_ kind: GamePanel) -> some View {
-        NavigationStack {
-            List {
-                if kind == .actions, let tree = model.tree {
-                    Button("Edit details") { panel = .details }
-                    Button("Copy PGN") { UIPasteboard.general.string = writePgn(tree); app.notice = "PGN copied."; panel = nil }.accessibilityIdentifier("game-copy-pgn")
-                    ShareLink(item: PGNExport(text: writePgn(tree), name: gameTitle(tree.headers)), preview: SharePreview(gameTitle(tree.headers))) { Label("Export PGN", systemImage: "square.and.arrow.up") }.accessibilityIdentifier("game-export-pgn")
-                }
-                if let node = model.node {
-                    Section(model.currentName) {
-                        Button("Edit comment") { panel = .comment }.disabled(!model.online)
-                        if !onMainLine(model.path) { Button("Make main line") { model.promote(); panel = nil }.disabled(!model.online) }
-                        Button(role: .destructive) { deleteMove = true } label: {
-                            HStack { Text("Delete from here"); Spacer(); Text(countLabel(movesFrom(node), "move")).foregroundStyle(.secondary) }
-                        }.disabled(!model.online)
-                    }
-                }
-                if kind == .actions { Button("Delete game", role: .destructive) { deleteGame = true }.disabled(!model.online) }
-                OfflineNote()
-            }.navigationTitle(kind == .actions ? "Game actions" : "Move actions").navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { panel = nil } } }
-        }.environment(app).presentationDetents([.medium, .large])
-    }
+    private func commentAction(_ game: Bool, _ empty: Bool) -> String { (empty ? "Add " : "Edit ") + (game ? "Game Note" : "Comment") }
 }

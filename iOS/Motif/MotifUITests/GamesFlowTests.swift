@@ -16,11 +16,14 @@ import XCTest
         launch("game:sample"); wait(square("e2")); XCTAssertTrue(square("e2").label.contains("Pawn"))
         button("game-next-move").tap(); XCTAssertTrue(square("e4").label.contains("Pawn"))
         button("game-go-to-start").tap(); tap("c2"); tap("c4"); wait(button("move-1"))
-        button("game-comment").tap(); let comment = app.textViews["game-comment-text"]; wait(comment); comment.tap(); comment.typeText("English idea")
+        button("game-actions").tap(); wait(button("game-edit-comment")); button("game-edit-comment").tap(); let comment = app.textViews["game-comment-text"]; wait(comment); comment.tap(); comment.typeText("English idea")
         button("game-comment-save").tap(); wait(button("game-comment")); XCTAssertTrue(button("game-comment").label.contains("English idea"))
-        button("move-1").press(forDuration: 0.7); wait(app.buttons["Make main line"])
-        XCTAssertTrue(labelButton("Delete from here").label.contains("1 move")); capture("move-actions")
-        app.buttons["Make main line"].tap()
+        // The comment card slides the list down as it appears; press again if the first press landed mid-move.
+        let move = button("move-1"), promote = app.buttons["Make Main Line"]
+        move.press(forDuration: 1.2); if !promote.waitForExistence(timeout: 3) { move.press(forDuration: 1.2) }; wait(promote)
+        // The item's subtitle carries the count ("1 move"); system menus don't expose it to queries.
+        wait(labelButton("Delete From Here")); capture("move-actions")
+        app.buttons["Make Main Line"].tap()
         wait(button("move-0")); XCTAssertTrue(button("move-0").label.contains("c4"))
         let before = square("a1").frame.minY
         button("game-flip-board").tap(); XCTAssertLessThan(square("a1").frame.minY, before)
@@ -39,7 +42,8 @@ import XCTest
         let title = app.navigationBars.staticTexts["White – Black"]; wait(title)
         XCTAssertGreaterThanOrEqual(banner.frame.minY, title.frame.maxY, app.debugDescription)
         XCTAssertLessThanOrEqual(banner.frame.maxY, square("a8").frame.minY)
-        XCTAssertFalse(button("game-flip-board").isEnabled); XCTAssertFalse(button("game-comment").isEnabled)
+        XCTAssertFalse(button("game-flip-board").isEnabled)
         button("game-next-move").tap(); XCTAssertTrue(square("e4").label.contains("Pawn")); capture("offline-game")
+        button("game-actions").tap(); wait(button("game-edit-comment")); XCTAssertFalse(button("game-edit-comment").isEnabled)
     }
 }

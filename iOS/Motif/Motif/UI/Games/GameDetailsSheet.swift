@@ -1,5 +1,5 @@
 import SwiftUI
-let gameDetailFields: [(String, String)] = [("White", "White"), ("WhiteElo", "White rating"), ("Black", "Black"), ("BlackElo", "Black rating"), ("Event", "Event"), ("Site", "Site"), ("Date", "Date (YYYY.MM.DD)"), ("Round", "Round"), ("Opening", "Opening"), ("ECO", "ECO")]
+let gameDetailFields: [(String, String)] = [("White", "White"), ("WhiteElo", "White rating"), ("Black", "Black"), ("BlackElo", "Black rating"), ("Event", "Event"), ("Site", "Site"), ("Date", "Date"), ("Round", "Round"), ("Opening", "Opening"), ("ECO", "ECO")]
 struct GameDetailsSheet: View {
     @Environment(\.dismiss) private var dismiss
     let headers: PgnHeaders
@@ -15,20 +15,31 @@ struct GameDetailsSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    ForEach(gameDetailFields, id: \.0) { key, label in
-                        TextField(label, text: Binding(get: { values[key] ?? "" }, set: { values[key] = $0 })).accessibilityIdentifier("game-header-" + key)
+                Group {
+                    Section("Players") { fields(["White", "WhiteElo", "Black", "BlackElo"]) }
+                    Section("Result") {
+                        Picker("Result", selection: Binding(get: { values["Result"] ?? "*" }, set: { values["Result"] = $0 })) {
+                            ForEach(["1-0", "1/2-1/2", "0-1", "*"], id: \.self) { Text($0 == "1/2-1/2" ? "½-½" : $0).tag($0) }
+                        }.pickerStyle(.segmented).labelsHidden().accessibilityIdentifier("game-header-Result")
                     }
-                    Picker("Result", selection: Binding(get: { values["Result"] ?? "*" }, set: { values["Result"] = $0 })) {
-                        ForEach(RESULTS, id: \.self) { Text($0 == "*" ? "Unfinished or unknown" : $0).tag($0) }
-                    }
+                    Section("Event") { fields(["Event", "Site", "Date", "Round"]) }
+                    Section("Opening") { fields(["Opening", "ECO"]) }
                 }.disabled(!online)
                 OfflineNote()
             }.editorKeyboard().navigationTitle("Details").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                    ToolbarItem(placement: .confirmationAction) { Button("Save") { save(changes); dismiss() }.disabled(!online) }
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel", systemImage: "xmark", role: .cancel) { dismiss() } }
+                    ToolbarItem(placement: .confirmationAction) { Button("Save", systemImage: "checkmark") { save(changes); dismiss() }.disabled(!online) }
                 }
+        }
+    }
+    private func fields(_ keys: [String]) -> some View {
+        ForEach(keys, id: \.self) { key in
+            let label = gameDetailFields.first { $0.0 == key }?.1 ?? key, rating = key.hasSuffix("Elo")
+            LabeledContent(rating ? "Rating" : label) {
+                TextField(key == "Date" ? "YYYY.MM.DD" : rating ? "Unrated" : "Unknown", text: Binding(get: { values[key] ?? "" }, set: { values[key] = $0 }))
+                    .multilineTextAlignment(.trailing).keyboardType(rating ? .numberPad : .default).accessibilityLabel(label).accessibilityIdentifier("game-header-" + key)
+            }
         }
     }
     private var changes: PgnHeaders {

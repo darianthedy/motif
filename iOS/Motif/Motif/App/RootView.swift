@@ -66,4 +66,6 @@ struct RootView: View {
 }
 extension Color {
     static let motifAccent = Color(red: 0.43, green: 0.67, blue: 0.28)
+    /// Deep enough for white text on it to stay readable.
+    static let motifAccentStrong = Color(red: 0.24, green: 0.48, blue: 0.12)
 }

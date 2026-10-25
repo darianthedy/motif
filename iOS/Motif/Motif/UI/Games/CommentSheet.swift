@@ -15,8 +15,8 @@ struct CommentSheet: View {
                 if !text.isEmpty { Button("Remove comment", role: .destructive) { save(""); dismiss() }.disabled(!online) }
             }.editorKeyboard().navigationTitle("Comment").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                    ToolbarItem(placement: .confirmationAction) { Button("Save") { save(text); dismiss() }.disabled(!online).accessibilityIdentifier("game-comment-save") }
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel", systemImage: "xmark", role: .cancel) { dismiss() } }
+                    ToolbarItem(placement: .confirmationAction) { Button("Save", systemImage: "checkmark") { save(text); dismiss() }.disabled(!online).accessibilityIdentifier("game-comment-save") }
                 }
         }.presentationDetents([.medium, .large])
     }

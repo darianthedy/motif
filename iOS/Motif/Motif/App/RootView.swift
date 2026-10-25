@@ -13,7 +13,19 @@ struct RootView: View {
                     ContentUnavailableView("Motif", systemImage: "square.grid.3x3", description: Text(waitingMessage))
                 } else { ProgressView() }
             case .library:
-                TabView(selection: $app.tab) {
+                #if DEBUG
+                if app.launchRoute == "board" { NavigationStack { BoardSampleView() } } else { tabs }
+                #else
+                tabs
+                #endif
+            }
+        }
+        .tint(.motifAccent)
+        .task { await app.open() }
+    }
+    private var tabs: some View {
+        @Bindable var app = app
+        return TabView(selection: $app.tab) {
                     Tab("Puzzles", systemImage: "puzzlepiece", value: .puzzles) { NavigationStack { PuzzlesHomeView() } }
                     Tab("Games", systemImage: "checkerboard.rectangle", value: .games) { NavigationStack { GamesHomeView() } }
                     Tab("Account", systemImage: "person.crop.circle", value: .account) { NavigationStack { AccountView() } }
@@ -24,10 +36,6 @@ struct RootView: View {
                         if let notice = app.notice { NoticeBanner(text: notice) { app.notice = nil } }
                     }
                 }
-            }
-        }
-        .tint(.motifAccent)
-        .task { await app.open() }
     }
     private var waitingMessage: String {
         if !app.store.online { return "You're offline, and this device has no copy of your library yet. Connect once to download it." }

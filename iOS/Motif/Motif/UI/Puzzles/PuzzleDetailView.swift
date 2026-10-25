@@ -53,7 +53,7 @@ private struct PuzzleDetailContent: View {
                 OfflineNote()
             }.padding()
         }.navigationTitle(puzzle.sourceId.map { "#" + $0 } ?? "Puzzle").navigationBarTitleDisplayMode(.inline)
-            .scrollDismissesKeyboard(.interactively)
+            .scrollDismissesKeyboard(.interactively).editorKeyboard()
             .onChange(of: puzzle) { _, next in model.puzzle = next }
             .confirmationDialog("Delete this puzzle from the library?", isPresented: $deleteConfirmation, titleVisibility: .visible) {
                 Button("Delete puzzle", role: .destructive) { Task { if await app.edit({ try await $0.deletePuzzle(puzzle.id) }) { dismiss() } } }

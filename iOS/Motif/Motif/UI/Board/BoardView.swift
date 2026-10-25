@@ -43,7 +43,7 @@ struct BoardView: View {
                         .frame(width: geometry.size.width, height: geometry.size.width)
                 }
             }.coordinateSpace(name: "motif-board")
-        }.aspectRatio(1, contentMode: .fit).accessibilityIdentifier("chess-board")
+        }.aspectRatio(1, contentMode: .fit)
             .sensoryFeedback(.selection, trigger: interaction.selected)
             .sensoryFeedback(.impact(weight: .light), trigger: moved)
             .sensoryFeedback(.error, trigger: shakeKey)

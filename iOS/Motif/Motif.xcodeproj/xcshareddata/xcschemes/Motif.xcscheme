@@ -18,6 +18,9 @@
          <TestableReference skipped="NO">
             <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="5D1A2E16BBBC4AA28AB45F77" BuildableName="MotifTests.xctest" BlueprintName="MotifTests" ReferencedContainer="container:Motif.xcodeproj"/>
          </TestableReference>
+         <TestableReference skipped="NO">
+            <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="9C90A02867F94971A4292B76" BuildableName="MotifUITests.xctest" BlueprintName="MotifUITests" ReferencedContainer="container:Motif.xcodeproj"/>
+         </TestableReference>
       </Testables>
       <MacroExpansion>
          <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="B481ED9EC4594BA7B3A36D70" BuildableName="Motif.app" BlueprintName="Motif" ReferencedContainer="container:Motif.xcodeproj"/>

@@ -11,7 +11,7 @@ struct CollectionView: View {
             if let library = app.store.library, let collection = library.collections.first(where: { $0.id == collectionId }) {
                 let puzzles = puzzlesIn(library, collectionId), stats = statsFor(puzzles.map(\.id), puzzleRecords(library.attempts))
                 List {
-                    Text("\(stats.total) puzzles · \(stats.solved) solved · \(stats.failed) to review · \(stats.unseen) new").font(.footnote).foregroundStyle(.secondary)
+                    Text("\(countLabel(stats.total, "puzzle")) · \(stats.solved) solved · \(stats.failed) to review · \(stats.unseen) new").font(.footnote).foregroundStyle(.secondary)
                     if let run = runIn(library, collectionId), let current = progressOf(library, run).current, !current.isEmpty {
                         Section("Session in progress") {
                             Text("\(progressOf(library, run).remaining) left")

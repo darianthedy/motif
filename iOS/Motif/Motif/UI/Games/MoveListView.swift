@@ -36,27 +36,38 @@ struct MoveListView: View {
             }.padding(.horizontal, 8).padding(.vertical, 6).background(cell.path == path ? Color.motifAccent.opacity(0.25) : Color.clear, in: RoundedRectangle(cornerRadius: 6))
         }.buttonStyle(.plain).id(moveID(cell.path)).accessibilityIdentifier(moveID(cell.path))
             .accessibilityAddTraits(cell.path == path ? .isSelected : [])
-            .contextMenu { Button("Move actions") { hold(cell.path) } }
-            .onLongPressGesture(minimumDuration: 0.5) { hold(cell.path) }
+            .simultaneousGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in hold(cell.path) })
     }
     private func variation(_ first: Cell, fen: String, depth: Int) -> AnyView {
         let id = moveID(first.path), length = lineLength(first.node)
         let open = folded[id].map { !$0 } ?? (length <= 6 || startsWith(path, first.path))
-        var cells: [(Cell, String?)] = [], branches: [(Cell, String)] = []
-        var node: MoveNode? = first.node, before = fen, at = first.path, count = 0
-        while let current = node, open || count < 5 {
-            cells.append((Cell(node: current, path: at), moveNumber(before, count == 0)))
-            if open {
-                for (index, alternative) in current.children.dropFirst().enumerated() { branches.append((Cell(node: alternative, path: at + [index + 1]), current.fen)) }
+        var segments: [VariationSegment] = [], cells: [(Cell, String?)] = []
+        var siblings = [first.node], before = fen, at = first.path, count = 0
+        while let current = siblings.first, open || count < 5 {
+            cells.append((Cell(node: current, path: at), moveNumber(before, cells.isEmpty)))
+            if open, siblings.count > 1 {
+                // Alternatives follow the move they replace, before its reply.
+                let parent = Array(at.dropLast())
+                let branches = siblings.dropFirst().enumerated().map {
+                    (Cell(node: $0.element, path: parent + [$0.offset + 1]), before)
+                }
+                segments.append(VariationSegment(cells: cells, branches: branches)); cells = []
             }
-            before = current.fen; node = current.children.first; at += [0]; count += 1
+            before = current.fen; siblings = current.children; at += [0]; count += 1
         }
+        if !cells.isEmpty { segments.append(VariationSegment(cells: cells, branches: [])) }
         return AnyView(VStack(alignment: .leading, spacing: 3) {
-            FlowLayout(spacing: 2) { ForEach(cells, id: \.0.path) { cell, number in moveButton(cell, number: number) } }
-            ForEach(branches, id: \.0.path) { cell, position in variation(cell, fen: position, depth: depth + 1) }
+            ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
+                FlowLayout(spacing: 2) { ForEach(segment.cells, id: \.0.path) { cell, number in moveButton(cell, number: number) } }
+                ForEach(segment.branches, id: \.0.path) { cell, position in variation(cell, fen: position, depth: depth + 1) }
+            }
             if length > 6 { Button(open ? "Fold" : "+\(length - 5) moves") { folded[id] = open }.font(.caption) }
         }.padding(.leading, 14).padding(.vertical, 3).background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8)))
     }
+}
+private struct VariationSegment {
+    var cells: [(Cell, String?)]
+    var branches: [(Cell, String)]
 }
 func moveID(_ path: MovePath) -> String { "move-" + path.map(String.init).joined(separator: ".") }
 

@@ -26,16 +26,37 @@ struct RootView: View {
     private var tabs: some View {
         @Bindable var app = app
         return TabView(selection: $app.tab) {
-                    Tab("Puzzles", systemImage: "puzzlepiece", value: .puzzles) { NavigationStack(path: $app.puzzlesPath) { PuzzlesHomeView().navigationDestination(for: PuzzleRoute.self) { route in switch route { case .collection(let id): CollectionView(collectionId: id); case .puzzles(let id): PuzzleListView(collectionId: id); case .puzzle(_, let id): PuzzleDetailView(puzzleId: id) } } } }
-                    Tab("Games", systemImage: "checkerboard.rectangle", value: .games) { NavigationStack(path: $app.gamesPath) { GamesHomeView().navigationDestination(for: GamesRoute.self) { route in switch route { case .collection(let id): GameCollectionView(collectionId: id); case .game(_, let id): GameView(gameId: id) } } } }
-                    Tab("Account", systemImage: "person.crop.circle", value: .account) { NavigationStack { AccountView() } }
+            Tab("Puzzles", systemImage: "puzzlepiece", value: .puzzles) {
+                NavigationStack(path: $app.puzzlesPath) {
+                    PuzzlesHomeView().libraryBanners()
+                        .navigationDestination(for: PuzzleRoute.self) { route in
+                            Group {
+                                switch route {
+                                case .collection(let id): CollectionView(collectionId: id)
+                                case .puzzles(let id): PuzzleListView(collectionId: id)
+                                case .puzzle(_, let id): PuzzleDetailView(puzzleId: id)
+                                }
+                            }.libraryBanners()
+                        }
                 }
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    VStack(spacing: 0) {
-                        OfflineBanner()
-                        if let notice = app.notice { NoticeBanner(text: notice) { app.notice = nil } }
-                    }
+            }
+            Tab("Games", systemImage: "checkerboard.rectangle", value: .games) {
+                NavigationStack(path: $app.gamesPath) {
+                    GamesHomeView().libraryBanners()
+                        .navigationDestination(for: GamesRoute.self) { route in
+                            Group {
+                                switch route {
+                                case .collection(let id): GameCollectionView(collectionId: id)
+                                case .game(_, let id): GameView(gameId: id)
+                                }
+                            }.libraryBanners()
+                        }
                 }
+            }
+            Tab("Account", systemImage: "person.crop.circle", value: .account) {
+                NavigationStack { AccountView().libraryBanners() }
+            }
+        }
     }
     private var waitingMessage: String {
         if !app.store.online { return "You're offline, and this device has no copy of your library yet. Connect once to download it." }

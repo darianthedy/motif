@@ -1,12 +1,12 @@
 # Motif on this Mac
 
-P01 creates the native project shell. Follow `Motif - iOS Build Prompts.md`
+P01–P12 implement the native client. Follow `Motif - iOS Build Prompts.md`
 in order and apply §4 of `Motif - iOS Mac Mode.md`. These prompts can be
 implemented directly in a coding session; the Claude-based driver is optional.
 
 The project has synchronized source folders for `Motif`, `MotifTests`, and
 `MotifUITests`. Adding source files inside them needs no project-file edits.
-The shared `Motif` scheme runs the unit suite; UI flows are added in P12.
+The shared `Motif` scheme runs the native unit suite and simulator UI flows.
 
 ## Open and verify
 
@@ -34,8 +34,8 @@ products and screenshots are saved in the ignored `build/` directory.
 
 `Config/Base.xcconfig` leaves `NEON_BASE_URL` empty and optionally includes
 the ignored `Config/Local.xcconfig`. `AppConfig.neonBaseURL` is `nil` without
-a configured endpoint. The app is a placeholder until the later slices port
-the backend and screens.
+a configured endpoint. The app then uses a durable local dev account. Any email
+and password signs in; its library survives normal relaunches.
 
 For a real endpoint, create `iOS/Motif/Config/Local.xcconfig`:
 
@@ -256,3 +256,44 @@ existing moves versus new branches, subtree deletion, promotion, ordered rapid
 saves, offline refusal, rollback, and comment-command preservation. Viewer,
 variation, comment and details screenshots were inspected in both appearances;
 the board and controls fit, and only the move list scrolls.
+
+## P12 checkpoint — integration and polish
+
+The shared scheme includes nine XCUITest flows against a clean memory account:
+sign-in and paste import, tap/drag solves, wrong moves and hints, stop/resume
+and skip, promotion/cancel, missing-piece/cancel/wrong guess, final opponent
+reply, PGN import/errors/search, game stepping/variation/comment/promotion/
+flip/export, and offline viewing. Squares retain `square-<name>` identifiers.
+The tests exposed and fixed inherited picker identifiers, duplicate comment
+identifiers, and a conflicting long-press recognizer on move buttons.
+Visual review also caught an offline banner covering the navigation title.
+Banners now consume space inside each destination below its navigation bar,
+including full-screen sessions; the offline UI test checks the visible banner
+sits between the title and board.
+
+Nested variations appear beside the move they replace. Move actions show how
+many moves deletion would remove. Editors provide a keyboard Done button;
+JSON/PGN inputs disable autocorrection and automatic capitalization. Counts
+use singular wording for one item. The final opaque 1024 px icon reuses the
+licensed vector knight and can be regenerated with:
+
+```sh
+swift -module-cache-path build/swift-cache scripts/ios-icon.swift
+```
+
+The root README now documents the native client and the deferred W1 pipeline.
+No CI, fastlane, signing secrets, or TestFlight files were added on the Mac.
+
+Verification: `scripts/ios-verify.sh` exited 0 with 193 web tests, 255 native
+unit tests and all 9 UI tests passing. The final Release simulator build also
+passed with the Debug-only hooks excluded. Local logs are
+`build/logs/P12.acceptance.log` and `build/logs/P12.release.acceptance.log`.
+All 34 final dark/light screen captures and 12 passing UI-flow snapshots were
+inspected, including offline titles/banners, input forms, pickers, result cards,
+move actions and the PGN share sheet. They are under
+`build/screenshots/P12-final-*.png` and `P12-acceptance-ui-*.png`.
+
+P01–P12 are complete in Mac Mode. The local trunk is `main-mac`; per-phase
+backups are in `~/motif-backups/`. The transfer bundle is `~/motif-ios.bundle`
+with `main-mac` as its advertised ref. Import it in WSL as described in Mac
+Mode §5, then perform W1 only when publishing and CI are authorized.

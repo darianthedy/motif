@@ -15,10 +15,10 @@ enum GameCollectionMode: String, CaseIterable { case browse, select, reorder }
         let saved: Bool
         if copy {
             let added = copyGames(library, chosen, target)
-            saved = await app.edit({ try await $0.addGames(added) }, done: "Copied \(added.count) games.")
+            saved = await app.edit({ try await $0.addGames(added) }, done: "Copied \(countLabel(added.count, "game")).")
         } else {
             let placements = moveGames(library, chosen, target)
-            saved = await app.edit({ try await $0.placeGames(placements) }, done: "Moved \(placements.count) games.")
+            saved = await app.edit({ try await $0.placeGames(placements) }, done: "Moved \(countLabel(placements.count, "game")).")
         }
         if saved { mode = .browse }; return saved
     }
@@ -54,7 +54,7 @@ struct GameCollectionView: View {
             .confirmationDialog("Delete the selected games?", isPresented: $deletingGames, titleVisibility: .visible) {
                 Button("Delete games", role: .destructive) {
                     let ids = Array(model.selected)
-                    Task { if await app.edit({ try await $0.deleteGames(ids) }, done: "Deleted \(ids.count) games.") { model.mode = .browse } }
+                    Task { if await app.edit({ try await $0.deleteGames(ids) }, done: "Deleted \(countLabel(ids.count, "game")).") { model.mode = .browse } }
                 }
             }
             .task {
@@ -67,7 +67,7 @@ struct GameCollectionView: View {
         let games = gamesIn(library, collectionId), chosen = games.filter { model.selected.contains($0.id) }
         return List {
             Section {
-                Text("\(games.count) games").font(.footnote).foregroundStyle(.secondary)
+                Text(countLabel(games.count, "game")).font(.footnote).foregroundStyle(.secondary)
                 if model.mode == .browse { Button("Add games") { adding = true }.disabled(!app.store.online).accessibilityIdentifier("add-games") }
                 Picker("Mode", selection: $model.mode) {
                     Text("Browse").tag(GameCollectionMode.browse)

@@ -20,7 +20,7 @@ struct SessionView: View {
                         } actions: { Button("Done") { dismiss() } }
                     }
                 } else { Color.clear.onAppear { dismiss() } }
-            }.navigationTitle("Session").navigationBarTitleDisplayMode(.inline)
+            }.libraryBanners().navigationTitle("Session").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Stop") { dismiss() }.accessibilityIdentifier("session-stop") } }
         }
     }

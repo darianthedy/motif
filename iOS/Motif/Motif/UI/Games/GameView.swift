@@ -99,11 +99,11 @@ private struct GameContentView: View {
             control("Previous move", "chevron.left", disabled: model.path.isEmpty, action: model.back)
             control("Next move", "chevron.right", disabled: model.following.isEmpty, action: model.next)
             control("Go to end", "forward.end", disabled: model.following.isEmpty, action: model.end)
-            control("Comment", "text.bubble", disabled: !model.online) { panel = .comment }
+            control("Comment", "text.bubble", disabled: !model.online, id: "game-comment-control") { panel = .comment }
         }.padding(.horizontal, 8).background(.bar)
     }
-    private func control(_ label: String, _ image: String, disabled: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Image(systemName: image).frame(maxWidth: .infinity).frame(height: 44) }.disabled(disabled).accessibilityLabel(label).accessibilityIdentifier("game-" + label.lowercased().replacingOccurrences(of: " ", with: "-"))
+    private func control(_ label: String, _ image: String, disabled: Bool, id: String? = nil, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Image(systemName: image).frame(maxWidth: .infinity).frame(height: 44) }.disabled(disabled).accessibilityLabel(label).accessibilityIdentifier(id ?? "game-" + label.lowercased().replacingOccurrences(of: " ", with: "-"))
     }
     private func actions(_ kind: GamePanel) -> some View {
         NavigationStack {
@@ -113,11 +113,13 @@ private struct GameContentView: View {
                     Button("Copy PGN") { UIPasteboard.general.string = writePgn(tree); app.notice = "PGN copied."; panel = nil }.accessibilityIdentifier("game-copy-pgn")
                     ShareLink(item: PGNExport(text: writePgn(tree), name: gameTitle(tree.headers)), preview: SharePreview(gameTitle(tree.headers))) { Label("Export PGN", systemImage: "square.and.arrow.up") }.accessibilityIdentifier("game-export-pgn")
                 }
-                if model.node != nil {
+                if let node = model.node {
                     Section(model.currentName) {
                         Button("Edit comment") { panel = .comment }.disabled(!model.online)
                         if !onMainLine(model.path) { Button("Make main line") { model.promote(); panel = nil }.disabled(!model.online) }
-                        Button("Delete from here", role: .destructive) { deleteMove = true }.disabled(!model.online)
+                        Button(role: .destructive) { deleteMove = true } label: {
+                            HStack { Text("Delete from here"); Spacer(); Text(countLabel(movesFrom(node), "move")).foregroundStyle(.secondary) }
+                        }.disabled(!model.online)
                     }
                 }
                 if kind == .actions { Button("Delete game", role: .destructive) { deleteGame = true }.disabled(!model.online) }

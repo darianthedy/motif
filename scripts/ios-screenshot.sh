@@ -20,14 +20,14 @@ DERIVED="build/DerivedData"
 OUT="build/screenshots"
 WAIT="${WAIT:-4}"
 
-sim=$(xcrun simctl list devices available | sed -n 's/^ *\(iPhone[^(]*\) (.*/\1/p' | head -1 | sed 's/ *$//')
-[ -n "$sim" ] || { echo "No iPhone simulator available." >&2; exit 1; }
+sim=$(scripts/ios-simulator.sh)
 
 xcrun simctl boot "$sim" 2>/dev/null || true   # already booted is fine
+xcrun simctl bootstatus "$sim" -b
 xcrun simctl ui "$sim" appearance "${APPEARANCE:-dark}"
 
 xcodebuild build -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
-  -destination "platform=iOS Simulator,name=$sim" -derivedDataPath "$DERIVED" \
+  -destination "platform=iOS Simulator,id=$sim" -derivedDataPath "$DERIVED" \
   CODE_SIGNING_ALLOWED=NO -quiet
 
 app="$DERIVED/Build/Products/Debug-iphonesimulator/Motif.app"

@@ -185,3 +185,17 @@ unless NeonBaseURL is configured.
 Verification: 193 web tests and 225 native tests passed. All four shell screens
 were captured and inspected in dark and light appearance under
 `build/screenshots/P06-*.png`; no clipped text or overlapping controls found.
+
+## P07 checkpoint — board
+
+BoardInteraction resolves taps and drags through one legal-move path, defers
+promotion/placement to a cancellable picker, and clears in-flight state for new
+positions. Nine tests cover every §11 interaction guarantee. BoardView adds
+coordinates, target dots/capture rings, selection/last/hint highlights, a lifted
+drag layer, 150 ms motion and subtle selection/move/error haptics. Every square
+has the required `square-<name>` identifier. The twelve preserved SVG assets
+come from the installed react-chessboard package; licence is in PIECES.md.
+
+Verification: 193 web and 234 native tests passed. Dark and light board
+screenshots were inspected: 64 square cells, crisp vector pieces, correct
+orientation and no clipping. Gesture integration is exercised in P12.

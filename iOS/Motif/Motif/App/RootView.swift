@@ -26,7 +26,7 @@ struct RootView: View {
     private var tabs: some View {
         @Bindable var app = app
         return TabView(selection: $app.tab) {
-                    Tab("Puzzles", systemImage: "puzzlepiece", value: .puzzles) { NavigationStack { PuzzlesHomeView() } }
+                    Tab("Puzzles", systemImage: "puzzlepiece", value: .puzzles) { NavigationStack(path: $app.puzzlesPath) { PuzzlesHomeView().navigationDestination(for: PuzzleRoute.self) { route in switch route { case .collection(let id): CollectionView(collectionId: id) } } } }
                     Tab("Games", systemImage: "checkerboard.rectangle", value: .games) { NavigationStack { GamesHomeView() } }
                     Tab("Account", systemImage: "person.crop.circle", value: .account) { NavigationStack { AccountView() } }
                 }

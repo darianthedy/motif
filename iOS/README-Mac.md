@@ -214,3 +214,16 @@ Verification: 193 web and 239 native tests passed. Home, collection, move solve,
 missing-piece solve, clean card and failed card were captured and inspected in
 both appearances. Session screens hide the tab bar and retain enough room for
 the board and card. P12 will exercise gestures and resume through XCUITest.
+
+## P09 checkpoint — puzzle management
+
+JSON file/paste import previews every rejected row and plans single-group
+imports into an existing/new collection or chapter files into separate named
+collections. Re-import updates content in place. Lists filter by status/flag
+without position thumbnails; detail replays each solution and exposes metadata.
+Rename, delete, comment, flag and reset use LibraryStore's online edit path;
+destructive actions have native confirmations. Deeper screens hide the tab bar.
+
+Verification: 193 web and 244 native tests passed, including import targets,
+chapter order, rejection visibility, offline refusal and solution replay.
+All five touched screens were captured and inspected in dark/light mode.

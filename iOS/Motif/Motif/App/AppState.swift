@@ -12,6 +12,7 @@ final class AppState {
     var notice: String?
     var puzzlesPath: [PuzzleRoute] = []
     var session: SessionRoute?
+    var importingPuzzles = false
     var launchRoute: String?
     @ObservationIgnored private let connectivity = Connectivity()
     @ObservationIgnored private let debug: Bool

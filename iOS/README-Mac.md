@@ -157,3 +157,19 @@ lint pass, with the existing Vite chunk-size warning. The staleness guard was
 verified to reject modified `pgn-roundtrip.json`, then the file was restored
 byte-for-byte. Previous phase fixtures remain unchanged. No UI or networking
 changed in this slice; P05 is the data layer.
+
+## P05 checkpoint — data layer
+
+The native account, cookie/JWT auth, PostgREST client, durable dev backend,
+cache, outbox and observable library store are implemented. The 20 shared
+backend cases run against both MemoryBackend and RestBackend over MemoryRest.
+The three source outbox cases are ported; additional tests cover atomic
+concurrent additions, serialized uploads, failed retries, offline launch,
+cache replacement, request shapes, pagination, chunking and cookie/JWT refresh.
+
+Verification: 193 web tests and 223 native tests passed. Four database access
+rules remain web-only: account isolation, foreign-account references,
+user_id spoofing, and immutable-column grants. They require PostgreSQL RLS and
+schema privileges; a native in-memory fake cannot verify those protections.
+No live account or configured endpoint was used. GitHub publishing and CI
+remain disabled.

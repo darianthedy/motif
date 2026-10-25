@@ -1,0 +1,4 @@
+// Shared defaults. Local.xcconfig may point this Mac at the real Neon backend.
+NEON_BASE_URL =
+
+#include? "Local.xcconfig"

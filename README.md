@@ -270,3 +270,24 @@ comment, the motif and every accepted line, with the one you played marked.
 The comment is written for the moment the puzzle resolves, and a clean solve is
 exactly when there is attention left to read it; flashing it for 700ms meant
 the puzzles you understood taught you nothing. Advancing is always a press.
+
+## iOS app
+
+The native Swift 6 / SwiftUI client lives in `iOS/Motif/` and targets iPhone
+portrait on iOS 26.1 or newer. It shares the web app's Neon library and ports the
+same puzzle and PGN rules, checked against generated TypeScript fixtures.
+Without a configured Neon URL, any email/password opens a local dev account.
+Cached puzzles can be solved offline; pending play uploads when connected.
+Library and game edits require a connection.
+
+On a Mac with Xcode 26.1+, open `iOS/Motif/Motif.xcodeproj`, select Motif and an
+iPhone simulator, or run `scripts/ios-verify.sh` under Node 24. The shared scheme
+runs both XCTest and XCUITest; UI tests use a clean memory account. See
+[iOS/README-Mac.md](iOS/README-Mac.md) for configuration, screenshots, device
+signing and local checkpoints. `scripts/ios-icon.swift` regenerates the final
+1024 px opaque icon from the licensed vector knight.
+
+Development here follows [iOS Mac Mode](Motif%20-%20iOS%20Mac%20Mode.md): local
+verification and Git bundles, with publishing and CI disabled. The no-Mac
+GitHub/fastlane/TestFlight pipeline is the later W1 step in that document;
+its workflows and `README-TestFlight.md` are intentionally deferred until W1.

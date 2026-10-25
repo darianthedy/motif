@@ -1,0 +1,12 @@
+# Signing certificates + provisioning profiles are stored, encrypted, in a
+# separate private git repo (set MATCH_GIT_URL) shared with Financial
+# Management. Decryption uses MATCH_PASSWORD.
+# Docs: https://docs.fastlane.tools/actions/match/
+git_url(ENV["MATCH_GIT_URL"])
+storage_mode("git")
+
+type("appstore")
+app_identifier("com.dthedy.Motif")
+
+# On CI we authenticate with an App Store Connect API key, not Apple ID login.
+# (api_key is passed from the Fastfile.)

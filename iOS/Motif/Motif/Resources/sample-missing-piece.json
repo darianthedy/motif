@@ -1,0 +1,29 @@
+{
+  "collection": "Missing pieces",
+  "puzzles": [
+    {
+      "id": 187,
+      "fen": "6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1",
+      "solutions": [],
+      "tags": ["missingPiece", "mateIn1"],
+      "comment": "Add a knight and it's mate. The h-pawn cannot take it: the rook on h1 pins it to the king.",
+      "add_piece": "Ng6"
+    },
+    {
+      "id": 188,
+      "fen": "7k/5p1p/6p1/8/8/8/8/K5R1 b - - 0 1",
+      "solutions": [],
+      "tags": ["missingPiece", "mateIn1"],
+      "comment": "A rook on f8 checks too — and the king walks out to g7. Only the queen covers the flight square as well.",
+      "add_piece": "Qf8"
+    },
+    {
+      "id": 189,
+      "fen": "1k5r/ppp5/3P4/P7/1P1B4/8/6PP/6RK w - - 0 1",
+      "solutions": [],
+      "tags": ["missingPiece", "mateIn1"],
+      "comment": "The first puzzle with the colours reversed: the piece to add is Black's, so its letter is lower case.",
+      "add_piece": "ng3"
+    }
+  ]
+}

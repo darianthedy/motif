@@ -1,0 +1,59 @@
+name: iOS CI
+
+# The PR check for the native app: builds it for an iPhone simulator and runs
+# MotifTests + MotifUITests against the in-memory dev backend (no secrets, no
+# signing). Also runs the web suite, whose fixture check fails when a TS model
+# change has left the committed iOS parity fixtures stale.
+
+on:
+  pull_request:
+    paths:
+      - "iOS/**"
+      - "src/model/**"
+      - "scripts/export-ios-fixtures.ts"
+      - "scripts/ios-*.sh"
+      - ".github/workflows/ios-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ios-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+
+  ios:
+    runs-on: macos-26 # carries Xcode 26 (deployment target is iOS 26.1)
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      # The same script the Mac used for every slice: it picks an available
+      # iPhone simulator on the selected Xcode's runtime, so a renamed device
+      # on the runner image doesn't break the check.
+      - name: Build and test on a simulator
+        run: scripts/ios-verify.sh --ios
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Motif-xcresult
+          path: build/DerivedData/Logs/Test/*.xcresult
+          if-no-files-found: ignore

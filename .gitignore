@@ -7,3 +7,11 @@ node_modules/.tmp/
 
 .env
 .env.local
+
+# iOS (Mac mode builds into build/; see "Motif - iOS Mac Mode.md")
+/build/
+iOS/**/build/
+*.xcresult
+DerivedData/
+xcuserdata/
+iOS/Motif/Config/Local.xcconfig

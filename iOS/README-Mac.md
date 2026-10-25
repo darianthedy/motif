@@ -199,3 +199,18 @@ come from the installed react-chessboard package; licence is in PIECES.md.
 Verification: 193 web and 234 native tests passed. Dark and light board
 screenshots were inspected: 64 square cells, crisp vector pieces, correct
 orientation and no clipping. Gesture integration is exercised in P12.
+
+## P08 checkpoint — solving
+
+The puzzles front page, collections and full-screen sessions support ordered,
+shuffled, global random and review queues, scope replacement, resume, flag,
+skip and explicit Continue. SolveModel owns each attempt's board, asked-from
+positions and cancellable reply task. Replies wait 450 ms; result disclosure
+waits a further 150 ms for motion. Comments, tags and accepted lines appear only
+on the result card, with the played line and grouped SAN misses. Missing-piece
+attempts reveal the placed answer on completion.
+
+Verification: 193 web and 239 native tests passed. Home, collection, move solve,
+missing-piece solve, clean card and failed card were captured and inspected in
+both appearances. Session screens hide the tab bar and retain enough room for
+the board and card. P12 will exercise gestures and resume through XCUITest.

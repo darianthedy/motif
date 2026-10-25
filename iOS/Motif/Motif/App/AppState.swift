@@ -10,6 +10,8 @@ final class AppState {
     let usingDevAccount: Bool
     var tab = AppTab.puzzles
     var notice: String?
+    var puzzlesPath: [PuzzleRoute] = []
+    var session: SessionRoute?
     var launchRoute: String?
     @ObservationIgnored private let connectivity = Connectivity()
     @ObservationIgnored private let debug: Bool
@@ -42,8 +44,14 @@ final class AppState {
         if !debug { connectivity.start(store) }
         await store.open()
     }
+    func begin(_ scope: String, _ mode: SessionMode, _ ids: [String]) async {
+        guard !ids.isEmpty else { return }
+        let run = Run(id: newID(), scope: scope, mode: mode, queue: makeQueue(mode, ids), startedAt: epochMilliseconds())
+        do { try await store.startRun(run); session = SessionRoute(scope: scope) }
+        catch { notice = error.localizedDescription }
+    }
     func signOut() async {
-        do { try await store.signOut(); tab = .puzzles; launchRoute = nil }
+        do { try await store.signOut(); tab = .puzzles; launchRoute = nil; puzzlesPath = []; session = nil }
         catch { notice = error.localizedDescription }
     }
     @discardableResult

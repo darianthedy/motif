@@ -12,6 +12,12 @@ import { makeQueue, orderForGlobalDraw } from '../src/model/session';
 import { puzzleRecords, recentIds, runProgress } from '../src/model/derive';
 import { allPuzzles, collectionsOf, planImport, progressOf, puzzlesIn, resumable, runIn } from '../src/model/library';
 import type { Attempt, Library, Run } from '../src/data/backend';
+import * as pgn from '../src/model/games/pgn';
+import * as edit from '../src/model/games/edit';
+import * as table from '../src/model/games/table';
+import * as summary from '../src/model/games/summary';
+import * as gameLibrary from '../src/model/games/library';
+import type { Game } from '../src/model/games/game';
 
 export const fixtureDirectory = fileURLToPath(
   new URL('../iOS/Motif/MotifTests/Fixtures/', import.meta.url),
@@ -313,11 +319,162 @@ function generatePuzzleModel() {
     emptyIdResume: { input: emptyIdLibrary, expected: resumable(emptyIdLibrary, 'c') } };
 }
 
-/** Importers regenerate in memory without writing. P04 extends this map. */
+const annotatedPgn = `[Event "Club night"]
+[Site "?"]
+[Date "2024.03.??"]
+[Round "?"]
+[White "Me"]
+[Black "Them"]
+[Result "1-0"]
+
+{An old favourite.} 1. e4 e5 (1... c5 {Sicilian} 2. Nf3 (2. c3) d6) 2. Nf3! Nc6
+3. Bb5 $1 a6 (3... Nf6 4. O-O) 4. Ba4 ; to the end of the line
+Nf6 1-0
+`;
+
+function pgnInputs() {
+  const fen = '6k1/5ppp/8/8/8/8/5PPP/R5K1 b - - 0 30';
+  const inputs = [
+    { name: 'annotated', input: annotatedPgn },
+    { name: 'black-fen-start', input: `[SetUp "1"]\n[FEN "${fen}"]\n\n30... h6 31. Ra8+ Kh7 *` },
+    { name: 'variation-before', input: '1. e4 ({or} 1. d4 d5) e5 *' },
+    { name: 'loose-moves', input: '1.e4 e5 2.Nf3 Nc6 3.Bc4 Bc5 4.0-0 Nf6!? *' },
+    { name: 'glyph-words', input: '1. e4 e5 = 2. Nf3 ⩱ (2. Qh5 ⨀) Nc6 +/- 3. Bb5 -+ *' },
+    { name: 'nested-variations', input: '1. e4 e5 (1... c5 2. Nf3 (2. c3 (2. Nc3)) d6 (2... Nc6)) (1... e6) 2. Nf3 *' },
+    { name: 'comments-and-commands', input: '{  A   note  } 1. e4 {[%clk 0:03:12] Good move [%eval 0.4]} {more} e5 ; line note\n2. Nf3 *' },
+    { name: 'roster-order-and-extra-headers', input: '[Zed "first"]\n[Black "B"]\n[Opening "Second"]\n[White "A"]\n[Zed "updated"]\n[Event "Night"]\n\n1. e4 *' },
+    { name: 'numeric-header-order', input: '[10 "ten"]\n[2 "two"]\n[01 "one"]\n[X "x"]\n[Result "*"]\n\n1. e4 *' },
+    { name: 'header-escapes', input: '[Event "The \\"Open\\""]\n[Annotator "A\\\\B"]\n\n1. e4 *' },
+    { name: 'empty-fen-and-result', input: '[FEN ""]\n[Result ""]\n\n1. e4 1-0' },
+    { name: 'header-result-wins', input: '[Result "1-0"]\n\n1. e4 0-1' },
+    { name: 'white-row-break', input: '1. e4 (1. d4 d5) 1... e5 2. Nf3 *' },
+    { name: 'black-row-break', input: '1. e4 e5 (1... c5 2. Nf3) (1... e6) 2. Nf3 *' },
+    { name: 'white-fen', input: `${kings} w - - 0 1` },
+    { name: 'bare-black-fen', input: fen },
+    { name: 'promotion', input: '[FEN "4k3/P7/8/8/8/8/8/4K3 w - - 0 1"]\n\n1. a8=N *' },
+    { name: 'en-passant', input: '[FEN "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 13"]\n\n13. exd6 *' },
+    { name: 'multi-broken-game', input: '[White "A"]\n\n1. e4 e5 1-0\n\n[White "B"]\n\n1. e4 e4 *\n\n[White "C"]\n\n1. d4 *\n' },
+    { name: 'no-result-between-games', input: '[White "A"]\n\n1. e4\n[White "B"]\n\n1. d4\n' },
+    { name: 'bom-escaped-line', input: '\uFEFF% exporter text\n[Event "A"]\n\n1. e4 *' },
+    { name: 'ecmascript-whitespace', input: '{a\uFEFFb\u00A0c}\uFEFF1.e4\u00A0e5\u2028*' },
+    { name: 'unicode-wrap', input: `{${'♞😀 '.repeat(11)}} 1. e4 {${'idea 😀 '.repeat(9)}} e5 (1... c5 {${'line '.repeat(18)}}) 2. Nf3 *` },
+    { name: 'fools-mate', input: '1. f3 e5 2. g4 Qh4# 0-1' },
+    ...['1-0', '0-1', '1/2-1/2', '*'].map((result) => ({ name: `result-${result}`, input: `1. e4 e5 ${result}` })),
+    ...['', ' \n', '*', '[Event "Only headers"]', '1. e4',
+      '1. e4 (1. d4', '1. e4 ) *', '1. e4 {oops', '1. e4 $x *',
+      '$1 1. e4 *', '(1. e4) *', '1. e4 (1. d4 1-0) *', '[White A]\n1. e4',
+      '[FEN "bad"]\n\n*', '1. e4 } *', '1. e4 ] *',
+    ].map((input, index) => ({ name: `boundary-${index}`, input })),
+  ];
+  // Every supported word glyph, suffix, and unknown numeric glyph survives.
+  for (const symbol of [...Object.values(pgn.NAG_SYMBOLS), '+/=', '=/+', '+/-', '-/+', '+-', '-+', '=+', '+=', '⊙', '△']) {
+    inputs.push({ name: `nag-${symbol}`, input: `1. e4 ${symbol} e5 *` });
+  }
+  for (const suffix of ['!', '?', '!!', '??', '!?', '?!']) {
+    inputs.push({ name: `suffix-${suffix}`, input: `1. e4${suffix} e5 $255 *` });
+  }
+  for (const seed of [1, 42, 2026]) {
+    const chess = new Chess();
+    const rand = seeded(seed);
+    const moves: string[] = [];
+    for (let ply = 0; ply < 60 && !chess.isGameOver(); ply++) {
+      const legal = chess.moves();
+      const san = legal[Math.floor(rand() * legal.length)];
+      const number = pgn.moveNumber(chess.fen(), ply === 0);
+      moves.push(number ? `${number} ${san}` : san);
+      if (ply % 11 === 0) moves.push(`{walk ${ply} [%eval 0.4]} $1`);
+      chess.move(san);
+    }
+    inputs.push({ name: `walk-${seed}`, input: moves.join(' ') + ' *' });
+  }
+  return inputs;
+}
+
+type EditInput =
+  | { kind: 'play'; path: number[]; move: string }
+  | { kind: 'delete'; path: number[] }
+  | { kind: 'promote'; path: number[] }
+  | { kind: 'comment'; path: number[]; text: string }
+  | { kind: 'headers'; changes: Record<string, string> };
+
+function generatePgnRoundtrip() {
+  const cases = pgnInputs().map(({ name, input }) => {
+    const parsed = pgn.parsePgnFile(input);
+    const written = parsed.games.map(pgn.writePgn);
+    return { name, input, parsed, headerNames: parsed.games.map((game) => Object.keys(game.headers)),
+      written, reread: written.map(pgn.parsePgnFile), headers: pgn.readHeaders(input),
+      tables: parsed.games.map((game) => table.moveTable(game).map((item) => {
+        const cell = (value: table.Cell | null) => value ? { path: value.path, san: value.node.san } : null;
+        return item.kind === 'row'
+          ? { kind: item.kind, number: item.number, white: cell(item.white), black: cell(item.black) }
+          : { kind: item.kind, fen: item.fen, alternatives: item.alternatives.map(cell) };
+      })) };
+  });
+  const editInputs: { name: string; input: string; operations: EditInput[] }[] = [
+    { name: 'authoring', input: '*', operations: [
+      { kind: 'play', path: [], move: 'e2e4' }, { kind: 'play', path: [0], move: 'e7e5' },
+      { kind: 'play', path: [0], move: 'c7c5' }, { kind: 'play', path: [0, 1], move: 'g1f3' },
+      { kind: 'play', path: [0], move: 'c7c5' }, { kind: 'comment', path: [0, 1], text: '  Sicilian} [%clk 1:00]  ' },
+      { kind: 'promote', path: [0, 1, 0] }, { kind: 'delete', path: [0, 1] },
+      { kind: 'headers', changes: { Zed: ' first ', White: ' A ', Event: '', FEN: 'bad', SetUp: 'bad', Result: '' } },
+    ] },
+    { name: 'nested-promotion', input: '1. e4 e5 (1... c5 2. Nf3 (2. c3 d5) d6) 2. Nf3 *', operations: [
+      { kind: 'promote', path: [0, 1, 1, 0] }, { kind: 'promote', path: [0, 1, 0, 0] },
+      { kind: 'comment', path: [], text: ' a {b} c 😀 ' }, { kind: 'comment', path: [0], text: ' ' },
+      { kind: 'delete', path: [] }, { kind: 'delete', path: [0, 0] },
+    ] },
+    { name: 'illegal-and-invalid-path', input: '1. e4 *', operations: [
+      { kind: 'play', path: [], move: 'e2e5' }, { kind: 'comment', path: [4], text: 'fallback note' },
+      { kind: 'play', path: [4], move: 'd2d4' }, { kind: 'delete', path: [-1] },
+    ] },
+  ];
+  const edits = editInputs.map(({ name, input, operations }) => {
+    let game = pgn.parsePgn(input);
+    return { name, input, steps: operations.map((operation) => {
+      let path: number[] | null = null;
+      let error: string | null = null;
+      try {
+        if (operation.kind === 'play') ({ game, path } = edit.playMove(game, operation.path, move.uci(operation.move)));
+        else if (operation.kind === 'delete') ({ game, path } = edit.deleteFrom(game, operation.path));
+        else if (operation.kind === 'promote') ({ game, path } = edit.promoteVariation(game, operation.path));
+        else if (operation.kind === 'comment') game = edit.setComment(game, operation.path, operation.text);
+        else game = edit.setHeaders(game, operation.changes);
+      } catch (failure) { error = (failure as Error).message; }
+      return { operation: { ...operation,
+        changeNames: operation.kind === 'headers' ? Object.keys(operation.changes) : undefined },
+      game, path, error, written: pgn.writePgn(game), headerNames: Object.keys(game.headers) };
+    }) };
+  });
+  const summaryInputs: Record<string, string>[] = [
+    { White: 'Carlsen', Black: 'Nakamura', Event: 'Open', Result: '1-0', Date: '2024.03.??', ECO: 'C65' },
+    { White: '?', Black: '?', Event: 'Endgame study' }, { Event: '?', Date: '????.??.??', Result: '*' },
+    { White: ' \uFEFFMe ', Black: '...', Opening: 'Ruy Lopez', Date: '2024.3.5.extra' },
+    { White: 'Magnus Carlsen', Black: 'Hikaru Nakamura', Event: 'Tata Steel', Annotator: 'Darian' },
+  ];
+  const summaries = summaryInputs.map((headers) => ({ headers, title: summary.gameTitle(headers), subtitle: summary.gameSubtitle(headers),
+    queries: ['', 'carlsen tata', 'CARLSEN OPEN', ' \uFEFF ', 'darian', 'me lopez'].map((query) =>
+      ({ query, matches: summary.matchesSearch(headers, query) })) }));
+  const comments = [null, '', '[%clk 0:03:12] Good move [%eval 0.4]', 'a [%unknown x] b',
+    'a\uFEFFb\u00A0c', '[%unclosed', '😀 note\n next'].map((comment) =>
+    ({ comment, displayed: summary.displayComment(comment ?? undefined) }));
+  const game = (id: string, collectionId: string, position: number): Game =>
+    ({ id, collectionId, position, pgn: '*', orientation: 'w', addedAt: 0 });
+  const library: Library = { collections: [], puzzles: [], runs: [], attempts: [],
+    gameCollections: [{ id: 'b', name: 'B', createdAt: 1 }, { id: 'a', name: 'A', createdAt: 1 }],
+    games: [game('y', 'a', 3), game('x', 'a', 0), game('z', 'b', 0), game('t', 'a', 3)] };
+  return { version: 1, cases, edits, summaries, comments, library: { input: library,
+    collections: gameLibrary.gameCollectionsOf(library), games: gameLibrary.gamesIn(library, 'a'),
+    moved: gameLibrary.moveGames(library, library.games, 'b'),
+    shifts: library.games.map((game) => ({ id: game.id, up: gameLibrary.shiftGame(library, game, -1),
+      down: gameLibrary.shiftGame(library, game, 1) })) } };
+}
+
+/** Importers regenerate in memory without writing. */
 export function generateFixtures(): Record<string, string> {
   return Object.fromEntries(Object.entries({
     'board.json': generateBoard(), 'content-keys.json': generateContentKeys(),
     'import.json': generateImports(), 'puzzle-model.json': generatePuzzleModel(),
+    'pgn-roundtrip.json': generatePgnRoundtrip(),
   }).map(([name, value]) => [name, `${JSON.stringify(value, null, 2)}\n`]));
 }
 

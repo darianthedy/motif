@@ -47,12 +47,14 @@ struct Attempt: Hashable, Codable, Sendable {
     var playedAt: Int64
 }
 
-/// The account's puzzle library. P04 adds game types; P05 adds backend behavior.
+/// The account's library. Backend behavior arrives in P05.
 struct Library: Equatable, Codable, Sendable {
     var collections: [Collection] = []
     var puzzles: [Puzzle] = []
     var runs: [Run] = []
     var attempts: [Attempt] = []
+    var gameCollections: [GameCollection] = []
+    var games: [Game] = []
 }
 
 func emptyLibrary() -> Library { Library() }

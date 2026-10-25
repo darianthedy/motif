@@ -159,6 +159,13 @@ enum Board {
         return position.cells[square]
     }
 
+    /// One parse for a whole render: cells in `squares` order (a1 first) and
+    /// the side to move. Empty with no side when the FEN cannot load.
+    static func snapshot(_ fen: String) -> (cells: [Piece?], turn: Side?) {
+        guard let position = load(fen) else { return (Array(repeating: nil, count: 64), nil) }
+        return (position.cells, position.side)
+    }
+
     /// The missing-piece counterpart of applyUci: occupied squares and pawn
     /// edge ranks are ordinary mis-hits. Never silently replace an authored piece.
     static func withPiece(_ fen: String, _ placement: Placement) -> String? {

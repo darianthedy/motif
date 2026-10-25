@@ -43,7 +43,11 @@ private struct SessionPuzzle: View {
                 if puzzle.addPiece != nil { MissingPieceSolveView(model: model) { record(model.result, model.mistakes, model.hinted) } }
                 else { PuzzleSolveView(model: model) { record(model.result, model.mistakes, model.hinted) } }
             }.padding()
-        }.toolbar {
+        }
+        // Scroll only when the result card overflows: a scroll view that always
+        // bounces competes with piece drags for every vertical gesture.
+        .scrollBounceBehavior(.basedOnSize)
+        .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button(puzzle.flagged == true ? "Flagged" : "Flag") { Task { _ = await app.edit { try await $0.setFlagged(puzzle.id, puzzle.flagged != true) } } }.disabled(!app.store.online)
                 Button("Skip") { model.cancel(); record(.skipped, 0, false) }.disabled(recording).accessibilityIdentifier("session-skip")

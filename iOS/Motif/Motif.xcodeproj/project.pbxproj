@@ -1,7 +1,8 @@
 // !$*UTF8*$!
 {
 	archiveVersion = 1;
-	classes = {};
+	classes = {
+	};
 	objectVersion = 77;
 	objects = {
 
@@ -9,15 +10,32 @@
 		F08DBD5061F249A98C152FF0 /* ChessKit in Frameworks */ = {isa = PBXBuildFile; productRef = DBFB8B57FE6E4336ABE50763 /* ChessKit */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		E44FD9D20B3B4DA69BC4E36C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 544B128CB0054C67B81F54E9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B481ED9EC4594BA7B3A36D70;
+			remoteInfo = Motif;
+		};
+		EC00A1FB958E4625AF6447D9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 544B128CB0054C67B81F54E9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B481ED9EC4594BA7B3A36D70;
+			remoteInfo = Motif;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		3BD0309D0C1B46E694913B7A /* Config/Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Base.xcconfig; sourceTree = "<group>"; };
+		5C45C83E2B0F4B8A89FA774D /* MotifUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MotifUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7928E797B1BB4F73BC95CE01 /* Motif.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Motif.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B7E4087D086A4DAE952365FA /* MotifTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MotifTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		5C45C83E2B0F4B8A89FA774D /* MotifUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MotifUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		3BD0309D0C1B46E694913B7A /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Base.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		14120493AEBA419E842B2551 /* App exceptions */ = {
+		14120493AEBA419E842B2551 /* Exceptions for "Motif" folder in "Motif" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -30,33 +48,46 @@
 		B21AD7790E2B4CCBAC5D136C /* Motif */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				14120493AEBA419E842B2551 /* App exceptions */,
+				14120493AEBA419E842B2551 /* Exceptions for "Motif" folder in "Motif" target */,
 			);
-			explicitFileTypes = {};
-			explicitFolders = ();
 			path = Motif;
-			sourceTree = "<group>";
-		};
-		C2C926BBACF449538B53B555 /* MotifTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			explicitFileTypes = {};
-			explicitFolders = ();
-			path = MotifTests;
 			sourceTree = "<group>";
 		};
 		BB2B19676A224CF797403D28 /* MotifUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			explicitFileTypes = {};
-			explicitFolders = ();
 			path = MotifUITests;
+			sourceTree = "<group>";
+		};
+		C2C926BBACF449538B53B555 /* MotifTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MotifTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		6BB6D64085E145FDB6724EAF /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (F08DBD5061F249A98C152FF0 /* ChessKit in Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
-		C697337355D04F72B45FB145 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		F39A1FF1A79F4EEABB2E4841 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		6BB6D64085E145FDB6724EAF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F08DBD5061F249A98C152FF0 /* ChessKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C697337355D04F72B45FB145 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F39A1FF1A79F4EEABB2E4841 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -66,7 +97,7 @@
 				B21AD7790E2B4CCBAC5D136C /* Motif */,
 				C2C926BBACF449538B53B555 /* MotifTests */,
 				BB2B19676A224CF797403D28 /* MotifUITests */,
-				3BD0309D0C1B46E694913B7A /* Base.xcconfig */,
+				3BD0309D0C1B46E694913B7A /* Config/Base.xcconfig */,
 				0668CF65E5924B6CB8049F26 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -83,62 +114,75 @@
 		};
 /* End PBXGroup section */
 
-/* Begin PBXContainerItemProxy section */
-		EC00A1FB958E4625AF6447D9 = {isa = PBXContainerItemProxy; containerPortal = 544B128CB0054C67B81F54E9 /* Project object */; proxyType = 1; remoteGlobalIDString = B481ED9EC4594BA7B3A36D70; remoteInfo = Motif; };
-		E44FD9D20B3B4DA69BC4E36C = {isa = PBXContainerItemProxy; containerPortal = 544B128CB0054C67B81F54E9 /* Project object */; proxyType = 1; remoteGlobalIDString = B481ED9EC4594BA7B3A36D70; remoteInfo = Motif; };
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXNativeTarget section */
-		B481ED9EC4594BA7B3A36D70 /* Motif */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = DFD44FDFD2DE485DA651DC12;
-			buildPhases = (
-				17F65FD4F8A94B29A25C3834 /* Sources */,
-				6BB6D64085E145FDB6724EAF /* Frameworks */,
-				334ADCB8A65C4FCFBAB83D5D /* Resources */,
-			);
-			buildRules = ();
-			dependencies = ();
-			fileSystemSynchronizedGroups = (B21AD7790E2B4CCBAC5D136C /* Motif */,);
-			name = Motif;
-			packageProductDependencies = (DBFB8B57FE6E4336ABE50763 /* ChessKit */,);
-			productName = Motif;
-			productReference = 7928E797B1BB4F73BC95CE01 /* Motif.app */;
-			productType = "com.apple.product-type.application";
-		};
 		5D1A2E16BBBC4AA28AB45F77 /* MotifTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 43BF3C46FD014338B89FEA80;
+			buildConfigurationList = 43BF3C46FD014338B89FEA80 /* Build configuration list for PBXNativeTarget "MotifTests" */;
 			buildPhases = (
 				58A7A3C701B74D6BA3255858 /* Sources */,
 				C697337355D04F72B45FB145 /* Frameworks */,
 				17BDF8E3F29E420DB974F52A /* Resources */,
 			);
-			buildRules = ();
-			dependencies = (A7F6B3D197FE4C58A23510CB,);
-			fileSystemSynchronizedGroups = (C2C926BBACF449538B53B555 /* MotifTests */,);
+			buildRules = (
+			);
+			dependencies = (
+				A7F6B3D197FE4C58A23510CB /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C2C926BBACF449538B53B555 /* MotifTests */,
+			);
 			name = MotifTests;
-			packageProductDependencies = ();
+			packageProductDependencies = (
+			);
 			productName = MotifTests;
 			productReference = B7E4087D086A4DAE952365FA /* MotifTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		9C90A02867F94971A4292B76 /* MotifUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = B15DB9D1F0F245C3BB70F679;
+			buildConfigurationList = B15DB9D1F0F245C3BB70F679 /* Build configuration list for PBXNativeTarget "MotifUITests" */;
 			buildPhases = (
 				88741F5EBFE044DD8F733D70 /* Sources */,
 				F39A1FF1A79F4EEABB2E4841 /* Frameworks */,
 				B5940F83EE494DA8933AEB78 /* Resources */,
 			);
-			buildRules = ();
-			dependencies = (C75B80A29D4D41FAA917D2F4,);
-			fileSystemSynchronizedGroups = (BB2B19676A224CF797403D28 /* MotifUITests */,);
+			buildRules = (
+			);
+			dependencies = (
+				C75B80A29D4D41FAA917D2F4 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				BB2B19676A224CF797403D28 /* MotifUITests */,
+			);
 			name = MotifUITests;
-			packageProductDependencies = ();
+			packageProductDependencies = (
+			);
 			productName = MotifUITests;
 			productReference = 5C45C83E2B0F4B8A89FA774D /* MotifUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		B481ED9EC4594BA7B3A36D70 /* Motif */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DFD44FDFD2DE485DA651DC12 /* Build configuration list for PBXNativeTarget "Motif" */;
+			buildPhases = (
+				17F65FD4F8A94B29A25C3834 /* Sources */,
+				6BB6D64085E145FDB6724EAF /* Frameworks */,
+				334ADCB8A65C4FCFBAB83D5D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B21AD7790E2B4CCBAC5D136C /* Motif */,
+			);
+			name = Motif;
+			packageProductDependencies = (
+				DBFB8B57FE6E4336ABE50763 /* ChessKit */,
+			);
+			productName = Motif;
+			productReference = 7928E797B1BB4F73BC95CE01 /* Motif.app */;
+			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
@@ -150,18 +194,31 @@
 				LastSwiftUpdateCheck = 2610;
 				LastUpgradeCheck = 2610;
 				TargetAttributes = {
-					B481ED9EC4594BA7B3A36D70 = {CreatedOnToolsVersion = 26.1; };
-					5D1A2E16BBBC4AA28AB45F77 = {CreatedOnToolsVersion = 26.1; TestTargetID = B481ED9EC4594BA7B3A36D70; };
-					9C90A02867F94971A4292B76 = {CreatedOnToolsVersion = 26.1; TestTargetID = B481ED9EC4594BA7B3A36D70; };
+					5D1A2E16BBBC4AA28AB45F77 = {
+						CreatedOnToolsVersion = 26.1;
+						TestTargetID = B481ED9EC4594BA7B3A36D70;
+					};
+					9C90A02867F94971A4292B76 = {
+						CreatedOnToolsVersion = 26.1;
+						TestTargetID = B481ED9EC4594BA7B3A36D70;
+					};
+					B481ED9EC4594BA7B3A36D70 = {
+						CreatedOnToolsVersion = 26.1;
+					};
 				};
 			};
-			buildConfigurationList = 4574C327D8DA46D9B42F12F7;
+			buildConfigurationList = 4574C327D8DA46D9B42F12F7 /* Build configuration list for PBXProject "Motif" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
-			knownRegions = (en, Base,);
+			knownRegions = (
+				en,
+				Base,
+			);
 			mainGroup = 03B6486D822349D4810590A1;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = (2A4A648903594BA6BD037927 /* chesskit-swift */,);
+			packageReferences = (
+				2A4A648903594BA6BD037927 /* XCRemoteSwiftPackageReference "chesskit-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0668CF65E5924B6CB8049F26 /* Products */;
 			projectDirPath = "";
@@ -175,46 +232,196 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		334ADCB8A65C4FCFBAB83D5D /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		17BDF8E3F29E420DB974F52A /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		B5940F83EE494DA8933AEB78 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		17BDF8E3F29E420DB974F52A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		334ADCB8A65C4FCFBAB83D5D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B5940F83EE494DA8933AEB78 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		17F65FD4F8A94B29A25C3834 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		58A7A3C701B74D6BA3255858 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		88741F5EBFE044DD8F733D70 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		17F65FD4F8A94B29A25C3834 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		58A7A3C701B74D6BA3255858 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		88741F5EBFE044DD8F733D70 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		A7F6B3D197FE4C58A23510CB = {isa = PBXTargetDependency; target = B481ED9EC4594BA7B3A36D70 /* Motif */; targetProxy = EC00A1FB958E4625AF6447D9; };
-		C75B80A29D4D41FAA917D2F4 = {isa = PBXTargetDependency; target = B481ED9EC4594BA7B3A36D70 /* Motif */; targetProxy = E44FD9D20B3B4DA69BC4E36C; };
+		A7F6B3D197FE4C58A23510CB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B481ED9EC4594BA7B3A36D70 /* Motif */;
+			targetProxy = EC00A1FB958E4625AF6447D9 /* PBXContainerItemProxy */;
+		};
+		C75B80A29D4D41FAA917D2F4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B481ED9EC4594BA7B3A36D70 /* Motif */;
+			targetProxy = E44FD9D20B3B4DA69BC4E36C /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		A84C6AB6EF494EEFAF0464EF /* Debug */ = {
+		1A10EA9A93AE431091DE68D8 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3BD0309D0C1B46E694913B7A /* Base.xcconfig */;
 			buildSettings = {
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
-				SDKROOT = iphoneos;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_STRICT_CONCURRENCY = complete;
-				SWIFT_VERSION = 6.0;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = F73L2977Q8;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.MotifTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Motif.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Motif";
+			};
+			name = Release;
+		};
+		2A8C7A6E19D44C7F814DACAF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = F73L2977Q8;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Motif/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Motif;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.Motif;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		31B70F54D9D94301AE32F1BE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = F73L2977Q8;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.MotifTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Motif.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Motif";
+			};
+			name = Debug;
+		};
+		4D765974B2424C65B246BA6C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = F73L2977Q8;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.MotifUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = Motif;
+			};
+			name = Release;
+		};
+		55B85FEEAA024A6FAA216BE4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = F73L2977Q8;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Motif/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Motif;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.Motif;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		5E685EF28BD4451BB01E769B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = F73L2977Q8;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.MotifUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = Motif;
 			};
 			name = Debug;
 		};
 		A1776695A8C347A59241B152 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3BD0309D0C1B46E694913B7A /* Base.xcconfig */;
+			baseConfigurationReference = 3BD0309D0C1B46E694913B7A /* Config/Base.xcconfig */;
 			buildSettings = {
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
@@ -233,121 +440,70 @@
 			};
 			name = Release;
 		};
-		2A8C7A6E19D44C7F814DACAF /* Debug */ = {
+		A84C6AB6EF494EEFAF0464EF /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3BD0309D0C1B46E694913B7A /* Config/Base.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = F73L2977Q8;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Motif/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Motif;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.Motif;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = 1;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
-		};
-		55B85FEEAA024A6FAA216BE4 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = F73L2977Q8;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Motif/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Motif;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.Motif;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = 1;
-			};
-			name = Release;
-		};
-		31B70F54D9D94301AE32F1BE /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = F73L2977Q8;
-				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.MotifTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				TARGETED_DEVICE_FAMILY = 1;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Motif.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Motif";
-			};
-			name = Debug;
-		};
-		1A10EA9A93AE431091DE68D8 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = F73L2977Q8;
-				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.MotifTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				TARGETED_DEVICE_FAMILY = 1;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Motif.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Motif";
-			};
-			name = Release;
-		};
-		5E685EF28BD4451BB01E769B /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = F73L2977Q8;
-				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.MotifUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				TARGETED_DEVICE_FAMILY = 1;
-				TEST_TARGET_NAME = Motif;
-			};
-			name = Debug;
-		};
-		4D765974B2424C65B246BA6C /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = F73L2977Q8;
-				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.MotifUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				TARGETED_DEVICE_FAMILY = 1;
-				TEST_TARGET_NAME = Motif;
-			};
-			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		4574C327D8DA46D9B42F12F7 = {isa = XCConfigurationList; buildConfigurations = (A84C6AB6EF494EEFAF0464EF /* Debug */, A1776695A8C347A59241B152 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		DFD44FDFD2DE485DA651DC12 = {isa = XCConfigurationList; buildConfigurations = (2A8C7A6E19D44C7F814DACAF /* Debug */, 55B85FEEAA024A6FAA216BE4 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		43BF3C46FD014338B89FEA80 = {isa = XCConfigurationList; buildConfigurations = (31B70F54D9D94301AE32F1BE /* Debug */, 1A10EA9A93AE431091DE68D8 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		B15DB9D1F0F245C3BB70F679 = {isa = XCConfigurationList; buildConfigurations = (5E685EF28BD4451BB01E769B /* Debug */, 4D765974B2424C65B246BA6C /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		43BF3C46FD014338B89FEA80 /* Build configuration list for PBXNativeTarget "MotifTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				31B70F54D9D94301AE32F1BE /* Debug */,
+				1A10EA9A93AE431091DE68D8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4574C327D8DA46D9B42F12F7 /* Build configuration list for PBXProject "Motif" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A84C6AB6EF494EEFAF0464EF /* Debug */,
+				A1776695A8C347A59241B152 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B15DB9D1F0F245C3BB70F679 /* Build configuration list for PBXNativeTarget "MotifUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E685EF28BD4451BB01E769B /* Debug */,
+				4D765974B2424C65B246BA6C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DFD44FDFD2DE485DA651DC12 /* Build configuration list for PBXNativeTarget "Motif" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2A8C7A6E19D44C7F814DACAF /* Debug */,
+				55B85FEEAA024A6FAA216BE4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		2A4A648903594BA6BD037927 /* chesskit-swift */ = {
+		2A4A648903594BA6BD037927 /* XCRemoteSwiftPackageReference "chesskit-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/chesskit-app/chesskit-swift";
 			requirement = {
@@ -360,7 +516,7 @@
 /* Begin XCSwiftPackageProductDependency section */
 		DBFB8B57FE6E4336ABE50763 /* ChessKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 2A4A648903594BA6BD037927 /* chesskit-swift */;
+			package = 2A4A648903594BA6BD037927 /* XCRemoteSwiftPackageReference "chesskit-swift" */;
 			productName = ChessKit;
 		};
 /* End XCSwiftPackageProductDependency section */

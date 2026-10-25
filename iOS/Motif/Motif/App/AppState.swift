@@ -11,6 +11,7 @@ final class AppState {
     var tab = AppTab.puzzles
     var notice: String?
     var puzzlesPath: [PuzzleRoute] = []
+    var gamesPath: [GamesRoute] = []
     var session: SessionRoute?
     var importingPuzzles = false
     var launchRoute: String?
@@ -52,7 +53,7 @@ final class AppState {
         catch { notice = error.localizedDescription }
     }
     func signOut() async {
-        do { try await store.signOut(); tab = .puzzles; launchRoute = nil; puzzlesPath = []; session = nil }
+        do { try await store.signOut(); tab = .puzzles; launchRoute = nil; puzzlesPath = []; gamesPath = []; session = nil }
         catch { notice = error.localizedDescription }
     }
     @discardableResult

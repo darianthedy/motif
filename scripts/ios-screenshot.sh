@@ -26,11 +26,16 @@ xcrun simctl boot "$sim" 2>/dev/null || true   # already booted is fine
 xcrun simctl bootstatus "$sim" -b
 xcrun simctl ui "$sim" appearance "${APPEARANCE:-dark}"
 
-xcodebuild build -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
-  -destination "platform=iOS Simulator,id=$sim" -derivedDataPath "$DERIVED" \
-  CODE_SIGNING_ALLOWED=NO -quiet
-
 app="$DERIVED/Build/Products/Debug-iphonesimulator/Motif.app"
+if [ "${IOS_SCREENSHOT_SKIP_BUILD:-0}" != 1 ]; then
+  xcodebuild build -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
+    -destination "platform=iOS Simulator,id=$sim" -derivedDataPath "$DERIVED" \
+    CODE_SIGNING_ALLOWED=NO -quiet
+elif [ ! -d "$app" ]; then
+  echo "No built app. Run without IOS_SCREENSHOT_SKIP_BUILD first." >&2
+  exit 1
+fi
+
 xcrun simctl install "$sim" "$app"
 xcrun simctl terminate "$sim" "$BUNDLE_ID" 2>/dev/null || true
 xcrun simctl launch "$sim" "$BUNDLE_ID" -MotifMemoryBackend YES -MotifSeedSamples YES "$@" >/dev/null

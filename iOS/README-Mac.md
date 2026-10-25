@@ -227,3 +227,17 @@ destructive actions have native confirmations. Deeper screens hide the tab bar.
 Verification: 193 web and 244 native tests passed, including import targets,
 chapter order, rejection visibility, offline refusal and solution replay.
 All five touched screens were captured and inspected in dark/light mode.
+
+## P10 checkpoint — game collections
+
+Games supports collection creation/rename/delete, header search, selection,
+move/copy/delete, neighbour reorder, whole/selected PGN export, pasted or
+multiple-file PGN import with per-game failures, and validated FEN/new-board
+starts. Game ids are assigned locally and GameLibrary supplies positions.
+Exports use Transferable file representations and native ShareLink.
+
+Verification: 193 web and 249 native tests passed. The front page, collection
+and add form were captured and inspected in both appearances. Screenshot
+batches may set `IOS_SCREENSHOT_SKIP_BUILD=1` only after a current passing build;
+the script defaults to building and refuses reuse when no app exists. The game
+viewer is the immediately following P11 slice.

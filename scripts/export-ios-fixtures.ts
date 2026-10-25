@@ -4,7 +4,14 @@ import { fileURLToPath } from 'node:url';
 import { Chess, DEFAULT_POSITION, validateFen } from 'chess.js';
 import * as board from '../src/model/board';
 import * as move from '../src/model/move';
-import type { Placement } from '../src/model/puzzle';
+import { contentKey, normalizeFen, parsePlacement, placementText, solverSide } from '../src/model/puzzle';
+import type { Placement, Puzzle, PuzzleContent } from '../src/model/puzzle';
+import { importJson } from '../src/model/import/json';
+import { PuzzleRunner } from '../src/model/runner';
+import { makeQueue, orderForGlobalDraw } from '../src/model/session';
+import { puzzleRecords, recentIds, runProgress } from '../src/model/derive';
+import { allPuzzles, collectionsOf, planImport, progressOf, puzzlesIn, resumable, runIn } from '../src/model/library';
+import type { Attempt, Library, Run } from '../src/data/backend';
 
 export const fixtureDirectory = fileURLToPath(
   new URL('../iOS/Motif/MotifTests/Fixtures/', import.meta.url),
@@ -156,9 +163,162 @@ function generateBoard() {
   };
 }
 
-/** Add the P03/P04 generators here; importers can regenerate without writing. */
+const missing = '6rk/6pp/8/1p1b4/p7/3P4/PPP5/1K5R b - - 0 1';
+const knight: Placement = { color: 'w', type: 'n', square: 'g6' };
+const puzzleContent = (lines: string[][], fen = mate): PuzzleContent =>
+  ({ fen, solutions: lines.map((line) => line.map(move.uci)), tags: [] });
+const makePuzzle = (content: PuzzleContent, id = 'p', collectionId = 'c', position = 0): Puzzle =>
+  ({ ...content, id, collectionId, position, addedAt: 0 });
+
+function generateContentKeys() {
+  const inputs: PuzzleContent[] = [
+    puzzleContent([['a1a8']]), puzzleContent([['a1b1'], ['a1a8']]),
+    puzzleContent([['a1a8'], ['a1b1']], mate.replace('0 1', '9 42')),
+    puzzleContent([['d1h5', 'g7g6', 'h5g6'], ['d1h5', 'g7g6', 'h5e8']]),
+    puzzleContent([['e7e8']]), puzzleContent([['e7e8q']]), puzzleContent([['e7e8n']]),
+    puzzleContent([[], ['a1a8'], ['a1a8']]),
+    puzzleContent([['a1a8']], ` \uFEFF${mate.replaceAll(' ', '\u00A0\t')} \n`),
+    puzzleContent([], ''), puzzleContent([], `${kings} b`),
+    { ...puzzleContent([], missing), addPiece: knight },
+    { ...puzzleContent([], missing), addPiece: { ...knight, type: 'q' } },
+    { ...puzzleContent([], missing), addPiece: { ...knight, color: 'b' } },
+    { ...puzzleContent([['a1a8']]), comment: 'Unicode ♞ and spoilers', tags: ['mate'], rating: 900, sourceId: '187' },
+  ];
+  const placements = [
+    'Ng6', 'ng6', '  Q f8 ', 'bNg6', 'wng6', 'bg6', 'bBg6', 'pa2',
+    'w - N - g6', '\uFEFFQ\u00A0f8\uFEFF', 'N\u0085g6', 'Ng6\n',
+    '', 'g6', 'Xg6', 'Ng9', 'Nj6', 'Ng6g7', 'knight g6', 'NG6',
+  ].map((text) => {
+    const parsed = parsePlacement(text);
+    return { text, parsed, canonical: parsed ? placementText(parsed) : null };
+  });
+  return { version: 1, cases: inputs.map((input) =>
+    ({ input, key: contentKey(input), normalizedFen: normalizeFen(input.fen), side: solverSide(input) })), placements };
+}
+
+function generateImports() {
+  const entry = { fen: mate, solutions: [['a1a8']] };
+  const single = (puzzles: unknown[], collection: unknown = 'Fixture') =>
+    JSON.stringify({ collection, puzzles });
+  const cases = [
+    { name: 'metadata', text: single([
+      { ...entry, id: 187, tags: ['mate', 7, false, null], comment: '', rating: 900 },
+      { ...entry, solutions: [['a1a7']], id: '12b', tags: 'mate', comment: false, rating: true },
+      { ...entry, solutions: [['a1a6']], id: false, rating: '900' },
+    ]) },
+    { name: 'number-ids', text: single([0, -0, 1.25, 1e-7, 1e-6, 1e20, 1e21, -1e21, 9007199254740992]
+      .map((id) => ({ fen: missing, add_piece: 'Ng6', id, solutions: [] }))) },
+    // Separate groups ensure numeric source ids do not dedupe each other away.
+    { name: 'number-id-groups', text: JSON.stringify([0, -0, 1.25, 1e-7, 1e-6, 1e20, 1e21, -1e21, 9007199254740992]
+      .map((id) => ({ puzzles: [{ ...entry, id }] }))) },
+    { name: 'bad-entries', text: single([
+      null, {}, { fen: 'nonsense' }, { ...entry, solutions: [] },
+      { ...entry, solutions: [['a1a8', 'g8g7']] }, { ...entry, solutions: [['a1z9']] },
+      { ...entry, solutions: [null] }, { ...entry, solutions: [[]] }, { ...entry, solutions: [[7]] },
+      { ...entry, solutions: [['a1b2']] }, { ...entry, solutions: [['a1a8'], ['a1b2']] },
+    ]) },
+    { name: 'normalization', text: single([{ ...entry, solutions: [[' A1A8 ']], add_piece: null }], 7) },
+    { name: 'forced-reply', text: single([
+      { fen: '6k1/5p1p/8/8/8/8/8/3R2K1 w - - 0 1', solutions: [['d1d8', 'g8g7']] },
+      { fen: '1r1k4/2R4R/8/8/8/6pP/PPP4q/K1B5 w - - 0 1', solutions: [['c1g5', 'd8e8', 'h7h8']] },
+      { fen: '2rrk1n1/1nQ1p2N/pB5p/6p1/qP3p2/2P4P/P3BPP1/3R2K1 w - - 0 1', solutions: [['c7d8', 'e8d8', 'd1d8']] },
+    ]) },
+    { name: 'duplicate-order-last-metadata', text: single([
+      { ...entry, tags: ['a'] }, { ...entry, solutions: [['a1a7']] },
+      { ...entry, fen: mate.replace('0 1', '5 9'), tags: ['b'] },
+    ]) },
+    { name: 'multiple-groups', text: JSON.stringify([
+      { collection: 'A', puzzles: [entry] }, { collection: 'B', puzzles: [entry, { fen: 'bad' }] },
+    ]) },
+    { name: 'missing-arrays-indices', text: JSON.stringify([
+      null, 7, {}, { puzzles: [entry] }, { puzzles: 'no' }, { puzzles: [false, entry] },
+    ]) },
+    { name: 'empty-groups', text: JSON.stringify([{ collection: '', puzzles: [] }, { puzzles: [] }]) },
+    { name: 'empty-array', text: '[]' },
+    { name: 'primitive', text: 'null' },
+    { name: 'missing-piece-cases', text: single([
+      { fen: missing, add_piece: 'Ng6' }, { fen: missing, add_piece: 'wng6', solutions: null },
+      { fen: missing, add_piece: 'Ng6', solutions: [['g8g7']] },
+      ...['Kg6', 'Ng7', 'Pg1', 'knight to g6', 7, false, ''].map((add_piece) =>
+        ({ fen: missing, solutions: [], add_piece })),
+    ]) },
+    { name: 'sample-missing-piece', text: readFileSync(fileURLToPath(new URL('../samples/missing-piece.json', import.meta.url)), 'utf8') },
+    ...['{ not json', '', '{"puzzles": [}', '{"puzzles": []} trailing'].map((text, i) =>
+      ({ name: `invalid-json-${i}`, text })),
+  ];
+  return { version: 1, cases: cases.map((input) => ({ ...input, expected: importJson(input.text) })) };
+}
+
+function seeded(seed: number) {
+  let state = seed >>> 0;
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+/** Extra parity for APIs without their own TS tests and exact seeded shuffles. */
+function generatePuzzleModel() {
+  const sessions = [0, 1, 5, 42, 0xffffffff].flatMap((seed) => [0, 1, 6, 50].map((n) => {
+    const ids = Array.from({ length: n }, (_, i) => `p${i}`);
+    const recent = ids.slice(0, 28);
+    return { seed, ids, recent,
+      queues: Object.fromEntries((['ordered', 'randomInCollection', 'randomGlobal', 'reviewMistakes'] as const)
+        .map((mode) => [mode, makeQueue(mode, ids, seeded(seed))])),
+      global: orderForGlobalDraw(ids, recent, seeded(seed)) };
+  }));
+  const runnerInputs = [
+    { lines: [['a1a8'], ['a1a8', 'g8g7', 'a8a7']], moves: ['a1a7', 'a1a7', 'a1a6', 'a1a8', 'a8a7', 'a8h8'] },
+    { lines: [['a1a8', 'g8g7', 'a8a7'], ['a1a8', 'h7h6', 'a8h8']], moves: ['a1a8', 'a8h8', 'a8a7'] },
+    { lines: [['e7e8'], ['e7e8n']], moves: ['e7e8r', 'e7e8q', 'e7e8n'] },
+    { lines: [['e7e8q']], moves: ['e7e8', 'e7e8n', 'e7e8r', 'e7e8q'] },
+    { lines: [['a1a8', 'g8g7'], ['a1a8']], moves: ['a1a8'] },
+    { lines: [], moves: ['a1a7', 'a1a7', 'a1a7'] },
+  ];
+  const runners = runnerInputs.map(({ lines, moves }) => {
+    const puzzle = makePuzzle(puzzleContent(lines));
+    const runner = new PuzzleRunner(puzzle);
+    return { puzzle, moves: moves.map((text) => {
+      const outcome = runner.submit(move.uci(text));
+      const hint = runner.revealHint();
+      return { move: text, outcome, hint, accepted: [...runner.accepted], misses: [...runner.misses],
+        wrongAtThisPly: runner.wrongAtThisPly, complete: runner.complete, hinted: runner.hinted, result: runner.result };
+    }) };
+  });
+  const run: Run = { id: 'run', scope: 'c', mode: 'ordered', queue: ['a', 'b', 'deleted', 'c'], startedAt: 0 };
+  const attempts: Attempt[] = [
+    { id: 'z', puzzleId: 'a', runId: 'run', result: 'failed', mistakes: 2, hinted: true, playedAt: 1 },
+    { id: 'a', puzzleId: 'a', runId: 'run', result: 'solved', mistakes: 0, hinted: false, playedAt: 1 },
+    { id: 'b', puzzleId: 'b', runId: null, result: 'failed', mistakes: 1, hinted: false, playedAt: 2 },
+    { id: 'c', puzzleId: 'b', runId: 'run', result: 'skipped', mistakes: 0, hinted: false, playedAt: 3 },
+  ];
+  const library: Library = { collections: [
+    { id: 'd', name: 'Second', createdAt: 1 }, { id: 'c', name: 'First', createdAt: 1 },
+  ], puzzles: [
+    makePuzzle(puzzleContent([['a1a6']]), 'b', 'c', 0),
+    makePuzzle(puzzleContent([['a1a7']]), 'a', 'c', 0),
+    makePuzzle(puzzleContent([['a1a8']]), 'c', 'd', 2),
+    makePuzzle(puzzleContent([['a1a8']]), 'orphan', 'absent', 0),
+  ], runs: [run], attempts, gameCollections: [], games: [] };
+  const incoming = [puzzleContent([['a1a7']]), puzzleContent([['a1b1']]), puzzleContent([['a1b1']])];
+  const emptyIdLibrary: Library = { ...library,
+    puzzles: [makePuzzle(puzzleContent([['a1a8']]), '', 'c')],
+    runs: [{ ...run, queue: [''] }], attempts: [] };
+  return { version: 1, sessions, runners, library: { input: library, incoming,
+    collections: collectionsOf(library), puzzles: puzzlesIn(library, 'c'), all: allPuzzles(library),
+    run: runIn(library, 'c'), progress: progressOf(library, run), resumable: resumable(library, 'c'),
+    absentResumable: resumable(library, 'absent'), plan: planImport(puzzlesIn(library, 'c'), incoming, 'c'),
+    records: Object.fromEntries(puzzleRecords(attempts)), recent: recentIds(attempts),
+    emptyProgress: runProgress({ ...run, queue: [] }, attempts, new Set()) },
+    emptyIdResume: { input: emptyIdLibrary, expected: resumable(emptyIdLibrary, 'c') } };
+}
+
+/** Importers regenerate in memory without writing. P04 extends this map. */
 export function generateFixtures(): Record<string, string> {
-  return { 'board.json': `${JSON.stringify(generateBoard(), null, 2)}\n` };
+  return Object.fromEntries(Object.entries({
+    'board.json': generateBoard(), 'content-keys.json': generateContentKeys(),
+    'import.json': generateImports(), 'puzzle-model.json': generatePuzzleModel(),
+  }).map(([name, value]) => [name, `${JSON.stringify(value, null, 2)}\n`]));
 }
 
 // Importing this module in vitest performs no writes.

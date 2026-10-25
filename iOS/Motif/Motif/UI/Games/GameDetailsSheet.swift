@@ -24,7 +24,7 @@ struct GameDetailsSheet: View {
                     }
                 }.disabled(!online)
                 OfflineNote()
-            }.navigationTitle("Details").navigationBarTitleDisplayMode(.inline)
+            }.editorKeyboard().navigationTitle("Details").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save") { save(changes); dismiss() }.disabled(!online) }

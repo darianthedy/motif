@@ -32,14 +32,14 @@ struct AddGamesView: View {
             Form {
                 Section("PGN files or pasted PGN") {
                     Button("Choose files") { files = true }
-                    TextEditor(text: $model.text).font(.system(.footnote, design: .monospaced)).frame(minHeight: 170).accessibilityIdentifier("game-import-text")
+                    TextEditor(text: $model.text).autocorrectionDisabled().textInputAutocapitalization(.never).keyboardType(.asciiCapable).font(.system(.footnote, design: .monospaced)).frame(minHeight: 170).accessibilityIdentifier("game-import-text")
                 }
                 if let read = model.read {
                     Section {
-                        Text("\(read.games.count) games read\(read.errors.isEmpty ? "" : " · \(read.errors.count) couldn't be read")")
+                        Text("\(countLabel(read.games.count, "game")) read\(read.errors.isEmpty ? "" : " · \(read.errors.count) couldn't be read")")
                         ForEach(Array(read.errors.enumerated()), id: \.offset) { _, error in Text("game \(error.game): \(error.message)").font(.footnote).foregroundStyle(.red) }
                         if read.games.count <= 5 { ForEach(Array(read.games.enumerated()), id: \.offset) { _, game in Text(gameTitle(game.headers)) } }
-                        Button("Add \(read.games.count) games") { add(false) }.disabled(!app.store.online || read.games.isEmpty || model.busy).accessibilityIdentifier("game-import-add")
+                        Button("Add \(countLabel(read.games.count, "game"))") { add(false) }.disabled(!app.store.online || read.games.isEmpty || model.busy).accessibilityIdentifier("game-import-add")
                     }
                 }
                 Section("Or play one in") {
@@ -48,7 +48,7 @@ struct AddGamesView: View {
                     Button("New game on the board") { add(true) }.disabled(!model.fenCheck.ok || !app.store.online || model.busy).accessibilityIdentifier("game-new-board")
                 }
                 OfflineNote()
-            }.navigationTitle("Add games").navigationBarTitleDisplayMode(.inline).scrollDismissesKeyboard(.interactively)
+            }.navigationTitle("Add games").navigationBarTitleDisplayMode(.inline).scrollDismissesKeyboard(.interactively).editorKeyboard()
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
                 .fileImporter(isPresented: $files, allowedContentTypes: [.chessPGN, .plainText], allowsMultipleSelection: true) { result in
                     do { model.text = try result.get().map(readImportFile).joined(separator: "\n\n") }

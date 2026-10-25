@@ -61,14 +61,14 @@ struct ImportView: View {
             Form {
                 Section("Choose a JSON collection file, or paste one") {
                     Button("Choose a file") { filePicker = true }
-                    TextEditor(text: $model.text).font(.system(.footnote, design: .monospaced)).frame(minHeight: 170).accessibilityIdentifier("puzzle-import-text")
+                    TextEditor(text: $model.text).autocorrectionDisabled().textInputAutocapitalization(.never).keyboardType(.asciiCapable).font(.system(.footnote, design: .monospaced)).frame(minHeight: 170).accessibilityIdentifier("puzzle-import-text")
                         .onChange(of: model.text) { model.parse() }
                 }
                 preview
                 OfflineNote()
             }.navigationTitle("Import puzzles").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
-                .scrollDismissesKeyboard(.interactively)
+                .scrollDismissesKeyboard(.interactively).editorKeyboard()
                 .fileImporter(isPresented: $filePicker, allowedContentTypes: [.json]) { result in
                     do { model.text = try readImportFile(result.get()); model.parse() }
                     catch { app.notice = error.localizedDescription }
@@ -78,14 +78,14 @@ struct ImportView: View {
     @ViewBuilder private var preview: some View {
         if let result = model.result {
             Section {
-                Text("\(model.incoming) puzzles read\(result.rejected.isEmpty ? "" : " · \(result.rejected.count) rejected")")
+                Text("\(countLabel(model.incoming, "puzzle")) read\(result.rejected.isEmpty ? "" : " · \(result.rejected.count) rejected")")
                 ForEach(Array(result.rejected.enumerated()), id: \.offset) { _, reject in
                     Text((reject.index >= 0 ? "row \(reject.index + 1): " : "") + reject.reason).font(.footnote).foregroundStyle(.red)
                 }
             }
             Section("Add to") {
                 if model.multi {
-                    ForEach(Array(result.groups.enumerated()), id: \.offset) { _, group in Text("\(group.name ?? "Imported") · \(group.puzzles.count) puzzles") }
+                    ForEach(Array(result.groups.enumerated()), id: \.offset) { _, group in Text("\(group.name ?? "Imported") · \(countLabel(group.puzzles.count, "puzzle"))") }
                 } else {
                     Picker("Collection", selection: $model.collectionId) {
                         Text("A new collection").tag("")
@@ -93,7 +93,7 @@ struct ImportView: View {
                     }
                     if model.collectionId.isEmpty { TextField("Collection name", text: $model.name).accessibilityIdentifier("import-collection-name") }
                 }
-                Button(model.busy ? "Adding…" : "Add \(model.incoming) puzzles") {
+                Button(model.busy ? "Adding…" : "Add \(countLabel(model.incoming, "puzzle"))") {
                     Task { if await model.apply(app) { dismiss() } }
                 }.disabled(!app.store.online || model.incoming == 0 || model.busy).accessibilityIdentifier("puzzle-import-add")
             }

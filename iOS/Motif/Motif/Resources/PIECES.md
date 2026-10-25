@@ -5,6 +5,10 @@ react-chessboard 5.12.1, as installed by the root lockfile. The native asset
 catalog preserves vector representation. They are rendered from the package's
 React components without redrawing or rasterization.
 
+The app icon reuses the white knight with a Motif background and progress bars.
+Its editable source is `AppIcon.svg`; `scripts/ios-icon.swift` renders the opaque
+1024 px PNG in the asset catalog entirely from local vector data.
+
 Source: https://github.com/Clariity/react-chessboard
 Licence: MIT. Copyright (c) 2022 Ryan Gregory.
 

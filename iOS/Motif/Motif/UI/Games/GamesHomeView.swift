@@ -10,10 +10,10 @@ struct GamesHomeView: View {
             if let library = app.store.library {
                 Section {
                     if library.gameCollections.isEmpty { Text("Nothing here yet. Make a collection, then add games as PGN or play them in on the board.").foregroundStyle(.secondary) }
-                    else { Text("\(library.games.count) games in \(library.gameCollections.count) collections").font(.footnote).foregroundStyle(.secondary) }
+                    else { Text("\(countLabel(library.games.count, "game")) in \(countLabel(library.gameCollections.count, "collection"))").font(.footnote).foregroundStyle(.secondary) }
                     ForEach(gameCollectionsOf(library), id: \.id) { collection in
                         NavigationLink(value: GamesRoute.collection(collection.id)) {
-                            VStack(alignment: .leading) { Text(collection.name); Text("\(gamesIn(library, collection.id).count) games").font(.footnote).foregroundStyle(.secondary) }
+                            VStack(alignment: .leading) { Text(collection.name); Text(countLabel(gamesIn(library, collection.id).count, "game")).font(.footnote).foregroundStyle(.secondary) }
                         }.accessibilityIdentifier("game-collection-" + collection.id)
                     }
                 }

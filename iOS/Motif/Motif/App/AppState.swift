@@ -45,6 +45,9 @@ final class AppState {
     func open() async {
         if !debug { connectivity.start(store) }
         await store.open()
+        #if DEBUG
+        if debug && UserDefaults.standard.bool(forKey: "MotifOffline") { await store.setOnline(false) }
+        #endif
     }
     func begin(_ scope: String, _ mode: SessionMode, _ ids: [String]) async {
         guard !ids.isEmpty else { return }

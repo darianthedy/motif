@@ -13,7 +13,7 @@ struct CommentSheet: View {
             Form {
                 Section(title) { TextEditor(text: $text).frame(minHeight: 150).accessibilityIdentifier("game-comment-text").disabled(!online) }
                 if !text.isEmpty { Button("Remove comment", role: .destructive) { save(""); dismiss() }.disabled(!online) }
-            }.navigationTitle("Comment").navigationBarTitleDisplayMode(.inline)
+            }.editorKeyboard().navigationTitle("Comment").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save") { save(text); dismiss() }.disabled(!online).accessibilityIdentifier("game-comment-save") }

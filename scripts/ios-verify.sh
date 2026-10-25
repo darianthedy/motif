@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Mac mode's definition of "builds": the web suite, then the iOS unit tests on
+# Mac mode's definition of "builds": the web suite, then the iOS unit and UI tests on
 # an iPhone simulator. Exit 0 only when both pass. See "Motif - iOS Mac Mode.md".
 #
 #   scripts/ios-verify.sh            # npm test + xcodebuild test
@@ -33,7 +33,7 @@ else
   # The filter must not decide the result (grep fails on no match), so take
   # xcodebuild's own status from the pipeline.
   set +e
-  "$@" 2>&1 | grep -E 'error:|warning: .*Swift|Test Case .*(passed|failed)|Executed|\*\* (BUILD|TEST)'
+  "$@" 2>&1 | grep --line-buffered -E 'error:|warning: .*Swift|Test Case .*(passed|failed)|Executed|\*\* (BUILD|TEST)'
   status=${PIPESTATUS[0]}
   set -e
   exit "$status"

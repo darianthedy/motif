@@ -27,7 +27,7 @@ struct RootView: View {
         @Bindable var app = app
         return TabView(selection: $app.tab) {
                     Tab("Puzzles", systemImage: "puzzlepiece", value: .puzzles) { NavigationStack(path: $app.puzzlesPath) { PuzzlesHomeView().navigationDestination(for: PuzzleRoute.self) { route in switch route { case .collection(let id): CollectionView(collectionId: id); case .puzzles(let id): PuzzleListView(collectionId: id); case .puzzle(_, let id): PuzzleDetailView(puzzleId: id) } } } }
-                    Tab("Games", systemImage: "checkerboard.rectangle", value: .games) { NavigationStack { GamesHomeView() } }
+                    Tab("Games", systemImage: "checkerboard.rectangle", value: .games) { NavigationStack(path: $app.gamesPath) { GamesHomeView().navigationDestination(for: GamesRoute.self) { route in switch route { case .collection(let id): GameCollectionView(collectionId: id); case .game(_, let id): GamePendingView(gameId: id) } } } }
                     Tab("Account", systemImage: "person.crop.circle", value: .account) { NavigationStack { AccountView() } }
                 }
                 .safeAreaInset(edge: .top, spacing: 0) {

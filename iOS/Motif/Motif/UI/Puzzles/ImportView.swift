@@ -71,7 +71,7 @@ struct ImportView: View {
                 .scrollDismissesKeyboard(.interactively).editorKeyboard()
                 .fileImporter(isPresented: $filePicker, allowedContentTypes: [.json]) { result in
                     do { model.text = try readImportFile(result.get()); model.parse() }
-                    catch { app.notice = error.localizedDescription }
+                    catch { app.error = error.localizedDescription }
                 }
         }
     }

@@ -37,7 +37,6 @@ struct PuzzlesHomeView: View {
             Section {
                 Button("Import puzzles") { app.importingPuzzles = true }.disabled(!app.store.online).accessibilityIdentifier("import-puzzles")
                 Button("Reset progress", role: .destructive) { resetting = true }.disabled(!app.store.online || app.store.library?.attempts.isEmpty != false)
-                OfflineNote()
             }
         }.navigationTitle("Puzzles")
             .sheet(isPresented: $app.importingPuzzles) { ImportView().environment(app) }

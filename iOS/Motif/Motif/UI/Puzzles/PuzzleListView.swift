@@ -27,7 +27,7 @@ struct PuzzleListView: View {
                     }
                 }
             } else { Color.clear.onAppear { dismiss() } }
-        }.navigationTitle("Puzzles").toolbar(.hidden, for: .tabBar)
+        }.navigationTitle("Puzzles")
     }
 }
 func statusLabel(_ status: PuzzleStatus) -> String { switch status { case .unseen: "New"; case .failed: "To review"; case .solved: "Solved" } }

@@ -134,7 +134,7 @@ private struct GameContentView: View {
             Button("Edit Details", systemImage: "pencil") { panel = .details }
             Button(commentAction(model.path.isEmpty, model.comment.isEmpty), systemImage: "text.bubble") { panel = .comment }.disabled(!model.online).accessibilityIdentifier("game-edit-comment")
             Section {
-                Button("Copy PGN", systemImage: "doc.on.doc") { UIPasteboard.general.string = writePgn(tree); app.notice = "PGN copied." }.accessibilityIdentifier("game-copy-pgn")
+                Button("Copy PGN", systemImage: "doc.on.doc") { UIPasteboard.general.string = writePgn(tree); app.showNotice("PGN copied.") }.accessibilityIdentifier("game-copy-pgn")
                 ShareLink(item: PGNExport(text: writePgn(tree), name: gameTitle(tree.headers)), preview: SharePreview(gameTitle(tree.headers))) { Label("Export PGN…", systemImage: "square.and.arrow.up") }.accessibilityIdentifier("game-export-pgn")
             }
         }

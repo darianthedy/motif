@@ -31,7 +31,7 @@ struct CollectionView: View {
                     }
                 }.navigationTitle(collection.name)
             } else { Color.clear.onAppear { dismiss() } }
-        }.toolbar(.hidden, for: .tabBar)
+        }
             .alert("Rename the collection", isPresented: $rename) {
                 TextField("Name", text: $name)
                 Button("Save") {

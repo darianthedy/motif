@@ -20,7 +20,7 @@ struct RootView: View {
                 #endif
             }
         }
-        .tint(.motifAccent)
+        .tint(.motifAccentStrong)
         .task { await app.open() }
     }
     private var tabs: some View {
@@ -57,6 +57,7 @@ struct RootView: View {
                 NavigationStack { AccountView().libraryBanners() }
             }
         }
+        .tabBarMinimizeBehavior(.onScrollDown)
     }
     private var waitingMessage: String {
         if !app.store.online { return "You're offline, and this device has no copy of your library yet. Connect once to download it." }
@@ -65,6 +66,7 @@ struct RootView: View {
     }
 }
 extension Color {
+    /// Fills only (progress, bars): too light for text on white. Text and controls use the app tint, `motifAccentStrong`.
     static let motifAccent = Color(red: 0.43, green: 0.67, blue: 0.28)
     /// Deep enough for white text on it to stay readable.
     static let motifAccentStrong = Color(red: 0.24, green: 0.48, blue: 0.12)

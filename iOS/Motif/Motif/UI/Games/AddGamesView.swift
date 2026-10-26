@@ -52,7 +52,7 @@ struct AddGamesView: View {
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
                 .fileImporter(isPresented: $files, allowedContentTypes: [.chessPGN, .plainText], allowsMultipleSelection: true) { result in
                     do { model.text = try result.get().map(readImportFile).joined(separator: "\n\n") }
-                    catch { app.notice = error.localizedDescription }
+                    catch { app.error = error.localizedDescription }
                 }
         }
     }

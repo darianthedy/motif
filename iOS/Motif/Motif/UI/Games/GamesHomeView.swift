@@ -20,7 +20,6 @@ struct GamesHomeView: View {
             }
             Section {
                 Button("New collection") { name = ""; create = true }.disabled(!app.store.online).accessibilityIdentifier("new-game-collection")
-                OfflineNote()
             }
         }.navigationTitle("Games")
             .alert("Name the collection", isPresented: $create) {

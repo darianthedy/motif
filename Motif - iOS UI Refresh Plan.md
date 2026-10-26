@@ -273,6 +273,31 @@ order, each ending in a PR with `ios-ci` green (it runs `MotifTests` and
   fix loop, merge, TestFlight check (`SKIP_TESTFLIGHT=1` to skip that wait).
 - **By hand:** open a new session in the repo, paste the slice’s **Run** line,
   review the PR, merge, then start the next slice in a new session.
+- **On a Mac:** `scripts/run-ios-ui-prompts-mac.sh` (or `… U04` to resume). It
+  reuses the Mac-mode driver from `Motif - iOS Mac Mode.md`: branch
+  `ios-ui/Uxx` off the local trunk `main-mac`, a fresh session with the
+  Mac-mode override (§4 there), `scripts/ios-verify.sh` as the gate, merge into
+  `main-mac`, backup bundle in `~/motif-backups/`. Nothing is pushed.
+
+### On a Mac
+
+Setup is §2 of `Motif - iOS Mac Mode.md`; the differences for these slices:
+
+1. Merge this plan to `main` first, then on the Mac:
+   `git switch main && git pull && git switch -c main-mac` (or reset an existing
+   `main-mac` to `main`), so the trunk starts from the current app.
+2. Run `scripts/run-ios-ui-prompts-mac.sh`. Every slice is a UI slice, so every
+   session screenshots the screens it touched with `scripts/ios-screenshot.sh`
+   (light and dark) and compares them with the mockup boards the slice names,
+   not with the web app. CI isn’t available on the Mac, so `ios-verify.sh`
+   (`npm test` + `MotifTests` + `MotifUITests` on a simulator) stands in for it.
+3. Bringing the work back follows §5 of the Mac Mode doc (bundle `main-mac`,
+   fetch it in WSL as `ios-mac`). Unlike the first Mac run, the pipeline already
+   exists, so in WSL just push `ios-mac`, open one PR, get `ios-ci` green and
+   merge; TestFlight follows from `main` as usual.
+
+Slices can also be split: run some on the Mac and the rest from WSL, as long as
+`main-mac` has been merged back before the WSL runner starts the next slice.
 
 ### Shared rules (inlined into every slice)
 

@@ -118,6 +118,10 @@ scripts/run-ios-prompts-mac.sh          # P01…P12
 scripts/run-ios-prompts-mac.sh P05      # restart at P05
 ```
 
+The UI refresh slices (U01–U10 of `Motif - iOS UI Refresh Plan.md`) run through
+the same driver with `scripts/run-ios-ui-prompts-mac.sh`; §8 of that plan has
+the differences.
+
 For each prompt the driver:
 
 1. branches `ios/Pxx` off the trunk `main-mac`;

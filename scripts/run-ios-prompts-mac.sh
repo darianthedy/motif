@@ -21,14 +21,18 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # --- config -----------------------------------------------------------------
-DOC="Motif - iOS Build Prompts.md"
+# DOC, PROMPT_IDS, BRANCH_PREFIX and SPEC_RULE can be overridden from the
+# environment so other prompt docs (e.g. the UI refresh) reuse this driver.
+DOC="${DOC:-Motif - iOS Build Prompts.md}"
 MAC_DOC="Motif - iOS Mac Mode.md"
 TRUNK="main-mac"
-PROMPTS="P01 P02 P03 P04 P05 P06 P07 P08 P09 P10 P11 P12"
+PROMPTS="${PROMPT_IDS:-P01 P02 P03 P04 P05 P06 P07 P08 P09 P10 P11 P12}"
+BRANCH_PREFIX="${BRANCH_PREFIX:-ios/}"
+SPEC_RULE="${SPEC_RULE:-The TypeScript in src/ is the spec; port it, do not redesign it.}"
 MAX_FIX_ATTEMPTS=3
 BACKUPS="$HOME/motif-backups"
 CLAUDE_FLAGS="--dangerously-skip-permissions"
-START_AT="${1:-P01}"
+START_AT="${1:-${PROMPTS%% *}}"
 
 # --- helpers ----------------------------------------------------------------
 log() { printf '\n\033[1;36m[%s] %s\033[0m\n' "$(date +%H:%M:%S)" "$*"; }
@@ -98,7 +102,7 @@ for P in $PROMPTS; do
   [ "$P" = "$START_AT" ] && started=1
   [ "$started" = 1 ] || { log "skip $P (starting at $START_AT)"; continue; }
 
-  branch="ios/$P"
+  branch="$BRANCH_PREFIX$P"
   logf="$BACKUPS/logs/$P.log"
   : > "$logf"
 
@@ -109,8 +113,8 @@ for P in $PROMPTS; do
   base=$(git rev-parse HEAD)
 
   run_claude "In this repo, read \"$DOC\", find prompt $P, and follow its **Run** line — \
-read the §refs it cites and implement ONLY the $P slice, no more, no less. The TypeScript \
-in src/ is the spec; port it, don't redesign it. $OVERRIDE" "$logf"
+read the §refs it cites and implement ONLY the $P slice, no more, no less. $SPEC_RULE \
+$OVERRIDE" "$logf"
 
   [ "$(git rev-parse HEAD)" != "$base" ] || die "$P produced no commits (log: $logf)"
   [ -z "$(git status --porcelain)" ] || { git add -A && git commit -qm "$P: uncommitted leftovers"; }

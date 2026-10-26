@@ -4,7 +4,9 @@ struct RootView: View {
     @Environment(AppState.self) private var app
     var body: some View {
         @Bindable var app = app
-        Group {
+        // Not a Group: a Group hands `.task` to each branch, so every root change
+        // reopened the store and raced a second refresh against the first taps.
+        ZStack {
             switch app.root {
             case .unknown: Color(.systemBackground)
             case .signedOut: SignInView()

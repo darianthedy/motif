@@ -3,7 +3,9 @@ import XCTest
 @MainActor final class PuzzlesHomeFlowTests: FlowTestCase {
     func testRowMenuRenamesAndSwipeDeletesACollection() {
         launch(); let row = button("collection-sample-back-rank"); wait(row); capture("puzzles-home")
-        row.press(forDuration: 1.2); let rename = labelButton("Rename"); wait(rename); rename.tap()
+        row.press(forDuration: 1.2)
+        // Exact label: "Rename collection" inside the collection must not stand in for the row menu.
+        let rename = app.buttons["Rename…"]; wait(rename); rename.tap()
         let field = app.alerts.textFields.firstMatch; wait(field); field.tap()
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 60) + "Renamed set")
         app.alerts.buttons["Save"].tap(); wait(labelButton("Renamed set"))

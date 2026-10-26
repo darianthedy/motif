@@ -8,7 +8,9 @@ struct PuzzlesHomeView: View {
     @State private var deleting: Collection?
     var body: some View {
         @Bindable var app = app
-        Group {
+        // One container for both states so the launch route, sheet and cover
+        // aren't re-attached (and re-run or dismissed) when the first import lands.
+        ZStack {
             if let library = app.store.library, !library.collections.isEmpty {
                 List {
                     if !library.puzzles.isEmpty { practice(library) }

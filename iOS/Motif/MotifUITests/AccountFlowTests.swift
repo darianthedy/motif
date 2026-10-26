@@ -3,6 +3,9 @@ import XCTest
 @MainActor final class AccountFlowTests: FlowTestCase {
     func testAvatarOpensAccountAndResetClearsProgress() {
         launch("session:all"); tap("a1"); tap("a8"); wait(app.staticTexts["result-verdict"])
+        // The attempt is recorded on Continue, not when the card appears.
+        button("result-continue").tap()
+        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.staticTexts["result-verdict"]); waitForExpectations(timeout: 10)
         button("session-stop").tap(); wait(button("account")); button("account").tap()
         let reset = button("reset-progress"); wait(reset); XCTAssertTrue(reset.isEnabled)
         XCTAssertTrue(app.descendants(matching: .any)["account-email"].label.contains("sample@motif.local"))

@@ -10,7 +10,9 @@ import XCTest
         let reset = button("reset-progress"); wait(reset); XCTAssertTrue(reset.isEnabled)
         XCTAssertTrue(app.descendants(matching: .any)["account-email"].label.contains("sample@motif.local"))
         capture("account")
-        reset.tap(); let confirm = app.buttons["Reset Progress"]; wait(confirm); capture("account-reset"); confirm.tap()
+        // The confirmation dialog's action shows up more than once in the tree; tap the one on screen.
+        reset.tap(); let confirms = app.buttons.matching(NSPredicate(format: "label == %@", "Reset Progress")); wait(confirms.firstMatch); capture("account-reset")
+        let confirm = confirms.allElementsBoundByIndex.first(where: \.isHittable); XCTAssertNotNil(confirm, app.debugDescription); confirm?.tap()
         expectation(for: NSPredicate(format: "isEnabled == false"), evaluatedWith: reset); waitForExpectations(timeout: 10)
         button("account-close").tap(); wait(button("import-puzzles"))
     }

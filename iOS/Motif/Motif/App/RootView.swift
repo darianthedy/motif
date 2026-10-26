@@ -53,11 +53,9 @@ struct RootView: View {
                         }
                 }
             }
-            Tab("Account", systemImage: "person.crop.circle", value: .account) {
-                NavigationStack { AccountView().libraryBanners() }
-            }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
+        .sheet(isPresented: $app.showingAccount) { AccountView().environment(app) }
     }
     private var waitingMessage: String {
         if !app.store.online { return "You're offline, and this device has no copy of your library yet. Connect once to download it." }

@@ -3,7 +3,6 @@ import SwiftUI
 enum PuzzleRoute: Hashable { case collection(String), puzzles(String), puzzle(String, String) }
 struct PuzzlesHomeView: View {
     @Environment(AppState.self) private var app
-    @State private var resetting = false
     var body: some View {
         @Bindable var app = app
         List {
@@ -36,13 +35,10 @@ struct PuzzlesHomeView: View {
             }
             Section {
                 Button("Import puzzles") { app.importingPuzzles = true }.disabled(!app.store.online).accessibilityIdentifier("import-puzzles")
-                Button("Reset progress", role: .destructive) { resetting = true }.disabled(!app.store.online || app.store.library?.attempts.isEmpty != false)
             }
         }.navigationTitle("Puzzles")
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { AccountButton() } }
             .sheet(isPresented: $app.importingPuzzles) { ImportView().environment(app) }
-            .confirmationDialog("Forget every attempt? Your puzzles and collections stay. Solved, mistakes and in-progress sessions are cleared on every device.", isPresented: $resetting, titleVisibility: .visible) {
-                Button("Reset progress", role: .destructive) { Task { _ = await app.edit({ try await $0.resetProgress() }, done: "Progress reset. Every puzzle is unseen again.") } }
-            }
             .fullScreenCover(item: $app.session) { SessionView(scope: $0.scope).environment(app) }
             .task { await openLaunchRoute() }
     }

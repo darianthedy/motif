@@ -8,10 +8,7 @@ struct RootView: View {
             switch app.root {
             case .unknown: Color(.systemBackground)
             case .signedOut: SignInView()
-            case .waiting:
-                if app.store.loaded {
-                    ContentUnavailableView("Motif", systemImage: "square.grid.3x3", description: Text(waitingMessage))
-                } else { ProgressView() }
+            case .waiting: loading
             case .library:
                 #if DEBUG
                 if app.launchRoute == "board" { NavigationStack { BoardSampleView() } } else { tabs }
@@ -57,10 +54,31 @@ struct RootView: View {
         .tabBarMinimizeBehavior(.onScrollDown)
         .sheet(isPresented: $app.showingAccount) { AccountView().environment(app) }
     }
-    private var waitingMessage: String {
-        if !app.store.online { return "You're offline, and this device has no copy of your library yet. Connect once to download it." }
-        if case .error(let message) = app.store.status { return "Could not load your library: \(message)" }
-        return "Loading your library…"
+    /// Signed in but no library yet: loading, a first launch offline, or a load that failed.
+    @ViewBuilder private var loading: some View {
+        Group {
+            if app.store.loaded, !app.store.online {
+                ContentUnavailableView("You’re Offline", systemImage: "wifi.slash",
+                    description: Text("This device has no copy of your library yet. Connect once to download it."))
+                    .accessibilityIdentifier("load-offline")
+            } else if app.store.loaded, case .error(let message) = app.store.status {
+                ContentUnavailableView {
+                    Label("Couldn’t Load Your Library", systemImage: "exclamationmark.icloud")
+                } description: {
+                    Text(message)
+                } actions: {
+                    Button("Try Again") { Task { await app.store.open() } }
+                        .buttonStyle(.glassProminent).accessibilityIdentifier("load-retry")
+                    Button("Sign Out", role: .destructive) { Task { await app.signOut() } }
+                        .accessibilityIdentifier("load-sign-out")
+                }
+            } else {
+                ProgressView("Loading your library…").accessibilityIdentifier("load-progress")
+            }
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let error = app.error { ErrorBanner(text: error) { app.error = nil } }
+        }
     }
 }
 extension Color {

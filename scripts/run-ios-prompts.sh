@@ -34,16 +34,20 @@
 set -euo pipefail
 
 # --- config -----------------------------------------------------------------
-DOC="Motif - iOS Build Prompts.md"
+# DOC, PROMPT_IDS, BRANCH_PREFIX and SPEC_RULE can be overridden from the
+# environment so other prompt docs (e.g. the UI refresh) reuse this driver.
+DOC="${DOC:-Motif - iOS Build Prompts.md}"
 CI_WORKFLOW="ios-ci.yml"
 WORKFLOW="ios-testflight.yml"
-PROMPTS=(P01 P02 P03 P04 P05 P06 P07 P08 P09 P10 P11 P12)
+read -r -a PROMPTS <<< "${PROMPT_IDS:-P01 P02 P03 P04 P05 P06 P07 P08 P09 P10 P11 P12}"
+BRANCH_PREFIX="${BRANCH_PREFIX:-ios/}"
+SPEC_RULE="${SPEC_RULE:-The TypeScript in src/ is the spec; port it, do not redesign it.}"
 MAX_FIX_ATTEMPTS=3
 SKIP_TESTFLIGHT="${SKIP_TESTFLIGHT:-0}"
 # Headless permissions. Sessions edit files + run git; for unattended runs this
 # is the practical choice. Drop to --permission-mode acceptEdits to babysit.
 CLAUDE_FLAGS=(--dangerously-skip-permissions)
-START_AT="${1:-P01}"   # optional: resume, e.g. `scripts/run-ios-prompts.sh P05`
+START_AT="${1:-${PROMPTS[0]}}"   # optional: resume, e.g. `scripts/run-ios-prompts.sh P05`
 # Before each slice, probe the Claude usage tier; if it isn't "allowed" (i.e.
 # already at/near the limit) wait for the 5-hour reset instead of starting — so
 # we don't burn a slice that would abort partway. Set 0 to disable.
@@ -343,12 +347,12 @@ for P in "${PROMPTS[@]}"; do
   log "=== $P : implementing ==="
   base_prompt="In this repo, read \"$DOC\", find prompt $P, and follow its \
 **Run** line exactly — read the §refs it cites and implement ONLY the $P slice, \
-no more, no less. The TypeScript in src/ is the spec; port it, don't redesign it. \
+no more, no less. $SPEC_RULE \
 Ignore the Run line's instruction to push and watch CI yourself: this driver pushes \
 the branch, runs ios-ci and sends you back any failure. When finished, commit all \
 changes with a clear message. Do not push or open a PR."
 
-  branch="ios/$P"
+  branch="$BRANCH_PREFIX$P"
   implement_and_open_pr "$branch" "$base_prompt"
   ci_until_green "$P" "$branch"
   merge_pr "$branch"; sha="$MERGE_SHA"
@@ -363,7 +367,7 @@ changes with a clear message. Do not push or open a PR."
     attempt=$((attempt+1))
     [ "$attempt" -gt "$MAX_FIX_ATTEMPTS" ] && die "$P: TestFlight still failing after $MAX_FIX_ATTEMPTS fixes"
     log "=== $P : TestFlight FAILED — fix attempt $attempt ==="
-    fix_branch="ios/$P-tf-fix$attempt"
+    fix_branch="$BRANCH_PREFIX$P-tf-fix$attempt"
     implement_and_open_pr "$fix_branch" "The iOS TestFlight build on \`main\` for prompt $P of \"$DOC\" \
 FAILED, though the simulator check passed — so look first at signing, archiving and \
 Release-only settings. Fix only what's needed to make \`fastlane beta\` (scheme Motif) \

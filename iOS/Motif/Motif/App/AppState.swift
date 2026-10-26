@@ -9,7 +9,10 @@ final class AppState {
     let store: LibraryStore
     let usingDevAccount: Bool
     var tab = AppTab.puzzles
-    var notice: String?
+    /// A success shown as a transient toast; `showNotice` clears it after a few seconds.
+    private(set) var notice: String?
+    /// A failure shown as a persistent banner until dismissed.
+    var error: String?
     var puzzlesPath: [PuzzleRoute] = []
     var gamesPath: [GamesRoute] = []
     var session: SessionRoute?
@@ -17,6 +20,7 @@ final class AppState {
     var launchRoute: String?
     @ObservationIgnored private let connectivity = Connectivity()
     @ObservationIgnored private let debug: Bool
+    @ObservationIgnored private var noticeTimer: Task<Void, Never>?
     var root: RootState {
         if !store.userKnown { return .unknown }
         if store.user == nil { return .signedOut }
@@ -53,17 +57,28 @@ final class AppState {
         guard !ids.isEmpty else { return }
         let run = Run(id: newID(), scope: scope, mode: mode, queue: makeQueue(mode, ids), startedAt: epochMilliseconds())
         do { try await store.startRun(run); session = SessionRoute(scope: scope) }
-        catch { notice = error.localizedDescription }
+        catch { self.error = error.localizedDescription }
     }
     func signOut() async {
         do { try await store.signOut(); tab = .puzzles; launchRoute = nil; puzzlesPath = []; gamesPath = []; session = nil }
-        catch { notice = error.localizedDescription }
+        catch { self.error = error.localizedDescription }
     }
     @discardableResult
     func edit(_ action: @Sendable (any Backend) async throws -> Void, done: String? = nil) async -> Bool {
-        do { try await store.write(action); notice = done; return true }
-        catch { notice = "That didn't save: " + error.localizedDescription; return false }
+        do { try await store.write(action); if let done { showNotice(done) }; return true }
+        catch { self.error = "That didn't save: " + error.localizedDescription; return false }
     }
+    func showNotice(_ text: String) {
+        notice = text
+        AccessibilityNotification.Announcement(text).post()
+        noticeTimer?.cancel()
+        noticeTimer = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled, self?.notice == text else { return }
+            self?.notice = nil
+        }
+    }
+    func dismissNotice() { noticeTimer?.cancel(); notice = nil }
 }
 
 #if DEBUG

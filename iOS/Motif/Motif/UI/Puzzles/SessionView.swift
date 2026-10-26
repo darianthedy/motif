@@ -72,7 +72,7 @@ private struct SessionPuzzle: View {
         guard !recording else { return }; recording = true
         Task {
             do { try await app.store.recordAttempt(Attempt(id: newID(), puzzleId: puzzle.id, runId: run.id, result: result, mistakes: mistakes, hinted: hinted, playedAt: epochMilliseconds())) }
-            catch { app.notice = error.localizedDescription; recording = false }
+            catch { app.error = error.localizedDescription; recording = false }
         }
     }
 }

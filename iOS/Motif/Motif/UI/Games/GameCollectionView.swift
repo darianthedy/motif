@@ -38,7 +38,7 @@ struct GameCollectionView: View {
             if let library = app.store.library, let collection = library.gameCollections.first(where: { $0.id == collectionId }) {
                 collectionContent(collection, library: library)
             } else { Color.clear.onAppear { dismiss() } }
-        }.toolbar(.hidden, for: .tabBar)
+        }
             .sheet(isPresented: $adding) { AddGamesView(collectionId: collectionId).environment(app) }
             .alert("Rename the collection", isPresented: $renaming) {
                 TextField("Name", text: $name)

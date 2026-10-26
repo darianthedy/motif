@@ -22,6 +22,7 @@ struct GamesHomeView: View {
                 Button("New collection") { name = ""; create = true }.disabled(!app.store.online).accessibilityIdentifier("new-game-collection")
             }
         }.navigationTitle("Games")
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { AccountButton() } }
             .alert("Name the collection", isPresented: $create) {
                 TextField("Name", text: $name).accessibilityIdentifier("game-collection-name")
                 Button("Create") {

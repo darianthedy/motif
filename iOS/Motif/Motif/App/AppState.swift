@@ -2,7 +2,7 @@ import SwiftUI
 import Observation
 
 enum RootState: Equatable { case unknown, signedOut, waiting, library }
-enum AppTab: Hashable { case puzzles, games, account }
+enum AppTab: Hashable { case puzzles, games }
 
 @Observable @MainActor
 final class AppState {
@@ -17,6 +17,8 @@ final class AppState {
     var gamesPath: [GamesRoute] = []
     var session: SessionRoute?
     var importingPuzzles = false
+    /// The Account sheet, opened from the avatar button on either home screen.
+    var showingAccount = false
     var launchRoute: String?
     @ObservationIgnored private let connectivity = Connectivity()
     @ObservationIgnored private let debug: Bool
@@ -28,7 +30,7 @@ final class AppState {
     }
     init(store: LibraryStore, usingDevAccount: Bool = true, debug: Bool = false, route: String? = nil) {
         self.store = store; self.usingDevAccount = usingDevAccount; self.debug = debug; launchRoute = route
-        if route == "account" { tab = .account }
+        if route == "account" { showingAccount = true }
         if route?.hasPrefix("game") == true { tab = .games }
     }
     static func live() -> AppState {
@@ -60,7 +62,7 @@ final class AppState {
         catch { self.error = error.localizedDescription }
     }
     func signOut() async {
-        do { try await store.signOut(); tab = .puzzles; launchRoute = nil; puzzlesPath = []; gamesPath = []; session = nil }
+        do { try await store.signOut(); tab = .puzzles; showingAccount = false; launchRoute = nil; puzzlesPath = []; gamesPath = []; session = nil }
         catch { self.error = error.localizedDescription }
     }
     @discardableResult

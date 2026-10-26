@@ -9,7 +9,7 @@ import XCTest
         XCTAssertEqual(app.root, .unknown)
         await store.open(); XCTAssertEqual(app.root, .signedOut)
         try await store.signIn("u", "p"); XCTAssertEqual(app.root, .library)
-        app.tab = .account; await app.signOut(); XCTAssertEqual(app.root, .signedOut); XCTAssertEqual(app.tab, .puzzles)
+        app.tab = .games; app.showingAccount = true; await app.signOut(); XCTAssertEqual(app.root, .signedOut); XCTAssertEqual(app.tab, .puzzles); XCTAssertFalse(app.showingAccount)
         defaults.set(try JSONEncoder().encode(User(id: "u", email: "u")), forKey: "motif:user")
         let offline = LibraryStore(account: TestAccount(nil, MemoryBackend()), cache: Cache(storage: storage), outbox: Outbox(storage: storage), defaults: defaults, online: false)
         let waiting = AppState(store: offline)

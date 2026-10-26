@@ -43,7 +43,12 @@ import XCTest
         XCTAssertGreaterThanOrEqual(banner.frame.minY, title.frame.maxY, app.debugDescription)
         XCTAssertLessThanOrEqual(banner.frame.maxY, square("a8").frame.minY)
         XCTAssertFalse(button("game-flip-board").isEnabled)
-        button("game-next-move").tap(); XCTAssertTrue(square("e4").label.contains("Pawn")); capture("offline-game")
+        // CI has dropped this tap on a loaded simulator (delivered on the enabled button, no action);
+        // tap again only while the board provably hasn't moved, then require the step as before.
+        let next = button("game-next-move"); next.tap()
+        let stepped = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS 'Pawn'"), object: square("e4"))
+        if XCTWaiter.wait(for: [stepped], timeout: 5) != .completed, square("e2").label.contains("Pawn") { next.tap() }
+        XCTAssertTrue(square("e4").label.contains("Pawn")); capture("offline-game")
         button("game-actions").tap(); wait(button("game-edit-comment")); XCTAssertFalse(button("game-edit-comment").isEnabled)
     }
 }

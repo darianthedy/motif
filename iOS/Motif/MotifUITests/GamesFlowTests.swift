@@ -9,7 +9,7 @@ import XCTest
         capture("pgn-import-errors")
         let add = button("game-import-add"); if !add.isHittable { app.swipeUp() }; add.tap()
         wait(labelButton("Alpha – Beta")); XCTAssertTrue(labelButton("Me – Club friend").exists)
-        let search = app.textFields["game-search"]; search.tap(); search.typeText("club"); dismissKeyboard()
+        let search = app.searchFields.firstMatch; wait(search); search.tap(); search.typeText("club"); dismissKeyboard()
         expect(labelButton("Alpha – Beta"), "exists == false"); XCTAssertTrue(labelButton("Me – Club friend").exists)
     }
     func testStepPlayVariationCommentPromoteFlipAndExport() {

@@ -47,6 +47,7 @@ import SwiftUI
         return await app.edit({ try await $0.placeGames(placements) }, done: "Moved \(countLabel(placements.count, "game")).")
     }
 }
+enum GameAddSheet: String, Identifiable { case importPGN, newGame; var id: String { rawValue } }
 enum GameTransfer: String, Identifiable { case move, copy; var id: String { rawValue } }
 struct GameCollectionView: View {
     @Environment(AppState.self) private var app
@@ -54,7 +55,7 @@ struct GameCollectionView: View {
     let collectionId: String
     @State private var model = GameCollectionModel()
     @State private var editMode = EditMode.inactive
-    @State private var adding = false
+    @State private var adding: GameAddSheet?
     @State private var renaming = false
     @State private var name = ""
     @State private var deletingCollection = false
@@ -73,7 +74,12 @@ struct GameCollectionView: View {
             .navigationBarBackButtonHidden(editing)
             .toolbar(editing ? .hidden : .automatic, for: .tabBar)
             .onChange(of: editing) { if !editing { model.selected = [] } }
-            .sheet(isPresented: $adding) { AddGamesView(collectionId: collectionId).environment(app) }
+            .sheet(item: $adding) { sheet in
+                switch sheet {
+                case .importPGN: ImportPGNView(collectionId: collectionId).environment(app)
+                case .newGame: NewGameView(collectionId: collectionId).environment(app)
+                }
+            }
             .sheet(item: $transfer) { transfer in
                 GameDestinationSheet(model: model, collectionId: collectionId, transfer: transfer) { withAnimation { editMode = .inactive } }.environment(app)
             }
@@ -96,7 +102,7 @@ struct GameCollectionView: View {
             }
             .task {
                 #if DEBUG
-                if app.launchRoute == "game-add" { adding = true }
+                if app.launchRoute == "game-add" { adding = .importPGN }
                 #endif
             }
     }
@@ -108,8 +114,8 @@ struct GameCollectionView: View {
             if games.isEmpty {
                 EmptyState(title: "No Games", systemImage: "checkerboard.rectangle",
                            description: "Import games as PGN or play one in on the board.",
-                           action: .init(title: "Import PGN", identifier: "add-games-empty", disabled: !app.store.online) { adding = true },
-                           secondary: .init(title: "New Game on Board", disabled: !app.store.online) { adding = true })
+                           action: .init(title: "Import PGN", identifier: "add-games-empty", disabled: !app.store.online) { adding = .importPGN },
+                           secondary: .init(title: "New Game on Board", disabled: !app.store.online) { adding = .newGame })
             } else {
                 List(selection: Bindable(model).selected) {
                     ForEach(shown, id: \.id) { game in
@@ -140,8 +146,8 @@ struct GameCollectionView: View {
             } else {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu("Add Games", systemImage: "plus") {
-                        Button("Import PGN…", systemImage: "doc.text") { adding = true }
-                        Button("New Game on Board…", systemImage: "checkerboard.rectangle") { adding = true }
+                        Button("Import PGN…", systemImage: "doc.text") { adding = .importPGN }
+                        Button("New Game on Board…", systemImage: "checkerboard.rectangle") { adding = .newGame }
                     }.disabled(!app.store.online).accessibilityIdentifier("add-games")
                 }
                 ToolbarSpacer(.fixed, placement: .topBarTrailing)

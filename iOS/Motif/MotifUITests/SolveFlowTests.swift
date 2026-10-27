@@ -15,12 +15,12 @@ import XCTest
         XCTAssertEqual(app.staticTexts["result-verdict"].label, "Solved")
         XCTAssertEqual(app.staticTexts["puzzle-comment"].label, "Hidden idea")
         capture("clean-result")
-        button("result-continue").tap(); wait(app.staticTexts["Session complete"])
+        button("result-continue").tap(); wait(app.staticTexts["Session Complete"])
     }
     func testWrongMovesHintThenCleanDragRequiresContinue() {
         launch("session:all")
         for wrong in ["a7", "a6", "a5"] { move("a1", wrong) }
-        wait(app.staticTexts["Play the highlighted move"])
+        wait(app.staticTexts["Not quite. Play the highlighted move."])
         move("a1", "a8"); wait(app.staticTexts["result-verdict"])
         XCTAssertTrue(app.staticTexts["result-verdict"].label.contains("Missed")); capture("hinted-result")
         button("result-continue").tap(); expect(square("d1"), "label CONTAINS 'Rook'")

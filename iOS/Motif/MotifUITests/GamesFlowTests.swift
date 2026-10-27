@@ -24,7 +24,7 @@ import XCTest
         // The item's subtitle carries the count ("1 move"); system menus don't expose it to queries.
         wait(labelButton("Delete From Here")); capture("move-actions")
         app.buttons["Make Main Line"].tap()
-        wait(button("move-0")); expectation(for: NSPredicate(format: "label CONTAINS 'c4'"), evaluatedWith: button("move-0")); waitForExpectations(timeout: 10)
+        wait(button("move-0")); expect(button("move-0"), "label CONTAINS 'c4'")
         let before = square("a1").frame.minY
         button("game-flip-board").tap(); XCTAssertLessThan(square("a1").frame.minY, before)
         capture("annotated-game")

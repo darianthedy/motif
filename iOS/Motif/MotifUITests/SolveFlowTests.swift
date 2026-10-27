@@ -32,8 +32,7 @@ import XCTest
     func testStopResumeAndSkipKeepProgress() {
         launch("collection"); wait(button("solve-ordered")); button("solve-ordered").tap(); wait(square("a1"))
         button("session-skip").tap()
-        let rook = NSPredicate(format: "label CONTAINS 'Rook'")
-        expectation(for: rook, evaluatedWith: square("d1")); waitForExpectations(timeout: 10)
+        expect(square("d1"), "label CONTAINS 'Rook'")
         button("session-stop").tap(); wait(button("resume-session")); button("resume-session").tap(); wait(square("d1"))
         XCTAssertTrue(square("d1").label.contains("Rook")); XCTAssertFalse(app.staticTexts["result-verdict"].exists)
     }

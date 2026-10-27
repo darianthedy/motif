@@ -15,7 +15,7 @@ import XCTest
         // The dialog's action can appear more than once in the tree; tap the one on screen.
         let confirms = app.buttons.matching(NSPredicate(format: "label == %@", "Delete Collection")); wait(confirms.firstMatch)
         let confirm = confirms.allElementsBoundByIndex.first(where: \.isHittable); XCTAssertNotNil(confirm, app.debugDescription); confirm?.tap()
-        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: doomed); waitForExpectations(timeout: 10)
+        expect(doomed, "exists == false")
         XCTAssertTrue(button("collection-sample-back-rank").exists)
     }
     func testOfflineDisablesImportAndShowsThePill() {

@@ -16,8 +16,9 @@ import Observation
     private var savedOrientation: Side
     @ObservationIgnored private let saveChanges: @MainActor (GameChanges) async -> Bool
     init(_ game: Game, online: Bool = true, save: @escaping @MainActor (GameChanges) async -> Bool) {
-        id = game.id; stored = game; tree = try? parsePgn(game.pgn); orientation = game.orientation; self.online = online; saveChanges = save
-        savedTree = tree; savedOrientation = orientation
+        let parsed = try? parsePgn(game.pgn)
+        id = game.id; stored = game; tree = parsed; orientation = game.orientation; self.online = online; saveChanges = save
+        savedTree = parsed; savedOrientation = game.orientation
     }
     var unsaved: Bool { tree != savedTree || orientation != savedOrientation }
     var canSave: Bool { online && unsaved && !saving }

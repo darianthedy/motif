@@ -19,4 +19,28 @@ import XCTest
         menu.tap(); let item = app.buttons["Import Into Collection…"]; wait(item); item.tap()
         wait(app.textViews["puzzle-import-text"])
     }
+    func testPuzzleDetailReplaysSwitchesLinesFlagsCommentsCopiesAndDeletes() {
+        launch("puzzle-list"); let row = button("puzzle-sample-back-rank-2"); wait(row); row.tap()
+        let first = button("puzzle-move-0"); wait(first); XCTAssertTrue(first.label.contains("Rb8"))
+        button("puzzle-next-move").tap(); XCTAssertTrue(first.isSelected)
+        button("puzzle-go-to-start").tap(); XCTAssertFalse(first.isSelected)
+        app.buttons["Line 2"].tap(); expectation(for: NSPredicate(format: "label CONTAINS 'Ra1'"), evaluatedWith: first); waitForExpectations(timeout: 10)
+        XCTAssertFalse(first.isSelected); first.tap(); XCTAssertTrue(first.isSelected); capture("puzzle-detail")
+
+        let flag = button("puzzle-flag"); flag.tap()
+        expectation(for: NSPredicate(format: "label == 'Unflag'"), evaluatedWith: flag); waitForExpectations(timeout: 10)
+
+        button("puzzle-detail-comment").tap(); let text = app.textViews["edit-puzzle-comment"]; wait(text); capture("puzzle-detail-comment")
+        text.tap(); text.typeText(" Rook lift."); button("puzzle-comment-save").tap()
+        expectation(for: NSPredicate(format: "label CONTAINS 'Rook lift.'"), evaluatedWith: button("puzzle-detail-comment")); waitForExpectations(timeout: 10)
+
+        button("puzzle-actions").tap(); let copy = app.buttons["Copy FEN"]; wait(copy); copy.tap()
+        wait(app.buttons["toast"])
+
+        button("puzzle-actions").tap(); let delete = app.buttons["Delete Puzzle"]; wait(delete); delete.tap()
+        wait(app.staticTexts["Delete this puzzle from the library?"])
+        let confirms = app.buttons.matching(NSPredicate(format: "label == %@", "Delete Puzzle")); wait(confirms.firstMatch)
+        let confirm = confirms.allElementsBoundByIndex.first(where: \.isHittable); XCTAssertNotNil(confirm, app.debugDescription); confirm?.tap()
+        wait(button("puzzle-sample-back-rank-0")); XCTAssertFalse(row.exists)
+    }
 }

@@ -100,7 +100,7 @@ struct PuzzlesHomeView: View {
         #if DEBUG
         guard let route = app.launchRoute, let library = app.store.library else { return }
         if route == "import" { app.importingPuzzles = true }
-        if route == "puzzle-list", let first = library.collections.first { app.puzzlesPath = [.collection(first.id), .puzzles(first.id)] }
+        if ["puzzle-list", "puzzle-list-empty"].contains(route), let first = library.collections.first { app.puzzlesPath = [.collection(first.id), .puzzles(first.id)] }
         if route == "puzzle-detail", let first = library.collections.first, let puzzle = puzzlesIn(library, first.id).first { app.puzzlesPath = [.collection(first.id), .puzzles(first.id), .puzzle(first.id, puzzle.id)] }
         if route == "collection", let first = library.collections.first { app.puzzlesPath = [.collection(first.id)] }
         if route.hasPrefix("session:") || route.hasPrefix("result:") {
@@ -120,10 +120,8 @@ private struct PracticeRow<Trailing: View>: View {
     @Environment(\.isEnabled) private var enabled
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: systemImage).font(.footnote.weight(.semibold)).foregroundStyle(.white)
-                .frame(width: 30, height: 30).background(tile.opacity(enabled ? 1 : 0.4), in: .rect(cornerRadius: 7))
-                .accessibilityHidden(true)
-            Text(title).foregroundStyle(enabled ? Color.primary : Color.secondary)
+            IconTile(systemImage: systemImage, color: tile.opacity(enabled ? 1 : 0.4))
+            Text(title).foregroundStyle(enabled ? Color.primary : Color.secondary).layoutPriority(1)
             Spacer()
             trailing
         }
@@ -137,7 +135,7 @@ private struct CollectionRow: View {
         HStack(spacing: 12) {
             ProgressRing(fraction: stats.total > 0 ? Double(stats.solved) / Double(stats.total) : 0)
             VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
+                RowStack(spacing: 6) {
                     Text(name).font(.body.weight(.medium))
                     if inProgress {
                         Text("In progress").font(.caption2.weight(.semibold)).foregroundStyle(Color.motifAccentStrong)
@@ -154,13 +152,16 @@ private struct CollectionRow: View {
 }
 private struct ProgressRing: View {
     let fraction: Double
+    /// Grows with Dynamic Type, but only so far: the row's text needs the width more.
+    @ScaledMetric(relativeTo: .body) private var scaled: CGFloat = 36
     var body: some View {
+        let size = min(scaled, 60)
         ZStack {
             Circle().stroke(Color.motifAccent.opacity(0.2), lineWidth: 4)
             Circle().trim(from: 0, to: fraction).stroke(Color.motifAccent, style: StrokeStyle(lineWidth: 4, lineCap: .round)).rotationEffect(.degrees(-90))
-            Text("\(Int((fraction * 100).rounded()))%").font(.system(size: 9, weight: .semibold).monospacedDigit()).foregroundStyle(.secondary)
+            Text("\(Int((fraction * 100).rounded()))%").font(.system(size: size / 4, weight: .semibold).monospacedDigit()).foregroundStyle(.secondary)
         }
-        .frame(width: 36, height: 36)
+        .frame(width: size, height: size)
         .accessibilityLabel("\(Int((fraction * 100).rounded())) percent solved")
     }
 }

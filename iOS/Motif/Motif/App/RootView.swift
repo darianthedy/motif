@@ -86,6 +86,9 @@ struct RootView: View {
 extension Color {
     /// Fills only (progress, bars): too light for text on white. Text and controls use the app tint, `motifAccentStrong`.
     static let motifAccent = Color(red: 0.43, green: 0.67, blue: 0.28)
-    /// Deep enough for white text on it to stay readable.
-    static let motifAccentStrong = Color(red: 0.24, green: 0.48, blue: 0.12)
+    /// Deep enough for white text on it to stay readable; a step lighter in dark mode,
+    /// where the light-mode green as text on the dark background falls under 4.5:1.
+    static let motifAccentStrong = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark ? UIColor(red: 0.36, green: 0.62, blue: 0.22, alpha: 1) : UIColor(red: 0.24, green: 0.48, blue: 0.12, alpha: 1)
+    })
 }

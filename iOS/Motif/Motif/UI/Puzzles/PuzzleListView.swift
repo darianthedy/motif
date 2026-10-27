@@ -77,6 +77,12 @@ struct PuzzleListView: View {
         .navigationTitle("All Puzzles")
         .searchable(text: $model.query, prompt: "Number or motif")
         .searchScopes($model.scope) { ForEach(PuzzleScope.allCases, id: \.self) { Text($0.title).tag($0) } }
+        .task {
+            #if DEBUG
+            // The samples have no flagged puzzles, so this scope shows the empty state.
+            if app.launchRoute == "puzzle-list-empty" { model.scope = .flagged }
+            #endif
+        }
         .confirmationDialog("Delete this puzzle from the library?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
                             titleVisibility: .visible, presenting: deleting) { puzzle in
             Button("Delete Puzzle", role: .destructive) { Task { _ = await app.edit { try await $0.deletePuzzle(puzzle.id) } } }
@@ -98,15 +104,18 @@ private struct PuzzleRow: View {
             BoardView(fen: item.puzzle.fen, orientation: solverSide(item.puzzle), interactive: false, coordinates: false)
                 .frame(width: 48, height: 48).clipShape(.rect(cornerRadius: 4))
                 .allowsHitTesting(false).accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) {
-                Text("#" + item.number).font(.body.weight(.medium).monospacedDigit())
-                Text(subtitle).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+            RowStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("#" + item.number).font(.body.weight(.medium).monospacedDigit())
+                    Text(subtitle).font(.footnote).foregroundStyle(.secondary).rowLineLimit()
+                }.frame(maxWidth: .infinity, alignment: .leading)
+                HStack(spacing: 8) {
+                    if item.puzzle.flagged == true {
+                        Image(systemName: "flag.fill").foregroundStyle(.orange).accessibilityLabel("Flagged")
+                    }
+                    status
+                }
             }
-            Spacer()
-            if item.puzzle.flagged == true {
-                Image(systemName: "flag.fill").foregroundStyle(.orange).accessibilityLabel("Flagged")
-            }
-            status
         }
         .accessibilityElement(children: .combine)
     }

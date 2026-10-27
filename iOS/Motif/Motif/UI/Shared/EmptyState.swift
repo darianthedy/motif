@@ -6,6 +6,7 @@ struct EmptyState: View {
         var title: String
         var identifier: String?
         var disabled = false
+        var role: ButtonRole?
         var perform: () -> Void
     }
     let title: String
@@ -20,13 +21,13 @@ struct EmptyState: View {
             if let description { Text(description) }
         } actions: {
             if let action {
-                Button(action.title, action: action.perform)
+                Button(action.title, role: action.role, action: action.perform)
                     .buttonStyle(.glassProminent)
                     .disabled(action.disabled)
                     .accessibilityIdentifier(action.identifier ?? "")
             }
             if let secondary {
-                Button(secondary.title, action: secondary.perform)
+                Button(secondary.title, role: secondary.role, action: secondary.perform)
                     .buttonStyle(.glass)
                     .disabled(secondary.disabled)
                     .accessibilityIdentifier(secondary.identifier ?? "")

@@ -42,6 +42,15 @@ import XCTest
         let share = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Save to Files' OR label == 'Copy'")).firstMatch
         wait(share); capture("pgn-share-sheet")
     }
+    func testUnreadableGameOffersCopyAndDelete() {
+        launch("game-unreadable"); wait(app.staticTexts["Can't Read This Game"])
+        XCTAssertTrue(app.descendants(matching: .any)["game-unreadable-pgn"].exists); capture("game-unreadable")
+        button("game-unreadable-copy").tap(); wait(button("toast")); expect(button("toast"), "label == 'PGN copied.'")
+        button("game-unreadable-delete").tap()
+        let confirms = app.buttons.matching(NSPredicate(format: "label == %@", "Delete game")); wait(confirms.firstMatch)
+        let confirm = confirms.allElementsBoundByIndex.first(where: \.isHittable); XCTAssertNotNil(confirm, app.debugDescription); confirm?.tap()
+        wait(button("game-row-sample-game")); expect(button("game-row-sample-unreadable"), "exists == false")
+    }
     func testOfflineGameOpensAndDisablesChanges() throws {
         launch("game:sample", offline: true); wait(square("e2"))
         let banners = app.staticTexts.matching(identifier: "offline-banner"); wait(banners.firstMatch)

@@ -114,7 +114,7 @@ private struct PuzzleDetailContent: View {
                             let selected = model.ply == index + 1
                             Button { model.ply = index + 1 } label: {
                                 Text(chip).font(.subheadline.weight(selected ? .semibold : .regular).monospacedDigit())
-                                    .foregroundStyle(selected ? Color.white : Color.primary).padding(.horizontal, 14).frame(height: 36)
+                                    .foregroundStyle(selected ? Color.white : Color.primary).padding(.horizontal, 14).frame(minHeight: 36)
                             }.buttonStyle(.plain)
                                 .glassEffect(selected ? .regular.tint(.motifAccentStrong).interactive() : .regular.interactive(), in: .capsule)
                                 .accessibilityAddTraits(selected ? .isSelected : []).accessibilityIdentifier("puzzle-move-\(index)").id(index)
@@ -148,7 +148,7 @@ private struct PuzzleDetailContent: View {
                         else { Text("Add Comment").font(.subheadline).foregroundStyle(.tint) }
                     }
                     Spacer()
-                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
                 }.contentShape(.rect)
             }.buttonStyle(.plain).disabled(!app.store.online).accessibilityIdentifier("puzzle-detail-comment")
         }

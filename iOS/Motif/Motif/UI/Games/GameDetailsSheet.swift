@@ -25,7 +25,6 @@ struct GameDetailsSheet: View {
                     Section("Event") { fields(["Event", "Site", "Date", "Round"]) }
                     Section("Opening") { fields(["Opening", "ECO"]) }
                 }.disabled(!online)
-                OfflineNote()
             }.editorKeyboard().navigationTitle("Details").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel", systemImage: "xmark", role: .cancel) { dismiss() } }

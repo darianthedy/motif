@@ -5,8 +5,8 @@ import XCTest
     /// A loaded CI simulator can stall for a minute reaping the previous test's app, and `launch()` then fails
     /// with "Failed to terminate com.dthedy.Motif:<pid>" before this test has done anything. That one issue is
     /// the simulator's, so it buys a second launch; the app must still come up in the foreground.
-    func launch(_ route: String? = nil, seeded: Bool = true, offline: Bool = false, file: StaticString = #filePath, line: UInt = #line) {
-        app.launchArguments = ["-MotifMemoryBackend", "YES", "-MotifSeedSamples", seeded ? "YES" : "NO"]
+    func launch(_ route: String? = nil, seeded: Bool = true, offline: Bool = false, extra: [String] = [], file: StaticString = #filePath, line: UInt = #line) {
+        app.launchArguments = ["-MotifMemoryBackend", "YES", "-MotifSeedSamples", seeded ? "YES" : "NO"] + extra
         if let route { app.launchArguments += ["-MotifRoute", route] }
         if offline { app.launchArguments += ["-MotifOffline", "YES"] }
         continueAfterFailure = true

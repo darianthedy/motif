@@ -103,6 +103,11 @@ struct GameCollectionView: View {
             .task {
                 #if DEBUG
                 if app.launchRoute == "game-add" { adding = .importPGN }
+                if app.launchRoute == "game-new" { adding = .newGame }
+                if app.launchRoute == "game-select", let first = app.store.library.map({ gamesIn($0, collectionId) })?.first {
+                    // The list drops its selection as it enters editing, so select only once that has landed.
+                    editMode = .active; try? await Task.sleep(for: .milliseconds(500)); model.selected = [first.id]
+                }
                 #endif
             }
     }
@@ -185,14 +190,14 @@ struct GameCollectionView: View {
 /// Title, "event · round · date · opening", and the result as a chip.
 private struct GameRow: View {
     let game: Game
+    @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         let headers = readHeaders(game.pgn), details = gameDetails(headers)
-        HStack(spacing: 12) {
+        RowStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(gameTitle(headers)).font(.body.weight(.medium)).lineLimit(2)
-                if !details.isEmpty { Text(details).font(.footnote).foregroundStyle(.secondary).lineLimit(1) }
-            }
-            Spacer(minLength: 8)
+                Text(gameTitle(headers)).font(.body.weight(.medium)).lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+                if !details.isEmpty { Text(details).font(.footnote).foregroundStyle(.secondary).rowLineLimit() }
+            }.frame(maxWidth: .infinity, alignment: .leading)
             if let result = ResultChip(headers["Result"]) { result }
         }
         .padding(.vertical, 2)
@@ -249,16 +254,14 @@ private struct GameDestinationSheet: View {
                         let current = collection.id == collectionId
                         Button { target = collection.id } label: {
                             HStack(spacing: 12) {
-                                Image(systemName: "checkerboard.rectangle").font(.footnote.weight(.semibold)).foregroundStyle(.white)
-                                    .frame(width: 30, height: 30).background(Color.motifAccentStrong.opacity(current ? 0.4 : 1), in: .rect(cornerRadius: 7))
-                                    .accessibilityHidden(true)
+                                IconTile(systemImage: "checkerboard.rectangle", color: .motifAccentStrong.opacity(current ? 0.4 : 1))
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(collection.name).foregroundStyle(current ? Color.secondary : Color.primary)
                                     Text(current ? "Current collection" : countLabel(library.map { gamesIn($0, collection.id).count } ?? 0, "game"))
                                         .font(.footnote).foregroundStyle(.secondary)
                                 }
                                 Spacer()
-                                if target == collection.id { Image(systemName: "checkmark").fontWeight(.semibold).foregroundStyle(.tint) }
+                                if target == collection.id { Image(systemName: "checkmark").fontWeight(.semibold).foregroundStyle(.tint).accessibilityHidden(true) }
                             }
                         }
                         .disabled(current)

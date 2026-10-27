@@ -52,8 +52,8 @@ struct GamesHomeView: View {
         }
         .task {
             #if DEBUG
-            if let route = app.launchRoute, let first = app.store.library?.gameCollections.first, ["game-collection", "game-add"].contains(route) { app.gamesPath = [.collection(first.id)] }
-            if let route = app.launchRoute, route.hasPrefix("game:") || ["game-details", "game-comment", "game-variation"].contains(route), let game = app.store.library?.games.first { app.gamesPath = [.collection(game.collectionId), .game(game.collectionId, game.id)] }
+            if let route = app.launchRoute, let first = app.store.library?.gameCollections.first, ["game-collection", "game-add", "game-new", "game-select"].contains(route) { app.gamesPath = [.collection(first.id)] }
+            if let route = app.launchRoute, route.hasPrefix("game:") || ["game-details", "game-comment", "game-variation", "game-unreadable"].contains(route), let game = app.store.library?.games.first { app.gamesPath = [.collection(game.collectionId), .game(game.collectionId, game.id)] }
             #endif
         }
     }
@@ -84,9 +84,7 @@ private struct GameCollectionRow: View {
     let count: Int
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "checkerboard.rectangle").font(.footnote.weight(.semibold)).foregroundStyle(.white)
-                .frame(width: 30, height: 30).background(Color.motifAccentStrong, in: .rect(cornerRadius: 7))
-                .accessibilityHidden(true)
+            IconTile(systemImage: "checkerboard.rectangle", color: .motifAccentStrong)
             VStack(alignment: .leading, spacing: 3) {
                 Text(name).font(.body.weight(.medium))
                 Text(countLabel(count, "game")).font(.footnote).foregroundStyle(.secondary)

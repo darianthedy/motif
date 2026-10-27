@@ -38,7 +38,7 @@ final class AppState {
         if UserDefaults.standard.bool(forKey: "MotifMemoryBackend") {
             let seeded = UserDefaults.standard.bool(forKey: "MotifSeedSamples")
             let route = UserDefaults.standard.string(forKey: "MotifRoute")
-            let account = ScreenshotAccount(seed: seeded, signedIn: seeded && route != "signin")
+            let account = ScreenshotAccount(seed: seeded, signedIn: seeded && route != "signin", unreadableGame: route == "game-unreadable")
             let paths = StoragePaths(root: FileManager.default.temporaryDirectory.appendingPathComponent("Motif-debug-" + newID()))
             let defaults = UserDefaults(suiteName: "Motif-debug-" + newID())!
             return AppState(store: LibraryStore(account: account, cache: Cache(storage: paths), outbox: Outbox(storage: paths), defaults: defaults), debug: true, route: route)
@@ -88,7 +88,7 @@ final class AppState {
 actor ScreenshotAccount: Account {
     private var user: User?
     private let memory: MemoryBackend
-    init(seed: Bool, signedIn: Bool) {
+    init(seed: Bool, signedIn: Bool, unreadableGame: Bool = false) {
         user = signedIn ? User(id: "sample", email: "sample@motif.local") : nil
         var library = Library()
         if seed {
@@ -106,6 +106,12 @@ actor ScreenshotAccount: Account {
             library.gameCollections = [GameCollection(id: "sample-games", name: "Study games", createdAt: 0)]
             library.games = [Game(id: "sample-game", collectionId: "sample-games", position: 0,
                 pgn: "[White \"White\"]\n[Black \"Black\"]\n\n1. e4 e5 2. Nf3 (2. Bc4 Nc6) Nc6 3. Bb5 *", orientation: .white, addedAt: 0)]
+            // Only for its own route, so other routes keep the one-game collection.
+            if unreadableGame {
+                library.games.insert(Game(id: "sample-unreadable", collectionId: "sample-games", position: 0,
+                    pgn: "[White \"Club friend\"]\n[Black \"Me\"]\n\n1. e4 e4 *", orientation: .white, addedAt: 0), at: 0)
+                library.games[1].position = 1
+            }
         }
         memory = MemoryBackend(library)
     }

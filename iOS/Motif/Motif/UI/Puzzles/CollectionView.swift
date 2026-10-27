@@ -66,12 +66,11 @@ struct CollectionView: View {
     }
     private func session(remaining: Int, run: Run) -> some View {
         Section {
-            HStack(spacing: 12) {
+            RowStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Session in Progress").font(.headline)
                     Text("\(remaining) left").font(.subheadline).foregroundStyle(.secondary)
-                }
-                Spacer()
+                }.frame(maxWidth: .infinity, alignment: .leading)
                 Button("Resume", systemImage: "play.fill") { app.session = SessionRoute(scope: collectionId) }
                     .buttonStyle(.glassProminent).buttonBorderShape(.capsule).accessibilityIdentifier("resume-session")
             }.padding(.vertical, 4)
@@ -85,7 +84,7 @@ private struct StatsCard: View {
     let stats: Stats
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
+            RowStack {
                 figure(stats.solved, "Solved", Color.motifAccentStrong)
                 figure(stats.failed, "To Review", .orange)
                 figure(stats.unseen, "New", .secondary)

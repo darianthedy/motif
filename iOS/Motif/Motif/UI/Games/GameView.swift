@@ -44,9 +44,7 @@ private struct GameContentView: View {
                             .frame(maxHeight: .infinity)
                     }.frame(maxWidth: .infinity)
                 }.navigationTitle(gameTitle(tree.headers)).navigationSubtitle(gameSubtitle(tree.headers)).navigationBarTitleDisplayMode(.inline)
-            } else {
-                ScrollView { VStack { Text("This game's PGN can't be read.").foregroundStyle(.red); Text(game.pgn).font(.system(.footnote, design: .monospaced)).textSelection(.enabled) }.padding() }
-            }
+            } else { unreadable }
         }.toolbar {
             ToolbarItem(placement: .topBarTrailing) { Menu { gameMenu } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Game actions").accessibilityIdentifier("game-actions") }
             if model.tree != nil {
@@ -86,6 +84,24 @@ private struct GameContentView: View {
                 #endif
             }
     }
+    /// The PGN didn't parse: say so, offer the two things that still work, and show the text as stored.
+    private var unreadable: some View {
+        ScrollView {
+            VStack(spacing: 8) {
+                EmptyState(title: "Can't Read This Game", systemImage: "exclamationmark.triangle",
+                           description: "Its PGN has a mistake Motif can't get past. Copy it to fix it elsewhere, or delete the game.",
+                           action: .init(title: "Copy PGN", identifier: "game-unreadable-copy") { UIPasteboard.general.string = game.pgn; app.showNotice("PGN copied.") },
+                           secondary: .init(title: "Delete", identifier: "game-unreadable-delete", disabled: !model.online, role: .destructive) { deleteGame = true })
+                Text(verbatim: game.pgn).font(.system(.footnote, design: .monospaced)).textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(14)
+                    .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 14))
+                    .padding(.horizontal)
+                    .accessibilityLabel("PGN as stored").accessibilityValue(game.pgn)
+                    .accessibilityIdentifier("game-unreadable-pgn")
+            }.padding(.bottom)
+        }
+        .navigationTitle(gameTitle(readHeaders(game.pgn))).navigationBarTitleDisplayMode(.inline)
+    }
     /// Only a position with a comment shows the card; the list scrolls beneath it.
     @ViewBuilder private var commentCard: some View {
         if !model.comment.isEmpty {
@@ -108,17 +124,17 @@ private struct GameContentView: View {
                 ForEach(shown, id: \.self) { index in
                     let selected = index == current
                     Button { model.go(parent + [index]) } label: {
-                        HStack(spacing: 6) { if selected { Image(systemName: "checkmark").font(.caption.bold()) }; Text(number + " " + siblings[index].san) }
+                        HStack(spacing: 6) { if selected { Image(systemName: "checkmark").font(.caption.bold()).accessibilityHidden(true) }; Text(number + " " + siblings[index].san) }
                             .font(.subheadline.weight(selected ? .semibold : .regular)).foregroundStyle(selected ? Color.white : Color.primary)
-                            .padding(.horizontal, 14).frame(height: 36)
+                            .padding(.horizontal, 14).frame(minHeight: 36)
                     }.buttonStyle(.plain)
                         .glassEffect(selected ? .regular.tint(.motifAccentStrong).interactive() : .regular.interactive(), in: .capsule)
                         .accessibilityAddTraits(selected ? .isSelected : []).accessibilityIdentifier("alternative-\(index)")
                 }
                 if siblings.count > cap {
                     Button { withAnimation(.snappy) { alternativesOpen.toggle() } } label: {
-                        HStack(spacing: 4) { Text(alternativesOpen ? "Show less" : "+\(siblings.count - cap) more"); Image(systemName: alternativesOpen ? "chevron.down" : "chevron.up") }
-                            .font(.footnote.weight(.semibold)).foregroundStyle(Color.motifAccentStrong).padding(.horizontal, 12).frame(height: 32)
+                        HStack(spacing: 4) { Text(alternativesOpen ? "Show less" : "+\(siblings.count - cap) more"); Image(systemName: alternativesOpen ? "chevron.down" : "chevron.up").accessibilityHidden(true) }
+                            .font(.footnote.weight(.semibold)).foregroundStyle(Color.motifAccentStrong).padding(.horizontal, 12).frame(minHeight: 32)
                     }.buttonStyle(.plain).glassEffect(.regular.interactive(), in: .capsule).accessibilityIdentifier("alternatives-toggle")
                 }
             }.padding(.trailing, 16).padding(.bottom, 8).transition(.opacity)

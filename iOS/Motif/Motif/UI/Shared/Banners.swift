@@ -58,9 +58,3 @@ private struct LibraryBanners: ViewModifier {
 extension View {
     func libraryBanners() -> some View { modifier(LibraryBanners()) }
 }
-struct OfflineNote: View {
-    @Environment(AppState.self) private var app
-    var body: some View {
-        if !app.store.online { Text("You're offline. Editing needs a connection; solving doesn't.").font(.footnote).foregroundStyle(.secondary) }
-    }
-}

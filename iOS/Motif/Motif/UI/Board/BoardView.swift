@@ -107,6 +107,7 @@ struct BoardView: View {
             }.frame(width: size, height: size).contentShape(Rectangle())
         }.buttonStyle(.plain).accessibilityIdentifier("square-" + square)
             .accessibilityLabel(square + (piece.map { ", \($0.color == .white ? "White" : "Black") \($0.type.name)" } ?? ", empty"))
+            .accessibilityAddTraits(selected ? .isSelected : [])
             .highPriorityGesture(DragGesture(minimumDistance: 8, coordinateSpace: .named("motif-board"))
                 .onChanged { value in
                     guard interactive, placing == nil, let piece, piece.color == turn, interaction.pending == nil else { return }

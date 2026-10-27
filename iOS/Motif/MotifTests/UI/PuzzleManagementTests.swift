@@ -39,4 +39,25 @@ import XCTest
         model.lineIndex = 1; XCTAssertEqual(model.ply, 0); XCTAssertEqual(model.fen, puzzle.fen)
         model.ply = 1; XCTAssertEqual(Board.pieceAt(model.fen, "a2")?.type, .rook)
     }
+    func testPuzzleListSearchMatchesNumberAndMotifWithinTheScope() {
+        func puzzle(_ id: String, source: String?, tags: [String], flagged: Bool = false) -> Puzzle {
+            var puzzle = testPuzzle([["a1a8"]]); puzzle.id = id; puzzle.sourceId = source; puzzle.tags = tags; puzzle.flagged = flagged; return puzzle
+        }
+        let puzzles = [puzzle("a", source: "00412", tags: ["mateIn2", "backRank"]), puzzle("b", source: nil, tags: ["fork"], flagged: true),
+                       puzzle("c", source: "00977", tags: ["backRank"])]
+        let records = puzzleRecords([testDataAttempt("x", puzzleId: "a"),
+                                     Attempt(id: "y", puzzleId: "c", runId: nil, result: .failed, mistakes: 1, hinted: false, playedAt: 2)])
+        let model = PuzzleListModel()
+        XCTAssertEqual(model.items(puzzles, records).map(\.number), ["00412", "2", "00977"])
+        model.query = "#412"; XCTAssertEqual(model.items(puzzles, records).map(\.id), ["a"])
+        model.query = "back rank"; XCTAssertEqual(model.items(puzzles, records).map(\.id), ["a", "c"])
+        model.query = "2"; XCTAssertEqual(model.items(puzzles, records).map(\.id), ["a", "b"])
+        model.scope = .review; model.query = "BackRank"; XCTAssertEqual(model.items(puzzles, records).map(\.id), ["c"])
+        model.scope = .solved; XCTAssertEqual(model.items(puzzles, records).map(\.id), ["a"])
+        model.scope = .new; XCTAssertEqual(model.items(puzzles, records).map(\.id), [])
+        model.query = ""; XCTAssertEqual(model.items(puzzles, records).map(\.id), ["b"])
+        model.scope = .flagged; XCTAssertEqual(model.items(puzzles, records).map(\.id), ["b"])
+        model.query = "mate"; XCTAssertTrue(model.items(puzzles, records).isEmpty)
+        XCTAssertEqual(motifLabel("mateIn2"), "Mate in 2"); XCTAssertEqual(motifLabel("backRank"), "back rank")
+    }
 }

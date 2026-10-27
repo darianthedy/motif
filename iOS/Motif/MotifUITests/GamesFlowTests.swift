@@ -45,7 +45,8 @@ import XCTest
     func testUnreadableGameOffersCopyAndDelete() {
         launch("game-unreadable"); wait(app.staticTexts["Can't Read This Game"])
         XCTAssertTrue(app.descendants(matching: .any)["game-unreadable-pgn"].exists); capture("game-unreadable")
-        button("game-unreadable-copy").tap(); wait(button("toast")); expect(button("toast"), "label == 'PGN copied.'")
+        // One query for both: the toast clears itself after 3s, which a loaded simulator can spend between two queries.
+        button("game-unreadable-copy").tap(); wait(app.buttons.matching(NSPredicate(format: "identifier == 'toast' AND label == 'PGN copied.'")).firstMatch)
         button("game-unreadable-delete").tap()
         let confirms = app.buttons.matching(NSPredicate(format: "label == %@", "Delete game")); wait(confirms.firstMatch)
         let confirm = confirms.allElementsBoundByIndex.first(where: \.isHittable); XCTAssertNotNil(confirm, app.debugDescription); confirm?.tap()

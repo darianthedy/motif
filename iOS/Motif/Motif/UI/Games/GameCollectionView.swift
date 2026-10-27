@@ -105,7 +105,8 @@ struct GameCollectionView: View {
                 if app.launchRoute == "game-add" { adding = .importPGN }
                 if app.launchRoute == "game-new" { adding = .newGame }
                 if app.launchRoute == "game-select", let first = app.store.library.map({ gamesIn($0, collectionId) })?.first {
-                    editMode = .active; model.selected = [first.id]
+                    // The list drops its selection as it enters editing, so select only once that has landed.
+                    editMode = .active; try? await Task.sleep(for: .milliseconds(500)); model.selected = [first.id]
                 }
                 #endif
             }

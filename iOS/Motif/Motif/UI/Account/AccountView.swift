@@ -60,10 +60,16 @@ struct AccountView: View {
                         .disabled(!app.store.online)
                         .accessibilityIdentifier("sign-out")
                 } footer: {
-                    VStack(spacing: 12) {
-                        if !app.store.online { Text("Signing out needs a connection.").frame(maxWidth: .infinity, alignment: .leading) }
-                        Text(version).frame(maxWidth: .infinity).padding(.top, 8).accessibilityIdentifier("app-version")
-                    }
+                    if !app.store.online { Text("Signing out needs a connection.") }
+                }
+                Section {
+                    Text("Evaluation by Stockfish, licensed under GPL-3.0")
+                    Link(destination: URL(string: "https://github.com/official-stockfish/Stockfish")!) { Label("Stockfish Source", systemImage: "chevron.left.forwardslash.chevron.right") }
+                        .accessibilityIdentifier("stockfish-source")
+                    Link(destination: URL(string: "https://github.com/darianthedy/motif")!) { Label("Motif Source", systemImage: "chevron.left.forwardslash.chevron.right") }
+                        .accessibilityIdentifier("motif-source")
+                } header: { Text("Acknowledgements") } footer: {
+                    Text(version).frame(maxWidth: .infinity).padding(.top, 8).accessibilityIdentifier("app-version")
                 }
             }
             .navigationTitle("Account")

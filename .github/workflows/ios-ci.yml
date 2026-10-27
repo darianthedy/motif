@@ -12,6 +12,7 @@ on:
       - "src/model/**"
       - "scripts/export-ios-fixtures.ts"
       - "scripts/ios-*.sh"
+      - "scripts/fetch-nnue.sh"
       - ".github/workflows/ios-ci.yml"
   workflow_dispatch:
 
@@ -43,6 +44,22 @@ jobs:
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
+
+      # The Stockfish nets (~75 MB) change only with the pinned engine, so
+      # they're cached on their names. ios-verify.sh runs the fetch too; this
+      # step makes a download failure its own red step.
+      - name: Net names
+        id: nets
+        run: echo "key=nnue-$(scripts/fetch-nnue.sh --names | tr ' ' '_')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache NNUE nets
+        uses: actions/cache@v4
+        with:
+          path: iOS/Motif/Motif/Engine/Nets
+          key: ${{ steps.nets.outputs.key }}
+
+      - name: Fetch NNUE nets
+        run: scripts/fetch-nnue.sh
 
       # The same script the Mac used for every slice: it picks an available
       # iPhone simulator on the selected Xcode's runtime, so a renamed device

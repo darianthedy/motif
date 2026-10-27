@@ -20,3 +20,6 @@ iOS/Motif/Config/Local.xcconfig
 iOS/Motif/fastlane/report.xml
 iOS/Motif/fastlane/README.md
 iOS/Motif/vendor/
+
+# Stockfish NNUE nets, fetched at build time by scripts/fetch-nnue.sh
+iOS/Motif/Motif/Engine/Nets/

@@ -76,7 +76,7 @@ platform :ios do
     neon_base_url = ENV.fetch("NEON_BASE_URL")
     UI.user_error!("NEON_BASE_URL is empty") if neon_base_url.strip.empty?
 
-    build_app(
+    ipa_path = build_app(
       project: XCODEPROJ,
       scheme: SCHEME,
       configuration: "Release",
@@ -93,6 +93,10 @@ platform :ios do
       output_directory: "build",
       output_name: "Motif.ipa"
     )
+
+    # The Stockfish nets are fetched, not committed; never upload a build
+    # that's missing one (scripts/fetch-nnue.sh holds their names).
+    sh(File.expand_path("../../../scripts/fetch-nnue.sh", __dir__), "--check-ipa", ipa_path)
 
     upload_to_testflight(
       api_key: api_key,

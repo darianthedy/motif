@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		F08DBD5061F249A98C152FF0 /* ChessKit in Frameworks */ = {isa = PBXBuildFile; productRef = DBFB8B57FE6E4336ABE50763 /* ChessKit */; };
+		3C7E1A2B9D4F4E6A8B0C1D2E /* ChessKitEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 7A9B3C4D5E6F4A1B8C2D3E4F /* ChessKitEngine */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -71,6 +72,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F08DBD5061F249A98C152FF0 /* ChessKit in Frameworks */,
+				3C7E1A2B9D4F4E6A8B0C1D2E /* ChessKitEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -179,6 +181,7 @@
 			name = Motif;
 			packageProductDependencies = (
 				DBFB8B57FE6E4336ABE50763 /* ChessKit */,
+				7A9B3C4D5E6F4A1B8C2D3E4F /* ChessKitEngine */,
 			);
 			productName = Motif;
 			productReference = 7928E797B1BB4F73BC95CE01 /* Motif.app */;
@@ -218,6 +221,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				2A4A648903594BA6BD037927 /* XCRemoteSwiftPackageReference "chesskit-swift" */,
+				5F2E8D1C7B3A4C9E8D6F1A2B /* XCRemoteSwiftPackageReference "chesskit-engine" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0668CF65E5924B6CB8049F26 /* Products */;
@@ -305,6 +309,11 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
+				OTHER_SWIFT_FLAGS = (
+					"$(inherited)",
+					"-Xcc",
+					"-fmodule-map-file=$(GENERATED_MODULEMAP_DIR)/ChessKitEngineCore.modulemap",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.MotifTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				TARGETED_DEVICE_FAMILY = 1;
@@ -349,6 +358,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
+				);
+				OTHER_SWIFT_FLAGS = (
+					"$(inherited)",
+					"-Xcc",
+					"-fmodule-map-file=$(GENERATED_MODULEMAP_DIR)/ChessKitEngineCore.modulemap",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.MotifTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -511,6 +525,14 @@
 				version = 0.17.0;
 			};
 		};
+		5F2E8D1C7B3A4C9E8D6F1A2B /* XCRemoteSwiftPackageReference "chesskit-engine" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/chesskit-app/chesskit-engine";
+			requirement = {
+				kind = exactVersion;
+				version = 0.7.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -518,6 +540,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 2A4A648903594BA6BD037927 /* XCRemoteSwiftPackageReference "chesskit-swift" */;
 			productName = ChessKit;
+		};
+		7A9B3C4D5E6F4A1B8C2D3E4F /* ChessKitEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5F2E8D1C7B3A4C9E8D6F1A2B /* XCRemoteSwiftPackageReference "chesskit-engine" */;
+			productName = ChessKitEngine;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

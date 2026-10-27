@@ -28,6 +28,7 @@ xcrun simctl ui "$sim" appearance "${APPEARANCE:-dark}"
 
 app="$DERIVED/Build/Products/Debug-iphonesimulator/Motif.app"
 if [ "${IOS_SCREENSHOT_SKIP_BUILD:-0}" != 1 ]; then
+  scripts/fetch-nnue.sh >/dev/null   # the Stockfish nets the app bundles
   xcodebuild build -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
     -destination "platform=iOS Simulator,id=$sim" -derivedDataPath "$DERIVED" \
     CODE_SIGNING_ALLOWED=NO -quiet

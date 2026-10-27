@@ -35,7 +35,7 @@ private struct GameContentView: View {
                 GeometryReader { geometry in
                     let width = min(geometry.size.width, geometry.size.height * 0.6)
                     VStack(spacing: 0) {
-                        BoardView(fen: model.fen, orientation: model.orientation,
+                        BoardView(fen: model.fen, orientation: model.orientation, interactive: true,
                                   highlight: model.node.map { (moveFrom($0.uci), moveTo($0.uci)) }, onMove: model.play)
                             .frame(width: width, height: width)
                         if let problem = model.problem { Text(problem).font(.caption).foregroundStyle(.red).padding(.top, 4) }
@@ -46,22 +46,7 @@ private struct GameContentView: View {
                     }.frame(maxWidth: .infinity)
                 }.navigationTitle(gameTitle(tree.headers)).navigationSubtitle(gameSubtitle(tree.headers)).navigationBarTitleDisplayMode(.inline)
             } else { unreadable }
-        }.navigationBarBackButtonHidden(model.unsaved).toolbar {
-            if model.unsaved {
-                ToolbarItem(placement: .topBarLeading) { Button("Back", systemImage: "chevron.backward") { leaving = true }.accessibilityIdentifier("game-back") }
-            }
-            ToolbarItem(placement: .topBarTrailing) { Menu { gameMenu } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Game actions").accessibilityIdentifier("game-actions") }
-            if model.tree != nil {
-                ToolbarItem(placement: .bottomBar) { control("Flip board", "arrow.up.arrow.down", disabled: false, action: model.flip) }
-                ToolbarSpacer(.flexible, placement: .bottomBar)
-                ToolbarItemGroup(placement: .bottomBar) {
-                    control("Go to start", "backward.end.fill", disabled: model.path.isEmpty) { model.go([]) }
-                    control("Previous move", "chevron.left", disabled: model.path.isEmpty, action: model.back)
-                    control("Next move", "chevron.right", disabled: model.following.isEmpty, action: model.next)
-                    control("Go to end", "forward.end.fill", disabled: model.following.isEmpty, action: model.end)
-                }
-            }
-        }
+        }.navigationBarBackButtonHidden(model.unsaved).toolbar { toolbar }
             .sheet(item: $panel) { presented in
                 switch presented {
                 case .comment: CommentSheet(title: model.currentName, value: model.node?.comment ?? (model.path.isEmpty ? model.tree?.comment : nil), online: true, save: model.comment)
@@ -72,11 +57,7 @@ private struct GameContentView: View {
             .confirmationDialog("Delete this game?", isPresented: $deleteGame, titleVisibility: .visible) {
                 Button("Delete game", role: .destructive) { Task { if await app.edit({ try await $0.deleteGames([game.id]) }) { dismiss() } } }
             }
-            .alert(model.online ? "Save changes to this game?" : "Discard unsaved changes?", isPresented: $leaving) {
-                if model.online { Button("Save") { Task { if await model.save() { dismiss() } } } }
-                Button("Discard Changes", role: .destructive) { model.discard(); dismiss() }
-                Button("Cancel", role: .cancel) {}
-            } message: { if !model.online { Text("You're offline, so they can't be saved.") } }
+            .alert(model.online ? "Save changes to this game?" : "Discard unsaved changes?", isPresented: $leaving) { leaveActions } message: { leaveMessage }
             .sensoryFeedback(.selection, trigger: model.path)
             .sensoryFeedback(.error, trigger: model.problem) { _, problem in problem != nil }
             .onChange(of: model.path) { alternativesHidden = false; alternativesOpen = false }
@@ -93,6 +74,28 @@ private struct GameContentView: View {
                 #endif
             }
     }
+    @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        if model.unsaved {
+            ToolbarItem(placement: .topBarLeading) { Button("Back", systemImage: "chevron.backward") { leaving = true }.accessibilityIdentifier("game-back") }
+        }
+        ToolbarItem(placement: .topBarTrailing) { Menu { gameMenu } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Game actions").accessibilityIdentifier("game-actions") }
+        if model.tree != nil {
+            ToolbarItem(placement: .bottomBar) { control("Flip board", "arrow.up.arrow.down", disabled: false, action: model.flip) }
+            ToolbarSpacer(.flexible, placement: .bottomBar)
+            ToolbarItemGroup(placement: .bottomBar) {
+                control("Go to start", "backward.end.fill", disabled: model.path.isEmpty) { model.go([]) }
+                control("Previous move", "chevron.left", disabled: model.path.isEmpty, action: model.back)
+                control("Next move", "chevron.right", disabled: model.following.isEmpty, action: model.next)
+                control("Go to end", "forward.end.fill", disabled: model.following.isEmpty, action: model.end)
+            }
+        }
+    }
+    @ViewBuilder private var leaveActions: some View {
+        if model.online { Button("Save") { Task { if await model.save() { dismiss() } } } }
+        Button("Discard Changes", role: .destructive) { model.discard(); dismiss() }
+        Button("Cancel", role: .cancel) {}
+    }
+    @ViewBuilder private var leaveMessage: some View { if !model.online { Text("You're offline, so they can't be saved.") } }
     /// The PGN didn't parse: say so, offer the two things that still work, and show the text as stored.
     private var unreadable: some View {
         ScrollView {

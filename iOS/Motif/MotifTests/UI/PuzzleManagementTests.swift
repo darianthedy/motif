@@ -39,6 +39,13 @@ import XCTest
         model.lineIndex = 1; XCTAssertEqual(model.ply, 0); XCTAssertEqual(model.fen, puzzle.fen)
         model.ply = 1; XCTAssertEqual(Board.pieceAt(model.fen, "a2")?.type, .rook)
     }
+    func testDetailReplayControlsStayInsideTheLineAndChipsAreNumbered() {
+        let model = PuzzleDetailModel(testPuzzle([["a1a8"]]))
+        XCTAssertEqual(model.chips.count, 1); XCTAssertTrue(model.chips[0].hasPrefix("1. Ra8"))
+        model.back(); XCTAssertEqual(model.ply, 0)
+        model.next(); model.next(); XCTAssertEqual(model.ply, 1)
+        model.ply = 0; model.end(); XCTAssertEqual(model.ply, 1)
+    }
     func testPuzzleListSearchMatchesNumberAndMotifWithinTheScope() {
         func puzzle(_ id: String, source: String?, tags: [String], flagged: Bool = false) -> Puzzle {
             var puzzle = testPuzzle([["a1a8"]]); puzzle.id = id; puzzle.sourceId = source; puzzle.tags = tags; puzzle.flagged = flagged; return puzzle

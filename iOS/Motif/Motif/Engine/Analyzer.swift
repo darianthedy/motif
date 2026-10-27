@@ -102,11 +102,14 @@ struct EvaluationCache {
         self.clock = clock
     }
 
-    /// The app's analyzer: Stockfish, or a silent `FakeEngine` in the in-memory debug
-    /// configuration the UI tests run, so they don't compete with a real search.
-    static func live() -> Analyzer {
+    /// The app's analyzer: Stockfish, or a `FakeEngine` in the in-memory debug
+    /// configuration the UI tests run, so they don't compete with a real search. It's
+    /// silent except on the `game-eval` route, where it plays `FakeEngine.climb`.
+    static func live(route: String? = nil) -> Analyzer {
         #if DEBUG
-        if UserDefaults.standard.bool(forKey: "MotifMemoryBackend") { return Analyzer(engine: FakeEngine()) }
+        if UserDefaults.standard.bool(forKey: "MotifMemoryBackend") {
+            return Analyzer(engine: route == "game-eval" ? FakeEngine.climb() : FakeEngine())
+        }
         #endif
         return Analyzer(engine: StockfishEngine.shared)
     }

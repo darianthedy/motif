@@ -18,8 +18,9 @@ private struct GameContentView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
     @State private var model: GameViewModel
-    /// Follows the board's position; the bar that shows it comes later.
+    /// Follows the board's position for the evaluation bar.
     @State private var analyzer: Analyzer
+    @AppStorage("evalBarShown") private var evalBarShown = true
     @State private var panel: GamePanel?
     @State private var deleteMove = false
     @State private var deleteGame = false
@@ -30,17 +31,21 @@ private struct GameContentView: View {
         _model = State(initialValue: GameViewModel(game, online: app.store.online) { changes in
             await app.edit { try await $0.updateGame(game.id, changes) }
         })
-        _analyzer = State(initialValue: Analyzer.live())
+        _analyzer = State(initialValue: Analyzer.live(route: app.launchRoute))
     }
     var body: some View {
         Group {
             if let tree = model.tree {
                 GeometryReader { geometry in
-                    let width = min(geometry.size.width, geometry.size.height * 0.6)
+                    // The bar takes its width from the board, so the move list and toolbars keep their layout.
+                    let width = min(geometry.size.width - (evalBarShown ? EvalBar.width + EvalBar.gap : 0), geometry.size.height * 0.6)
                     VStack(spacing: 0) {
-                        BoardView(fen: model.fen, orientation: model.orientation, interactive: model.online,
-                                  highlight: model.node.map { (moveFrom($0.uci), moveTo($0.uci)) }, onMove: model.play)
-                            .frame(width: width, height: width)
+                        HStack(spacing: EvalBar.gap) {
+                            if evalBarShown { EvalBar(evaluation: analyzer.evaluation, orientation: model.orientation).frame(height: width) }
+                            BoardView(fen: model.fen, orientation: model.orientation, interactive: model.online,
+                                      highlight: model.node.map { (moveFrom($0.uci), moveTo($0.uci)) }, onMove: model.play)
+                                .frame(width: width, height: width)
+                        }
                         if let problem = model.problem { Text(problem).font(.caption).foregroundStyle(.red).padding(.top, 4) }
                         MoveListView(game: tree, path: model.path, go: model.go, scrolled: hideAlternatives) { moveMenu($0) }
                             .safeAreaInset(edge: .top, spacing: 0) { commentCard }
@@ -77,6 +82,7 @@ private struct GameContentView: View {
             .onChange(of: model.path) { alternativesHidden = false; alternativesOpen = false }
             .onChange(of: game) { _, next in model.receive(next) }
             .onChange(of: app.store.online) { _, online in model.online = online }
+            .onChange(of: evalBarShown, initial: true) { _, shown in analyzer.enabled = shown }
             .onChange(of: model.fen, initial: true) { _, fen in if model.tree != nil { analyzer.show(fen: fen) } }
             .onChange(of: phase) { _, phase in if phase == .active { analyzer.resume() } else { analyzer.pause() } }
             .onAppear { analyzer.resume() }
@@ -157,6 +163,8 @@ private struct GameContentView: View {
         if let tree = model.tree {
             Button("Edit Details", systemImage: "pencil") { panel = .details }
             Button(commentAction(model.path.isEmpty, model.comment.isEmpty), systemImage: "text.bubble") { panel = .comment }.disabled(!model.online).accessibilityIdentifier("game-edit-comment")
+            Button(evalBarShown ? "Hide Evaluation" : "Show Evaluation", systemImage: evalBarShown ? "eye.slash" : "chart.bar.yaxis") { evalBarShown.toggle() }
+                .accessibilityIdentifier("game-toggle-evaluation")
             Section {
                 Button("Copy PGN", systemImage: "doc.on.doc") { UIPasteboard.general.string = writePgn(tree); app.showNotice("PGN copied.") }.accessibilityIdentifier("game-copy-pgn")
                 ShareLink(item: PGNExport(text: writePgn(tree), name: gameTitle(tree.headers)), preview: SharePreview(gameTitle(tree.headers))) { Label("Export PGN…", systemImage: "square.and.arrow.up") }.accessibilityIdentifier("game-export-pgn")

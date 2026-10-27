@@ -72,3 +72,28 @@ final class FakeEngine: UCIEngine {
         output.yield(line)
     }
 }
+
+extension FakeEngine {
+    /// The `game-eval` route's engine: every `go` climbs from depth 1 to `Analyzer.targetDepth`
+    /// and ends with a `bestmove`. The score is +0.6 for White at the start and a tenth of a
+    /// pawn more for every ply after it, so each position's value is its own.
+    static func climb() -> FakeEngine {
+        let position = LastPosition()
+        return FakeEngine { command in
+            if command.hasPrefix("position fen ") { position.fen.withLock { $0 = String(command.dropFirst("position fen ".count)) } }
+            guard command.hasPrefix("go") else { return [] }
+            let fen = position.fen.withLock { $0 }
+            let fields = fen.split(separator: " ")
+            let side = UCI.sideToMove(fen)
+            let fullmove = fields.count > 5 ? Int(fields[5]) ?? 1 : 1
+            let white = 60 + 10 * ((fullmove - 1) * 2 + (side == .black ? 1 : 0))
+            let cp = side == .white ? white : -white
+            return (1...Analyzer.targetDepth).map { "info depth \($0) score cp \(cp) pv e2e4" } + ["bestmove e2e4"]
+        }
+    }
+}
+
+/// The last `position` `FakeEngine.climb` was sent, for its next `go`.
+private final class LastPosition: Sendable {
+    let fen = Mutex("")
+}

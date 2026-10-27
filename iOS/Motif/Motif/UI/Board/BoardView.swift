@@ -7,6 +7,7 @@ struct BoardView: View {
     var placing: Side?
     var highlight: (from: String, to: String)?
     var shakeKey = 0
+    var coordinates = true
     var onMove: (Uci) -> Void = { _ in }
     var onPlace: (Placement) -> Void = { _ in }
     @State private var interaction: BoardInteraction
@@ -18,10 +19,10 @@ struct BoardView: View {
     /// A drag already put the piece where it lands, so its move must not slide.
     @State private var dropped: (from: String, to: String)?
     init(fen: String, orientation: Side = .white, interactive: Bool = true, placing: Side? = nil,
-         highlight: (from: String, to: String)? = nil, shakeKey: Int = 0,
+         highlight: (from: String, to: String)? = nil, shakeKey: Int = 0, coordinates: Bool = true,
          onMove: @escaping (Uci) -> Void = { _ in }, onPlace: @escaping (Placement) -> Void = { _ in }) {
         self.fen = fen; self.orientation = orientation; self.interactive = interactive; self.placing = placing
-        self.highlight = highlight; self.shakeKey = shakeKey; self.onMove = onMove; self.onPlace = onPlace
+        self.highlight = highlight; self.shakeKey = shakeKey; self.coordinates = coordinates; self.onMove = onMove; self.onPlace = onPlace
         _interaction = State(initialValue: BoardInteraction(fen: fen, interactive: interactive, placing: placing))
     }
     private static let whiteOrder = (1...8).reversed().flatMap { rank in "abcdefgh".map { "\($0)\(rank)" } }
@@ -96,11 +97,13 @@ struct BoardView: View {
                     if target.capture { Circle().stroke(.black.opacity(0.28), lineWidth: 5).padding(3) }
                     else { Circle().fill(.black.opacity(0.28)).frame(width: size * 0.24) }
                 }
-                VStack {
-                    HStack { if index % 8 == 0 { Text(String(square.suffix(1))) }; Spacer() }
-                    Spacer()
-                    HStack { Spacer(); if index / 8 == 7 { Text(String(square.prefix(1))) } }
-                }.font(.system(size: max(9, size * 0.2), weight: .medium)).foregroundStyle(light ? Color.brown : Self.lightSquare).padding(2)
+                if coordinates {
+                    VStack {
+                        HStack { if index % 8 == 0 { Text(String(square.suffix(1))) }; Spacer() }
+                        Spacer()
+                        HStack { Spacer(); if index / 8 == 7 { Text(String(square.prefix(1))) } }
+                    }.font(.system(size: max(9, size * 0.2), weight: .medium)).foregroundStyle(light ? Color.brown : Self.lightSquare).padding(2)
+                }
             }.frame(width: size, height: size).contentShape(Rectangle())
         }.buttonStyle(.plain).accessibilityIdentifier("square-" + square)
             .accessibilityLabel(square + (piece.map { ", \($0.color == .white ? "White" : "Black") \($0.type.name)" } ?? ", empty"))

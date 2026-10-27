@@ -54,9 +54,14 @@ struct PuzzleImportBatch: Sendable {
 struct ImportView: View {
     @Environment(AppState.self) private var app
     @Environment(\.dismiss) private var dismiss
-    @State private var model = ImportModel()
+    @State private var model: ImportModel
     @State private var filePicker = false
     @State private var sourceError: String?
+    /// `collectionId` preselects an existing collection ("Import Into Collection…").
+    init(collectionId: String = "") {
+        let model = ImportModel(); model.collectionId = collectionId
+        _model = State(initialValue: model)
+    }
     var body: some View {
         NavigationStack {
             Form {

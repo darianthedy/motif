@@ -12,6 +12,16 @@ import XCTest
         let search = app.searchFields.firstMatch; wait(search); search.tap(); search.typeText("club"); dismissKeyboard()
         expect(labelButton("Alpha – Beta"), "exists == false"); XCTAssertTrue(labelButton("Me – Club friend").exists)
     }
+    func testNewGameSheetRejectsBadFenAndOpensTheViewer() {
+        launch("game-collection"); let menu = button("add-games"); wait(menu); menu.tap()
+        let item = app.buttons["New Game on Board…"]; wait(item); item.tap()
+        let create = button("game-new-board"); wait(create); XCTAssertTrue(create.isEnabled)
+        app.buttons["From a FEN"].tap(); let fen = app.descendants(matching: .any)["game-start-fen"]; wait(fen); fen.tap(); fen.typeText("bad")
+        dismissKeyboard(); wait(app.descendants(matching: .any)["game-fen-error"]); expect(create, "isEnabled == false"); capture("new-game-invalid")
+        app.buttons["Standard Start"].tap(); expect(create, "isEnabled == true"); create.tap()
+        // The sheet's preview board is one element, so these squares are the viewer's.
+        wait(button("game-actions")); wait(square("e2")); XCTAssertTrue(square("e2").label.contains("Pawn"))
+    }
     func testStepPlayVariationCommentPromoteFlipAndExport() {
         launch("game:sample"); wait(square("e2")); XCTAssertTrue(square("e2").label.contains("Pawn"))
         tap(button("game-next-move"), until: "label CONTAINS 'Pawn'", on: square("e4"))

@@ -71,7 +71,7 @@ struct GameCollectionView: View {
             .searchable(text: $model.query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Players, event, opening")
             .environment(\.editMode, $editMode)
             .navigationBarBackButtonHidden(editing)
-            .toolbar(editing ? .hidden : .visible, for: .tabBar)
+            .toolbar(editing ? .hidden : .automatic, for: .tabBar)
             .onChange(of: editing) { if !editing { model.selected = [] } }
             .sheet(isPresented: $adding) { AddGamesView(collectionId: collectionId).environment(app) }
             .sheet(item: $transfer) { transfer in

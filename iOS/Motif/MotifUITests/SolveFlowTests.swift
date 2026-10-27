@@ -10,8 +10,8 @@ import XCTest
         XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'square-'")).count, 64)
         XCTAssertEqual(square("a1").frame.width, square("a1").frame.height, accuracy: 1)
         XCTAssertFalse(app.staticTexts["puzzle-comment"].exists)
-        tap("a1"); tap("d4"); XCTAssertFalse(app.staticTexts["result-verdict"].exists)
-        tap("a1"); tap("a8"); wait(app.staticTexts["result-verdict"])
+        move("a1", "d4"); XCTAssertFalse(app.staticTexts["result-verdict"].exists)
+        move("a1", "a8"); wait(app.staticTexts["result-verdict"])
         XCTAssertEqual(app.staticTexts["result-verdict"].label, "Solved")
         XCTAssertEqual(app.staticTexts["puzzle-comment"].label, "Hidden idea")
         capture("clean-result")
@@ -19,12 +19,11 @@ import XCTest
     }
     func testWrongMovesHintThenCleanDragRequiresContinue() {
         launch("session:all")
-        for wrong in ["a7", "a6", "a5"] { tap("a1"); tap(wrong) }
+        for wrong in ["a7", "a6", "a5"] { move("a1", wrong) }
         wait(app.staticTexts["Play the highlighted move"])
-        tap("a1"); tap("a8"); wait(app.staticTexts["result-verdict"])
+        move("a1", "a8"); wait(app.staticTexts["result-verdict"])
         XCTAssertTrue(app.staticTexts["result-verdict"].label.contains("Missed")); capture("hinted-result")
-        button("result-continue").tap(); wait(square("d1"))
-        XCTAssertTrue(square("d1").label.contains("Rook"))
+        button("result-continue").tap(); expect(square("d1"), "label CONTAINS 'Rook'")
         drag("d1", "d8"); wait(app.staticTexts["result-verdict"])
         XCTAssertEqual(app.staticTexts["result-verdict"].label, "Solved")
         XCTAssertTrue(square("d8").label.contains("Rook")); XCTAssertTrue(button("result-continue").exists)
@@ -41,18 +40,18 @@ import XCTest
     func testPromotionPickerCancelCostsNothing() {
         launch("import")
         importPuzzle(#"{"collection":"Promotion","puzzles":[{"fen":"7k/4P3/8/8/8/8/8/6K1 w - - 0 1","solutions":[["e7e8q"]]}]}"#, name: "Promotion")
-        tap("e7"); tap("e8"); wait(button("choose-q")); XCTAssertFalse(button("choose-p").exists)
+        move("e7", "e8"); wait(button("choose-q")); XCTAssertFalse(button("choose-p").exists)
         capture("promotion-picker")
         button("picker-cancel").tap(); XCTAssertTrue(square("e7").label.contains("Pawn")); XCTAssertFalse(app.staticTexts["result-verdict"].exists)
-        tap("e7"); tap("e8"); button("choose-q").tap(); wait(app.staticTexts["result-verdict"])
+        move("e7", "e8"); wait(button("choose-q")); button("choose-q").tap(); wait(app.staticTexts["result-verdict"])
         XCTAssertEqual(app.staticTexts["result-verdict"].label, "Solved")
     }
     func testMissingPiecePickerCancelAndWrongGuess() {
         launch("session:missing"); tap("g7"); XCTAssertFalse(button("choose-q").exists)
-        tap("g6"); wait(button("choose-p")); XCTAssertFalse(button("choose-k").exists); capture("placement-picker")
+        place("g6"); wait(button("choose-p")); XCTAssertFalse(button("choose-k").exists); capture("placement-picker")
         button("picker-cancel").tap(); XCTAssertTrue(square("g6").label.contains("empty"))
-        tap("g6"); button("choose-q").tap(); XCTAssertTrue(square("g6").label.contains("empty"))
-        tap("g6"); button("choose-n").tap(); wait(app.staticTexts["result-verdict"])
+        place("g6"); wait(button("choose-q")); button("choose-q").tap(); expect(square("g6"), "isSelected == false"); XCTAssertTrue(square("g6").label.contains("empty"))
+        place("g6"); wait(button("choose-n")); button("choose-n").tap(); wait(app.staticTexts["result-verdict"])
         XCTAssertEqual(app.staticTexts["result-verdict"].label, "Missed · 1 wrong guess"); XCTAssertTrue(square("g6").label.contains("Knight"))
         XCTAssertTrue(app.staticTexts["puzzle-comment"].exists); capture("missing-result")
     }

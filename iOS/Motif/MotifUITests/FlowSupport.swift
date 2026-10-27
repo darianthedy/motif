@@ -12,6 +12,31 @@ import XCTest
     func button(_ id: String) -> XCUIElement { app.buttons[id] }
     func square(_ name: String) -> XCUIElement { button("square-" + name) }
     func tap(_ name: String) { XCTAssertTrue(square(name).waitForExistence(timeout: 10)); square(name).tap() }
+    /// A loaded CI simulator can drop a tap outright (XCTest reports it sent; the app never sees it). Tap, then
+    /// tap again only while `target` provably still doesn't match `format`, so a slow-but-delivered tap isn't doubled.
+    func tap(_ element: XCUIElement, until format: String, on target: XCUIElement? = nil, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(element.waitForExistence(timeout: 10), app.debugDescription, file: file, line: line)
+        for _ in 0..<3 {
+            element.tap()
+            if matches(target ?? element, format, timeout: 5) { return }
+        }
+        XCTFail("\(target ?? element) never matched \(format) after 3 taps", file: file, line: line)
+    }
+    /// For state that settles after an action: an immediate check races the UI on a loaded simulator.
+    func expect(_ element: XCUIElement, _ format: String, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(matches(element, format, timeout: 10), "\(element) never matched \(format)\n\(app.debugDescription)", file: file, line: line)
+    }
+    func matches(_ element: XCUIElement, _ format: String, timeout: TimeInterval) -> Bool {
+        XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: format), object: element)], timeout: timeout) == .completed
+    }
+    /// Tap-to-move. Selection flips the moment the app sees a tap, so it proves each tap landed: the first
+    /// selects `from`, the second clears it whatever the move's outcome (played, rejected, or promotion picker).
+    func move(_ from: String, _ to: String) {
+        tap(square(from), until: "isSelected == true")
+        tap(square(to), until: "isSelected == false", on: square(from))
+    }
+    /// Missing-piece placement: the tapped empty square stays selected while the picker is up.
+    func place(_ name: String) { tap(square(name), until: "isSelected == true") }
     func drag(_ from: String, _ to: String) { XCTAssertTrue(square(from).waitForExistence(timeout: 10)); square(from).press(forDuration: 0.1, thenDragTo: square(to)) }
     func wait(_ element: XCUIElement) { XCTAssertTrue(element.waitForExistence(timeout: 15), app.debugDescription) }
     func dismissKeyboard() { if button("keyboard-done").waitForExistence(timeout: 3) { button("keyboard-done").tap() } }

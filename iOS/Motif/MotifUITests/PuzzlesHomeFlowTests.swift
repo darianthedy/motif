@@ -27,7 +27,7 @@ import XCTest
         launch("import"); let add = button("puzzle-import-add"); wait(add); XCTAssertFalse(add.isEnabled)
         let text = app.textViews["puzzle-import-text"]; text.tap()
         text.typeText(#"{"collection":"Toolbar","puzzles":[{"fen":"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1","solutions":[["a1a8"]]},{"fen":"bad"}]}"#); dismissKeyboard()
-        wait(app.staticTexts["1 row rejected"]); XCTAssertTrue(add.isEnabled); capture("import-errors")
+        wait(app.staticTexts["1 row rejected"]); expect(add, "isEnabled == true"); capture("import-errors")
         add.tap(); wait(labelButton("Toolbar"))
     }
 }

@@ -30,34 +30,7 @@ private struct GameContentView: View {
         })
     }
     var body: some View {
-        Group {
-            if let tree = model.tree {
-                GeometryReader { geometry in
-                    let width = min(geometry.size.width, geometry.size.height * 0.6)
-                    VStack(spacing: 0) {
-                        BoardView(fen: model.fen, orientation: model.orientation, interactive: true,
-                                  highlight: model.node.map { (moveFrom($0.uci), moveTo($0.uci)) }, onMove: model.play)
-                            .frame(width: width, height: width)
-                        if let problem = model.problem { Text(problem).font(.caption).foregroundStyle(.red).padding(.top, 4) }
-                        MoveListView(game: tree, path: model.path, go: model.go, scrolled: hideAlternatives) { moveMenu($0) }
-                            .safeAreaInset(edge: .top, spacing: 0) { commentCard }
-                            .overlay(alignment: .bottomTrailing) { alternatives(tree) }
-                            .frame(maxHeight: .infinity)
-                    }.frame(maxWidth: .infinity)
-                }.navigationTitle(gameTitle(tree.headers)).navigationSubtitle(gameSubtitle(tree.headers)).navigationBarTitleDisplayMode(.inline)
-            } else { unreadable }
-        }.navigationBarBackButtonHidden(model.unsaved).toolbar { toolbar }
-            .sheet(item: $panel) { presented in
-                switch presented {
-                case .comment: CommentSheet(title: model.currentName, value: model.node?.comment ?? (model.path.isEmpty ? model.tree?.comment : nil), online: true, save: model.comment)
-                case .details: if let tree = model.tree { GameDetailsSheet(headers: tree.headers, save: model.details).environment(app) }
-                }
-            }
-            .confirmationDialog("Delete this move and every move after it?", isPresented: $deleteMove, titleVisibility: .visible) { Button("Delete from here", role: .destructive) { model.deleteHere() } }
-            .confirmationDialog("Delete this game?", isPresented: $deleteGame, titleVisibility: .visible) {
-                Button("Delete game", role: .destructive) { Task { if await app.edit({ try await $0.deleteGames([game.id]) }) { dismiss() } } }
-            }
-            .alert(model.online ? "Save changes to this game?" : "Discard unsaved changes?", isPresented: $leaving) { leaveActions } message: { leaveMessage }
+        screen
             .sensoryFeedback(.selection, trigger: model.path)
             .sensoryFeedback(.error, trigger: model.problem) { _, problem in problem != nil }
             .onChange(of: model.path) { alternativesHidden = false; alternativesOpen = false }
@@ -73,6 +46,39 @@ private struct GameContentView: View {
                 if app.launchRoute == "game-variation" { model.go([0, 0, 1]) }
                 #endif
             }
+    }
+    /// Split from `body` so each half type-checks in reasonable time.
+    private var screen: some View {
+        content
+            .navigationBarBackButtonHidden(model.unsaved).toolbar { toolbar }
+            .sheet(item: $panel) { presented in
+                switch presented {
+                case .comment: CommentSheet(title: model.currentName, value: model.node?.comment ?? (model.path.isEmpty ? model.tree?.comment : nil), online: true, save: model.comment)
+                case .details: if let tree = model.tree { GameDetailsSheet(headers: tree.headers, save: model.details).environment(app) }
+                }
+            }
+            .confirmationDialog("Delete this move and every move after it?", isPresented: $deleteMove, titleVisibility: .visible) { Button("Delete from here", role: .destructive) { model.deleteHere() } }
+            .confirmationDialog("Delete this game?", isPresented: $deleteGame, titleVisibility: .visible) {
+                Button("Delete game", role: .destructive) { Task { if await app.edit({ try await $0.deleteGames([game.id]) }) { dismiss() } } }
+            }
+            .alert(model.online ? "Save changes to this game?" : "Discard unsaved changes?", isPresented: $leaving) { leaveActions } message: { leaveMessage }
+    }
+    @ViewBuilder private var content: some View {
+        if let tree = model.tree {
+            GeometryReader { geometry in
+                let width = min(geometry.size.width, geometry.size.height * 0.6)
+                VStack(spacing: 0) {
+                    BoardView(fen: model.fen, orientation: model.orientation, interactive: true,
+                              highlight: model.node.map { (moveFrom($0.uci), moveTo($0.uci)) }, onMove: model.play)
+                        .frame(width: width, height: width)
+                    if let problem = model.problem { Text(problem).font(.caption).foregroundStyle(.red).padding(.top, 4) }
+                    MoveListView(game: tree, path: model.path, go: model.go, scrolled: hideAlternatives) { moveMenu($0) }
+                        .safeAreaInset(edge: .top, spacing: 0) { commentCard }
+                        .overlay(alignment: .bottomTrailing) { alternatives(tree) }
+                        .frame(maxHeight: .infinity)
+                }.frame(maxWidth: .infinity)
+            }.navigationTitle(gameTitle(tree.headers)).navigationSubtitle(gameSubtitle(tree.headers)).navigationBarTitleDisplayMode(.inline)
+        } else { unreadable }
     }
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
         if model.unsaved {

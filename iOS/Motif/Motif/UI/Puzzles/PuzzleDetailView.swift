@@ -48,8 +48,9 @@ private struct PuzzleDetailContent: View {
     var body: some View {
         List {
             Section {
+                // Display-only: its square buttons would otherwise swallow a drag meant to scroll the page.
                 BoardView(fen: model.fen, orientation: solverSide(puzzle), interactive: false, highlight: model.highlight)
-                    .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
+                    .allowsHitTesting(false).listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
             }.listSectionMargins(.horizontal, 0)
             if puzzle.addPiece == nil { solution }
             info

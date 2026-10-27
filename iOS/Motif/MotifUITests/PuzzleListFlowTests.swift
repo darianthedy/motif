@@ -30,9 +30,11 @@ import XCTest
         let flag = button("puzzle-flag"); flag.tap()
         expectation(for: NSPredicate(format: "label == 'Unflag'"), evaluatedWith: flag); waitForExpectations(timeout: 10)
 
-        // The Comment row starts below the fold, behind the replay bar; scroll it into view first.
-        let comment = button("puzzle-detail-comment"); wait(comment); if !comment.isHittable { app.swipeUp() }
-        XCTAssertTrue(comment.isHittable, app.debugDescription); comment.tap(); let text = app.textViews["edit-puzzle-comment"]; wait(text); capture("puzzle-detail-comment")
+        // The Comment row starts below the fold, behind the replay bar. isHittable still reports it as
+        // tappable there (a sliver shows above the bar), so scroll until the whole row clears the bar.
+        let comment = button("puzzle-detail-comment"); wait(comment); let bar = button("puzzle-go-to-start")
+        for _ in 0..<3 where comment.frame.maxY > bar.frame.minY { app.swipeUp() }
+        XCTAssertLessThanOrEqual(comment.frame.maxY, bar.frame.minY, app.debugDescription); comment.tap(); let text = app.textViews["edit-puzzle-comment"]; wait(text); capture("puzzle-detail-comment")
         text.tap(); text.typeText(" Rook lift."); button("puzzle-comment-save").tap()
         expectation(for: NSPredicate(format: "label CONTAINS 'Rook lift.'"), evaluatedWith: button("puzzle-detail-comment")); waitForExpectations(timeout: 10)
 

@@ -24,6 +24,7 @@ private struct GameContentView: View {
     @State private var panel: GamePanel?
     @State private var deleteMove = false
     @State private var deleteGame = false
+    @State private var leaving = false
     @State private var alternativesHidden = false
     @State private var alternativesOpen = false
     init(game: Game, app: AppState) {
@@ -34,49 +35,7 @@ private struct GameContentView: View {
         _analyzer = State(initialValue: Analyzer.live(route: app.launchRoute))
     }
     var body: some View {
-        Group {
-            if let tree = model.tree {
-                GeometryReader { geometry in
-                    // The bar takes its width from the board, so the move list and toolbars keep their layout.
-                    let width = min(geometry.size.width - (evalBarShown ? EvalBar.width + EvalBar.gap : 0), geometry.size.height * 0.6)
-                    VStack(spacing: 0) {
-                        HStack(spacing: EvalBar.gap) {
-                            if evalBarShown { EvalBar(evaluation: analyzer.evaluation, orientation: model.orientation).frame(height: width) }
-                            BoardView(fen: model.fen, orientation: model.orientation, interactive: model.online,
-                                      highlight: model.node.map { (moveFrom($0.uci), moveTo($0.uci)) }, onMove: model.play)
-                                .frame(width: width, height: width)
-                        }
-                        if let problem = model.problem { Text(problem).font(.caption).foregroundStyle(.red).padding(.top, 4) }
-                        MoveListView(game: tree, path: model.path, go: model.go, scrolled: hideAlternatives) { moveMenu($0) }
-                            .safeAreaInset(edge: .top, spacing: 0) { commentCard }
-                            .overlay(alignment: .bottomTrailing) { alternatives(tree) }
-                            .frame(maxHeight: .infinity)
-                    }.frame(maxWidth: .infinity)
-                }.navigationTitle(gameTitle(tree.headers)).navigationSubtitle(gameSubtitle(tree.headers)).navigationBarTitleDisplayMode(.inline)
-            } else { unreadable }
-        }.toolbar {
-            ToolbarItem(placement: .topBarTrailing) { Menu { gameMenu } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Game actions").accessibilityIdentifier("game-actions") }
-            if model.tree != nil {
-                ToolbarItem(placement: .bottomBar) { control("Flip board", "arrow.up.arrow.down", disabled: !model.online, action: model.flip) }
-                ToolbarSpacer(.flexible, placement: .bottomBar)
-                ToolbarItemGroup(placement: .bottomBar) {
-                    control("Go to start", "backward.end.fill", disabled: model.path.isEmpty) { model.go([]) }
-                    control("Previous move", "chevron.left", disabled: model.path.isEmpty, action: model.back)
-                    control("Next move", "chevron.right", disabled: model.following.isEmpty, action: model.next)
-                    control("Go to end", "forward.end.fill", disabled: model.following.isEmpty, action: model.end)
-                }
-            }
-        }
-            .sheet(item: $panel) { presented in
-                switch presented {
-                case .comment: CommentSheet(title: model.currentName, value: model.node?.comment ?? (model.path.isEmpty ? model.tree?.comment : nil), online: model.online, save: model.comment)
-                case .details: if let tree = model.tree { GameDetailsSheet(headers: tree.headers, online: model.online, save: model.details).environment(app) }
-                }
-            }
-            .confirmationDialog("Delete this move and every move after it?", isPresented: $deleteMove, titleVisibility: .visible) { Button("Delete from here", role: .destructive) { model.deleteHere() } }
-            .confirmationDialog("Delete this game?", isPresented: $deleteGame, titleVisibility: .visible) {
-                Button("Delete game", role: .destructive) { Task { if await app.edit({ try await $0.deleteGames([game.id]) }) { dismiss() } } }
-            }
+        screen
             .sensoryFeedback(.selection, trigger: model.path)
             .sensoryFeedback(.error, trigger: model.problem) { _, problem in problem != nil }
             .onChange(of: model.path) { alternativesHidden = false; alternativesOpen = false }
@@ -98,6 +57,65 @@ private struct GameContentView: View {
                 #endif
             }
     }
+    /// Split from `body` so each half type-checks in reasonable time.
+    private var screen: some View {
+        content
+            .navigationBarBackButtonHidden(model.unsaved).toolbar { toolbar }
+            .sheet(item: $panel) { presented in
+                switch presented {
+                case .comment: CommentSheet(title: model.currentName, value: model.node?.comment ?? (model.path.isEmpty ? model.tree?.comment : nil), online: true, save: model.comment)
+                case .details: if let tree = model.tree { GameDetailsSheet(headers: tree.headers, save: model.details).environment(app) }
+                }
+            }
+            .confirmationDialog("Delete this move and every move after it?", isPresented: $deleteMove, titleVisibility: .visible) { Button("Delete from here", role: .destructive) { model.deleteHere() } }
+            .confirmationDialog("Delete this game?", isPresented: $deleteGame, titleVisibility: .visible) {
+                Button("Delete game", role: .destructive) { Task { if await app.edit({ try await $0.deleteGames([game.id]) }) { dismiss() } } }
+            }
+            .alert(model.online ? "Save changes to this game?" : "Discard unsaved changes?", isPresented: $leaving) { leaveActions } message: { leaveMessage }
+    }
+    @ViewBuilder private var content: some View {
+        if let tree = model.tree {
+            GeometryReader { geometry in
+                // The bar takes its width from the board, so the move list and toolbars keep their layout.
+                let width = min(geometry.size.width - (evalBarShown ? EvalBar.width + EvalBar.gap : 0), geometry.size.height * 0.6)
+                VStack(spacing: 0) {
+                    HStack(spacing: EvalBar.gap) {
+                        if evalBarShown { EvalBar(evaluation: analyzer.evaluation, orientation: model.orientation).frame(height: width) }
+                        BoardView(fen: model.fen, orientation: model.orientation, interactive: true,
+                                  highlight: model.node.map { (moveFrom($0.uci), moveTo($0.uci)) }, onMove: model.play)
+                            .frame(width: width, height: width)
+                    }
+                    if let problem = model.problem { Text(problem).font(.caption).foregroundStyle(.red).padding(.top, 4) }
+                    MoveListView(game: tree, path: model.path, go: model.go, scrolled: hideAlternatives) { moveMenu($0) }
+                        .safeAreaInset(edge: .top, spacing: 0) { commentCard }
+                        .overlay(alignment: .bottomTrailing) { alternatives(tree) }
+                        .frame(maxHeight: .infinity)
+                }.frame(maxWidth: .infinity)
+            }.navigationTitle(gameTitle(tree.headers)).navigationSubtitle(gameSubtitle(tree.headers)).navigationBarTitleDisplayMode(.inline)
+        } else { unreadable }
+    }
+    @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        if model.unsaved {
+            ToolbarItem(placement: .topBarLeading) { Button("Back", systemImage: "chevron.backward") { leaving = true }.accessibilityIdentifier("game-back") }
+        }
+        ToolbarItem(placement: .topBarTrailing) { Menu { gameMenu } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Game actions").accessibilityIdentifier("game-actions") }
+        if model.tree != nil {
+            ToolbarItem(placement: .bottomBar) { control("Flip board", "arrow.up.arrow.down", disabled: false, action: model.flip) }
+            ToolbarSpacer(.flexible, placement: .bottomBar)
+            ToolbarItemGroup(placement: .bottomBar) {
+                control("Go to start", "backward.end.fill", disabled: model.path.isEmpty) { model.go([]) }
+                control("Previous move", "chevron.left", disabled: model.path.isEmpty, action: model.back)
+                control("Next move", "chevron.right", disabled: model.following.isEmpty, action: model.next)
+                control("Go to end", "forward.end.fill", disabled: model.following.isEmpty, action: model.end)
+            }
+        }
+    }
+    @ViewBuilder private var leaveActions: some View {
+        if model.online { Button("Save") { Task { if await model.save() { dismiss() } } } }
+        Button("Discard Changes", role: .destructive) { model.discard(); dismiss() }
+        Button("Cancel", role: .cancel) {}
+    }
+    @ViewBuilder private var leaveMessage: some View { if !model.online { Text("You're offline, so they can't be saved.") } }
     /// The PGN didn't parse: say so, offer the two things that still work, and show the text as stored.
     private var unreadable: some View {
         ScrollView {
@@ -121,7 +139,7 @@ private struct GameContentView: View {
         if !model.comment.isEmpty {
             Button { panel = .comment } label: {
                 Text(model.comment).font(.subheadline).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 14).padding(.vertical, 12)
-            }.buttonStyle(.plain).disabled(!model.online)
+            }.buttonStyle(.plain)
                 .glassEffect(.regular, in: .rect(cornerRadius: 14)).padding(.horizontal, 16).padding(.top, 8)
                 .accessibilityIdentifier("game-comment")
         }
@@ -161,8 +179,10 @@ private struct GameContentView: View {
     }
     @ViewBuilder private var gameMenu: some View {
         if let tree = model.tree {
+            Button("Save", systemImage: "square.and.arrow.down") { Task { if await model.save() { app.showNotice("Game saved.") } } }
+                .disabled(!model.canSave).accessibilityIdentifier("game-save")
             Button("Edit Details", systemImage: "pencil") { panel = .details }
-            Button(commentAction(model.path.isEmpty, model.comment.isEmpty), systemImage: "text.bubble") { panel = .comment }.disabled(!model.online).accessibilityIdentifier("game-edit-comment")
+            Button(commentAction(model.path.isEmpty, model.comment.isEmpty), systemImage: "text.bubble") { panel = .comment }.accessibilityIdentifier("game-edit-comment")
             Button(evalBarShown ? "Hide Evaluation" : "Show Evaluation", systemImage: evalBarShown ? "eye.slash" : "chart.bar.yaxis") { evalBarShown.toggle() }
                 .accessibilityIdentifier("game-toggle-evaluation")
             Section {
@@ -175,10 +195,10 @@ private struct GameContentView: View {
     /// Acting on a move from its context menu selects it first.
     @ViewBuilder private func moveMenu(_ cell: Cell) -> some View {
         let empty = displayComment(cell.node.comment).isEmpty && displayComment(cell.node.before).isEmpty
-        Button(commentAction(false, empty), systemImage: "text.bubble") { model.go(cell.path); panel = .comment }.disabled(!model.online)
-        if !onMainLine(cell.path) { Button("Make Main Line", systemImage: "arrow.up.to.line") { model.go(cell.path); model.promote() }.disabled(!model.online) }
+        Button(commentAction(false, empty), systemImage: "text.bubble") { model.go(cell.path); panel = .comment }
+        if !onMainLine(cell.path) { Button("Make Main Line", systemImage: "arrow.up.to.line") { model.go(cell.path); model.promote() } }
         Section {
-            Button(role: .destructive) { model.go(cell.path); deleteMove = true } label: { Label("Delete From Here", systemImage: "trash"); Text(countLabel(movesFrom(cell.node), "move")) }.disabled(!model.online)
+            Button(role: .destructive) { model.go(cell.path); deleteMove = true } label: { Label("Delete From Here", systemImage: "trash"); Text(countLabel(movesFrom(cell.node), "move")) }
         }
     }
     private func commentAction(_ game: Bool, _ empty: Bool) -> String { (empty ? "Add " : "Edit ") + (game ? "Game Note" : "Comment") }

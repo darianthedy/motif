@@ -42,6 +42,16 @@ import XCTest
         let share = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Save to Files' OR label == 'Copy'")).firstMatch
         wait(share); capture("pgn-share-sheet")
     }
+    func testUnsavedChangesAskBeforeLeavingAndSaveFromTheMenu() {
+        launch("game:sample"); wait(square("e2")); move("c2", "c4"); wait(button("move-1"))
+        button("game-back").tap(); let alert = app.alerts["Save changes to this game?"]; wait(alert); capture("game-unsaved-alert")
+        alert.buttons["Cancel"].tap(); XCTAssertTrue(button("move-1").exists)
+        button("game-actions").tap(); wait(button("game-save")); button("game-save").tap()
+        expect(button("game-back"), "exists == false"); XCTAssertTrue(button("move-1").exists)
+        tap(button("game-go-to-start"), until: "label CONTAINS 'Pawn'", on: square("d2")); move("d2", "d4"); wait(button("move-2")); button("game-back").tap(); wait(alert)
+        alert.buttons["Discard Changes"].tap(); wait(button("game-row-sample-game"))
+        button("game-row-sample-game").tap(); wait(button("move-1")); expect(button("move-2"), "exists == false")
+    }
     func testUnreadableGameOffersCopyAndDelete() {
         launch("game-unreadable"); wait(app.staticTexts["Can't Read This Game"])
         XCTAssertTrue(app.descendants(matching: .any)["game-unreadable-pgn"].exists); capture("game-unreadable")
@@ -52,7 +62,7 @@ import XCTest
         let confirm = confirms.allElementsBoundByIndex.first(where: \.isHittable); XCTAssertNotNil(confirm, app.debugDescription); confirm?.tap()
         wait(button("game-row-sample-game")); expect(button("game-row-sample-unreadable"), "exists == false")
     }
-    func testOfflineGameOpensAndDisablesChanges() throws {
+    func testOfflineGameAllowsEditingButNotSaving() throws {
         launch("game:sample", offline: true); wait(square("e2"))
         let banners = app.staticTexts.matching(identifier: "offline-banner"); wait(banners.firstMatch)
         // Require one visible banner, with neither navigation nor board overlap.
@@ -62,8 +72,13 @@ import XCTest
         let title = app.navigationBars.staticTexts["White – Black"]; wait(title)
         XCTAssertGreaterThanOrEqual(banner.frame.minY, title.frame.maxY, app.debugDescription)
         XCTAssertLessThanOrEqual(banner.frame.maxY, square("a8").frame.minY)
-        XCTAssertFalse(button("game-flip-board").isEnabled)
+        XCTAssertTrue(button("game-flip-board").isEnabled)
         tap(button("game-next-move"), until: "label CONTAINS 'Pawn'", on: square("e4")); capture("offline-game")
-        button("game-actions").tap(); wait(button("game-edit-comment")); XCTAssertFalse(button("game-edit-comment").isEnabled)
+        button("game-actions").tap(); wait(button("game-edit-comment")); XCTAssertTrue(button("game-edit-comment").isEnabled)
+        // Close the menu by tapping above the board, where nothing reacts.
+        XCTAssertFalse(button("game-save").isEnabled); app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02)).tap()
+        move("c7", "c5"); wait(button("game-back")); button("game-back").tap()
+        let alert = app.alerts["Discard unsaved changes?"]; wait(alert); XCTAssertFalse(alert.buttons["Save"].exists); capture("game-offline-unsaved-alert")
+        alert.buttons["Discard Changes"].tap(); wait(button("game-row-sample-game"))
     }
 }

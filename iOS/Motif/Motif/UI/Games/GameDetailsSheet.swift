@@ -3,11 +3,10 @@ let gameDetailFields: [(String, String)] = [("White", "White"), ("WhiteElo", "Wh
 struct GameDetailsSheet: View {
     @Environment(\.dismiss) private var dismiss
     let headers: PgnHeaders
-    let online: Bool
     let save: (PgnHeaders) -> Void
     @State private var values: [String: String]
-    init(headers: PgnHeaders, online: Bool, save: @escaping (PgnHeaders) -> Void) {
-        self.headers = headers; self.online = online; self.save = save
+    init(headers: PgnHeaders, save: @escaping (PgnHeaders) -> Void) {
+        self.headers = headers; self.save = save
         var initial = ["Result": headers["Result"] ?? "*"]
         for (key, _) in gameDetailFields { let value = headers[key] ?? ""; initial[key] = value.allSatisfy { $0 == "?" || $0 == "." } ? "" : value }
         _values = State(initialValue: initial)
@@ -24,11 +23,11 @@ struct GameDetailsSheet: View {
                     }
                     Section("Event") { fields(["Event", "Site", "Date", "Round"]) }
                     Section("Opening") { fields(["Opening", "ECO"]) }
-                }.disabled(!online)
+                }
             }.editorKeyboard().navigationTitle("Details").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel", systemImage: "xmark", role: .cancel) { dismiss() } }
-                    ToolbarItem(placement: .confirmationAction) { Button("Save", systemImage: "checkmark") { save(changes); dismiss() }.disabled(!online) }
+                    ToolbarItem(placement: .confirmationAction) { Button("Save", systemImage: "checkmark") { save(changes); dismiss() } }
                 }
         }
     }

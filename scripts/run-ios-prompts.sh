@@ -48,12 +48,13 @@ SKIP_TESTFLIGHT="${SKIP_TESTFLIGHT:-0}"
 # is the practical choice. Drop to --permission-mode acceptEdits to babysit.
 CLAUDE_FLAGS=(--dangerously-skip-permissions)
 START_AT="${1:-${PROMPTS[0]}}"   # optional: resume, e.g. `scripts/run-ios-prompts.sh P05`
-# Before each slice, probe the Claude usage tier; if it isn't "allowed" (i.e.
-# already at/near the limit) wait for the 5-hour reset instead of starting — so
-# we don't burn a slice that would abort partway. Set 0 to disable.
-# NOTE: the headless CLI exposes only a status tier + resetsAt, not a numeric %,
-# so this fires on Claude's own near/at-limit signal, not a settable 90% line.
+# Before each slice, probe Claude usage; if any window (five_hour, seven_day) is
+# rejected or at/over USAGE_GATE_AT utilization, wait for that window's reset
+# instead of starting — so we don't burn a slice that would abort partway. Set
+# PREFLIGHT_USAGE_GATE=0 to disable. The top-level "allowed_warning" status is
+# NOT a limit: it shows up at ~25% weekly use, so only the per-window figures count.
 PREFLIGHT_USAGE_GATE="${PREFLIGHT_USAGE_GATE:-1}"
+USAGE_GATE_AT="${USAGE_GATE_AT:-0.9}"
 
 # --- helpers ----------------------------------------------------------------
 log() { printf '\n\033[1;36m[%s] %s\033[0m\n' "$(date +%H:%M:%S)" "$*"; }
@@ -161,7 +162,7 @@ try:
             continue
         if ev.get("type") == "rate_limit_event":
             info = ev.get("rate_limit_info", {}) or {}
-            if str(info.get("status", "")).lower() not in ("", "allowed"):
+            if str(info.get("status", "")).lower() == "rejected":   # allowed_warning still runs
                 limited = True
             if info.get("resetsAt"):
                 reset = max(reset, int(info["resetsAt"]))
@@ -191,9 +192,9 @@ read_usage() {
   local f="$1"
   USAGE_STATUS="none"; USAGE_RESET=0
   [ -f "$f" ] || return 0
-  read -r USAGE_STATUS USAGE_RESET < <(python3 - "$f" <<'PY'
+  read -r USAGE_STATUS USAGE_RESET < <(python3 - "$f" "$USAGE_GATE_AT" <<'PY'
 import sys, json, re
-status = ""; reset = 0; limited = False
+status = ""; reset = 0; limited = False; gate_at = float(sys.argv[2])
 pat = re.compile(r"hit your (?:session|usage) limit|(?:session|usage) limit\b.{0,40}reset|usage limit reached|rate.?limit reached|\b429\b", re.I)
 try:
     for line in open(sys.argv[1], encoding="utf-8", errors="replace"):
@@ -208,10 +209,19 @@ try:
             continue
         if ev.get("type") == "rate_limit_event":
             info = ev.get("rate_limit_info", {}) or {}
-            if info.get("status"):
-                status = str(info["status"])
-            if info.get("resetsAt"):
-                reset = int(info["resetsAt"])
+            windows = info.get("unifiedWindows") or {}
+            if windows:
+                # The per-window figures are the real signal; the last event wins.
+                status, reset = "allowed", 0
+                for w in windows.values():
+                    rejected = str(w.get("status", "")).lower() == "rejected"
+                    if rejected or float(w.get("utilization") or 0) >= gate_at:
+                        status = "rejected" if rejected or status == "rejected" else "near_limit"
+                        reset = max(reset, int(w.get("resetsAt") or 0))
+            else:
+                top = str(info.get("status") or "")
+                status = "rejected" if top.lower() == "rejected" else ("allowed" if top else status)
+                reset = int(info.get("resetsAt") or 0)
 except FileNotFoundError:
     pass
 # A limit message anywhere => treat as a limit tier so pre-flight waits.
@@ -230,8 +240,8 @@ probe_usage() {
   read_usage "$f"; rm -f "$f"
 }
 
-# Before starting a slice: if usage is already at a limit tier (status not
-# "allowed"/"none"), sleep until the reset rather than starting work. Re-probes
+# Before starting a slice: if a usage window is rejected or at/over USAGE_GATE_AT
+# (status not "allowed"/"none"), sleep until its reset rather than starting work. Re-probes
 # after each wait. Capped so an odd status can't loop forever.
 preflight_wait() {
   [ "$PREFLIGHT_USAGE_GATE" = 1 ] || return 0
@@ -240,7 +250,7 @@ preflight_wait() {
   while [ "${USAGE_STATUS:-none}" != "allowed" ] && [ "${USAGE_STATUS:-none}" != "none" ]; do
     waits=$((waits+1)); [ "$waits" -gt 6 ] && die "usage still limited ('$USAGE_STATUS') after 6 pre-flight waits"
     now=$(date +%s); secs=$(( USAGE_RESET - now )); [ "$secs" -lt 60 ] && secs=60
-    log "Pre-flight: usage tier '$USAGE_STATUS' (at/near limit) — not starting; sleeping ~$((secs/60)) min until $(date -d "@$USAGE_RESET" '+%a %H:%M') reset…"
+    log "Pre-flight: usage '$USAGE_STATUS' (a window is at/over ${USAGE_GATE_AT} or rejected) — not starting; sleeping ~$((secs/60)) min until $(date -d "@$USAGE_RESET" '+%a %H:%M') reset…"
     sleep "$secs"
     probe_usage
   done

@@ -16,7 +16,10 @@ private struct GameContentView: View {
     let game: Game
     let app: AppState
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var phase
     @State private var model: GameViewModel
+    /// Follows the board's position; the bar that shows it comes later.
+    @State private var analyzer: Analyzer
     @State private var panel: GamePanel?
     @State private var deleteMove = false
     @State private var deleteGame = false
@@ -27,6 +30,7 @@ private struct GameContentView: View {
         _model = State(initialValue: GameViewModel(game, online: app.store.online) { changes in
             await app.edit { try await $0.updateGame(game.id, changes) }
         })
+        _analyzer = State(initialValue: Analyzer.live())
     }
     var body: some View {
         Group {
@@ -73,6 +77,10 @@ private struct GameContentView: View {
             .onChange(of: model.path) { alternativesHidden = false; alternativesOpen = false }
             .onChange(of: game) { _, next in model.receive(next) }
             .onChange(of: app.store.online) { _, online in model.online = online }
+            .onChange(of: model.fen, initial: true) { _, fen in if model.tree != nil { analyzer.show(fen: fen) } }
+            .onChange(of: phase) { _, phase in if phase == .active { analyzer.resume() } else { analyzer.pause() } }
+            .onAppear { analyzer.resume() }
+            .onDisappear { analyzer.pause() }
             .focusable().focusEffectDisabled()
             .onKeyPress(.leftArrow) { model.back(); return .handled }
             .onKeyPress(.rightArrow) { model.next(); return .handled }

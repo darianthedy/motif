@@ -6,6 +6,7 @@ struct BoardView: View {
     var interactive = true
     var placing: Side?
     var highlight: (from: String, to: String)?
+    var highlightColor = Color.blue
     var shakeKey = 0
     var coordinates = true
     var onMove: (Uci) -> Void = { _ in }
@@ -19,10 +20,10 @@ struct BoardView: View {
     /// A drag already put the piece where it lands, so its move must not slide.
     @State private var dropped: (from: String, to: String)?
     init(fen: String, orientation: Side = .white, interactive: Bool = true, placing: Side? = nil,
-         highlight: (from: String, to: String)? = nil, shakeKey: Int = 0, coordinates: Bool = true,
+         highlight: (from: String, to: String)? = nil, highlightColor: Color = .blue, shakeKey: Int = 0, coordinates: Bool = true,
          onMove: @escaping (Uci) -> Void = { _ in }, onPlace: @escaping (Placement) -> Void = { _ in }) {
         self.fen = fen; self.orientation = orientation; self.interactive = interactive; self.placing = placing
-        self.highlight = highlight; self.shakeKey = shakeKey; self.coordinates = coordinates; self.onMove = onMove; self.onPlace = onPlace
+        self.highlight = highlight; self.highlightColor = highlightColor; self.shakeKey = shakeKey; self.coordinates = coordinates; self.onMove = onMove; self.onPlace = onPlace
         _interaction = State(initialValue: BoardInteraction(fen: fen, interactive: interactive, placing: placing))
     }
     private static let whiteOrder = (1...8).reversed().flatMap { rank in "abcdefgh".map { "\($0)\(rank)" } }
@@ -61,7 +62,7 @@ struct BoardView: View {
                         .shadow(radius: 5).position(x: dragPoint.x, y: dragPoint.y - size * 0.25).allowsHitTesting(false)
                 }
                 if let pending = interaction.pending {
-                    Color.black.opacity(0.4).contentShape(Rectangle()).onTapGesture { interaction.cancel() }
+                    Color.black.opacity(0.45).contentShape(Rectangle()).onTapGesture { interaction.cancel() }
                     PiecePicker(title: pickerTitle(pending), choices: interaction.choices, color: placing ?? snapshot.turn ?? .white,
                                 choose: { emit(interaction.choose($0)) }, cancel: { interaction.cancel() })
                         .frame(width: geometry.size.width, height: geometry.size.width)
@@ -88,7 +89,7 @@ struct BoardView: View {
         return Button { dropped = nil; emit(interaction.tap(square)) } label: {
             ZStack {
                 (light ? Self.lightSquare : Self.darkSquare)
-                if highlight?.from == square || highlight?.to == square { Color.blue.opacity(0.4) }
+                if highlight?.from == square || highlight?.to == square { highlightColor.opacity(0.4) }
                 if selected { Color.yellow.opacity(0.55) }
                 if let piece, dragging != square, slide?.to != square {
                     PieceImage(type: piece.type, color: piece.color).padding(2)

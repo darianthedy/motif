@@ -14,11 +14,13 @@ import XCTest
     func tap(_ name: String) { XCTAssertTrue(square(name).waitForExistence(timeout: 10)); square(name).tap() }
     /// A loaded CI simulator can drop a tap outright (XCTest reports it sent; the app never sees it). Tap, then
     /// tap again only while `target` provably still doesn't match `format`, so a slow-but-delivered tap isn't doubled.
+    /// The proof gets the same 10s as `expect`: a stalled simulator can spend 4s answering one query, and a re-tap
+    /// after a move was played hits a board that no longer takes taps.
     func tap(_ element: XCUIElement, until format: String, on target: XCUIElement? = nil, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(element.waitForExistence(timeout: 10), app.debugDescription, file: file, line: line)
         for _ in 0..<3 {
             element.tap()
-            if matches(target ?? element, format, timeout: 5) { return }
+            if matches(target ?? element, format, timeout: 10) { return }
         }
         XCTFail("\(target ?? element) never matched \(format) after 3 taps", file: file, line: line)
     }

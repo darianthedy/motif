@@ -5,7 +5,7 @@ import XCTest
         launch("session:all"); move("a1", "a8"); wait(app.staticTexts["result-verdict"])
         // The attempt is recorded on Continue, not when the card appears.
         button("result-continue").tap()
-        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.staticTexts["result-verdict"]); waitForExpectations(timeout: 10)
+        expect(app.staticTexts["result-verdict"], "exists == false")
         button("session-stop").tap(); wait(button("account")); button("account").tap()
         let reset = button("reset-progress"); wait(reset); expect(reset, "isEnabled == true")
         XCTAssertTrue(app.descendants(matching: .any)["account-email"].label.contains("sample@motif.local"))
@@ -13,7 +13,7 @@ import XCTest
         // The confirmation dialog's action shows up more than once in the tree; tap the one on screen.
         reset.tap(); let confirms = app.buttons.matching(NSPredicate(format: "label == %@", "Reset Progress")); wait(confirms.firstMatch); capture("account-reset")
         let confirm = confirms.allElementsBoundByIndex.first(where: \.isHittable); XCTAssertNotNil(confirm, app.debugDescription); confirm?.tap()
-        expectation(for: NSPredicate(format: "isEnabled == false"), evaluatedWith: reset); waitForExpectations(timeout: 10)
+        expect(reset, "isEnabled == false")
         button("account-close").tap(); wait(button("import-puzzles"))
     }
     func testSignOutFromAccountSheet() {

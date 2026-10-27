@@ -19,6 +19,10 @@ if [ "${1:-}" != "--ios" ]; then
   npm test --silent
 fi
 
+# The Stockfish nets the app bundles; a missing net fails here, before the build.
+echo "== fetch NNUE nets"
+scripts/fetch-nnue.sh
+
 # A UDID distinguishes simulators with the same name on different runtimes.
 sim=$(scripts/ios-simulator.sh)
 

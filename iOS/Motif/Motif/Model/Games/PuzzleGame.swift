@@ -3,7 +3,9 @@ import Foundation
 /// A puzzle opened for analysis: its start position, with the answer placed for
 /// a missing-piece puzzle, and every solution as moves, the first as the main line.
 func puzzleGame(_ puzzle: Puzzle, event: String? = nil) -> ParsedGame {
-    let fen = normalizeFen(puzzle.fen)
+    // A game's FEN header needs the move counters, which a puzzle may leave out.
+    let given = puzzle.fen.trimmingCharacters(in: CharacterSet(charactersIn: Uci.whitespace))
+    let fen = Board.validateFen(given).ok ? given : normalizeFen(given) + " 0 1"
     var game = newGame(puzzle.addPiece.flatMap { Board.withPiece(fen, $0) } ?? fen)
     game.headers["Event"] = event ?? "Puzzle"
     guard puzzle.addPiece == nil else { return game }

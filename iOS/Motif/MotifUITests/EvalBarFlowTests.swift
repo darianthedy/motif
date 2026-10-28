@@ -31,9 +31,32 @@ import XCTest
         toggle("Show Evaluation"); wait(bar); expect(bar, "value == 'White is better by 0.6, depth 22'")
     }
 
+    func testEngineLinesShowTheTopThreeAndPlayTheirFirstMove() {
+        launch("game-eval"); wait(square("e2")); wait(button("game-engine-lines"))
+        let lines = app.descendants(matching: .any)["engine-lines"]
+        // The toggle persists, so an earlier run may have left the lines shown.
+        if !lines.waitForExistence(timeout: 2) { button("game-engine-lines").tap() }
+        wait(lines)
+        // The scripted engine's lines are the legal moves in square order: Na3, Nc3, Nf3.
+        let best = button("engine-line-0"); wait(best)
+        expect(best, "label CONTAINS '1. Na3' AND label CONTAINS 'White better by 0.60'")
+        expect(button("engine-line-2"), "label CONTAINS '1. Nf3' AND label CONTAINS 'White better by 0.40'")
+        capture("engine-lines")
+        best.tap(); expect(square("a3"), "label CONTAINS[c] 'knight'")
+        button("game-engine-lines").tap(); expect(lines, "exists == false")
+    }
+
+    func testHoldingPreviousAndNextJumpsToTheEnds() {
+        launch("game-eval"); wait(square("e2"))
+        // The sample game's main line ends with 3. Bb5.
+        hold(button("game-next-move"), until: "label CONTAINS[c] 'bishop'", on: square("b5"))
+        hold(button("game-previous-move"), until: "label CONTAINS 'empty'", on: square("e4"))
+    }
+
     private func toggle(_ label: String) {
         button("game-actions").tap()
         let item = button("game-toggle-evaluation"); wait(item)
-        XCTAssertEqual(item.label, label); item.tap()
+        // The menu closes once the tap lands, so a dropped tap shows as the item still there.
+        XCTAssertEqual(item.label, label); tap(item, until: "exists == false")
     }
 }

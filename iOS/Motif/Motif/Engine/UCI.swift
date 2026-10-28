@@ -24,14 +24,22 @@ struct Evaluation: Equatable, Sendable {
     }
 }
 
-/// Pure parsing of the engine's UCI output. Only what the bar needs is kept: the
-/// depth, an exact score and the first move of the principal variation, plus the
+/// One of the engine's ranked lines for a position: its score from White's point of
+/// view and its moves as UCI strings, best first.
+struct EngineLine: Equatable, Sendable {
+    let depth: Int
+    let score: Score
+    let moves: [String]
+}
+
+/// Pure parsing of the engine's UCI output. Only what the bar and the engine lines
+/// need is kept: the depth, an exact score, the line's rank and its moves, plus the
 /// end of a search.
 enum UCI {
     enum Line: Equatable, Sendable {
         /// An exact score, as UCI gives it: from the side to move's point of view
-        /// unless it came through `parse(_:fen:)`.
-        case info(depth: Int, score: Score, move: String?)
+        /// unless it came through `parse(_:fen:)`. `multipv` is the line's rank, 1 for the best.
+        case info(depth: Int, score: Score, pv: [String], multipv: Int = 1)
         case bestmove(String)
     }
 
@@ -43,7 +51,7 @@ enum UCI {
         guard let head = words.first else { return nil }
         if head == "bestmove" { return words.count > 1 ? .bestmove(words[1]) : nil }
         guard head == "info", words.count > 1, words[1] != "string" else { return nil }
-        var depth: Int?, score: Score?, move: String?, index = 1
+        var depth: Int?, score: Score?, pv: [String] = [], multipv = 1, index = 1
         while index < words.count {
             switch words[index] {
             case "depth":
@@ -57,23 +65,26 @@ enum UCI {
                 default: return nil
                 }
                 index += 3
+            case "multipv":
+                multipv = words.indices.contains(index + 1) ? Int(words[index + 1]) ?? 1 : 1
+                index += 2
             case "lowerbound", "upperbound":
                 return nil
             case "pv":
-                move = words.indices.contains(index + 1) ? words[index + 1] : nil
+                pv = Array(words[(index + 1)...])
                 index = words.count
             default:
                 index += 1
             }
         }
         guard let depth, let score else { return nil }
-        return .info(depth: depth, score: score, move: move)
+        return .info(depth: depth, score: score, pv: pv, multipv: multipv)
     }
 
     /// White's point of view for the position `fen`.
     static func parse(_ line: String, fen: String) -> Line? {
-        guard case .info(let depth, let score, let move)? = parse(line) else { return parse(line) }
-        return .info(depth: depth, score: whiteView(score, sideToMove(fen)), move: move)
+        guard case .info(let depth, let score, let pv, let multipv)? = parse(line) else { return parse(line) }
+        return .info(depth: depth, score: whiteView(score, sideToMove(fen)), pv: pv, multipv: multipv)
     }
 
     /// UCI scores belong to the side to move; flip them when that's Black.

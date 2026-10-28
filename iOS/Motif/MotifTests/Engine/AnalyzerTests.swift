@@ -188,4 +188,38 @@ final class TestClock: AnalysisClock {
         await settle()
         XCTAssertEqual(gos(engine), 1)
     }
+
+    func testThreeLinesAskForMultiPVAndArriveRanked() async {
+        let engine = FakeEngine(), clock = TestClock(), analyzer = Analyzer(engine: engine, clock: clock)
+        analyzer.lineCount = 3
+        await search(position(1), analyzer, engine, clock)
+        XCTAssertEqual(engine.sent, ["setoption name MultiPV value 3", "position fen \(position(1))", go])
+        engine.emit("info depth 22 multipv 2 score cp 10 pv d2d4 d7d5")
+        engine.emit("info depth 22 multipv 1 score cp 30 pv e2e4 e7e5")
+        engine.emit("info depth 22 multipv 3 score cp -5 pv g1f3")
+        engine.emit("bestmove e2e4")
+        await eventually("search finished") { analyzer.evaluation?.final == true }
+        XCTAssertEqual(analyzer.lines.map(\.moves), [["e2e4", "e7e5"], ["d2d4", "d7d5"], ["g1f3"]])
+        XCTAssertEqual(analyzer.evaluation?.score, .cp(30), "the bar follows the best line")
+
+        analyzer.lineCount = 1
+        XCTAssertEqual(analyzer.lines.map(\.moves), [["e2e4", "e7e5"]], "fewer lines come from the cache")
+        clock.advance(by: Analyzer.debounce * 4)
+        await settle()
+        XCTAssertEqual(gos(engine), 1, "no new search for fewer lines")
+    }
+
+    func testAskingForMoreLinesSearchesAgain() async {
+        let engine = FakeEngine(), clock = TestClock(), analyzer = Analyzer(engine: engine, clock: clock)
+        await search(position(1), analyzer, engine, clock)
+        engine.emit("info depth 22 score cp 15 pv e2e4")
+        engine.emit("bestmove e2e4")
+        await eventually("search finished") { analyzer.evaluation?.final == true }
+        XCTAssertEqual(analyzer.lines.count, 1)
+
+        analyzer.lineCount = 3
+        clock.advance(by: Analyzer.debounce)
+        await eventually("searched again for three lines") { gos(engine) == 2 }
+        XCTAssertEqual(Array(engine.sent.suffix(3)), ["setoption name MultiPV value 3", "position fen \(position(1))", go])
+    }
 }

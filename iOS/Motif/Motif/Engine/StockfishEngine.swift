@@ -104,6 +104,7 @@ final class StockfishEngine: UCIEngine {
             if let string = info.string { return "info string \(string)" }
             var words = ["info"]
             if let depth = info.depth { words += ["depth", "\(depth)"] }
+            if let multipv = info.multipv { words += ["multipv", "\(multipv)"] }
             if let score = info.score {
                 if let mate = score.mate { words += ["score", "mate", "\(mate)"] }
                 else if let cp = score.cp { words += ["score", "cp", "\(Int(cp.rounded()))"] }

@@ -39,6 +39,15 @@ import XCTest
         }
         XCTFail("\(target ?? element) never matched \(format) after 3 taps", file: file, line: line)
     }
+    /// `tap(_:until:on:)` for a long press, which a loaded simulator can drop the same way.
+    func hold(_ element: XCUIElement, until format: String, on target: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(element.waitForExistence(timeout: 10), app.debugDescription, file: file, line: line)
+        for _ in 0..<3 {
+            element.press(forDuration: 1)
+            if matches(target, format, timeout: 10) { return }
+        }
+        XCTFail("\(target) never matched \(format) after 3 long presses", file: file, line: line)
+    }
     /// For state that settles after an action: an immediate check races the UI on a loaded simulator.
     func expect(_ element: XCUIElement, _ format: String, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(matches(element, format, timeout: 10), "\(element) never matched \(format)\n\(app.debugDescription)", file: file, line: line)

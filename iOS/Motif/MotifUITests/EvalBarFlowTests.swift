@@ -48,9 +48,10 @@ import XCTest
 
     func testHoldingPreviousAndNextJumpsToTheEnds() {
         launch("game-eval"); wait(square("e2"))
-        button("game-next-move").press(forDuration: 1); expect(button("game-next-move"), "isEnabled == false")
+        // The sample game's main line ends with 3. Bb5.
+        button("game-next-move").press(forDuration: 1); expect(square("b5"), "label CONTAINS[c] 'bishop'")
         button("game-previous-move").press(forDuration: 1); expect(square("e2"), "label CONTAINS 'Pawn'")
-        expect(button("game-previous-move"), "isEnabled == false")
+        expect(square("e4"), "label CONTAINS 'empty'")
     }
 
     private func toggle(_ label: String) {

@@ -56,6 +56,7 @@ import XCTest
     private func toggle(_ label: String) {
         button("game-actions").tap()
         let item = button("game-toggle-evaluation"); wait(item)
-        XCTAssertEqual(item.label, label); item.tap()
+        // The menu closes once the tap lands, so a dropped tap shows as the item still there.
+        XCTAssertEqual(item.label, label); tap(item, until: "exists == false")
     }
 }

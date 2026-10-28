@@ -31,6 +31,28 @@ import XCTest
         toggle("Show Evaluation"); wait(bar); expect(bar, "value == 'White is better by 0.6, depth 22'")
     }
 
+    func testEngineLinesShowTheTopThreeAndPlayTheirFirstMove() {
+        launch("game-eval"); wait(square("e2")); wait(button("game-engine-lines"))
+        let lines = app.descendants(matching: .any)["engine-lines"]
+        // The toggle persists, so an earlier run may have left the lines shown.
+        if !lines.waitForExistence(timeout: 2) { button("game-engine-lines").tap() }
+        wait(lines)
+        // The scripted engine's lines are the legal moves in square order: Na3, Nc3, Nf3.
+        let best = button("engine-line-0"); wait(best)
+        expect(best, "label CONTAINS '1. Na3' AND label CONTAINS 'White better by 0.60'")
+        expect(button("engine-line-2"), "label CONTAINS '1. Nf3' AND label CONTAINS 'White better by 0.40'")
+        capture("engine-lines")
+        best.tap(); expect(square("a3"), "label CONTAINS[c] 'knight'")
+        button("game-engine-lines").tap(); expect(lines, "exists == false")
+    }
+
+    func testHoldingPreviousAndNextJumpsToTheEnds() {
+        launch("game-eval"); wait(square("e2"))
+        button("game-next-move").press(forDuration: 1); expect(button("game-next-move"), "isEnabled == false")
+        button("game-previous-move").press(forDuration: 1); expect(square("e2"), "label CONTAINS 'Pawn'")
+        expect(button("game-previous-move"), "isEnabled == false")
+    }
+
     private func toggle(_ label: String) {
         button("game-actions").tap()
         let item = button("game-toggle-evaluation"); wait(item)

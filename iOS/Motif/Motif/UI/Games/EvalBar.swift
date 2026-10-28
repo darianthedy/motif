@@ -11,11 +11,11 @@ struct EvalBar: View {
     @State private var last: Evaluation?
 
     static let width: CGFloat = 16
-    static let gap: CGFloat = 4
+    static let gap: CGFloat = 6
     /// Depth from which the label is shown at full strength.
     static let firmDepth = 12
-    private static let whitePart = Color(red: 0xF4 / 255, green: 0xF4 / 255, blue: 0xF4 / 255)
-    private static let blackPart = Color(red: 0x3A / 255, green: 0x3A / 255, blue: 0x3C / 255)
+    static let whitePart = Color(red: 0xF4 / 255, green: 0xF4 / 255, blue: 0xF4 / 255)
+    static let blackPart = Color(red: 0x3A / 255, green: 0x3A / 255, blue: 0x3C / 255)
 
     var body: some View {
         let shown = evaluation ?? last

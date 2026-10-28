@@ -25,7 +25,7 @@ import XCTest
     func testStepPlayVariationCommentPromoteFlipAndExport() {
         launch("game:sample"); wait(square("e2")); XCTAssertTrue(square("e2").label.contains("Pawn"))
         tap(button("game-next-move"), until: "label CONTAINS 'Pawn'", on: square("e4"))
-        tap(button("game-go-to-start"), until: "label CONTAINS 'Pawn'", on: square("e2")); move("c2", "c4"); wait(button("move-1"))
+        button("game-previous-move").press(forDuration: 1); expect(square("e2"), "label CONTAINS 'Pawn'"); move("c2", "c4"); wait(button("move-1"))
         button("game-actions").tap(); wait(button("game-edit-comment")); button("game-edit-comment").tap(); let comment = app.textViews["game-comment-text"]; wait(comment); comment.tap(); comment.typeText("English idea")
         button("game-comment-save").tap(); wait(button("game-comment")); expect(button("game-comment"), "label CONTAINS 'English idea'")
         // The comment card slides the list down as it appears; press again if the first press landed mid-move.
@@ -48,7 +48,7 @@ import XCTest
         alert.buttons["Cancel"].tap(); XCTAssertTrue(button("move-1").exists)
         button("game-actions").tap(); wait(button("game-save")); button("game-save").tap()
         expect(button("game-back"), "exists == false"); XCTAssertTrue(button("move-1").exists)
-        tap(button("game-go-to-start"), until: "label CONTAINS 'Pawn'", on: square("d2")); move("d2", "d4"); wait(button("move-2")); button("game-back").tap(); wait(alert)
+        button("game-previous-move").press(forDuration: 1); expect(square("d2"), "label CONTAINS 'Pawn'"); move("d2", "d4"); wait(button("move-2")); button("game-back").tap(); wait(alert)
         alert.buttons["Discard Changes"].tap(); wait(button("game-row-sample-game"))
         button("game-row-sample-game").tap(); wait(button("move-1")); expect(button("move-2"), "exists == false")
     }

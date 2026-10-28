@@ -16,32 +16,38 @@ struct SystemClock: AnalysisClock {
     func sleep(until deadline: Duration) async throws { try await Task.sleep(until: start + deadline, clock: .continuous) }
 }
 
-/// Least-recently-used evaluations by FEN.
-struct EvaluationCache {
+/// Least-recently-used results by FEN.
+struct EvaluationCache<Value> {
     let capacity: Int
-    private var entries: [String: Evaluation] = [:]
+    private var entries: [String: Value] = [:]
     /// Least recently used first.
     private var order: [String] = []
 
     init(capacity: Int) { self.capacity = capacity }
 
-    mutating func value(for fen: String) -> Evaluation? {
+    mutating func value(for fen: String) -> Value? {
         guard let value = entries[fen] else { return nil }
         touch(fen)
         return value
     }
 
-    mutating func store(_ evaluation: Evaluation) {
-        if entries.updateValue(evaluation, forKey: evaluation.fen) == nil, entries.count > capacity {
+    mutating func store(_ value: Value, for fen: String) {
+        if entries.updateValue(value, forKey: fen) == nil, entries.count > capacity {
             entries[order.removeFirst()] = nil
         }
-        touch(evaluation.fen)
+        touch(fen)
     }
 
     private mutating func touch(_ fen: String) {
         order.removeAll { $0 == fen }
         order.append(fen)
     }
+}
+
+/// The ranked lines found for one position, by rank, and how many the search asked for.
+struct LineSet {
+    let count: Int
+    var lines: [Int: EngineLine] = [:]
 }
 
 /// Follows the position on the game screen with live Stockfish evaluations.
@@ -61,8 +67,21 @@ struct EvaluationCache {
 
     /// The latest result for the position being shown, or nil before the first one.
     private(set) var evaluation: Evaluation?
+    /// The best lines for the position being shown, best first; at most `lineCount`.
+    private(set) var lines: [EngineLine] = []
 
-    /// The bar's toggle. Off stops the search and starts no new ones.
+    /// How many lines the engine searches (UCI MultiPV). More lines make each one
+    /// slower, so the screen asks for 3 only while it shows them.
+    var lineCount = 1 {
+        didSet {
+            guard lineCount != oldValue else { return }
+            let shown = fen
+            halt()
+            if let shown { show(fen: shown) }
+        }
+    }
+
+    /// Off while neither the bar nor the engine lines are shown: stops the search and starts no new ones.
     var enabled = true {
         didSet {
             guard enabled != oldValue else { return }
@@ -79,11 +98,16 @@ struct EvaluationCache {
         /// The debounce has passed, so it starts as soon as the engine is idle.
         var due = false
         var started = false
+        /// The MultiPV the search ran with.
+        var count = 1
     }
 
     @ObservationIgnored private let engine: any UCIEngine
     @ObservationIgnored private let clock: any AnalysisClock
-    @ObservationIgnored private var cache = EvaluationCache(capacity: Analyzer.cacheSize)
+    @ObservationIgnored private var cache = EvaluationCache<Evaluation>(capacity: Analyzer.cacheSize)
+    @ObservationIgnored private var lineCache = EvaluationCache<LineSet>(capacity: Analyzer.cacheSize)
+    /// The MultiPV last sent to the engine; it starts at Stockfish's default.
+    @ObservationIgnored private var sentCount = 1
     /// The position on screen, kept while paused so `resume` can pick it up again.
     @ObservationIgnored private var fen: String?
     @ObservationIgnored private var job: Job?
@@ -95,6 +119,7 @@ struct EvaluationCache {
     @ObservationIgnored private var reader: Task<Void, Never>?
     @ObservationIgnored private var publishedAt: Duration?
     @ObservationIgnored private var unpublished: Evaluation?
+    @ObservationIgnored private var linesChanged = false
     @ObservationIgnored private var trailing: Int?
 
     init(engine: any UCIEngine, clock: any AnalysisClock = SystemClock()) {
@@ -118,16 +143,24 @@ struct EvaluationCache {
     func show(fen: String) {
         self.fen = fen
         guard enabled, active, job?.fen != fen else { return }
-        if let done = Self.terminal(fen) ?? complete(fen) {
+        if let done = Self.terminal(fen) {
             halt()
             evaluation = done
+            lines = []
+            return
+        }
+        if let done = complete(fen) {
+            halt()
+            evaluation = done
+            lines = shownLines(fen)
             return
         }
         evaluation = cache.value(for: fen)
+        lines = shownLines(fen)
         stopSearch()
         jobs += 1
         job = Job(id: jobs, fen: fen, side: UCI.sideToMove(fen))
-        publishedAt = nil; unpublished = nil; trailing = nil
+        publishedAt = nil; unpublished = nil; linesChanged = false; trailing = nil
         timer += 1
         let generation = timer, deadline = clock.now + Self.debounce
         Task { [weak self, clock] in
@@ -152,6 +185,7 @@ struct EvaluationCache {
 
     private func complete(_ fen: String) -> Evaluation? {
         guard let cached = cache.value(for: fen), cached.final || cached.depth >= Self.targetDepth else { return nil }
+        guard lineCount == 1 || (lineCache.value(for: fen)?.count ?? 1) >= lineCount else { return nil }
         return cached
     }
 
@@ -165,6 +199,11 @@ struct EvaluationCache {
         guard state == .idle, enabled, active, let next = job, next.due, !next.started else { return }
         readIfNeeded()
         job?.started = true
+        job?.count = lineCount
+        if sentCount != lineCount {
+            engine.send("setoption name MultiPV value \(lineCount)")
+            sentCount = lineCount
+        }
         state = .searching(job: next.id)
         engine.send("position fen \(next.fen)")
         engine.send("go depth \(Self.targetDepth) movetime \(Int(Self.moveTime / .milliseconds(1)))")
@@ -181,7 +220,13 @@ struct EvaluationCache {
         stopSearch()
         job = nil
         timer += 1
-        unpublished = nil; trailing = nil
+        unpublished = nil; linesChanged = false; trailing = nil
+    }
+
+    /// The cached lines for `fen`, best first, cut to `lineCount`.
+    private func shownLines(_ fen: String) -> [EngineLine] {
+        guard let set = lineCache.value(for: fen) else { return [] }
+        return set.lines.keys.sorted().prefix(lineCount).compactMap { set.lines[$0] }
     }
 
     // MARK: Engine output
@@ -205,11 +250,20 @@ struct EvaluationCache {
             if case .searching(let id) = state, let job, job.id == id { finish(job) }
             state = .idle
             startIfIdle()
-        case let .info(depth, score, _):
+        case let .info(depth, score, pv, rank):
             guard case .searching(let id) = state, let job, job.id == id else { return }
-            let result = Evaluation(fen: job.fen, depth: depth, score: UCI.whiteView(score, job.side), final: false)
-            cache.store(result)
-            unpublished = result
+            let white = UCI.whiteView(score, job.side)
+            if !pv.isEmpty {
+                var set = lineCache.value(for: job.fen).flatMap { $0.count == job.count ? $0 : nil } ?? LineSet(count: job.count)
+                set.lines[rank] = EngineLine(depth: depth, score: white, moves: pv)
+                lineCache.store(set, for: job.fen)
+                linesChanged = true
+            }
+            if rank == 1 {
+                let result = Evaluation(fen: job.fen, depth: depth, score: white, final: false)
+                cache.store(result, for: job.fen)
+                unpublished = result
+            }
             publish(job.id)
         }
     }
@@ -229,18 +283,20 @@ struct EvaluationCache {
 
     private func flush(_ id: Int) {
         if trailing == id { trailing = nil }
-        guard job?.id == id, state == .searching(job: id), let unpublished else { return }
-        evaluation = unpublished
-        self.unpublished = nil
+        guard let job, job.id == id, state == .searching(job: id), unpublished != nil || linesChanged else { return }
+        if let unpublished { evaluation = unpublished }
+        if linesChanged { lines = shownLines(job.fen) }
+        unpublished = nil; linesChanged = false
         publishedAt = clock.now
     }
 
     /// The search ended on its own: its last result is final.
     private func finish(_ job: Job) {
-        unpublished = nil; trailing = nil
+        unpublished = nil; linesChanged = false; trailing = nil
+        lines = shownLines(job.fen)
         guard let last = cache.value(for: job.fen) else { return }
         let done = Evaluation(fen: last.fen, depth: last.depth, score: last.score, final: true)
-        cache.store(done)
+        cache.store(done, for: done.fen)
         evaluation = done
     }
 

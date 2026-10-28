@@ -76,11 +76,15 @@ final class FakeEngine: UCIEngine {
 extension FakeEngine {
     /// The `game-eval` route's engine: every `go` climbs from depth 1 to `Analyzer.targetDepth`
     /// and ends with a `bestmove`. The score is +0.6 for White at the start and a tenth of a
-    /// pawn more for every ply after it, so each position's value is its own.
+    /// pawn more for every ply after it, so each position's value is its own. With MultiPV
+    /// set, line N plays the Nth legal move (squares a1 to h8) and scores a tenth less per rank.
     static func climb() -> FakeEngine {
         let position = LastPosition()
         return FakeEngine { command in
             if command.hasPrefix("position fen ") { position.fen.withLock { $0 = String(command.dropFirst("position fen ".count)) } }
+            if command.hasPrefix("setoption name MultiPV value "), let count = Int(command.split(separator: " ").last ?? "") {
+                position.count.withLock { $0 = count }
+            }
             guard command.hasPrefix("go") else { return [] }
             let fen = position.fen.withLock { $0 }
             let fields = fen.split(separator: " ")
@@ -88,7 +92,17 @@ extension FakeEngine {
             let fullmove = fields.count > 5 ? Int(fields[5]) ?? 1 : 1
             let white = 60 + 10 * ((fullmove - 1) * 2 + (side == .black ? 1 : 0))
             let cp = side == .white ? white : -white
-            return (1...Analyzer.targetDepth).map { "info depth \($0) score cp \(cp) pv e2e4" } + ["bestmove e2e4"]
+            let moves = legalMoves(fen), count = min(position.count.withLock { $0 }, max(moves.count, 1))
+            return (1...Analyzer.targetDepth).flatMap { depth in
+                (1...count).map { rank in "info depth \(depth) multipv \(rank) score cp \(cp - 10 * (rank - 1)) pv \(moves.indices.contains(rank - 1) ? moves[rank - 1] : "e2e4")" }
+            } + ["bestmove \(moves.first ?? "e2e4")"]
+        }
+    }
+
+    private static func legalMoves(_ fen: String) -> [String] {
+        let squares = (1...8).flatMap { rank in "abcdefgh".map { "\($0)\(rank)" } }
+        return squares.flatMap { from in
+            Board.targetsFrom(fen, from).map { to, target in from + to + (target.promotion ? "q" : "") }.sorted()
         }
     }
 }
@@ -96,4 +110,5 @@ extension FakeEngine {
 /// The last `position` `FakeEngine.climb` was sent, for its next `go`.
 private final class LastPosition: Sendable {
     let fen = Mutex("")
+    let count = Mutex(1)
 }

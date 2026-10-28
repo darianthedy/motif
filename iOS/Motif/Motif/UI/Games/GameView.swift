@@ -21,6 +21,7 @@ private struct GameContentView: View {
     /// Follows the board's position for the evaluation bar.
     @State private var analyzer: Analyzer
     @AppStorage("evalBarShown") private var evalBarShown = true
+    @AppStorage("engineLinesShown") private var linesShown = false
     @State private var panel: GamePanel?
     @State private var deleteMove = false
     @State private var deleteGame = false
@@ -41,7 +42,8 @@ private struct GameContentView: View {
             .onChange(of: model.path) { alternativesHidden = false; alternativesOpen = false }
             .onChange(of: game) { _, next in model.receive(next) }
             .onChange(of: app.store.online) { _, online in model.online = online }
-            .onChange(of: evalBarShown, initial: true) { _, shown in analyzer.enabled = shown }
+            .onChange(of: evalBarShown || linesShown, initial: true) { _, needed in analyzer.enabled = needed }
+            .onChange(of: linesShown, initial: true) { _, shown in analyzer.lineCount = shown ? EngineLinesView.count : 1 }
             .onChange(of: model.fen, initial: true) { _, fen in if model.tree != nil { analyzer.show(fen: fen) } }
             .onChange(of: phase) { _, phase in if phase == .active { analyzer.resume() } else { analyzer.pause() } }
             .onAppear { analyzer.resume() }
@@ -61,6 +63,7 @@ private struct GameContentView: View {
     private var screen: some View {
         content
             .navigationBarBackButtonHidden(model.unsaved).toolbar { toolbar }
+            .safeAreaBar(edge: .bottom) { if model.tree != nil { controls } }
             .sheet(item: $panel) { presented in
                 switch presented {
                 case .comment: CommentSheet(title: model.currentName, value: model.node?.comment ?? (model.path.isEmpty ? model.tree?.comment : nil), online: true, save: model.comment)
@@ -77,13 +80,18 @@ private struct GameContentView: View {
         if let tree = model.tree {
             GeometryReader { geometry in
                 // The bar takes its width from the board, so the move list and toolbars keep their layout.
-                let width = min(geometry.size.width - (evalBarShown ? EvalBar.width + EvalBar.gap : 0), geometry.size.height * 0.6)
+                let width = min(geometry.size.width - 2 * Self.margin - (evalBarShown ? EvalBar.width + EvalBar.gap : 0), geometry.size.height * 0.6)
                 VStack(spacing: 0) {
                     HStack(spacing: EvalBar.gap) {
                         if evalBarShown { EvalBar(evaluation: analyzer.evaluation, orientation: model.orientation).frame(height: width) }
                         BoardView(fen: model.fen, orientation: model.orientation, interactive: true,
                                   highlight: model.node.map { (moveFrom($0.uci), moveTo($0.uci)) }, onMove: model.play)
                             .frame(width: width, height: width)
+                    }.padding(.top, 8)
+                    if linesShown {
+                        EngineLinesView(lines: analyzer.lines, fen: model.fen, play: model.play)
+                            .padding(.horizontal, Self.margin).padding(.top, 12)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                     if let problem = model.problem { Text(problem).font(.caption).foregroundStyle(.red).padding(.top, 4) }
                     MoveListView(game: tree, path: model.path, go: model.go, scrolled: hideAlternatives) { moveMenu($0) }
@@ -99,16 +107,42 @@ private struct GameContentView: View {
             ToolbarItem(placement: .topBarLeading) { Button("Back", systemImage: "chevron.backward") { leaving = true }.accessibilityIdentifier("game-back") }
         }
         ToolbarItem(placement: .topBarTrailing) { Menu { gameMenu } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Game actions").accessibilityIdentifier("game-actions") }
-        if model.tree != nil {
-            ToolbarItem(placement: .bottomBar) { control("Flip board", "arrow.up.arrow.down", disabled: false, action: model.flip) }
-            ToolbarSpacer(.flexible, placement: .bottomBar)
-            ToolbarItemGroup(placement: .bottomBar) {
-                control("Go to start", "backward.end.fill", disabled: model.path.isEmpty) { model.go([]) }
-                control("Previous move", "chevron.left", disabled: model.path.isEmpty, action: model.back)
-                control("Next move", "chevron.right", disabled: model.following.isEmpty, action: model.next)
-                control("Go to end", "forward.end.fill", disabled: model.following.isEmpty, action: model.end)
-            }
+    }
+    /// Side margin for the board and the engine lines.
+    private static let margin: CGFloat = 16
+    /// Flip and engine lines, then large previous and next buttons; holding those
+    /// jumps to the start or the end.
+    private var controls: some View {
+        HStack(spacing: 4) {
+            Button(action: model.flip) { Image(systemName: "arrow.up.arrow.down").font(.title3).frame(width: 44, height: 44).contentShape(.rect) }
+                .buttonStyle(.plain).accessibilityLabel("Flip board").accessibilityIdentifier("game-flip-board")
+            Button { withAnimation(.snappy) { linesShown.toggle() } } label: {
+                Image(systemName: "list.bullet.indent").font(.title3).foregroundStyle(linesShown ? Color.white : Color.primary)
+                    .frame(width: 44, height: 44).background(linesShown ? Color.motifAccentStrong : Color.clear, in: .circle).contentShape(.circle)
+            }.buttonStyle(.plain).accessibilityLabel("Engine lines").accessibilityAddTraits(linesShown ? .isSelected : [])
+                .accessibilityIdentifier("game-engine-lines")
+            Divider().frame(height: 28).padding(.horizontal, 4)
+            stepper("Previous move", "chevron.left", hold: "Go to start", disabled: model.path.isEmpty, step: model.back) { model.go([]) }
+            stepper("Next move", "chevron.right", hold: "Go to end", disabled: model.following.isEmpty, step: model.next, jump: model.end)
         }
+        .padding(.horizontal, 6).frame(height: 56)
+        .glassEffect(.regular, in: .capsule)
+        .padding(.horizontal, Self.margin).padding(.bottom, 8)
+    }
+    /// A tap steps one move; a long press jumps all the way. Gestures rather than a
+    /// `Button`, so the long press doesn't also count as a tap.
+    private func stepper(_ label: String, _ image: String, hold: String, disabled: Bool, step: @escaping () -> Void, jump: @escaping () -> Void) -> some View {
+        Image(systemName: image).font(.title2.weight(.semibold))
+            .foregroundStyle(disabled ? Color(.tertiaryLabel) : Color.primary)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .background(Color(.tertiarySystemFill), in: .capsule).contentShape(.capsule)
+            .onTapGesture { if !disabled { step() } }
+            .onLongPressGesture(minimumDuration: 0.4) { if !disabled { jump() } }
+            .disabled(disabled)
+            .accessibilityElement().accessibilityLabel(label).accessibilityAddTraits(.isButton)
+            .accessibilityAction { if !disabled { step() } }
+            .accessibilityAction(named: hold) { if !disabled { jump() } }
+            .accessibilityIdentifier("game-" + label.lowercased().replacingOccurrences(of: " ", with: "-"))
     }
     @ViewBuilder private var leaveActions: some View {
         if model.online { Button("Save") { Task { if await model.save() { dismiss() } } } }
@@ -174,9 +208,6 @@ private struct GameContentView: View {
         }
     }
     private func hideAlternatives() { withAnimation(.easeOut(duration: 0.2)) { alternativesHidden = true; alternativesOpen = false } }
-    private func control(_ label: String, _ image: String, disabled: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Label(label, systemImage: image).font(.title3).imageScale(.large).frame(minWidth: 40, minHeight: 40) }.disabled(disabled).accessibilityIdentifier("game-" + label.lowercased().replacingOccurrences(of: " ", with: "-"))
-    }
     @ViewBuilder private var gameMenu: some View {
         if let tree = model.tree {
             Button("Save", systemImage: "square.and.arrow.down") { Task { if await model.save() { app.showNotice("Game saved.") } } }

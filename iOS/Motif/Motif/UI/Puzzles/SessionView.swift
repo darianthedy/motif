@@ -44,6 +44,7 @@ private struct SessionPuzzle: View {
     let progress: RunProgress
     @State private var model: SolveModel
     @State private var recording = false
+    @State private var analyzing = false
     init(puzzle: Puzzle, run: Run, progress: RunProgress) {
         self.puzzle = puzzle; self.run = run; self.progress = progress
         _model = State(initialValue: SolveModel(puzzle))
@@ -70,11 +71,13 @@ private struct SessionPuzzle: View {
         }
         .overlay(alignment: .bottom) {
             if model.done {
-                ResultCard(model: model) { record(model.result, model.mistakes, model.hinted) }
+                ResultCard(model: model, analyze: { analyzing = true }) { record(model.result, model.mistakes, model.hinted) }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .animation(.smooth, value: model.done)
+        // Pushed inside the session, so going back returns to this result.
+        .navigationDestination(isPresented: $analyzing) { PuzzleAnalysisView(puzzle: puzzle) }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(flagged ? "Unflag" : "Flag", systemImage: flagged ? "flag.fill" : "flag") {

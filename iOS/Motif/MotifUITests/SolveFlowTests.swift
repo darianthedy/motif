@@ -29,6 +29,19 @@ import XCTest
         XCTAssertTrue(square("d8").label.contains("Rook")); XCTAssertTrue(button("result-continue").exists)
         capture("drag-result")
     }
+    func testAnalyzeOpensTheStartPositionThenReturnsToTheResult() {
+        launch("session:all")
+        move("a1", "a8"); wait(app.staticTexts["result-verdict"]); capture("result-with-analyze")
+        tap(button("result-analyze"), until: "exists == true", on: button("game-next-move"))
+        expect(square("a1"), "label CONTAINS 'Rook'"); XCTAssertTrue(app.navigationBars.staticTexts["Puzzle Analysis"].exists)
+        tap(button("game-next-move"), until: "label CONTAINS 'Rook'", on: square("a8")); capture("puzzle-analysis")
+        tap(button("game-actions"), until: "exists == true", on: button("game-save-as-game"))
+        XCTAssertFalse(button("game-save").exists)
+        button("game-save-as-game").tap(); wait(button("save-game-confirm")); capture("save-as-game")
+        tap(button("save-game-confirm"), until: "exists == false")
+        app.navigationBars.buttons.element(boundBy: 0).tap(); wait(button("result-continue"))
+        XCTAssertEqual(app.staticTexts["result-verdict"].label, "Solved")
+    }
     func testStopResumeAndSkipKeepProgress() {
         launch("collection"); wait(button("solve-ordered")); button("solve-ordered").tap(); wait(square("a1"))
         button("session-skip").tap()

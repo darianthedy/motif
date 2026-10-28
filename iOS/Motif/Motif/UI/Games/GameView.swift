@@ -11,10 +11,14 @@ struct GameView: View {
         }.toolbar(.hidden, for: .tabBar)
     }
 }
-private enum GamePanel: String, Identifiable { case comment, details; var id: String { rawValue } }
-private struct GameContentView: View {
+/// A game that isn't in the library, such as a puzzle opened for analysis: its
+/// edits stay on the device unless it is saved as a new game.
+struct ScratchAnalysis { var title: String; var subtitle: String }
+private enum GamePanel: String, Identifiable { case comment, details, saveAsGame; var id: String { rawValue } }
+struct GameContentView: View {
     let game: Game
     let app: AppState
+    var scratch: ScratchAnalysis?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
     @State private var model: GameViewModel
@@ -28,10 +32,11 @@ private struct GameContentView: View {
     @State private var leaving = false
     @State private var alternativesHidden = false
     @State private var alternativesOpen = false
-    init(game: Game, app: AppState) {
-        self.game = game; self.app = app
+    init(game: Game, app: AppState, scratch: ScratchAnalysis? = nil) {
+        self.game = game; self.app = app; self.scratch = scratch
         _model = State(initialValue: GameViewModel(game, online: app.store.online) { changes in
-            await app.edit { try await $0.updateGame(game.id, changes) }
+            guard scratch == nil else { return false }
+            return await app.edit { try await $0.updateGame(game.id, changes) }
         })
         _analyzer = State(initialValue: Analyzer.live(route: app.launchRoute))
     }
@@ -62,12 +67,13 @@ private struct GameContentView: View {
     /// Split from `body` so each half type-checks in reasonable time.
     private var screen: some View {
         content
-            .navigationBarBackButtonHidden(model.unsaved).toolbar { toolbar }
+            .navigationBarBackButtonHidden(guardsLeaving).toolbar { toolbar }
             .safeAreaBar(edge: .bottom) { if model.tree != nil { controls } }
             .sheet(item: $panel) { presented in
                 switch presented {
                 case .comment: CommentSheet(title: model.currentName, value: model.node?.comment ?? (model.path.isEmpty ? model.tree?.comment : nil), online: true, save: model.comment)
                 case .details: if let tree = model.tree { GameDetailsSheet(headers: tree.headers, save: model.details).environment(app) }
+                case .saveAsGame: if let tree = model.tree { SaveAsGameSheet(content: GameContent(pgn: writePgn(tree), orientation: model.orientation)).environment(app) }
                 }
             }
             .confirmationDialog("Delete this move and every move after it?", isPresented: $deleteMove, titleVisibility: .visible) { Button("Delete from here", role: .destructive) { model.deleteHere() } }
@@ -99,11 +105,13 @@ private struct GameContentView: View {
                         .overlay(alignment: .bottomTrailing) { alternatives(tree) }
                         .frame(maxHeight: .infinity)
                 }.frame(maxWidth: .infinity)
-            }.navigationTitle(gameTitle(tree.headers)).navigationSubtitle(gameSubtitle(tree.headers)).navigationBarTitleDisplayMode(.inline)
+            }.navigationTitle(scratch?.title ?? gameTitle(tree.headers)).navigationSubtitle(scratch?.subtitle ?? gameSubtitle(tree.headers)).navigationBarTitleDisplayMode(.inline)
         } else { unreadable }
     }
+    /// A stored game asks before its edits are left behind; a scratch one has nothing to save to.
+    private var guardsLeaving: Bool { model.unsaved && scratch == nil }
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
-        if model.unsaved {
+        if guardsLeaving {
             ToolbarItem(placement: .topBarLeading) { Button("Back", systemImage: "chevron.backward") { leaving = true }.accessibilityIdentifier("game-back") }
         }
         ToolbarItem(placement: .topBarTrailing) { Menu { gameMenu } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Game actions").accessibilityIdentifier("game-actions") }
@@ -210,18 +218,24 @@ private struct GameContentView: View {
     private func hideAlternatives() { withAnimation(.easeOut(duration: 0.2)) { alternativesHidden = true; alternativesOpen = false } }
     @ViewBuilder private var gameMenu: some View {
         if let tree = model.tree {
-            Button("Save", systemImage: "square.and.arrow.down") { Task { if await model.save() { app.showNotice("Game saved.") } } }
-                .disabled(!model.canSave).accessibilityIdentifier("game-save")
-            Button("Edit Details", systemImage: "pencil") { panel = .details }
-            Button(commentAction(model.path.isEmpty, model.comment.isEmpty), systemImage: "text.bubble") { panel = .comment }.accessibilityIdentifier("game-edit-comment")
+            if scratch == nil {
+                Button("Save", systemImage: "square.and.arrow.down") { Task { if await model.save() { app.showNotice("Game saved.") } } }
+                    .disabled(!model.canSave).accessibilityIdentifier("game-save")
+                Button("Edit Details", systemImage: "pencil") { panel = .details }
+                Button(commentAction(model.path.isEmpty, model.comment.isEmpty), systemImage: "text.bubble") { panel = .comment }.accessibilityIdentifier("game-edit-comment")
+            }
             Button(evalBarShown ? "Hide Evaluation" : "Show Evaluation", systemImage: evalBarShown ? "eye.slash" : "chart.bar.yaxis") { evalBarShown.toggle() }
                 .accessibilityIdentifier("game-toggle-evaluation")
             Section {
+                if scratch != nil {
+                    Button("Save as Game…", systemImage: "square.and.arrow.down") { panel = .saveAsGame }
+                        .disabled(!model.online).accessibilityIdentifier("game-save-as-game")
+                }
                 Button("Copy PGN", systemImage: "doc.on.doc") { UIPasteboard.general.string = writePgn(tree); app.showNotice("PGN copied.") }.accessibilityIdentifier("game-copy-pgn")
                 ShareLink(item: PGNExport(text: writePgn(tree), name: gameTitle(tree.headers)), preview: SharePreview(gameTitle(tree.headers))) { Label("Export PGN…", systemImage: "square.and.arrow.up") }.accessibilityIdentifier("game-export-pgn")
             }
         }
-        Section { Button("Delete Game", systemImage: "trash", role: .destructive) { deleteGame = true }.disabled(!model.online) }
+        if scratch == nil { Section { Button("Delete Game", systemImage: "trash", role: .destructive) { deleteGame = true }.disabled(!model.online) } }
     }
     /// Acting on a move from its context menu selects it first.
     @ViewBuilder private func moveMenu(_ cell: Cell) -> some View {

@@ -3,6 +3,8 @@ import SwiftUI
 /// is done. Its details scroll only when they outgrow the space.
 struct ResultCard: View {
     let model: SolveModel
+    /// Opens the puzzle's start position in the Analysis view.
+    let analyze: () -> Void
     let continueAction: () -> Void
     private var solved: Bool { model.phase == .solved }
     var body: some View {
@@ -11,8 +13,12 @@ struct ResultCard: View {
                 details
                 ScrollView { details }.scrollBounceBehavior(.basedOnSize)
             }
-            Button(action: continueAction) { Text("Continue").font(.headline).frame(maxWidth: .infinity) }
-                .buttonStyle(.glassProminent).controlSize(.large).accessibilityIdentifier("result-continue")
+            HStack(spacing: 10) {
+                Button(action: analyze) { Label("Analyze", systemImage: "magnifyingglass").font(.headline) }
+                    .buttonStyle(.glass).controlSize(.large).accessibilityIdentifier("result-analyze")
+                Button(action: continueAction) { Text("Continue").font(.headline).frame(maxWidth: .infinity) }
+                    .buttonStyle(.glassProminent).controlSize(.large).accessibilityIdentifier("result-continue")
+            }
         }
         .padding(20)
         .glassEffect(.regular, in: .rect(cornerRadius: 28))

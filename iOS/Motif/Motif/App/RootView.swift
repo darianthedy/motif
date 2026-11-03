@@ -20,6 +20,7 @@ struct RootView: View {
             }
         }
         .tint(.motifAccentStrong)
+        .layoutProbe("window", alignment: .topLeading)
         .task { await app.open() }
     }
     private var tabs: some View {

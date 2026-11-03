@@ -53,6 +53,7 @@ private struct LibraryBanners: ViewModifier {
             }
             .animation(.snappy, value: app.notice)
             .animation(.snappy, value: app.error)
+            .layoutProbe("content")
     }
 }
 extension View {

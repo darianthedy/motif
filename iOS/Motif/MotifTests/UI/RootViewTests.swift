@@ -21,7 +21,7 @@ import XCTest
     }
     func testScreenshotSamplesAreBundledAndOnlyUsedInDebugAccount() async throws {
         let account = ScreenshotAccount(seed: true, signedIn: true)
-        let current = await account.currentUser(), user = try XCTUnwrap(current)
+        let current = try await account.currentUser(), user = try XCTUnwrap(current)
         let backend = await account.backend(user), library = try await backend.load()
         XCTAssertEqual(library.collections.count, 2); XCTAssertGreaterThan(library.puzzles.count, 3)
         XCTAssertEqual(library.games.count, 1)

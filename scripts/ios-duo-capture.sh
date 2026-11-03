@@ -23,25 +23,25 @@ DERIVED="build/DerivedData"
 PRODUCTS="$DERIVED/Build/Products"
 OUT="build/duo-capture"
 
-duo() { # the UDID of an iPhone Duo on the newest runtime, created if missing
+# The iPhone Duo runtime's identifier, newest first.
+runtime() {
+  xcrun simctl list runtimes --json | python3 -c '
+import json, sys
+ios = [r for r in json.load(sys.stdin)["runtimes"] if r["platform"] == "iOS" and r["isAvailable"]
+       and any(d.get("name") == "iPhone Duo" for d in r.get("supportedDeviceTypes", []))]
+print(sorted(ios, key=lambda r: [int(n) for n in r["version"].split(".")])[-1]["identifier"])'
+}
+# A capture device of our own, made fresh when asked: duoctl finds no active display on
+# the runner image's preinstalled iPhone Duo, and a Duo left mid-fold needs recreating.
+duo() {
   local udid
   udid=$(xcrun simctl list devices available --json | python3 -c '
-import json, re, sys
-found = []
-for runtime, devices in json.load(sys.stdin)["devices"].items():
-    match = re.search(r"\.iOS-(\d+(?:-\d+)*)$", runtime)
-    for device in devices:
-        if match and device["name"].startswith("iPhone Duo"):
-            found.append((tuple(int(n) for n in match[1].split("-")), device["udid"]))
-if found: print(sorted(found)[-1][1])')
-  if [ -z "$udid" ]; then
-    local runtime
-    runtime=$(xcrun simctl list runtimes --json | python3 -c '
 import json, sys
-ios = [r for r in json.load(sys.stdin)["runtimes"] if r["platform"] == "iOS" and r["isAvailable"]]
-print(sorted(ios, key=lambda r: [int(n) for n in r["version"].split(".")])[-1]["identifier"])')
-    udid=$(xcrun simctl create "iPhone Duo Capture" "iPhone Duo" "$runtime")
-  fi
+for devices in json.load(sys.stdin)["devices"].values():
+    for device in devices:
+        if device["name"] == "Motif Duo Capture": print(device["udid"]); sys.exit()')
+  if [ "${1:-}" = fresh ] && [ -n "$udid" ]; then xcrun simctl delete "$udid"; udid=""; fi
+  [ -n "$udid" ] || udid=$(xcrun simctl create "Motif Duo Capture" "iPhone Duo" "$(runtime)")
   echo "$udid"
 }
 
@@ -60,11 +60,14 @@ capture)
   app="${4:-}"
   dir="$OUT/$label"
   rm -rf "$dir" "$dir.xcresult"; mkdir -p "$dir"
-  sim=$(duo) || exit 1
+  sim=$(duo fresh) || exit 1
   export DUOCTL_UDID="$sim"
   xcrun simctl boot "$sim" 2>/dev/null || true
   xcrun simctl bootstatus "$sim" -b >/dev/null
   xcrun simctl ui "$sim" appearance light
+  # A display comes up a little after boot finishes.
+  for _ in $(seq 1 40); do duoctl state > /dev/null 2>&1 && break; sleep 5; done
+  duoctl state || { echo "No active display on the iPhone Duo simulator" >&2; xcrun simctl io "$sim" enumerate >&2; exit 1; }
 
   if [ -n "$app" ]; then
     # Same bundle ID, so the UI tests drive whichever app sits at the test target's path.

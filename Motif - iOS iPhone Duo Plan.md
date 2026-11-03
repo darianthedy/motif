@@ -128,7 +128,7 @@ Every mockup cell is named `S<screen><state>·<config>`, e.g. `S15c·IL`.
 | **PP** | Another app's video pinned on top | regular × shorter (**verify**) | 951 × ~400 (**verify**) | Height changes live; wider than tall |
 | **FB** | Partly folded book (IL bent) | regular × regular + division | two ~475 × 669 pages | Controls go to the sides, none on the fold |
 | **FT** | Partly folded portrait or tabletop (IP bent) | regular × regular + division | two 669 × ~475 halves | Controls on the stable bottom half; board on top |
-| **ST** | Standing on its edges | regular × regular + division | as FB or FT | No Apple guidance. Expected to match FB or FT; confirmed in Phase 1 |
+| ~~ST~~ | Standing on its edges | as FB | as FB | **Dropped.** On the device it showed the same layout as FB (user, 2026-11-03), so it gets no column. Coverage-grid cells read "= FB" |
 | **PD** | iPad, 11″ portrait and landscape | regular × regular | 834 × 1194 and 1194 × 834 | Expected to match IP and IL. Stage Manager windows use the same layouts as SV or IL |
 
 Closed landscape isn't a configuration: the outer display stays portrait-only
@@ -471,6 +471,8 @@ existing format (`scripts/run-ios-*-prompts.sh`).
    with no iPad-specific screens.
 7. **Two Motif windows: not built.** No clear use case, and the split view
    columns already show a list beside its detail.
+8. **Standing on its edges: no mockups.** It looked the same as the partly
+   folded book pose on the device, so ST is dropped as a configuration (§3).
 
 ## 11. Done when
 

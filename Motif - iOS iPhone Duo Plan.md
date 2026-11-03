@@ -386,8 +386,9 @@ numbers stay in one sequence.
 `simctl io screenConfig` crashes the system shell, and the inner display came back
 black. The outer display can be captured in CI with `--display=1`. The
 community tool `duoctl` claims headless hinge control through private
-interfaces; untried. Phase 1 was measured on the user's iPhone Duo (42
-screenshots, `IMG_6487`–`IMG_6531`, kept outside the repo).
+interfaces; untried. Phase 1 was measured on the user's iPhone Duo (44
+screenshots named `<config>-<screen>.png`, e.g. `FB-game.png`, kept outside the
+repo).
 
 **Measurements (device, Xcode 27.1 SDK build).**
 

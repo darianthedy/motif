@@ -87,13 +87,13 @@ What Apple's guidance says (developer group-lab summary and tech talk):
   inner display. Only iOS 27.1 SDK builds go edge to edge with vertical bars.
 - **New APIs (iOS 27.1):** `ReservedRegion`, `onHingeChange` (state and angle,
   "for effects, not layout"), `ArrangementView` (don't nest
-  `NavigationSplitView` in it), `presentationPlacement`, `toolbarVerticalEdge`,
-  `toolbarVerticalBehavior`, `ToolbarOverflowMenu`.
+  `NavigationSplitView` in it), `toolbarVerticalEdge`, `toolbarVerticalBehavior`,
+  `ToolbarOverflowMenu`. `presentationPlacement` is available from iOS 27.0.
 
 Where sources conflict, Phase 1 settles it: whether a portrait-locked app takes
 part in Split View (the labs say it still gets the size-class changes, while the
-tech talk says Split View needs a freely resizable app), and whether
-`ArrangementView` needs 27.1 or works from 27.0.
+tech talk says Split View needs a freely resizable app). Apple's documentation
+settles `ArrangementView`: it needs iOS 27.1.
 
 ## 2. Where Motif stands today
 
@@ -225,9 +225,10 @@ Estimated total: ~600 frames (330 O/IL, ~100 IP/SV, ~60 FB/FT, ~10 PP, ~17 PD,
 
 ## 6. iOS design standards checklist (every frame is checked)
 
-Apple's "Designing for iPhone Duo" HIG page is the authority here. Its text
-wasn't readable by fetch, so Phase 0 reads it in a browser and corrects this
-list where they differ.
+Apple's "Designing for iPhone Duo" HIG page is the authority here. Phase 0 read
+it in full on 2026-11-03 and corrected this list. It gives no point sizes and no
+sheet or hit-target rules, so those items rest on the tech talk, the group lab
+and the general HIG.
 
 1. **System containers first.** `TabView`, `NavigationSplitView`,
    `NavigationStack`, `List`/`Form`, `.toolbar`, `.searchable`,
@@ -242,8 +243,16 @@ list where they differ.
    the camera, the Dynamic Island or the fold division. Board squares count as
    discrete controls, so a board stays on one side of a division.
 5. **Bars.** Navigation titles are large on top-level lists and inline on detail
-   screens. Every toolbar item has a title and a symbol. Ellipsis means overflow
-   only. Custom bars check `toolbarVerticalEdge`.
+   screens. Every toolbar item has a title and a symbol, and text buttons are
+   rare because they stay horizontal. Custom bars check `toolbarVerticalEdge`.
+   Order items with Back or Close at the top, then prominent actions, and group
+   with `ToolbarItemGroup` rather than manual spacing. Overflow runs bottom to
+   top, so frequent and status-bearing items get a higher
+   `ToolbarItemVisibilityPriority`. Ellipsis means overflow only: custom overflow
+   actions move into `ToolbarOverflowMenu`, and other menus get a distinct symbol.
+   That covers the Analysis and puzzle detail `…` menus. Each screen picks a
+   `ToolbarVerticalCompressionBehavior`: navigation screens keep the tab bar, and
+   task screens minimize it to keep their actions.
 6. **Hit targets ≥ 44 × 44 pt.** That includes board squares: a board of at
    least 352 pt. Where a frame can't reach that, it shows the trade-off and
    records the decision. The move rows (34 pt), alternatives (36 pt) and solution
@@ -271,6 +280,12 @@ list where they differ.
     identifier the UI tests use survives each layout.
 15. **Continuity.** Folding or unfolding never loses navigation, selection, a
     draft, an open sheet, a running session or unsaved moves.
+16. **Folding.** Prefer containers that adapt by themselves, including
+    `ArrangementView` (split or overlay) for layouts shaped like an
+    `HStack`/`VStack` or a `ZStack`. Keep navigation containers outside it. Grids
+    use an even column count. Fold changes are small adjustments that keep
+    controls visible, never an extreme rearrangement. Custom layouts read
+    `ReservedRegion` frames, which already include the region's margins.
 
 ## 7. Design direction to test in the mockups
 
@@ -435,7 +450,7 @@ existing format (`scripts/run-ios-*-prompts.sh`).
 
 ## 12. Sources
 
-- [Apple — Designing for iPhone Duo (HIG)](https://developer.apple.com/design/human-interface-guidelines/designing-for-iphone-duo) (not yet read in full)
+- [Apple — Designing for iPhone Duo (HIG)](https://developer.apple.com/design/human-interface-guidelines/designing-for-iphone-duo) (read in full 2026-11-03)
 - [Apple — iPhone Duo tech talk](https://developer.apple.com/videos/play/tech-talks/111466/)
 - [Apple Developer Forums — iPhone Duo group lab summary](https://developer.apple.com/forums/thread/847644)
 - [Apple — iPhone Duo Tech Specs](https://support.apple.com/en-us/148588)

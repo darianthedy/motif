@@ -23,6 +23,8 @@ mkdir -p "$OUT"
   echo "== tools mentioning a pose"
   ls "$(xcode-select -p)/usr/bin" "$(xcode-select -p)/../Applications" 2>&1
   xcrun simctl help 2>&1 | grep -i -E 'fold|hinge|pose|posture' || echo "none in simctl help"
+  echo "== DeviceHub"
+  ls "$(xcode-select -p)/../Applications/DeviceHub.app/Contents/MacOS" 2>&1
 } > "$OUT/tools.txt" 2>&1
 
 sim=$(xcrun simctl list devices available --json | python3 -c '
@@ -48,26 +50,46 @@ grep -E 'error:|\*\* BUILD' "$OUT/build.log"
 
 xcrun simctl install "$sim" build/DerivedData/Build/Products/Debug-iphonesimulator/Motif.app
 
-shot() { # name, launch args
-  name=$1; shift
+OUTER=1   # LCD (primary), 1398x2034
+INNER=3   # LCD-1 (primary-1), 2007x2853
+
+shot() { # display, name, launch args
+  display=$1; name=$2; shift 2
   xcrun simctl terminate "$sim" "$BUNDLE_ID" 2>/dev/null
   xcrun simctl launch "$sim" "$BUNDLE_ID" -MotifMemoryBackend YES -MotifSeedSamples YES "$@" >/dev/null
   sleep 6
-  xcrun simctl io "$sim" screenshot "$OUT/$name.png" >/dev/null
+  xcrun simctl io "$sim" screenshot --display="$display" "$OUT/$name.png" >/dev/null
 }
 
-shot home
-shot list -MotifRoute puzzle-list
-shot detail -MotifRoute puzzle-detail
-shot session -MotifRoute session:all
-shot game -MotifRoute game:first
-shot comment -MotifRoute game-comment
-shot account -MotifRoute account
-shot signin -MotifRoute signin
+routes() { # display, prefix
+  shot "$1" "$2-home"
+  shot "$1" "$2-list" -MotifRoute puzzle-list
+  shot "$1" "$2-detail" -MotifRoute puzzle-detail
+  shot "$1" "$2-session" -MotifRoute session:all
+  shot "$1" "$2-game" -MotifRoute game:first
+  shot "$1" "$2-comment" -MotifRoute game-comment
+  shot "$1" "$2-account" -MotifRoute account
+  shot "$1" "$2-signin" -MotifRoute signin
+}
 
-# If the simulator can change displays from here, this records what changes.
-for arg in fold unfold; do
-  xcrun simctl ui "$sim" "$arg" >> "$OUT/tools.txt" 2>&1 && echo "simctl ui $arg worked"
-done
-xcrun simctl io "$sim" screenshot "$OUT/after-unfold.png" >/dev/null
-xcrun simctl list devicetypes | grep -i duo >> "$OUT/tools.txt"
+enumerate() { # label
+  { echo "== io enumerate: $1"; xcrun simctl io "$sim" enumerate; } >> "$OUT/tools.txt" 2>&1
+}
+
+enumerate boot
+routes "$OUTER" boot-outer
+
+# simctl has no fold command. Powering the screens is the closest control it has.
+xcrun simctl io "$sim" screenConfig --display="$OUTER" power off
+xcrun simctl io "$sim" screenConfig --display="$INNER" power on
+sleep 5
+enumerate "inner on"
+routes "$INNER" unfolded-inner
+
+xcrun simctl io "$sim" screenConfig --display="$INNER" power off
+xcrun simctl io "$sim" screenConfig --display="$OUTER" power on
+sleep 5
+enumerate "outer on"
+routes "$OUTER" folded-outer
+
+ls "$OUT"/*.png >/dev/null 2>&1 || { echo "No screenshots were written" >&2; exit 1; }

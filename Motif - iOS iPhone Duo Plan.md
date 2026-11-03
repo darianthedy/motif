@@ -87,13 +87,13 @@ What Apple's guidance says (developer group-lab summary and tech talk):
   inner display. Only iOS 27.1 SDK builds go edge to edge with vertical bars.
 - **New APIs (iOS 27.1):** `ReservedRegion`, `onHingeChange` (state and angle,
   "for effects, not layout"), `ArrangementView` (don't nest
-  `NavigationSplitView` in it), `presentationPlacement`, `toolbarVerticalEdge`,
-  `toolbarVerticalBehavior`, `ToolbarOverflowMenu`.
+  `NavigationSplitView` in it), `toolbarVerticalEdge`, `toolbarVerticalBehavior`,
+  `ToolbarOverflowMenu`. `presentationPlacement` is available from iOS 27.0.
 
 Where sources conflict, Phase 1 settles it: whether a portrait-locked app takes
 part in Split View (the labs say it still gets the size-class changes, while the
-tech talk says Split View needs a freely resizable app), and whether
-`ArrangementView` needs 27.1 or works from 27.0.
+tech talk says Split View needs a freely resizable app). Apple's documentation
+settles `ArrangementView`: it needs iOS 27.1.
 
 ## 2. Where Motif stands today
 
@@ -121,14 +121,14 @@ Every mockup cell is named `S<screen><state>·<config>`, e.g. `S15c·IL`.
 
 | ID | Configuration | Size class (w × h) | Approx. points | Bars and notes |
 |---|---|---|---|---|
-| **O** | Closed, portrait | compact × regular | 466 × 678, less the side bar | Vertical on the trailing edge. Height and width are both tight |
-| **IL** | Open flat, wide (as opened) | regular × regular | 951 × 669 | Vertical. Fold vertical in the middle, zero width when flat |
-| **IP** | Open flat, tall | regular × regular | 669 × 951 | Horizontal. Fold horizontal |
-| **SV** | Split View half | **verify** | ~475 × 669 | Controls on the app's outer edge; draw both the leading and trailing sides |
-| **PP** | Another app's video pinned on top | regular × shorter (**verify**) | 951 × ~400 (**verify**) | Height changes live; wider than tall |
-| **FB** | Partly folded book (IL bent) | regular × regular + division | two ~475 × 669 pages | Controls go to the sides, none on the fold |
-| **FT** | Partly folded portrait or tabletop (IP bent) | regular × regular + division | two 669 × ~475 halves | Controls on the stable bottom half; board on top |
-| **ST** | Standing on its edges | regular × regular + division | as FB or FT | No Apple guidance. Expected to match FB or FT; confirmed in Phase 1 |
+| **O** | Closed, portrait | compact × regular | 466 × 678; 382 wide inside the 84 pt side bar. 457 × 678 with the case-gap setting | Vertical on the trailing edge. Height and width are both tight |
+| **IL** | Open flat, wide (as opened) | regular × regular | 951 × 669; 867 wide inside the side bar | Vertical. Fold region 40 pt wide at x 455.5, reported but inactive when flat |
+| **IP** | Open flat, tall | regular × regular | 669 × 951 | Horizontal; tab bar at the bottom. Fold region 40 pt tall at y 373.5 |
+| **SV** | Split View half | compact × regular | 469 × 669 | Controls on the app's outer edge (84 pt); fold region is a 13.5 pt strip on the inner edge. Draw both sides |
+| **PP** | Another app's video pinned on top | regular × regular flat; regular × compact bent | 669 × 606 flat; 669 × 465 bent | Pinned only with the phone tall. Horizontal bars. Height changes live |
+| **FB** | Partly folded book (IL bent) | regular × regular + division | two pages either side of 455.5–495.5 | Controls go to the sides, none on the fold |
+| **FT** | Partly folded portrait or tabletop (IP bent) | regular × regular + division | two halves either side of 373.5–413.5 | Controls on the stable bottom half; board on top |
+| ~~ST~~ | Standing on its edges | as FB | as FB | **Dropped.** On the device it showed the same layout as FB (user, 2026-11-03), so it gets no column. Coverage-grid cells read "= FB" |
 | **PD** | iPad, 11″ portrait and landscape | regular × regular | 834 × 1194 and 1194 × 834 | Expected to match IP and IL. Stage Manager windows use the same layouts as SV or IL |
 
 Closed landscape isn't a configuration: the outer display stays portrait-only
@@ -225,9 +225,10 @@ Estimated total: ~600 frames (330 O/IL, ~100 IP/SV, ~60 FB/FT, ~10 PP, ~17 PD,
 
 ## 6. iOS design standards checklist (every frame is checked)
 
-Apple's "Designing for iPhone Duo" HIG page is the authority here. Its text
-wasn't readable by fetch, so Phase 0 reads it in a browser and corrects this
-list where they differ.
+Apple's "Designing for iPhone Duo" HIG page is the authority here. Phase 0 read
+it in full on 2026-11-03 and corrected this list. It gives no point sizes and no
+sheet or hit-target rules, so those items rest on the tech talk, the group lab
+and the general HIG.
 
 1. **System containers first.** `TabView`, `NavigationSplitView`,
    `NavigationStack`, `List`/`Form`, `.toolbar`, `.searchable`,
@@ -242,8 +243,16 @@ list where they differ.
    the camera, the Dynamic Island or the fold division. Board squares count as
    discrete controls, so a board stays on one side of a division.
 5. **Bars.** Navigation titles are large on top-level lists and inline on detail
-   screens. Every toolbar item has a title and a symbol. Ellipsis means overflow
-   only. Custom bars check `toolbarVerticalEdge`.
+   screens. Every toolbar item has a title and a symbol, and text buttons are
+   rare because they stay horizontal. Custom bars check `toolbarVerticalEdge`.
+   Order items with Back or Close at the top, then prominent actions, and group
+   with `ToolbarItemGroup` rather than manual spacing. Overflow runs bottom to
+   top, so frequent and status-bearing items get a higher
+   `ToolbarItemVisibilityPriority`. Ellipsis means overflow only: custom overflow
+   actions move into `ToolbarOverflowMenu`, and other menus get a distinct symbol.
+   That covers the Analysis and puzzle detail `…` menus. Each screen picks a
+   `ToolbarVerticalCompressionBehavior`: navigation screens keep the tab bar, and
+   task screens minimize it to keep their actions.
 6. **Hit targets ≥ 44 × 44 pt.** That includes board squares: a board of at
    least 352 pt. Where a frame can't reach that, it shows the trade-off and
    records the decision. The move rows (34 pt), alternatives (36 pt) and solution
@@ -271,6 +280,12 @@ list where they differ.
     identifier the UI tests use survives each layout.
 15. **Continuity.** Folding or unfolding never loses navigation, selection, a
     draft, an open sheet, a running session or unsaved moves.
+16. **Folding.** Prefer containers that adapt by themselves, including
+    `ArrangementView` (split or overlay) for layouts shaped like an
+    `HStack`/`VStack` or a `ZStack`. Keep navigation containers outside it. Grids
+    use an even column count. Fold changes are small adjustments that keep
+    controls visible, never an extreme rearrangement. Custom layouts read
+    `ReservedRegion` frames, which already include the region's margins.
 
 ## 7. Design direction to test in the mockups
 
@@ -360,6 +375,76 @@ and IL, Split View and pinned-video sizes, and which toolbar items reach overflo
 Settle the conflicts at the end of §1. Results go in a table here, and §3 and the
 §7 board numbers get updated. Mockups use these numbers.
 
+### 8.1 Phase 0 and Phase 1 results (2026-11-03)
+
+**Toolchain.** The app, including Stockfish, builds on `xcode-27` with Xcode 27.1
+and uploads to TestFlight (build 23, with the probe). `ios-testflight.yml` takes an
+`xcode_27` input rather than a second workflow, so build numbers stay in one
+sequence. The layout probe (`LayoutProbe.swift`, the `layout_probe` input, the
+`ios-duo-probe` workflow and script) was removed once Phase 1 was done; it is in
+the history of the `iphone-duo-phase-one` branch if a later phase needs it.
+
+**Simulator.** `simctl` has no fold or pose command. Powering the displays with
+`simctl io screenConfig` crashes the system shell, and the inner display came back
+black. The outer display can be captured in CI with `--display=1`. The
+community tool `duoctl` claims headless hinge control through private
+interfaces; untried. Phase 1 was measured on the user's iPhone Duo (44
+screenshots named `<config>-<screen>.png`, e.g. `FB-game.png`, kept outside the
+repo).
+
+**Measurements (device, Xcode 27.1 SDK build).**
+
+| Config | Window (pt) | Size class | Safe area insets T / L / B / R | Bars | Reserved regions |
+|---|---|---|---|---|---|
+| O | 466 × 678, @3x | C × R | 0 / 0 / 34 / 84 | trailing | camera 37 × 37 at (399.7, 29.3); side status 84 × 174 at (382, 0) |
+| O, case gap on | 457 × 678 | C × R | 0 / 0 / 34 / 84 | trailing | as O |
+| IL | 951 × 669, @3x drawn at 2.8 (1878 × 2670 px) | R × R | 0 / 0 / 34 / 84 | trailing | division 40 × 669 at x 455.5, margins 20 left and right, inactive when flat; camera 62 × 39.5 at (658.6, 22.4), inactive |
+| IP | 669 × 951 | R × R | 82 / 0 / 34 / 0 | horizontal, tab bar at bottom | division 669 × 40 at y 373.5, margins 20 top and bottom |
+| FB | as IL | R × R | as IL | trailing | division active |
+| FT | as IP | R × R | as IP | horizontal | division active |
+| SV, left | 469 × 669 | C × R | 0 / 84 / 34 / 0 | leading | division 13.5 × 669 at x 455.5 (the inner edge) |
+| SV, right | 469 × 669 | C × R | 0 / 0 / 34 / 84 | trailing | division 13.5 × 669 at x 0 |
+| PP, flat | 669 × 606 | R × R | 0 / 0 / 20 / 0 | horizontal | division 669 × 40 at y 110.8, inactive |
+| PP, bent | 669 × 465 | R × C | 0 / 0 / 20 / 0 | horizontal | division strip 669 × 9.8 at the top edge |
+
+Settled:
+- **Inner display: 951 × 669 pt.** The panel is 1878 × 2670 px, so iOS draws at
+  3x and scales down by 2.8. Mockups use 951 × 669.
+- **Split View: a portrait-only app takes part.** No `Info.plist` change is needed
+  for decision 3. Each half is compact width, so it gets the O layout with the
+  bars on its outer edge.
+- **Pinned video** works only with the phone tall, and pins above the app (IP),
+  not beside it. Flat leaves 669 × 606 (regular height). Bent leaves the bottom
+  half, 669 × 465, which is **regular × compact**: the only regular-width,
+  compact-height configuration.
+- **Picture in picture** that isn't pinned floats over the app without resizing it.
+- **Standing on its edges** matched FB (decision 8).
+- **Continuity:** unfolding in a game kept the game and the selected move.
+
+Sheets and keyboard:
+- **O:** the comment sheet (medium) is 450 × 390, 8 pt from each edge, with ✕ and
+  ✓ in the side bar. With the keyboard up it grows to 450 × 670, and the keyboard
+  is 313 pt tall.
+- **IL:** the comment sheet is centered, 653 pt wide, with horizontal ✕ and ✓.
+  The keyboard is split at 289 pt tall and the sheet grows to the top.
+- **IP:** 653 pt wide, but **compact width** inside the sheet.
+- **FB:** the sheet moves onto the left page (459.7 pt wide). **FT:** it sits
+  below the fold.
+- **Account sheet:** side ✕ on O, centered on IL.
+
+Toolbars: on O and IL the avatar, +, ‹ and ⋯ all stay in the side bar, and
+nothing went to overflow. The game ⋯ menu opens beside the side bar.
+
+Board today (Analysis view, eval bar on): O 299 pt (37 pt squares), IL 293 pt,
+IP 462 pt, SV 293 pt, PP flat 264 pt, PP bent about 180 pt. **On FB and FT the
+board crosses the active fold.**
+
+Effect on §7: the side bar is 84 pt, not 64 pt. Option A on O gives a 328 pt
+board with the eval bar (41 pt squares) and 350 pt without it and in sessions.
+With the case gap these are 319 pt and 341 pt. All are under the 352 pt minimum.
+Layout reads container size, so the case gap needs no special code; frames on O
+are drawn at 466 pt with one 457 pt check per board screen.
+
 **Phase 2 — Capture today.** Run every screen × configuration and screenshot it,
 twice, by extending `scripts/ios-screenshot.sh`:
 1. the current build (iOS 26 SDK, compatibility mode);
@@ -416,12 +501,17 @@ existing format (`scripts/run-ios-*-prompts.sh`).
 4. **Regular-width shell: tab bar + `NavigationSplitView`.** `.sidebarAdaptable`
    is still drawn once for comparison.
 5. **Analysis view on the outer display: option A.** The side bar stays, and the
-   system layout is kept. If the measured board stays under 352 pt with the eval
-   bar on, that frame records it as an accepted exception to §6.6.
+   system layout is kept. The measured 84 pt side bar leaves every outer-display
+   board under 352 pt: 328 pt with the eval bar, 350 pt without it and in
+   sessions, and 9 pt less with the case-gap setting. All of these are accepted
+   exceptions to §6.6 (user, 2026-11-03), on condition that the mockups look
+   good. Each frame records its board size.
 6. **iPad: in scope.** It is cheap: one slice (D11) after the regular-width work,
    with no iPad-specific screens.
 7. **Two Motif windows: not built.** No clear use case, and the split view
    columns already show a list beside its detail.
+8. **Standing on its edges: no mockups.** It looked the same as the partly
+   folded book pose on the device, so ST is dropped as a configuration (§3).
 
 ## 11. Done when
 
@@ -435,7 +525,7 @@ existing format (`scripts/run-ios-*-prompts.sh`).
 
 ## 12. Sources
 
-- [Apple — Designing for iPhone Duo (HIG)](https://developer.apple.com/design/human-interface-guidelines/designing-for-iphone-duo) (not yet read in full)
+- [Apple — Designing for iPhone Duo (HIG)](https://developer.apple.com/design/human-interface-guidelines/designing-for-iphone-duo) (read in full 2026-11-03)
 - [Apple — iPhone Duo tech talk](https://developer.apple.com/videos/play/tech-talks/111466/)
 - [Apple Developer Forums — iPhone Duo group lab summary](https://developer.apple.com/forums/thread/847644)
 - [Apple — iPhone Duo Tech Specs](https://support.apple.com/en-us/148588)

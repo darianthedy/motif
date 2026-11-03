@@ -170,11 +170,13 @@ enum CaptureSeed {
     private static func solve(_ library: inout Library) {
         let id = "sample-solve"
         let long = Array(repeating: "The rook lift decides: every black defender is a tempo short, and the back rank has no luft.", count: 6).joined(separator: " ")
-        let content: [PuzzleContent] = [
-            PuzzleContent(fen: "6k1/5p1p/8/8/8/8/8/3R2K1 w - - 0 1", solutions: [["d1d8", "g8g7", "d8d7"]], tags: ["backRank"], comment: "Only square."),
-            PuzzleContent(fen: "7k/4P3/8/8/8/8/8/6K1 w - - 0 1", solutions: [["e7e8q"]], tags: ["promotion"]),
-            PuzzleContent(fen: "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1", solutions: [["a1a8"]], tags: ["backRank", "mateIn1"], comment: long, rating: 900),
-        ]
+        let json = """
+        {"collection":"Session states","puzzles":[
+        {"fen":"6k1/5p1p/8/8/8/8/8/3R2K1 w - - 0 1","solutions":[["d1d8","g8g7","d8d7"]],"tags":["backRank"],"comment":"Only square."},
+        {"fen":"7k/4P3/8/8/8/8/8/6K1 w - - 0 1","solutions":[["e7e8q"]],"tags":["promotion"]},
+        {"fen":"6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1","solutions":[["a1a8"]],"tags":["backRank","mateIn1"],"comment":"\(long)","rating":900}]}
+        """
+        let content = importJson(json).groups.flatMap(\.puzzles)
         library.collections.append(Collection(id: id, name: "Session states", createdAt: Int64(library.collections.count)))
         library.puzzles += content.enumerated().map { n, content in
             Puzzle(content: content, id: id + "-\(n)", collectionId: id, position: n, addedAt: 0)

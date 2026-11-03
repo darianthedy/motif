@@ -461,6 +461,39 @@ promotion picker, session complete…) so that Phase 4 frames and the final
 screenshot tests line up one to one. System pickers and transient menus are
 captured by UI test taps.
 
+### 8.2 Phase 2 method (2026-11-03)
+
+`scripts/ios-screenshot.sh` takes one route per launch, which can't reach most
+states. Phase 2 uses a UI-test capture suite instead:
+
+- **`MotifUITests/DuoCaptureTests`** has one test per screen. Each state launches
+  fresh, gets there through its route, a fixture and taps, and saves one screenshot
+  named for its cell (`S15c`, and `S17a-S04` for a banner on a host). It is skipped
+  unless the runner sets `MOTIF_CAPTURE=1`, so the PR check doesn't pay for it.
+  `MOTIF_CAPTURE_ONLY` narrows a run (`S08,S15`, or `primary`).
+- **Launch fixtures** (`App/CaptureFixture.swift`, Debug only):
+  `-MotifFixture seed=games,engine,lines`. Seeds (`empty`, `collections`,
+  `progress`, `games`, `solve`), account and backend faults (`hang-user`,
+  `hang-load`, `fail-load`, `fail-signin`, `hang-writes`…), store state
+  (`pending=N`, `status=syncing|error`, `error`, `notice`, `offline-first`), the
+  scripted engine, the Analysis view toggles, `problem`, `slow-reply`, and
+  prefilled import texts. New routes: `puzzle-detail:<id>`, `session:<collection>`,
+  `result:<collection>`, `game:<id>`, `games`. These line up one to one with the
+  Phase 4 frames and become the D09 screenshot tests.
+- **Poses.** `duoctl` (third party, private simulator interfaces) sets the hinge
+  and rotation headlessly: O = closed, IL = open + landscape, IP = open + portrait,
+  FB = half + landscape, FT = half + portrait. Split View and pinned video have no
+  simulator control, so SV and PP come from the device (below). iPad (PD) isn't
+  captured: the app is iPhone-only until D11, so an iPad shows the iPhone app.
+- **Two builds.** `ios-duo-capture.yml` builds the app with Xcode 26 (`macos-26`,
+  iOS 26 SDK) and the app plus the suite with Xcode 27.1 (`xcode-27`). Each pose
+  runs as its own job on the 27.1 Duo simulator. The iOS 26 run swaps its app in
+  under the same test runner. Compatibility mode shows an iPhone-sized window on
+  the inner display, so the iOS 26 build takes every state on O and IL and the
+  primary states on IP, FB and FT.
+- Not capturable from XCTest: S12h holds a reorder drag mid-gesture, so its frame
+  shows edit mode with the handles instead.
+
 **Phase 3 — Audit.** For each captured cell, list where it breaks the §6
 checklist or wastes the screen. Output is a findings table (screen · config ·
 issue · checklist item · severity), appended to this file, starting from the §2

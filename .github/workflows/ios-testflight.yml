@@ -21,10 +21,6 @@ on:
         description: "Build with Xcode 27.1 (iPhone Duo, edge to edge) instead of Xcode 26"
         type: boolean
         default: false
-      layout_probe:
-        description: "Compile in the iPhone Duo layout probe (needs Xcode 27.1)"
-        type: boolean
-        default: false
   push:
     branches: [main]
     paths:
@@ -89,7 +85,6 @@ jobs:
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           NEON_BASE_URL: ${{ secrets.VITE_NEON_BASE_URL }}
           BUILD_NUMBER: ${{ github.run_number }}
-          LAYOUT_PROBE: ${{ inputs.layout_probe }}
           # Set repo Variable MATCH_CREATE_CERTS=true for the FIRST run only, so
           # match creates + stores the App Store profile for this bundle ID
           # (setup_ci otherwise forces read-only on CI). Delete the variable

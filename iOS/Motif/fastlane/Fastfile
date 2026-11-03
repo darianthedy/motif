@@ -76,9 +76,6 @@ platform :ios do
     neon_base_url = ENV.fetch("NEON_BASE_URL")
     UI.user_error!("NEON_BASE_URL is empty") if neon_base_url.strip.empty?
 
-    # iPhone Duo Phase 1 only: compiles the layout probe into this build.
-    probe = ENV["LAYOUT_PROBE"] == "true" ? ["'OTHER_SWIFT_FLAGS=$(inherited) -DMOTIF_LAYOUT_PROBE'"] : []
-
     ipa_path = build_app(
       project: XCODEPROJ,
       scheme: SCHEME,
@@ -91,8 +88,7 @@ platform :ios do
       xcargs: [
         "-allowProvisioningUpdates",
         "CURRENT_PROJECT_VERSION=#{build_number}",
-        "NEON_BASE_URL=#{neon_base_url.shellescape}",
-        *probe
+        "NEON_BASE_URL=#{neon_base_url.shellescape}"
       ].join(" "),
       output_directory: "build",
       output_name: "Motif.ipa"

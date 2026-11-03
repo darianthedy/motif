@@ -378,9 +378,11 @@ Settle the conflicts at the end of §1. Results go in a table here, and §3 and 
 ### 8.1 Phase 0 and Phase 1 results (2026-11-03)
 
 **Toolchain.** The app, including Stockfish, builds on `xcode-27` with Xcode 27.1
-and uploads to TestFlight (build 23, with the probe). `ios-testflight.yml` takes
-`xcode_27` and `layout_probe` inputs rather than a second workflow, so build
-numbers stay in one sequence.
+and uploads to TestFlight (build 23, with the probe). `ios-testflight.yml` takes an
+`xcode_27` input rather than a second workflow, so build numbers stay in one
+sequence. The layout probe (`LayoutProbe.swift`, the `layout_probe` input, the
+`ios-duo-probe` workflow and script) was removed once Phase 1 was done; it is in
+the history of the `iphone-duo-phase-one` branch if a later phase needs it.
 
 **Simulator.** `simctl` has no fold or pose command. Powering the displays with
 `simctl io screenConfig` crashes the system shell, and the inner display came back
@@ -499,8 +501,11 @@ existing format (`scripts/run-ios-*-prompts.sh`).
 4. **Regular-width shell: tab bar + `NavigationSplitView`.** `.sidebarAdaptable`
    is still drawn once for comparison.
 5. **Analysis view on the outer display: option A.** The side bar stays, and the
-   system layout is kept. If the measured board stays under 352 pt with the eval
-   bar on, that frame records it as an accepted exception to §6.6.
+   system layout is kept. The measured 84 pt side bar leaves every outer-display
+   board under 352 pt: 328 pt with the eval bar, 350 pt without it and in
+   sessions, and 9 pt less with the case-gap setting. All of these are accepted
+   exceptions to §6.6 (user, 2026-11-03), on condition that the mockups look
+   good. Each frame records its board size.
 6. **iPad: in scope.** It is cheap: one slice (D11) after the regular-width work,
    with no iPad-specific screens.
 7. **Two Motif windows: not built.** No clear use case, and the split view

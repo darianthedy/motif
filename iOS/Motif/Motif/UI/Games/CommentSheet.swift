@@ -17,7 +17,7 @@ struct CommentSheet: View {
             Form {
                 Section(title) { TextEditor(text: $text).frame(minHeight: 150).accessibilityIdentifier(textIdentifier).disabled(!online) }
                 if !text.isEmpty { Button("Remove Comment", role: .destructive) { save(""); dismiss() }.disabled(!online) }
-            }.layoutProbe("sheet").editorKeyboard().navigationTitle("Comment").navigationBarTitleDisplayMode(.inline)
+            }.editorKeyboard().navigationTitle("Comment").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel", systemImage: "xmark", role: .cancel) { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save", systemImage: "checkmark") { save(text); dismiss() }.disabled(!online).accessibilityIdentifier(saveIdentifier) }

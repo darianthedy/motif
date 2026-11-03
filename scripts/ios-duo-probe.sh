@@ -51,7 +51,6 @@ grep -E 'error:|\*\* BUILD' "$OUT/build.log"
 xcrun simctl install "$sim" build/DerivedData/Build/Products/Debug-iphonesimulator/Motif.app
 
 OUTER=1   # LCD (primary), 1398x2034
-INNER=3   # LCD-1 (primary-1), 2007x2853
 
 shot() { # display, name, launch args
   display=$1; name=$2; shift 2
@@ -79,17 +78,6 @@ enumerate() { # label
 enumerate boot
 routes "$OUTER" boot-outer
 
-# simctl has no fold command. Powering the screens is the closest control it has.
-xcrun simctl io "$sim" screenConfig --display="$OUTER" power off
-xcrun simctl io "$sim" screenConfig --display="$INNER" power on
-sleep 5
-enumerate "inner on"
-routes "$INNER" unfolded-inner
-
-xcrun simctl io "$sim" screenConfig --display="$INNER" power off
-xcrun simctl io "$sim" screenConfig --display="$OUTER" power on
-sleep 5
-enumerate "outer on"
-routes "$OUTER" folded-outer
-
+# simctl has no fold command, and powering the screens off crashes the system
+# shell, so only the outer display can be captured here.
 ls "$OUT"/*.png >/dev/null 2>&1 || { echo "No screenshots were written" >&2; exit 1; }

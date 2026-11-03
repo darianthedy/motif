@@ -375,6 +375,40 @@ and IL, Split View and pinned-video sizes, and which toolbar items reach overflo
 Settle the conflicts at the end of §1. Results go in a table here, and §3 and the
 §7 board numbers get updated. Mockups use these numbers.
 
+### 8.1 Phase 0 and Phase 1 results so far (2026-11-03)
+
+Toolchain: the app, including Stockfish, builds on `xcode-27` with Xcode 27.1 and
+uploads to TestFlight (build 23). `ios-testflight.yml` takes `xcode_27` and
+`layout_probe` inputs rather than a second workflow, so build numbers stay in one
+sequence.
+
+Simulator: `simctl` has no fold or pose command. Powering the displays with
+`simctl io screenConfig` crashes the system shell, so it can't stand in for one,
+and the inner display came back black. The outer display can be captured in CI
+with `--display=1`. **Inner and folded poses need the device** (or Device Hub on a
+Mac).
+
+Measured on the simulator, outer display (O), Xcode 27.1 SDK, not yet confirmed on
+hardware:
+
+| Measure | Value |
+|---|---|
+| Scene | 466 × 678 pt, @3x, 1398 × 2034 px native; compact × regular |
+| Safe area, root | 382 × 644 pt: top 0, leading 0, bottom 34, **trailing 84** |
+| Safe area, under a navigation title | 382 × 562 pt, top inset 82 |
+| Bars | `toolbarVerticalEdge` trailing |
+| Reserved regions | Camera 37 × 37 pt at (399.7, 29.3); side status region 84 × 174 pt at (382, 0); both `.occlusion`, zero margins |
+| Medium sheet | 450 × 390 pt, 8 pt from each side edge; content 374 pt wide with a 76 pt trailing inset |
+| Analysis board today | 299 pt (37 pt squares) with the eval bar |
+
+Inner display, from the simulator's screen list only: 2007 × 2853 px, which
+supports 669 × 951 pt at @3x.
+
+The side bar is 84 pt, not the 64 pt assumed in §7. That lowers option A to a
+328 pt board with the eval bar (41 pt squares) and 350 pt without it and in
+sessions (43.75 pt squares). Both are under the 352 pt minimum, and decision 5
+only accepts the case with the eval bar.
+
 **Phase 2 — Capture today.** Run every screen × configuration and screenshot it,
 twice, by extending `scripts/ios-screenshot.sh`:
 1. the current build (iOS 26 SDK, compatibility mode);

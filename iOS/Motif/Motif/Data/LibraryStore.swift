@@ -115,6 +115,10 @@ final class LibraryStore {
         let found = try await account.currentUser()
         remember(found); await adopt(found)
     }
+    #if DEBUG
+    /// The capture fixtures' sync states, which a working memory backend never holds.
+    func debugStatus(_ value: SyncStatus) { status = value }
+    #endif
     func signOut() async throws {
         try await account.signOut(); remember(nil); await adopt(nil)
     }

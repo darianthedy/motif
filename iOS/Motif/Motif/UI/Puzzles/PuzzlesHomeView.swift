@@ -102,9 +102,15 @@ struct PuzzlesHomeView: View {
         if route == "import" { app.importingPuzzles = true }
         if ["puzzle-list", "puzzle-list-empty"].contains(route), let first = library.collections.first { app.puzzlesPath = [.collection(first.id), .puzzles(first.id)] }
         if route == "puzzle-detail", let first = library.collections.first, let puzzle = puzzlesIn(library, first.id).first { app.puzzlesPath = [.collection(first.id), .puzzles(first.id), .puzzle(first.id, puzzle.id)] }
+        // `puzzle-detail:<puzzle id>` opens that puzzle instead.
+        if route.hasPrefix("puzzle-detail:"), let puzzle = library.puzzles.first(where: { $0.id == route.dropFirst("puzzle-detail:".count) }) {
+            app.puzzlesPath = [.collection(puzzle.collectionId), .puzzles(puzzle.collectionId), .puzzle(puzzle.collectionId, puzzle.id)]
+        }
         if route == "collection", let first = library.collections.first { app.puzzlesPath = [.collection(first.id)] }
         if route.hasPrefix("session:") || route.hasPrefix("result:") {
-            let scope = route == "session:missing" ? "sample-missing-piece" : SCOPE_ALL
+            // `session:<collection id>` and `result:<collection id>` start in that collection.
+            let named = String(route.drop { $0 != ":" }.dropFirst())
+            let scope = route == "session:missing" ? "sample-missing-piece" : library.collections.contains { $0.id == named } ? named : SCOPE_ALL
             let puzzles = scope == SCOPE_ALL ? allPuzzles(library) : puzzlesIn(library, scope)
             await app.begin(scope, .ordered, puzzles.map(\.id))
         }

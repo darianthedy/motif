@@ -47,6 +47,13 @@ private struct SessionPuzzle: View {
     @State private var analyzing = false
     init(puzzle: Puzzle, run: Run, progress: RunProgress) {
         self.puzzle = puzzle; self.run = run; self.progress = progress
+        #if DEBUG
+        // `slow-reply` holds the opponent's reply long enough for a screenshot.
+        if CaptureFixture.current.has("slow-reply") {
+            _model = State(initialValue: SolveModel(puzzle) { try await Task.sleep(for: .milliseconds($0 == REPLY_MS ? 10_000 : $0)) })
+            return
+        }
+        #endif
         _model = State(initialValue: SolveModel(puzzle))
     }
     private var flagged: Bool { puzzle.flagged == true }

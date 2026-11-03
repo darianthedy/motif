@@ -80,6 +80,11 @@ struct ImportView: View {
                               disabled: !app.store.online || model.incoming == 0 || model.busy, identifier: "puzzle-import-add",
                               onCancel: { dismiss() }, onConfirm: { Task { if await model.apply(app) { dismiss() } } })
                 .scrollDismissesKeyboard(.interactively).editorKeyboard()
+                .task {
+                    #if DEBUG
+                    if let text = CaptureSeed.importText { model.text = text; model.parse() }
+                    #endif
+                }
                 .fileImporter(isPresented: $filePicker, allowedContentTypes: [.json]) { result in
                     do { model.text = try readImportFile(result.get()); model.parse(); sourceError = nil }
                     catch { sourceError = error.localizedDescription }

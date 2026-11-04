@@ -65,9 +65,14 @@ capture)
   xcrun simctl boot "$sim" 2>/dev/null || true
   xcrun simctl bootstatus "$sim" -b >/dev/null
   xcrun simctl ui "$sim" appearance light
-  # A display comes up a little after boot finishes.
-  for _ in $(seq 1 40); do duoctl state > /dev/null 2>&1 && break; sleep 5; done
-  duoctl state || { echo "No active display on the iPhone Duo simulator" >&2; xcrun simctl io "$sim" enumerate >&2; exit 1; }
+  # A display comes up a little after boot finishes; a boot that never shows one gets a reboot.
+  ready() { for _ in $(seq 1 36); do duoctl state > /dev/null 2>&1 && return 0; sleep 5; done; return 1; }
+  if ! ready; then
+    echo "No active display after boot; rebooting the simulator" >&2
+    xcrun simctl shutdown "$sim"; xcrun simctl boot "$sim"; xcrun simctl bootstatus "$sim" -b >/dev/null
+    ready || { echo "No active display on the iPhone Duo simulator" >&2; exit 1; }
+  fi
+  duoctl state
 
   if [ -n "$app" ]; then
     # Same bundle ID, so the UI tests drive whichever app sits at the test target's path.
@@ -80,20 +85,34 @@ capture)
     O)  duoctl close && duoctl rotate portrait ;;
     IL) duoctl open && duoctl rotate landscape ;;
     IP) duoctl open && duoctl rotate portrait ;;
-    FB) duoctl half && duoctl rotate landscape ;;
-    FT) duoctl half && duoctl rotate portrait ;;
+    # Rotate while open, then bend: bending first and rotating to portrait lands on the cover screen.
+    FB) duoctl open && duoctl rotate landscape && duoctl half ;;
+    FT) duoctl open && duoctl rotate portrait && duoctl half ;;
     *) echo "Unknown pose $pose" >&2; exit 1 ;;
   esac || { echo "duoctl couldn't set pose $pose" >&2; exit 1; }
   sleep 2
   duoctl state > "$dir/pose-before.json" 2>&1
 
+  # The suite asks for each shot through $dir/request; duoctl takes it from the screen showing.
+  abs="$(cd "$dir" && pwd)"
+  (
+    while true; do
+      if [ -f "$abs/request" ]; then
+        id=$(cat "$abs/request"); rm -f "$abs/request"
+        duoctl screenshot "$abs/$id.tmp.png" >/dev/null 2>&1 && mv "$abs/$id.tmp.png" "$abs/$id.png"
+      fi
+      sleep 0.2
+    done
+  ) &
+  shooter=$!
   xctestrun=$(ls "$PRODUCTS"/*.xctestrun | head -1)
-  TEST_RUNNER_MOTIF_CAPTURE=1 TEST_RUNNER_MOTIF_CAPTURE_ONLY="${MOTIF_CAPTURE_ONLY:-}" \
+  TEST_RUNNER_MOTIF_CAPTURE_DIR="$abs" TEST_RUNNER_MOTIF_CAPTURE=1 TEST_RUNNER_MOTIF_CAPTURE_ONLY="${MOTIF_CAPTURE_ONLY:-}" \
     xcodebuild test-without-building -xctestrun "$xctestrun" \
       -destination "platform=iOS Simulator,id=$sim" \
       -only-testing:MotifUITests/DuoCaptureTests \
       -resultBundlePath "$dir.xcresult" > "$dir/xcodebuild.log" 2>&1
   status=$?
+  kill "$shooter" 2>/dev/null
   grep -E "Test Case .*(passed|failed|skipped)|error:|\*\* TEST" "$dir/xcodebuild.log" | tail -40
   duoctl state > "$dir/pose-after.json" 2>&1
 
@@ -108,8 +127,9 @@ for test in json.load(open(os.path.join(raw, "manifest.json"))):
     for item in test.get("attachments", []):
         match = re.match(r"(S\d\d[a-z](?:-S\d\d)?)", item.get("suggestedHumanReadableName", ""))
         if match:
-            shutil.copy(os.path.join(raw, item["exportedFileName"]), os.path.join(out, match[1] + ".png")); count += 1
-print(f"{count} screenshots in {out}")
+            target = os.path.join(out, match[1] + ".png")
+            if not os.path.exists(target): shutil.copy(os.path.join(raw, item["exportedFileName"]), target); count += 1
+print(f"{count} fallback screenshots from XCUIScreen; {len([f for f in os.listdir(out) if f.endswith('.png')])} in {out}")
 EOF
   rm -rf "$raw"
   # A state that couldn't be reached is still captured; the log says which.

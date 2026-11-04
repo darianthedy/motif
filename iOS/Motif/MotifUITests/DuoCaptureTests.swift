@@ -28,13 +28,29 @@ import XCTest
                       settle: TimeInterval = 1.2, _ reach: () -> Void = {}) {
         guard wanted(id) else { return }
         XCTContext.runActivity(named: id) { _ in
-            launch(route, seeded: seeded, offline: offline, extra: fixture.isEmpty ? [] : ["-MotifFixture", fixture])
+            // `capture` always sets a fixture, so the Analysis view's toggles reset each launch.
+            launch(route, seeded: seeded, offline: offline, extra: ["-MotifFixture", fixture.isEmpty ? "capture" : "capture," + fixture])
             continueAfterFailure = true
             reach()
             Thread.sleep(forTimeInterval: settle)
-            let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-            image.name = id; image.lifetime = .keepAlways; add(image)
+            save(id)
         }
+    }
+    /// XCUIScreen only sees the cover screen, so with `MOTIF_CAPTURE_DIR` set the host script
+    /// takes the shot with duoctl, which captures whichever screen is showing: this asks
+    /// through `<dir>/request` and waits for `<dir>/<id>.png`.
+    private func save(_ id: String) {
+        if let dir = environment["MOTIF_CAPTURE_DIR"], !dir.isEmpty {
+            let files = FileManager.default, shot = dir + "/" + id + ".png"
+            try? files.removeItem(atPath: shot)
+            try? id.write(toFile: dir + "/request", atomically: true, encoding: .utf8)
+            let deadline = Date().addingTimeInterval(30)
+            while !files.fileExists(atPath: shot), Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
+            if files.fileExists(atPath: shot) { return }
+            XCTFail("The host didn't capture \(id)")
+        }
+        let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        image.name = id; image.lifetime = .keepAlways; add(image)
     }
     private func any(_ id: String) -> XCUIElement { app.descendants(matching: .any)[id] }
     private func tapButton(_ id: String) { let element = button(id); wait(element); element.tap() }

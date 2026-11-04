@@ -29,8 +29,10 @@ struct CaptureFixture: Sendable {
     subscript(_ key: String) -> String? { values[key] }
     var seed: String { values["seed"] ?? "" }
 
-    /// The Analysis view's toggles persist, so each launch starts them from the fixture.
+    /// The Analysis view's toggles persist, so each capture launch starts them from the
+    /// fixture. Without one, launches keep them, as the UI tests expect.
     func resetPreferences(_ defaults: UserDefaults = .standard) {
+        guard !values.isEmpty else { return }
         defaults.set(!has("eval-off"), forKey: "evalBarShown")
         defaults.set(has("lines"), forKey: "engineLinesShown")
     }

@@ -81,15 +81,33 @@ capture)
     xcrun simctl uninstall "$sim" com.dthedy.Motif 2>/dev/null || true
   fi
 
+  # duoctl can briefly find no active display while the screens switch, so each
+  # step is retried, and the pose is checked against what it should be.
+  step() { for _ in 1 2 3 4 5; do duoctl "$@" > /dev/null 2>&1 && return 0; sleep 5; done; duoctl "$@"; }
+  posed() { # hinge, screen, orientation
+    duoctl state 2>/dev/null | python3 -c '
+import json, sys
+s = json.load(sys.stdin); hinge, screen, orientation = sys.argv[1:]
+sys.exit(0 if abs(s["hingeAngle"] - float(hinge)) < 15 and s["activeScreen"] == screen and s["orientation"] == orientation else 1)' "$@"
+  }
   case "$pose" in
-    O)  duoctl close && duoctl rotate portrait ;;
-    IL) duoctl open && duoctl rotate landscape ;;
-    IP) duoctl open && duoctl rotate portrait ;;
+    O)  want="0 cover portrait";     steps="close|rotate portrait" ;;
+    IL) want="180 inner landscape";  steps="open|rotate landscape" ;;
+    IP) want="180 inner portrait";   steps="open|rotate portrait" ;;
     # Rotate while open, then bend: bending first and rotating to portrait lands on the cover screen.
-    FB) duoctl open && duoctl rotate landscape && duoctl half ;;
-    FT) duoctl open && duoctl rotate portrait && duoctl half ;;
+    FB) want="90 inner landscape";   steps="open|rotate landscape|half" ;;
+    FT) want="90 inner portrait";    steps="open|rotate portrait|half" ;;
     *) echo "Unknown pose $pose" >&2; exit 1 ;;
-  esac || { echo "duoctl couldn't set pose $pose" >&2; exit 1; }
+  esac
+  for attempt in 1 2 3; do
+    IFS='|' read -ra list <<< "$steps"
+    for command in "${list[@]}"; do read -ra words <<< "$command"; step "${words[@]}"; done
+    sleep 2
+    # shellcheck disable=SC2086
+    posed $want && break
+    echo "Pose $pose not reached (attempt $attempt): $(duoctl state 2>&1 | tr -d '\n ')" >&2
+    [ "$attempt" = 3 ] && { echo "duoctl couldn't set pose $pose" >&2; exit 1; }
+  done
   sleep 2
   duoctl state > "$dir/pose-before.json" 2>&1
 
@@ -99,7 +117,10 @@ capture)
     while true; do
       if [ -f "$abs/request" ]; then
         id=$(cat "$abs/request"); rm -f "$abs/request"
-        duoctl screenshot "$abs/$id.tmp.png" >/dev/null 2>&1 && mv "$abs/$id.tmp.png" "$abs/$id.png"
+        for _ in 1 2 3; do
+          duoctl screenshot "$abs/$id.tmp.png" >/dev/null 2>&1 && mv "$abs/$id.tmp.png" "$abs/$id.png" && break
+          sleep 1
+        done
       fi
       sleep 0.2
     done
@@ -134,7 +155,8 @@ EOF
   rm -rf "$raw"
   # A state that couldn't be reached is still captured; the log says which.
   grep -E "error: .*DuoCaptureTests" "$dir/xcodebuild.log" > "$dir/failures.txt" || true
-  echo "xcodebuild exited $status; $(wc -l < "$dir/failures.txt" | tr -d ' ') assertion failures (failures.txt)"
+  touch "$dir/unreached.txt"
+  echo "xcodebuild exited $status; $(wc -l < "$dir/unreached.txt" | tr -d ' ') states not reached (unreached.txt)"
   ;;
 *)
   sed -n 3,16p "$0"; exit 1 ;;

@@ -24,17 +24,34 @@ import XCTest
         }
     }
     /// Launch on `route` with `fixture`, run `reach`, let the UI settle, and save the screen.
+    /// A state whose `reach` loses an element relaunches once, and is still captured after a
+    /// second miss: the miss goes in `<dir>/unreached.txt` so the grid can mark the cell.
     private func shot(_ id: String, _ route: String? = nil, fixture: String = "", seeded: Bool = true, offline: Bool = false,
                       settle: TimeInterval = 1.2, _ reach: () -> Void = {}) {
         guard wanted(id) else { return }
         XCTContext.runActivity(named: id) { _ in
-            // `capture` always sets a fixture, so the Analysis view's toggles reset each launch.
-            launch(route, seeded: seeded, offline: offline, extra: ["-MotifFixture", fixture.isEmpty ? "capture" : "capture," + fixture])
-            continueAfterFailure = true
-            reach()
+            for attempt in 1...2 {
+                missing = nil
+                // `capture` always sets a fixture, so the Analysis view's toggles reset each launch.
+                launch(route, seeded: seeded, offline: offline, extra: ["-MotifFixture", fixture.isEmpty ? "capture" : "capture," + fixture])
+                continueAfterFailure = true
+                reach()
+                if missing == nil || attempt == 2 { break }
+            }
             Thread.sleep(forTimeInterval: settle)
             save(id)
+            if let missing {
+                XCTFail("\(id) not reached: \(missing)")
+                note("unreached.txt", "\(id)\t\(missing)\n")
+            }
         }
+    }
+    private func note(_ file: String, _ line: String) {
+        guard let dir = environment["MOTIF_CAPTURE_DIR"], !dir.isEmpty else { return }
+        let path = dir + "/" + file
+        if !FileManager.default.fileExists(atPath: path) { FileManager.default.createFile(atPath: path, contents: nil) }
+        guard let handle = FileHandle(forWritingAtPath: path) else { return }
+        handle.seekToEndOfFile(); handle.write(Data(line.utf8)); try? handle.close()
     }
     /// XCUIScreen only sees the cover screen, so with `MOTIF_CAPTURE_DIR` set the host script
     /// takes the shot with duoctl, which captures whichever screen is showing: this asks
@@ -43,29 +60,69 @@ import XCTest
         if let dir = environment["MOTIF_CAPTURE_DIR"], !dir.isEmpty {
             let files = FileManager.default, shot = dir + "/" + id + ".png"
             try? files.removeItem(atPath: shot)
-            try? id.write(toFile: dir + "/request", atomically: true, encoding: .utf8)
-            let deadline = Date().addingTimeInterval(30)
-            while !files.fileExists(atPath: shot), Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
-            if files.fileExists(atPath: shot) { return }
+            for _ in 0..<2 {
+                try? id.write(toFile: dir + "/request", atomically: true, encoding: .utf8)
+                let deadline = Date().addingTimeInterval(30)
+                while !files.fileExists(atPath: shot), Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
+                if files.fileExists(atPath: shot) { return }
+            }
             XCTFail("The host didn't capture \(id)")
         }
         let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         image.name = id; image.lifetime = .keepAlways; add(image)
     }
+
+    /// The first element a state's `reach` couldn't find. Once set, the remaining steps are
+    /// skipped: XCTest stops the whole test when it taps an element that isn't there.
+    private var missing: String?
+    private func present(_ element: XCUIElement, _ timeout: TimeInterval = 10) -> Bool {
+        guard missing == nil else { return false }
+        if element.waitForExistence(timeout: timeout) { return true }
+        missing = element.description; return false
+    }
+    override func wait(_ element: XCUIElement) { _ = present(element, 15) }
+    override func move(_ from: String, _ to: String) { guard present(square(from)), present(square(to)) else { return }; super.move(from, to) }
+    override func place(_ name: String) { guard present(square(name)) else { return }; super.place(name) }
+    /// Toolbar items in the side bar, and menu items, can lose their identifier; their
+    /// titles find them there.
+    private static let titles = [
+        "account-close": "Close", "game-select-done": "Done", "game-bulk-move": "Move", "game-bulk-delete": "Delete",
+        "save-game-confirm": "Save Game", "game-new-board": "Create Game", "puzzle-import-add": "Add 2 Puzzles",
+        "game-import-add": "Add 2 Games", "game-back": "Back", "game-save-as-game": "Save as Game…",
+        "game-export-pgn": "Export PGN…", "game-select": "Select Games", "game-select-all": "Select All",
+        "add-games": "Add Games", "game-collection-actions": "More", "collection-actions": "More",
+        "puzzle-actions": "Puzzle actions", "game-actions": "Game actions", "result-analyze": "Analyze",
+        "session-skip": "Skip", "session-flag": "Flag", "session-stop": "End Session", "reset-progress": "Reset Puzzle Progress…",
+        "new-game-collection": "New Collection", "import-puzzles": "Import Puzzles", "puzzle-next-move": "Next move",
+        "game-next-move": "Next move", "puzzle-detail-comment": "Comment", "puzzle-import-paste": "Paste From Clipboard",
+        "game-import-paste": "Paste From Clipboard", "load-sign-out": "Sign Out", "sign-in": "Sign In",
+    ]
+    override func button(_ id: String) -> XCUIElement {
+        guard let title = Self.titles[id] else { return super.button(id) }
+        return app.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", id, title)).firstMatch
+    }
     private func any(_ id: String) -> XCUIElement { app.descendants(matching: .any)[id] }
-    private func tapButton(_ id: String) { let element = button(id); wait(element); element.tap() }
+    private func tapIf(_ element: XCUIElement) { if present(element) { element.tap() } }
+    private func tapButton(_ id: String) { tapIf(button(id)) }
     /// A menu, dialog or alert item, found by its title.
     private func item(_ title: String) {
         // A menu picker's label also carries its value ("Collection, New Collection").
         let matches = app.buttons.matching(NSPredicate(format: "label == %@ OR label BEGINSWITH %@", title, title + ","))
-        let element = matches.allElementsBoundByIndex.first(where: \.isHittable) ?? matches.firstMatch
-        wait(element); element.tap()
+        guard present(matches.firstMatch) else { return }
+        (matches.allElementsBoundByIndex.first(where: \.isHittable) ?? matches.firstMatch).tap()
     }
-    private func type(into element: XCUIElement, _ text: String) { wait(element); element.tap(); element.typeText(text) }
-    private func search(_ text: String) { let field = app.searchFields.firstMatch; wait(field); field.tap(); if !text.isEmpty { field.typeText(text) } }
-    private func swipeRow(_ id: String) { let row = any(id); wait(row); row.swipeLeft() }
-    private func pressRow(_ id: String) { let row = any(id); wait(row); row.press(forDuration: 1.2) }
-    private func next(_ times: Int = 1) { for _ in 0..<times { let step = button("game-next-move"); wait(step); step.tap(); Thread.sleep(forTimeInterval: 0.3) } }
+    private func type(into element: XCUIElement, _ text: String) { if present(element) { element.tap(); element.typeText(text) } }
+    /// With bars in the side bar, the search field can sit behind a Search button.
+    private func search(_ text: String) {
+        let field = app.searchFields.firstMatch
+        if missing == nil, !field.waitForExistence(timeout: 4) { tapIf(app.buttons["Search"]) }
+        guard present(field) else { return }
+        field.tap(); if !text.isEmpty { field.typeText(text) }
+    }
+    private func swipeRow(_ id: String) { let row = any(id); if present(row) { row.swipeLeft() } }
+    private func pressRow(_ id: String) { let row = any(id); if present(row) { row.press(forDuration: 1.2) } }
+    private func hold(_ element: XCUIElement, _ seconds: TimeInterval = 1.2) { if present(element) { element.press(forDuration: seconds) } }
+    private func next(_ times: Int = 1) { for _ in 0..<times { tapButton("game-next-move"); Thread.sleep(forTimeInterval: 0.3) } }
     private func fillSignIn() {
         type(into: app.textFields["auth-email"], "solver@example.test\n")
         type(into: app.secureTextFields["auth-password"], "anything\n")
@@ -81,7 +138,7 @@ import XCTest
     func testS02SignIn() {
         shot("S02a", "signin", fixture: "prod-account") { wait(app.textFields["auth-email"]) }
         shot("S02b", "signin", fixture: "prod-account") { fillSignIn() }
-        shot("S02c", "signin", fixture: "prod-account") { app.textFields["auth-email"].tap() }
+        shot("S02c", "signin", fixture: "prod-account") { tapIf(app.textFields["auth-email"]) }
         shot("S02d", "signin", fixture: "prod-account,hang-signin") { fillSignIn(); tapButton("sign-in") }
         shot("S02e", "signin", fixture: "prod-account,fail-signin") { fillSignIn(); tapButton("sign-in"); wait(any("sign-in-error")) }
         shot("S02f", "signin", fixture: "prod-account", offline: true) { wait(any("offline-banner")) }
@@ -98,7 +155,7 @@ import XCTest
         shot("S03g", "account", fixture: "prod-account", ready)
         shot("S03h", "account", fixture: "seed=progress,prod-account") { tapButton("reset-progress"); wait(button("reset-confirm")) }
         shot("S03i", "account") { ready(); app.swipeUp() }
-        shot("S03j", "account", fixture: "seed=progress,prod-account", settle: 0.3) { tapButton("reset-progress"); tapButton("reset-confirm"); wait(any("toast")) }
+        shot("S03j", "account", fixture: "seed=progress,prod-account", settle: 0.3) { tapButton("reset-progress"); item("Reset Progress"); wait(any("toast")) }
         shot("S03k", "account", fixture: "error,prod-account") { wait(any("error-banner")) }
     }
     func testS04PuzzlesHome() {
@@ -125,7 +182,7 @@ import XCTest
         shot("S05g", "import") { tapButton("puzzle-import-paste"); wait(any("puzzle-import-source-error")) }
         shot("S05h", "import", fixture: "import=new,hang-writes") { tapButton("puzzle-import-add") }
         shot("S05i", "import", fixture: "import=new", offline: true, ready)
-        shot("S05j", "import") { ready(); app.textViews["puzzle-import-text"].tap() }
+        shot("S05j", "import") { ready(); tapIf(app.textViews["puzzle-import-text"]) }
         shot("S05k", "import", settle: 2.5) { ready(); item("Choose File…") }
     }
     func testS06Collection() {
@@ -241,7 +298,7 @@ import XCTest
         shot("S13e", "game-add") { tapButton("game-import-paste"); wait(any("game-import-source-error")) }
         shot("S13f", "game-add", fixture: "import=pgn,hang-writes") { tapButton("game-import-add") }
         shot("S13g", "game-add", fixture: "import=pgn", offline: true, ready)
-        shot("S13h", "game-add") { ready(); app.textViews["game-import-text"].tap() }
+        shot("S13h", "game-add") { ready(); tapIf(app.textViews["game-import-text"]) }
         shot("S13i", "game-add", settle: 2.5) { ready(); item("Choose Files…") }
     }
     func testS14NewGame() {
@@ -251,7 +308,7 @@ import XCTest
         shot("S14b", "game-new") { fen() }
         shot("S14c", "game-new") { fen(); type(into: any("game-start-fen"), "7k/4P3/8/8/8/8/8/6K1 w - - 0 1"); dismissKeyboard() }
         shot("S14d", "game-new") { fen(); type(into: any("game-start-fen"), "bad"); dismissKeyboard(); wait(any("game-fen-error")) }
-        shot("S14e", "game-new") { fen(); any("game-start-fen").tap() }
+        shot("S14e", "game-new") { fen(); tapIf(any("game-start-fen")) }
         shot("S14f", "game-new", offline: true, ready)
     }
     func testS15Analysis() {
@@ -266,10 +323,10 @@ import XCTest
         shot("S15g", game, fixture: rich) { next(); tapButton("alternatives-toggle") }
         shot("S15h", "game-variation", fixture: rich, ready)
         shot("S15i", "game:sample-empty", fixture: rich, ready)
-        shot("S15j", game, fixture: rich) { let step = button("game-next-move"); wait(step); step.press(forDuration: 1) }
+        shot("S15j", game, fixture: rich) { let step = button("game-next-move"); wait(step); hold(step, 1) }
         shot("S15k", "game:sample-promotion", fixture: rich) { move("e7", "e8"); wait(button("choose-q")) }
-        shot("S15l", game, fixture: rich) { next(); let row = button("move-0"); wait(row); row.press(forDuration: 1.2); wait(app.buttons["Delete From Here"]) }
-        shot("S15m", game, fixture: rich) { next(); let row = button("move-0"); wait(row); row.press(forDuration: 1.2); item("Delete From Here"); wait(app.staticTexts["Delete this move and every move after it?"]) }
+        shot("S15l", game, fixture: rich) { next(); hold(button("move-0")); wait(app.buttons["Delete From Here"]) }
+        shot("S15m", game, fixture: rich) { next(); hold(button("move-0")); item("Delete From Here"); wait(app.staticTexts["Delete this move and every move after it?"]) }
         shot("S15n", game, fixture: rich) { tapButton("game-actions") }
         shot("S15o", game, fixture: rich) { tapButton("game-actions"); item("Delete Game"); wait(app.staticTexts["Delete this game?"]) }
         shot("S15p", game, fixture: rich) { move("c2", "c4"); tapButton("game-back"); wait(app.alerts.firstMatch) }
@@ -284,10 +341,10 @@ import XCTest
         let comment = { self.wait(self.app.navigationBars["Comment"]) }
         shot("S16a", "game-comment", comment)
         shot("S16b", "game-comment", fixture: "seed=games") { comment(); wait(app.buttons["Remove Comment"]) }
-        shot("S16c", "game-comment") { comment(); app.navigationBars["Comment"].swipeUp() }
-        shot("S16d", "game-comment") { comment(); app.textViews["game-comment-text"].tap() }
+        shot("S16c", "game-comment") { comment(); if present(app.navigationBars["Comment"]) { app.navigationBars["Comment"].swipeUp() } }
+        shot("S16d", "game-comment") { comment(); tapIf(app.textViews["game-comment-text"]) }
         shot("S16e", "game-details") { wait(app.navigationBars["Details"]) }
-        shot("S16f", "game-details") { wait(app.navigationBars["Details"]); any("game-header-White").tap() }
+        shot("S16f", "game-details") { wait(app.navigationBars["Details"]); tapIf(any("game-header-White")) }
         shot("S16g", "game:sample", settle: 2.5) { tapButton("game-actions"); tapButton("game-export-pgn") }
     }
     /// The banners on three hosts: a list, the session and the Analysis view.

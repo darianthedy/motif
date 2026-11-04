@@ -495,11 +495,11 @@ states. Phase 2 uses a UI-test capture suite instead:
   shows edit mode with the handles instead.
 
 **Device captures (2026-11-04).** TestFlight build 25 (Xcode 27.1) on the user's
-iPhone Duo, in Split View beside Discord, dark mode, the user's own library: 34
-screenshots named `SVL-<cell>.png` / `SVR-<cell>.png` (Motif on the left or right
-half), kept outside the repo with the Phase 1 set. Cells on both sides: S03a, S05a,
-S06a, S07a, S08a, S09a, S09i, S10a, S11a, S12a, S12f, S14a, S15a, S15c, S15e, S16a,
-S16d. S04a is missing. First look: each half gets the compact (O) layout with the
+iPhone Duo, in Split View beside Discord (S04a beside the App Store), dark mode, the user's
+own library: screenshots named `SVL-<cell>.png` / `SVR-<cell>.png` (Motif on the left or right
+half), kept outside the repo with the Phase 1 set, 36 in all. Cells on both sides:
+S03a, S04a, S05a, S06a, S07a, S08a, S09a, S09i, S10a, S11a, S12a, S12f, S14a, S15a,
+S15c, S15e, S16a, S16d. First look: each half gets the compact (O) layout with the
 bars on Motif's outer edge, including the S12f bulk bar; the keyboard (S16d) spans
 both halves; the Analysis view toggles persisted, so S10a shows engine lines on.
 Pinned video (PP) isn't captured (decision 9).

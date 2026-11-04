@@ -494,6 +494,16 @@ states. Phase 2 uses a UI-test capture suite instead:
 - Not capturable from XCTest: S12h holds a reorder drag mid-gesture, so its frame
   shows edit mode with the handles instead.
 
+**Device captures (2026-11-04).** TestFlight build 25 (Xcode 27.1) on the user's
+iPhone Duo, in Split View beside Discord, dark mode, the user's own library: 34
+screenshots named `SVL-<cell>.png` / `SVR-<cell>.png` (Motif on the left or right
+half), kept outside the repo with the Phase 1 set. Cells on both sides: S03a, S05a,
+S06a, S07a, S08a, S09a, S09i, S10a, S11a, S12a, S12f, S14a, S15a, S15c, S15e, S16a,
+S16d. S04a is missing. First look: each half gets the compact (O) layout with the
+bars on Motif's outer edge, including the S12f bulk bar; the keyboard (S16d) spans
+both halves; the Analysis view toggles persisted, so S10a shows engine lines on.
+Pinned video (PP) isn't captured (decision 9).
+
 **Phase 3 — Audit.** For each captured cell, list where it breaks the §6
 checklist or wastes the screen. Output is a findings table (screen · config ·
 issue · checklist item · severity), appended to this file, starting from the §2
@@ -545,6 +555,8 @@ existing format (`scripts/run-ios-*-prompts.sh`).
    columns already show a list beside its detail.
 8. **Standing on its edges: no mockups.** It looked the same as the partly
    folded book pose on the device, so ST is dropped as a configuration (§3).
+9. **Pinned video: not captured or drawn for now.** The user doesn't expect to use it
+   much (2026-11-04). PP cells read "= IL" until it is revisited.
 
 ## 11. Done when
 

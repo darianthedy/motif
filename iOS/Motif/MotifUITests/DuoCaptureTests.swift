@@ -112,12 +112,24 @@ import XCTest
         (matches.allElementsBoundByIndex.first(where: \.isHittable) ?? matches.firstMatch).tap()
     }
     private func type(into element: XCUIElement, _ text: String) { if present(element) { element.tap(); element.typeText(text) } }
-    /// With bars in the side bar, the search field can sit behind a Search button.
+    /// On compact width the search field hides until the list is pulled down.
     private func search(_ text: String) {
         let field = app.searchFields.firstMatch
-        if missing == nil, !field.waitForExistence(timeout: 4) { tapIf(app.buttons["Search"]) }
+        if missing == nil, !field.waitForExistence(timeout: 4) {
+            app.swipeDown()
+            if !field.waitForExistence(timeout: 3), app.buttons["Search"].exists { app.buttons["Search"].tap() }
+        }
         guard present(field) else { return }
         field.tap(); if !text.isEmpty { field.typeText(text) }
+    }
+    /// Scrolls until `element` exists: lazy lists and forms on the inner display keep
+    /// rows below a full-height board out of the hierarchy.
+    private func reveal(_ element: XCUIElement) {
+        for _ in 0..<5 where missing == nil && !(element.exists && element.isHittable) { app.swipeUp(); Thread.sleep(forTimeInterval: 0.4) }
+    }
+    /// A menu item whose label carries a subtitle ("Delete From Here, 24 moves").
+    private func menuItem(_ title: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", title)).firstMatch
     }
     private func swipeRow(_ id: String) { let row = any(id); if present(row) { row.swipeLeft() } }
     private func pressRow(_ id: String) { let row = any(id); if present(row) { row.press(forDuration: 1.2) } }
@@ -199,7 +211,10 @@ import XCTest
         let row = "puzzle-sample-back-rank-0"
         shot("S07a", "puzzle-list") { wait(any(row)) }
         shot("S07b", "puzzle-list") { search("back") }
-        shot("S07c", "puzzle-list", fixture: "seed=progress") { search(""); item("Solved") }
+        shot("S07c", "puzzle-list", fixture: "seed=progress") {
+            // Wide screens show the scope bar only once the keyboard is down.
+            search(""); if !app.buttons["Solved"].waitForExistence(timeout: 3) { app.typeText("\n") }; item("Solved")
+        }
         shot("S07d", "puzzle-list-empty") { wait(app.staticTexts["No Flagged Puzzles"]) }
         shot("S07e", "puzzle-list") { search("zzz") }
         shot("S07f", "puzzle-list", fixture: "seed=collections") { wait(app.staticTexts["No Puzzles"]) }
@@ -215,7 +230,7 @@ import XCTest
         shot("S08d", "puzzle-detail:sample-missing-piece-0", ready)
         shot("S08e", "puzzle-detail:sample-back-rank-2", fixture: "seed=progress", ready)
         shot("S08f", "puzzle-detail") { tapButton("puzzle-actions") }
-        shot("S08g", "puzzle-detail") { ready(); app.swipeUp(); tapButton("puzzle-detail-comment"); wait(app.navigationBars["Comment"]) }
+        shot("S08g", "puzzle-detail") { ready(); reveal(button("puzzle-detail-comment")); tapButton("puzzle-detail-comment"); wait(app.navigationBars["Comment"]) }
         shot("S08h", "puzzle-detail") { tapButton("puzzle-actions"); item("Delete Puzzle"); wait(app.staticTexts["Delete this puzzle from the library?"]) }
         shot("S08i", "puzzle-detail", offline: true, ready)
     }
@@ -303,7 +318,7 @@ import XCTest
     }
     func testS14NewGame() {
         let ready = { self.wait(self.button("game-new-board")) }
-        let fen = { ready(); self.item("From a FEN") }
+        let fen = { ready(); self.item("From a FEN"); self.reveal(self.any("game-start-fen")) }
         shot("S14a", "game-new", ready)
         shot("S14b", "game-new") { fen() }
         shot("S14c", "game-new") { fen(); type(into: any("game-start-fen"), "7k/4P3/8/8/8/8/8/6K1 w - - 0 1"); dismissKeyboard() }
@@ -325,12 +340,12 @@ import XCTest
         shot("S15i", "game:sample-empty", fixture: rich, ready)
         shot("S15j", game, fixture: rich) { let step = button("game-next-move"); wait(step); hold(step, 1) }
         shot("S15k", "game:sample-promotion", fixture: rich) { move("e7", "e8"); wait(button("choose-q")) }
-        shot("S15l", game, fixture: rich) { next(); hold(button("move-0")); wait(app.buttons["Delete From Here"]) }
-        shot("S15m", game, fixture: rich) { next(); hold(button("move-0")); item("Delete From Here"); wait(app.staticTexts["Delete this move and every move after it?"]) }
+        shot("S15l", game, fixture: rich) { next(); hold(button("move-0")); wait(menuItem("Delete From Here")) }
+        shot("S15m", game, fixture: rich) { next(); hold(button("move-0")); tapIf(menuItem("Delete From Here")); wait(app.staticTexts["Delete this move and every move after it?"]) }
         shot("S15n", game, fixture: rich) { tapButton("game-actions") }
         shot("S15o", game, fixture: rich) { tapButton("game-actions"); item("Delete Game"); wait(app.staticTexts["Delete this game?"]) }
-        shot("S15p", game, fixture: rich) { move("c2", "c4"); tapButton("game-back"); wait(app.alerts.firstMatch) }
-        shot("S15q", game, fixture: rich, offline: true) { move("c2", "c4"); tapButton("game-back"); wait(app.alerts.firstMatch) }
+        shot("S15p", game, fixture: rich) { move("h2", "h3"); tapButton("game-back"); wait(app.alerts.firstMatch) }
+        shot("S15q", game, fixture: rich, offline: true) { move("h2", "h3"); tapButton("game-back"); wait(app.alerts.firstMatch) }
         shot("S15r", game, fixture: rich, offline: true, ready)
         shot("S15s", game, fixture: rich + ",problem", ready)
         shot("S15t", "game-unreadable") { wait(app.staticTexts["Can't Read This Game"]) }

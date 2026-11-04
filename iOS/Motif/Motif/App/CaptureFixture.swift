@@ -80,9 +80,10 @@ struct FixtureBackend: Backend {
     func setComment(_ id: String, _ comment: String) async throws { try await write(); try await base.setComment(id, comment) }
     func setFlagged(_ id: String, _ flagged: Bool) async throws { try await write(); try await base.setFlagged(id, flagged) }
     func deletePuzzle(_ id: String) async throws { try await write(); try await base.deletePuzzle(id) }
-    func saveRun(_ run: Run) async throws { try await write(); try await base.saveRun(run) }
+    // Play uploads (the outbox flush on every refresh) aren't held, or the library would never load.
+    func saveRun(_ run: Run) async throws { try await base.saveRun(run) }
     func deleteRun(_ id: String) async throws { try await write(); try await base.deleteRun(id) }
-    func recordAttempts(_ attempts: [Attempt]) async throws { try await write(); try await base.recordAttempts(attempts) }
+    func recordAttempts(_ attempts: [Attempt]) async throws { try await base.recordAttempts(attempts) }
     func resetProgress() async throws { try await write(); try await base.resetProgress() }
     func createGameCollections(_ collections: [GameCollection]) async throws { try await write(); try await base.createGameCollections(collections) }
     func renameGameCollection(_ id: String, _ name: String) async throws { try await write(); try await base.renameGameCollection(id, name) }

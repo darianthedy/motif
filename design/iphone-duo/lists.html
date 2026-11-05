@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Motif · iPhone Duo · Lists canvas (S06, S07, S12)</title>
+<link rel="stylesheet" href="kit.css">
+</head>
+<body>
+<div class="top">
+  <h1>Motif · iPhone Duo · Lists</h1>
+  <button data-tab="s06" class="on">S06 Collection</button>
+  <button data-tab="s07">S07 Puzzle list</button>
+  <button data-tab="s12">S12 Game collection</button>
+  <button data-tab="var">Variants &amp; storyboard</button>
+  <button data-tab="cov">Coverage grid</button>
+  <button data-tab="notes">Notes &amp; §6 check</button>
+  <button id="dark">Dark mode</button>
+</div>
+<div class="tab on" id="s06"></div>
+<div class="tab" id="s07"></div>
+<div class="tab" id="s12"></div>
+<div class="tab" id="var"></div>
+<div class="tab" id="cov"></div>
+<div class="tab note" id="notes">
+  <h2>What this canvas decides (for review)</h2>
+  <p><b>Detail column (decision 12).</b> On regular width these screens fill the detail column of the tab's split view: 526 pt on IL, the right page on FB, 368 pt on IP, 833 pt on iPad (content kept to 672 pt). The sidebar keeps the home list with the collection selected, so the hierarchy reads left to right. Compact keeps today's stack. Swipe actions, context menus and edit mode are unchanged.</p>
+  <p><b>Overflow (F16).</b> The collection and game-collection ⋯ menus become <code>ToolbarOverflowMenu</code>. + (Add Games) keeps its own symbol and menu.</p>
+  <p><b>Search scopes (F23).</b> <code>.searchScopes(…, activation: .onSearchPresentation)</code>: the scope bar shows as soon as search is active, with or without a query, so "Flagged" can be picked and left without typing. S07c is drawn as the redefined "scope applied with a query".</p>
+  <p><b>Edit mode (F30).</b> Select All / Deselect All becomes a titled toolbar item with a symbol, next to Done (prominent), instead of a text button over the list. The bulk items stay one <code>.bottomBar</code> group (Move, Copy, Export, Delete): symbols at the bottom of the side bar on O, SV, IL and FB (the tab bar is hidden in edit mode, as today), a titled capsule on IP, FT and iPad. Delete is red and last.</p>
+  <p><b>Dialogs and sheets.</b> Delete confirmations anchor to the item that asked: the overflow item, the Delete bulk item, or the row (F15). The destination sheet is fitted to its rows (side ✕ / ✓ on compact, centered on regular, one page on FB). The share sheet is the system activity view: a sheet on compact, a popover from Export on regular.</p>
+  <h2>§6 check</h2>
+  <ol>
+    <li>System containers: List, searchable + searchScopes, toolbar, ToolbarOverflowMenu, Menu, EditMode, confirmationDialog, alert, sheet, ShareLink.</li>
+    <li>Size classes: the split collapses by itself.</li>
+    <li>Same app in every pose: same items, rows and actions.</li>
+    <li>Reserved regions: on FB the column boundary is the division.</li>
+    <li>Bars: every item titled with a symbol, Select All included (F30).</li>
+    <li>Hit targets: rows ≥ 52 pt, search 44 pt, scopes 36 pt segmented (system).</li>
+    <li>Readable width: detail content ≤ 672 pt (F22).</li>
+    <li>Sheets: fitted destination sheet.</li>
+    <li>Dialogs: from state, anchored to their source.</li>
+    <li>Typography: AX5 frames; row titles wrap.</li>
+    <li>Color: status shown by text (Solved / To review / New) as well as color; flags by symbol.</li>
+    <li>Glass on bars, tab bar, menus and the bulk capsule only.</li>
+    <li>Motion: system.</li>
+    <li>VoiceOver: sidebar, detail list, toolbar; selection count in the title.</li>
+    <li>Continuity: storyboard shows edit mode and the selection surviving Split View.</li>
+    <li>Folding: small adjustments only.</li>
+  </ol>
+</div>
+<script src="kit.js"></script>
+<script src="lists.js"></script>
+<script>
+  document.getElementById('s06').innerHTML = renderCanvas('S06');
+  document.getElementById('s07').innerHTML = renderCanvas('S07');
+  document.getElementById('s12').innerHTML = renderCanvas('S12');
+  document.getElementById('var').innerHTML = '<h2>System variants (primary states)</h2>' + renderVariants() + '<h2>Transition storyboard (§5.7)</h2>' + renderStoryboards();
+  document.getElementById('cov').innerHTML = '<h2>Coverage grid · Lists</h2>' + renderCoverage();
+  const show = (t) => { document.querySelectorAll('.tab').forEach((e) => e.classList.toggle('on', e.id === t)); document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === t)); };
+  document.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => show(b.dataset.tab));
+  const q = new URLSearchParams(location.search);
+  if (q.get('tab')) show(q.get('tab'));
+  if (q.get('dark')) document.body.classList.add('dark');
+  document.getElementById('dark').onclick = () => document.body.classList.toggle('dark');
+</script>
+</body>
+</html>

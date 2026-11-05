@@ -18,6 +18,11 @@
 > Checked against the code at `fd6675b` and Apple's guidance on 2026-11-02.
 > Decisions recorded 2026-11-03 (§10). Outer-display Analysis options:
 > https://claude.ai/artifact/1jThHMrrJzkPHC77F25JR2
+>
+> Phase 4 canvases (`design/iphone-duo/`, open the HTML in a browser):
+> Analysis (S15, S10) `analysis.html`; Session and detail (S09, S08)
+> `session.html`; Shell and homes (S01–S04, S11, S17) `shell.html`; Lists (S06,
+> S07, S12) `lists.html`; Sheets (S05, S13, S14, S16) `sheets.html`.
 
 ---
 
@@ -884,10 +889,128 @@ The inventory is now **16 screens, 167 states**.
 - Confirmation dialogs and menus (F15, F16) get one frame per size class under §5
   rule 5, drawn from state rather than anchored.
 
-**Phase 4 — Mockups.** Build the canvases to the §5 rules, in the order Analysis
+**Phase 4 — Mockups.** *Done 2026-11-05 (§8.5).* Build the canvases to the §5 rules, in the order Analysis
 (riskiest), Session and detail, Shell and homes, then the rest. Share the link
 after each canvas so the direction can be corrected early. Check every frame
 against §6, then fill the coverage grid.
+
+### 8.5 Phase 4 progress
+
+**Canvas format.** The session that built the canvases had no claude.ai Artifact
+tool, so each canvas is a static HTML page in `design/iphone-duo/` instead of a
+Design artifact. The §5.1 conventions hold: one component set (`kit.js`,
+`kit.css`), one table of states and drawn cells per canvas, frames at 1:1 points
+from §8.1, device chrome with the camera, fold line and shaded division, chips
+for size class, bar edge, container and board size, a dark mode toggle and a
+coverage grid tab. `render.mjs` renders any frame or state row to PNG with
+Playwright (`PLAYWRIGHT_FROM=<repo>/node_modules/`), and `sheet.mjs` joins PNGs
+into a contact sheet. The pages can be pasted into a Design artifact later.
+
+**Analysis canvas (S15, S10), 2026-11-05.** 28 states × 8 columns = 224 cells: 92
+drawn, 132 marked with the frame they equal, none blank; plus 8 system-variant
+frames, 6 storyboard frames, S15a on both Split View sides and an FT alternative.
+Direction drawn, for review:
+- **Layout rule:** wider than tall → board pane + column; taller than wide →
+  stacked; an active division puts the split on the fold. `AnyLayout` switches, so
+  `GameViewModel` survives.
+- **No custom capsule.** Flip Board and Engine Lines are top toolbar items, and
+  Previous / Next Move are a `.bottomBar` group. The system puts them in the side
+  bar (O, SV, IL, FB) or the navigation and bottom bars (IP, FT, iPad), so nothing
+  custom reads `toolbarVerticalEdge`, and the toast collision (F24) goes away.
+- **Overflow:** the game ⋯ menu becomes `ToolbarOverflowMenu` (F16).
+- **Boards:** O 328 pt (6 move rows), SV 316 pt, IL 504 pt (from 293, F6), FB
+  392 pt on the left page (F3), IP 512 pt (capped so the column keeps 240 pt), FT
+  272 pt above the division (F4), iPad 704 pt.
+- **Short columns** (O, SV, IP): engine lines replace the move list, alternatives
+  are one scrolling row of 44 pt chips, the comment shows one line (F7, F8).
+- Promotion is a row of 56 pt buttons in the column (F12); confirmation dialogs
+  anchor to the row or toolbar item that asked (F15); Save as Game is a fitted sheet
+  (F17, F29); Puzzle analysis shows the offline pill (F14).
+
+**Session and detail canvas (S09, S08), 2026-11-05.** 24 states × 8 columns = 192
+cells: 81 drawn, 111 marked with the frame they equal, none blank; plus 8
+system-variant frames, the unfold-mid-session storyboard and S09a on both Split
+View sides. The layout rule moved into `kit.js` (`boardGeom`) so every board
+screen shares it; without the eval bar the boards are O 350 pt, SV 336 pt, IL
+504 pt, FB 416 pt, IP 512 pt, FT 272 pt, iPad 704 pt, the same as Puzzle analysis
+in each pose. Direction drawn:
+- **The board always fits without scrolling** (F1, F2, F11): pinned, with only
+  the column scrolling. Puzzle detail's info list scrolls under it on compact.
+- **Skip becomes a `.bottomBar` toolbar item** (side bar on O, SV, IL, FB; a
+  titled capsule on IP, FT, iPad), replacing the overlay that collided with the
+  toast and banner (F24, F25).
+- **Result card (F5):** in the column beside the board on two panes (≤ 560 pt);
+  below the board on IP and FT; on compact it still rises from the bottom but is
+  sized to its content (a short result covers 22 pt of the board), capping at 62 %
+  and scrolling for long results.
+- **Pickers** sit under the board or atop the column, never over the board (F12).
+- **Session complete (F27):** ≤ 480 pt; split across pages on FB and across the
+  division on FT.
+- **Puzzle detail:** Copy FEN / Delete Puzzle move to `ToolbarOverflowMenu` (F16);
+  solution chips 44 pt; the delete confirmation anchors to the overflow item (F15).
+
+**Shell and homes canvas (S01–S04, S11, S17), 2026-11-05.** 47 states × 8 columns
+= 376 cells: 121 drawn, 255 marked with the frame they equal, none blank; plus 20
+system-variant frames (all five primary states on O and IL), S04a on both Split
+View sides and one `.sidebarAdaptable` comparison. S17 on the S15 and S09 hosts is
+added to those canvases (5 states each, drawn on O and IL). Direction drawn:
+- **Shell (decision 4):** `TabView` + one `NavigationSplitView` per tab, two
+  columns. Regular: home list as the sidebar (340 pt on IL, the left page on FB,
+  300 pt on IP), selected collection as the detail; a pushed board screen hides
+  the sidebar. Three columns would leave the board screens under 300 pt.
+  `.sidebarAdaptable` would squeeze the detail to 365 pt for two tabs, so it isn't
+  chosen.
+- **Avatar (F32)** becomes a titled "Account" toolbar item beside +.
+- **Banners (F25, F26), one rule on every canvas:** Offline / Offline · N waiting
+  is a pill trailing the title; server errors, dismissible errors and toasts are a
+  glass capsule ≤ 480 pt at the bottom of the content, never over a board.
+- **Sign in and launch:** centered column ≤ 480 pt; with the keyboard up the
+  header collapses to the title so the fields and Sign In stay above it.
+- **Account sheet:** opts out of the vertical bar on compact (one item, ✕); the
+  reset confirmation anchors to its row inside the sheet (F15).
+- FT shows the IP layout for these screens: lists are scrolling content.
+
+**Lists canvas (S06, S07, S12), 2026-11-05.** 33 states × 8 columns = 264 cells:
+87 drawn, 177 marked with the frame they equal, none blank; plus 12 system-variant
+frames, the "enter Split View in edit mode" storyboard and S12f on both Split View
+sides. Direction drawn:
+- These screens are the **detail column** on regular width (decision 12): 526 pt
+  on IL, the right page on FB, 368 pt on IP; content ≤ 672 pt on iPad. The sidebar
+  keeps the home list with the collection selected.
+- **⋯ menus → `ToolbarOverflowMenu`** (F16); + (Add Games) keeps its own menu.
+- **Search scopes (F23):** `.searchScopes(…, activation: .onSearchPresentation)`
+  shows the scope bar as soon as search is active.
+- **Edit mode (F30):** Select All / Deselect All becomes a titled toolbar item
+  beside Done; the bulk items stay a `.bottomBar` group (side bar on O, SV, IL,
+  FB; a capsule on IP and iPad, titled where the column is ≥ 440 pt).
+- Confirmations anchor to the overflow item, the Delete bulk item or the row
+  (F15); the destination sheet is fitted; the share sheet is a popover from Export
+  on regular width.
+
+**Sheets canvas (S05, S13, S14, S16), 2026-11-05.** 35 states × 8 columns = 280
+cells: 95 drawn, 185 marked with the frame they equal, none blank; plus 16
+system-variant frames and the "fold with a sheet and keyboard" storyboard.
+Direction drawn:
+- **System placement as measured in Phase 1:** side ✕ / ✓ on O and SV (below the
+  status zone), centered 653 pt on IL and IP, the left page on FB, below the
+  division on FT. Each keyboard frame records how much of the form stays visible.
+- **New Game (F18):** the preview board is capped. On IL and iPad (sheets
+  ≥ 600 pt, regular width inside) it sits beside the form; everywhere else (O,
+  SV, IP, FT, and FB's 440 pt sheet) it is stacked and capped at 40 % of the
+  visible sheet, so the FEN field and its error stay visible. With the keyboard
+  up on O that leaves a 96 pt preview.
+- **Offline (F19):** the "needs a connection" note moves to the top of the form.
+- **Comment editor (F20):** solid background; F29 stays accepted.
+
+**Phase 4 totals.** Five canvases, 167 states plus S17 on three hosts (175 rows):
+1,416 cells, 496 drawn and 920 marked with the frame they equal, none blank;
+581 frames in all including system variants, storyboards and comparisons (the §5
+estimate was ~600). All five §5 rule 7 storyboards are drawn. Every canvas has a
+coverage grid tab and a §6 check tab. Next: Phase 5 review.
+
+Open for Phase 5:
+- ~~Q1 — FT board~~ settled as decision 10.
+- ~~Q2 — IL board~~ settled as decision 11.
 
 **Phase 5 — Review.** Settle §10 with the user, update the mockups, and record
 the decisions here (like §7 of the refresh plan).
@@ -932,6 +1055,17 @@ existing format (`scripts/run-ios-*-prompts.sh`).
    folded book pose on the device, so ST is dropped as a configuration (§3).
 9. **Pinned video: not captured or drawn for now.** The user doesn't expect to use it
    much (2026-11-04). PP cells read "= IL" until it is revisited.
+10. **Tabletop (FT) board: keep the system navigation bar.** The board is 272 pt
+    (34 pt squares) above the division, an accepted exception to §6.6 like
+    decision 5 (user, 2026-11-05). Hiding the bar to reach 304 pt (S15a·FT alt) is
+    not pursued.
+11. **Open-wide (IL) Analysis board: 504 pt** (63 pt squares), leaving a 263 pt
+    column. 560 pt fits the height but leaves 207 pt, which cuts engine lines to
+    about two moves and pushes IL toward the compact "lines replace the move list"
+    layout (user, 2026-11-05).
+12. **Regular-width split: two columns** (home list | selected collection), not the
+    three sketched in §7. A pushed board screen hides the sidebar. A third column
+    would leave the puzzle detail board under 300 pt at 867 pt (user, 2026-11-05).
 
 ## 11. Done when
 

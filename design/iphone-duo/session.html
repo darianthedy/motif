@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Motif · iPhone Duo · Session and detail canvas (S09, S08)</title>
+<link rel="stylesheet" href="kit.css">
+</head>
+<body>
+<div class="top">
+  <h1>Motif · iPhone Duo · Session and detail</h1>
+  <button data-tab="s09" class="on">S09 Session</button>
+  <button data-tab="s08">S08 Puzzle detail</button>
+  <button data-tab="var">Variants &amp; storyboard</button>
+  <button data-tab="cov">Coverage grid</button>
+  <button data-tab="notes">Notes &amp; §6 check</button>
+  <button id="dark">Dark mode</button>
+</div>
+<div class="tab on" id="s09"></div>
+<div class="tab" id="s08"></div>
+<div class="tab" id="var"></div>
+<div class="tab" id="cov"></div>
+<div class="tab note" id="notes">
+  <h2>What this canvas decides (for review)</h2>
+  <p><b>Same rule as the Analysis canvas</b> (<code>boardGeom</code>, decisions 5, 10, 11), with no eval bar. Puzzle detail, the session and Puzzle analysis show the same board size in a given pose, so tapping Analyze doesn't resize the board.</p>
+  <p><b>The board always fits without scrolling (F1, F2, F11).</b> Today the session and detail boards fill the width inside a <code>ScrollView</code> / <code>List</code>. Here the board is pinned and only the column scrolls: the session no longer competes with piece drags, and puzzle detail's info rows scroll under a fixed board on compact.</p>
+  <p><b>Session.</b> End Session and Flag are top toolbar items. <b>Skip becomes a <code>.bottomBar</code> item</b> ("Skip" with <code>forward.fill</code>): bottom of the side bar on O, SV, IL and FB; a titled capsule in the bottom bar on IP, FT and iPad. That removes the custom overlay that collided with the toast and the error banner (F24, F25). The prompt capsule and the piece pickers sit under the board (stacked) or at the top of the column (two panes); pickers no longer cover the board (F12).</p>
+  <p><b>Result card (F5).</b> Two panes: the card is in the column, beside the board, never over it, at most 560 pt wide. Stacked with room (IP, FT): the card sits below the board. Compact (O, SV): the card still rises from the bottom, but sized to its content (not a fixed 62 %), so a short result covers about one rank; long results cap at 62 % and scroll (S09l).</p>
+  <p><b>Session complete (F27)</b> keeps the tiles and Done within 480 pt. On FB the heading is on the left page and the tiles and Done on the right; on FT the heading is above the division and the tiles and Done below.</p>
+  <p><b>Puzzle detail.</b> Back, Flag and the overflow menu at the top (Copy FEN, Delete Puzzle → <code>ToolbarOverflowMenu</code>, F16); the four step buttons stay one <code>.bottomBar</code> group. Column: line picker, solution chips (44 pt, up from 36), then the info list. The comment sheet follows the Phase 1 placements (F29 accepted on O: the medium sheet covers the lower board while editing). The delete confirmation anchors to the overflow item (F15).</p>
+  <h2>Board sizes</h2>
+  <ul>
+    <li><b>O</b> 350 pt (43.75 pt squares, decision 5); <b>SV</b> 336 pt; <b>IL</b> 504 pt; <b>FB</b> 416 pt on the left page; <b>IP</b> 512 pt; <b>FT</b> 272 pt (decision 10); <b>iPad</b> 704 pt.</li>
+  </ul>
+  <h2>§6 check</h2>
+  <ol>
+    <li>System containers: toolbar items, ToolbarOverflowMenu, segmented Picker, List, sheet, confirmationDialog. The Skip overlay is removed.</li>
+    <li>Size classes: one rule from container size.</li>
+    <li>Same app in every pose: same items; only placement changes.</li>
+    <li>Reserved regions: nothing interactive on the division; the board never crosses it.</li>
+    <li>Bars: every item has a title and symbol; Skip shows its title where the bar is horizontal.</li>
+    <li>Hit targets: solution chips 44 pt; picker buttons 56 pt; boards per frame.</li>
+    <li>Readable width: result card ≤ 560 pt, Session complete ≤ 480 pt.</li>
+    <li>Sheets: Phase 1 placements; editor background solid (F20).</li>
+    <li>Dialogs: from state, anchored to the overflow item.</li>
+    <li>Typography: AX5 frames; comment and result text wrap, never truncate.</li>
+    <li>Color: wrong move shown by a red flash plus text, hint by orange plus text, never color alone.</li>
+    <li>Glass on the prompt, pickers, result card and bars only.</li>
+    <li>Motion: the card's rise stays; layout swaps animate with the system.</li>
+    <li>VoiceOver: board → prompt / picker / result → toolbar.</li>
+    <li>Continuity: unfolding keeps the SolveModel; a drag in progress is cancelled.</li>
+    <li>Folding: small adjustments only.</li>
+  </ol>
+</div>
+<script src="kit.js"></script>
+<script src="session.js"></script>
+<script>
+  document.getElementById('s09').innerHTML = renderCanvas('S09');
+  document.getElementById('s08').innerHTML = renderCanvas('S08');
+  document.getElementById('var').innerHTML = '<h2>System variants</h2>' + renderVariants() + '<h2>Transition storyboard (§5.7)</h2>' + renderStoryboards();
+  document.getElementById('cov').innerHTML = '<h2>Coverage grid · Session and detail</h2>' + renderCoverage();
+  const show = (t) => { document.querySelectorAll('.tab').forEach((e) => e.classList.toggle('on', e.id === t)); document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === t)); };
+  document.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => show(b.dataset.tab));
+  const q = new URLSearchParams(location.search);
+  if (q.get('tab')) show(q.get('tab'));
+  if (q.get('dark')) document.body.classList.add('dark');
+  document.getElementById('dark').onclick = () => document.body.classList.toggle('dark');
+</script>
+</body>
+</html>

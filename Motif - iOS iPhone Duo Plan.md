@@ -927,10 +927,7 @@ Direction drawn, for review:
   (F17, F29); Puzzle analysis shows the offline pill (F14).
 
 Open for Phase 5:
-- **Q1 — FT board.** With the system navigation bar the FT board is 272 pt
-  (34 pt squares). Hiding the navigation bar while folded and moving its items to a
-  bar below the division (S15a·FT alt) gives 304 pt (38 pt). Both are under 44 pt;
-  the proposal is to keep the system bar and accept FT like decision 5.
+- ~~Q1 — FT board~~ settled as decision 10.
 - **Q2 — IL board 504 pt.** A 560 pt board fits the height but leaves a 207 pt
   column, too narrow for engine lines.
 
@@ -977,6 +974,10 @@ existing format (`scripts/run-ios-*-prompts.sh`).
    folded book pose on the device, so ST is dropped as a configuration (§3).
 9. **Pinned video: not captured or drawn for now.** The user doesn't expect to use it
    much (2026-11-04). PP cells read "= IL" until it is revisited.
+10. **Tabletop (FT) board: keep the system navigation bar.** The board is 272 pt
+    (34 pt squares) above the division, an accepted exception to §6.6 like
+    decision 5 (user, 2026-11-05). Hiding the bar to reach 304 pt (S15a·FT alt) is
+    not pursued.
 
 ## 11. Done when
 

@@ -409,7 +409,7 @@ function wrap(html, g, st, id, k, opts, B) {
     const sq = (B || g.B) / 8;
     const ok = sq >= MIN_TARGET;
     chips.push({ text: `board ${Math.round(B || g.B)} pt · ${sq.toFixed(1)} pt squares`, kind: ok ? '' : 'exc' });
-    if (!ok) chips.push({ text: g.compact ? '§6.6 exception: decision 5' : '§6.6 exception: open (Q1)', kind: 'exc' });
+    if (!ok) chips.push({ text: g.compact ? '§6.6 exception: decision 5' : (g.mode === 'halves' ? '§6.6 exception: decision 10' : '§6.6 exception: open'), kind: 'exc' });
     if (g.moveRows != null && !(g.tight && st.lines)) chips.push({ text: `${g.moveRows} move rows` });
   }
   if (g.overflow) chips.push({ text: 'column overflows: fix', kind: 'exc' });
@@ -438,7 +438,7 @@ function renderCanvas(prefix) {
           out += compose(s.id, 'SV', { fid: `${s.id}·SV` + (s.id === 'S15a' ? ' (left)' : '') });
           if (s.id === 'S15a') out += composeSVR(s.id);
         } else out += compose(s.id, col);
-        if (col === 'FT' && s.id === 'S15a') out += compose('S15a', 'FTalt', { geomKey: 'FTalt', fid: 'S15a·FT (alt)', caption: 'Alternative for Q1: nav items below the fold', chips: [{ text: 'toolbarVisibility(.hidden) top; items in a bar on the stable half', kind: 'ct' }] });
+        if (col === 'FT' && s.id === 'S15a') out += compose('S15a', 'FTalt', { geomKey: 'FTalt', fid: 'S15a·FT (alt)', caption: 'Not pursued (decision 10): nav items below the fold', chips: [{ text: 'toolbarVisibility(.hidden) top; items in a bar on the stable half', kind: 'ct' }] });
       } else {
         out += `<div class="eqcell"><b>${s.id}·${col}</b>${p.eq ? '= ' + p.eq : 'n/a'}${p.why ? `<br><i>${p.why}</i>` : ''}</div>`;
       }

@@ -101,69 +101,7 @@ function cellPlan(id, col) {
   return { na: true };
 }
 
-// ---------- The layout rule (plan §7) ----------
-// Wider than tall → two panes; taller than wide → stacked; an active division
-// moves the split onto the fold. Board size comes from the container, never the device.
-
-function geom(k, st) {
-  const c = CFG[k === 'FTalt' ? 'FT' : k];
-  const ev = !st.noEval && !st.unreadable;
-  const compact = c.size.startsWith('C');
-  const E = ev ? (compact ? 18 : 20) : 0; // 14 pt eval bar + 4 / 6 pt gap
-  const g = { k, c, ev, E, compact };
-  if (k === 'O' || k === 'SVL' || k === 'SVR') {
-    const x0 = k === 'SVL' ? 84 : k === 'SVR' ? 13.5 : 0;
-    const x1 = k === 'SVL' ? 455.5 : k === 'SVR' ? 385 : 382;
-    const m = 16;
-    g.mode = 'stack'; g.bars = 'side';
-    g.title = { x: x0 + m, y: 14, w: x1 - x0 - 2 * m };
-    g.B = Math.floor(ev ? x1 - x0 - m - 20 - E + (k === 'O' ? 0 : -1) : x1 - x0 - 2 * m);
-    g.boardX = x0 + m + E; g.evalX = x0 + m; g.boardY = 62;
-    g.col = { x: x0 + m, y: g.boardY + g.B + 12, w: x1 - x0 - 2 * m };
-    g.col.h = c.h - c.bottom - 8 - g.col.y;
-    g.content = { x0, x1 };
-  } else if (k === 'IL' || k === 'PP') {
-    g.mode = 'panes'; g.bars = 'side';
-    g.title = { x: 20, y: 14, w: 520 };
-    g.B = 504; g.evalX = 20; g.boardX = 20 + E; g.boardY = 62;
-    g.col = { x: g.boardX + g.B + 24, y: 62 };
-    g.col.w = 867 - 20 - g.col.x; g.col.h = c.h - c.bottom - 8 - g.col.y;
-    g.content = { x0: 0, x1: 867 };
-  } else if (k === 'FB') {
-    g.mode = 'pages'; g.bars = 'side';
-    g.title = { x: 20, y: 14, w: 415 };
-    g.B = Math.floor((455.5 - 20 - E - 16) / 8) * 8; g.evalX = 20; g.boardX = 20 + E; g.boardY = 62;
-    g.col = { x: 495.5 + 4, y: 14 }; g.col.w = 867 - 16 - g.col.x; g.col.h = c.h - c.bottom - 8 - g.col.y;
-    g.content = { x0: 0, x1: 867 };
-  } else if (k === 'IP') {
-    g.mode = 'stack'; g.bars = 'nav';
-    g.boardY = 90;
-    // stacked: board takes the width but leaves the column at least 240 pt (lines + comment + alternatives fit)
-    g.B = Math.min(Math.floor((669 - 40 - E) / 8) * 8, Math.floor((c.h - c.bottom - 48 - 8 - 12 - g.boardY - 240) / 8) * 8);
-    g.evalX = (669 - g.B - E) / 2; g.boardX = g.evalX + E;
-    g.col = { x: 20, y: g.boardY + g.B + 12, w: 629 }; g.bottomY = c.h - c.bottom - 48;
-    g.col.h = g.bottomY - 8 - g.col.y;
-    g.content = { x0: 0, x1: 669 };
-  } else if (k === 'FT' || k === 'FTalt') {
-    g.mode = 'halves'; g.bars = k === 'FT' ? 'nav' : 'fold';
-    const top = k === 'FT' ? 82 : 50;
-    g.B = Math.floor((373.5 - top - 16) / 8) * 8; g.boardY = top + 8;
-    g.evalX = (669 - g.B - E) / 2; g.boardX = g.evalX + E;
-    g.bottomY = c.h - c.bottom - 48;
-    g.col = { x: 20, y: k === 'FT' ? 413.5 + 8 : 413.5 + 60, w: 629 };
-    g.col.h = g.bottomY - 8 - g.col.y;
-    g.content = { x0: 0, x1: 669 };
-  } else if (k === 'PD') {
-    g.mode = 'panes'; g.bars = 'nav';
-    g.B = 704; g.evalX = 24; g.boardX = 24 + E; g.boardY = 84;
-    g.bottomY = c.h - c.bottom - 50;
-    g.col = { x: g.boardX + g.B + 28, y: 84 }; g.col.w = 1194 - 24 - g.col.x; g.col.h = g.bottomY - 8 - g.col.y;
-    g.content = { x0: 0, x1: 1194 };
-  }
-  g.sq = g.B / 8;
-  g.tight = g.col.h < 300;
-  return g;
-}
+const geom = boardGeom; // shared layout rule, kit.js
 
 // ---------- Composer ----------
 

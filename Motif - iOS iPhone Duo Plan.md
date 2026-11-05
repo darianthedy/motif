@@ -20,8 +20,8 @@
 > https://claude.ai/artifact/1jThHMrrJzkPHC77F25JR2
 >
 > Phase 4 canvases (`design/iphone-duo/`, open the HTML in a browser):
-> Analysis (S15, S10) `analysis.html`. Session and detail, Shell and homes,
-> Lists and Sheets to follow.
+> Analysis (S15, S10) `analysis.html`; Session and detail (S09, S08)
+> `session.html`. Shell and homes, Lists and Sheets to follow.
 
 ---
 
@@ -925,6 +925,28 @@ Direction drawn, for review:
 - Promotion is a row of 56 pt buttons in the column (F12); confirmation dialogs
   anchor to the row or toolbar item that asked (F15); Save as Game is a fitted sheet
   (F17, F29); Puzzle analysis shows the offline pill (F14).
+
+**Session and detail canvas (S09, S08), 2026-11-05.** 24 states × 8 columns = 192
+cells: 81 drawn, 111 marked with the frame they equal, none blank; plus 8
+system-variant frames, the unfold-mid-session storyboard and S09a on both Split
+View sides. The layout rule moved into `kit.js` (`boardGeom`) so every board
+screen shares it; without the eval bar the boards are O 350 pt, SV 336 pt, IL
+504 pt, FB 416 pt, IP 512 pt, FT 272 pt, iPad 704 pt, the same as Puzzle analysis
+in each pose. Direction drawn:
+- **The board always fits without scrolling** (F1, F2, F11): pinned, with only
+  the column scrolling. Puzzle detail's info list scrolls under it on compact.
+- **Skip becomes a `.bottomBar` toolbar item** (side bar on O, SV, IL, FB; a
+  titled capsule on IP, FT, iPad), replacing the overlay that collided with the
+  toast and banner (F24, F25).
+- **Result card (F5):** in the column beside the board on two panes (≤ 560 pt);
+  below the board on IP and FT; on compact it still rises from the bottom but is
+  sized to its content (a short result covers 22 pt of the board), capping at 62 %
+  and scrolling for long results.
+- **Pickers** sit under the board or atop the column, never over the board (F12).
+- **Session complete (F27):** ≤ 480 pt; split across pages on FB and across the
+  division on FT.
+- **Puzzle detail:** Copy FEN / Delete Puzzle move to `ToolbarOverflowMenu` (F16);
+  solution chips 44 pt; the delete confirmation anchors to the overflow item (F15).
 
 Open for Phase 5:
 - ~~Q1 — FT board~~ settled as decision 10.

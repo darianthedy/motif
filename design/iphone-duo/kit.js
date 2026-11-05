@@ -40,6 +40,14 @@ const ICONS = {
   puzzle: '<path d="M4 8h4a2 2 0 114 0h4v4a2 2 0 110 4v4H4v-4a2 2 0 100-4z"/>',
   board: '<path d="M4 4h16v16H4zM4 12h16M12 4v16"/><path d="M4 4h8v8H4zM12 12h8v8h-8z" fill="currentColor" stroke="none" opacity=".35"/>',
   person: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 18c1.5-2.5 3.5-3 5.5-3s4 .5 5.5 3"/>',
+  flag: '<path d="M6 21V4M6 4h11l-2.5 4L17 12H6"/>',
+  flagFill: '<path d="M6 21V4M6 4h11l-2.5 4L17 12H6z" fill="currentColor"/>',
+  skip: '<path d="M4 6l7 6-7 6zM12 6l7 6-7 6z" fill="currentColor"/>',
+  toStart: '<path d="M6 5v14M19 5l-9 7 9 7z" fill="currentColor"/>',
+  toEnd: '<path d="M18 5v14M5 5l9 7-9 7z" fill="currentColor"/>',
+  search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20 20"/>',
+  checkCircle: '<circle cx="12" cy="12" r="10" fill="currentColor" stroke="none"/><path d="M7 12.5l3.5 3.5L17 9" stroke="#fff"/>',
+  xCircle: '<circle cx="12" cy="12" r="10" fill="currentColor" stroke="none"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="#fff"/>',
   sparkle: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/>',
 };
 
@@ -81,7 +89,8 @@ function board(size, opts = {}) {
       const name = 'abcdefgh'[file] + rank;
       const light = (file + rank) % 2 === 1;
       let bg = light ? 'var(--sq-light)' : 'var(--sq-dark)';
-      if (hl.has(name)) bg = light ? 'var(--sq-hl-light)' : 'var(--sq-hl-dark)';
+      if (hl.has(name)) bg = opts.hint ? (light ? 'var(--sq-hint-light)' : 'var(--sq-hint-dark)') : light ? 'var(--sq-hl-light)' : 'var(--sq-hl-dark)';
+      if (opts.select === name) bg = 'var(--sq-sel)';
       let inner = '';
       const p = pos[name];
       if (p) {
@@ -93,7 +102,7 @@ function board(size, opts = {}) {
       const cc = light ? 'var(--sq-dark)' : 'var(--sq-light)';
       if (f === 0) inner += `<span class="coord rk" style="color:${cc};font-size:${Math.max(8, s * 0.2)}px">${rank}</span>`;
       if (r === 7) inner += `<span class="coord fl" style="color:${cc};font-size:${Math.max(8, s * 0.2)}px">${'abcdefgh'[file]}</span>`;
-      html += `<div class="sq" style="left:${f * s}px;top:${r * s}px;width:${s}px;height:${s}px;background:${bg}">${inner}</div>`;
+      html += `<div class="sq${(opts.flash || []).includes(name) ? ' flash' : ''}" style="left:${f * s}px;top:${r * s}px;width:${s}px;height:${s}px;background:${bg}">${inner}</div>`;
     }
   }
   return `<div class="board${opts.dim ? ' dim' : ''}" style="width:${size}px;height:${size}px">${html}</div>`;
@@ -179,18 +188,20 @@ function sideBar(cfg, top, bottom, o = {}) {
   let y = 186;
   top.forEach((it) => { html += sideItem(sw, y, it); y += 52; });
   if (o.topEnd) o.topEnd.y = y;
-  if (bottom.length) html += stepPill(sw, bottomY - 92, bottom, 'v');
+  if (bottom.length && bottom.every((i) => i.step)) html += stepPill(sw, bottomY - 46 * bottom.length, bottom, 'v');
+  else { let by = bottomY - 44; [...bottom].reverse().forEach((it) => { html += sideItem(sw, by, it); by -= 52; }); }
   return abs(x, 0, sw, cfg.h, html, 'sidebar');
 }
 
 // Previous / Next Move: one ToolbarItemGroup, drawn as a grouped glass pill
 function stepPill(sw, y, items, dir) {
   const inner = items.map((it) => `<span class="sp-btn ${it.disabled ? 'dis' : ''}">${icon(it.icon, 21)}</span>`).join(dir === 'v' ? '<span class="sp-sep v"></span>' : '<span class="sp-sep h"></span>');
-  return dir === 'v' ? abs((sw - 46) / 2, y, 46, 92, inner, 'steppill v') : abs(sw, y, 100, 46, inner, 'steppill h');
+  const n = items.length;
+  return dir === 'v' ? abs((sw - 46) / 2, y, 46, 46 * n, inner, 'steppill v') : abs(sw, y, 50 * n, 46, inner, 'steppill h');
 }
 
 function sideItem(sw, y, it) {
-  const cls = `tb ${it.on ? 'on' : ''} ${it.disabled ? 'dis' : ''} ${it.step ? 'step' : ''}`;
+  const cls = `tb ${it.on ? 'on' : ''} ${it.disabled ? 'dis' : ''} ${it.step ? 'step' : ''} ${it.cls || ''}`;
   return abs((sw - 44) / 2, y, 44, 44, icon(it.icon, 21) + (it.label ? `<span class="tb-tip">${it.label}</span>` : ''), cls);
 }
 
@@ -200,12 +211,13 @@ function navBar(cfg, y, left, title, right, o = {}) {
   if (left) html += abs(12, 0, 44, 44, icon(left.icon, 21), 'tb');
   html += `<div class="nb-title">${title}</div>`;
   let x = w - 12 - 44;
-  [...right].reverse().forEach((it) => { html += abs(x, 0, 44, 44, icon(it.icon, 21), `tb ${it.on ? 'on' : ''}`); x -= 50; });
+  [...right].reverse().forEach((it) => { html += abs(x, 0, 44, 44, icon(it.icon, 21), `tb ${it.on ? 'on' : ''} ${it.disabled ? 'dis' : ''} ${it.cls || ''}`); x -= 50; });
   return abs(0, y, w, 44, html, 'navbar', o.style || '');
 }
 
 function bottomBar(cfg, y, items, o = {}) {
-  if (items.every((i) => i.step)) return abs(0, y, cfg.w, 46, stepPill((cfg.w - 100) / 2, 0, items, 'h'), 'bottombar');
+  if (items.every((i) => i.step)) return abs(0, y, cfg.w, 46, stepPill((cfg.w - 50 * items.length) / 2, 0, items, 'h'), 'bottombar');
+  if (items.length === 1 && items[0].text) return abs(0, y, cfg.w, 46, `<span class="glass capbtn">${icon(items[0].icon, 17)}${items[0].text}</span>`, 'bottombar', 'display:flex;justify-content:center');
   const totalW = items.length * 50 - 6;
   let x = (cfg.w - totalW) / 2;
   if (o.x != null) x = o.x;
@@ -315,6 +327,71 @@ function frame(id, cfgKey, inner, chips = [], o = {}) {
     <div class="chips" style="max-width:${o.w || cfg.w}px">${chips.map((c) => `<span class="chip-meta ${c.kind || ''}">${c.text}</span>`).join('')}</div>
   </div>`;
 }
+
+// ---------- The layout rule (plan §7) ----------
+// Wider than tall → two panes; taller than wide → stacked; an active division
+// moves the split onto the fold. Board size comes from the container, never the device.
+
+function boardGeom(k, st) {
+  const c = CFG[k === 'FTalt' ? 'FT' : k];
+  const ev = !st.noEval && !st.unreadable;
+  const compact = c.size.startsWith('C');
+  const E = ev ? (compact ? 18 : 20) : 0; // 14 pt eval bar + 4 / 6 pt gap
+  const g = { k, c, ev, E, compact };
+  if (k === 'O' || k === 'SVL' || k === 'SVR') {
+    const x0 = k === 'SVL' ? 84 : k === 'SVR' ? 13.5 : 0;
+    const x1 = k === 'SVL' ? 455.5 : k === 'SVR' ? 385 : 382;
+    const m = 16;
+    g.mode = 'stack'; g.bars = 'side';
+    g.title = { x: x0 + m, y: 14, w: x1 - x0 - 2 * m };
+    g.B = Math.floor(ev ? x1 - x0 - m - 20 - E + (k === 'O' ? 0 : -1) : x1 - x0 - 2 * m);
+    g.boardX = x0 + m + E; g.evalX = x0 + m; g.boardY = 62;
+    g.col = { x: x0 + m, y: g.boardY + g.B + 12, w: x1 - x0 - 2 * m };
+    g.col.h = c.h - c.bottom - 8 - g.col.y;
+    g.content = { x0, x1 };
+  } else if (k === 'IL' || k === 'PP') {
+    g.mode = 'panes'; g.bars = 'side';
+    g.title = { x: 20, y: 14, w: 520 };
+    g.B = 504; g.evalX = 20; g.boardX = 20 + E; g.boardY = 62;
+    g.col = { x: g.boardX + g.B + 24, y: 62 };
+    g.col.w = 867 - 20 - g.col.x; g.col.h = c.h - c.bottom - 8 - g.col.y;
+    g.content = { x0: 0, x1: 867 };
+  } else if (k === 'FB') {
+    g.mode = 'pages'; g.bars = 'side';
+    g.title = { x: 20, y: 14, w: 415 };
+    g.B = Math.floor((455.5 - 20 - E - 16) / 8) * 8; g.evalX = 20; g.boardX = 20 + E; g.boardY = 62;
+    g.col = { x: 495.5 + 4, y: 14 }; g.col.w = 867 - 16 - g.col.x; g.col.h = c.h - c.bottom - 8 - g.col.y;
+    g.content = { x0: 0, x1: 867 };
+  } else if (k === 'IP') {
+    g.mode = 'stack'; g.bars = 'nav';
+    g.boardY = 90;
+    // stacked: board takes the width but leaves the column at least 240 pt (lines + comment + alternatives fit)
+    g.B = Math.min(Math.floor((669 - 40 - E) / 8) * 8, Math.floor((c.h - c.bottom - 48 - 8 - 12 - g.boardY - 240) / 8) * 8);
+    g.evalX = (669 - g.B - E) / 2; g.boardX = g.evalX + E;
+    g.col = { x: 20, y: g.boardY + g.B + 12, w: 629 }; g.bottomY = c.h - c.bottom - 48;
+    g.col.h = g.bottomY - 8 - g.col.y;
+    g.content = { x0: 0, x1: 669 };
+  } else if (k === 'FT' || k === 'FTalt') {
+    g.mode = 'halves'; g.bars = k === 'FT' ? 'nav' : 'fold';
+    const top = k === 'FT' ? 82 : 50;
+    g.B = Math.floor((373.5 - top - 16) / 8) * 8; g.boardY = top + 8;
+    g.evalX = (669 - g.B - E) / 2; g.boardX = g.evalX + E;
+    g.bottomY = c.h - c.bottom - 48;
+    g.col = { x: 20, y: k === 'FT' ? 413.5 + 8 : 413.5 + 60, w: 629 };
+    g.col.h = g.bottomY - 8 - g.col.y;
+    g.content = { x0: 0, x1: 669 };
+  } else if (k === 'PD') {
+    g.mode = 'panes'; g.bars = 'nav';
+    g.B = 704; g.evalX = 24; g.boardX = 24 + E; g.boardY = 84;
+    g.bottomY = c.h - c.bottom - 50;
+    g.col = { x: g.boardX + g.B + 28, y: 84 }; g.col.w = 1194 - 24 - g.col.x; g.col.h = g.bottomY - 8 - g.col.y;
+    g.content = { x0: 0, x1: 1194 };
+  }
+  g.sq = g.B / 8;
+  g.tight = g.col.h < 300;
+  return g;
+}
+
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 

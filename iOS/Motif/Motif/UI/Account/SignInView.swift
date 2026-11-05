@@ -6,12 +6,16 @@ struct SignInView: View {
     @State private var password = ""
     @State private var busy = false
     @State private var error: String?
+    @FocusState private var focus: Field?
+    private enum Field { case email, password }
     var body: some View {
         Form {
             Section {
                 TextField("Email", text: $email).textContentType(.emailAddress).keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never).autocorrectionDisabled().accessibilityIdentifier("auth-email")
+                    .focused($focus, equals: .email).submitLabel(.next).onSubmit { focus = .password }
                 SecureField("Password", text: $password).textContentType(.password).accessibilityIdentifier("auth-password")
+                    .focused($focus, equals: .password).submitLabel(.go).onSubmit { if !disabled { submit(false) } }
             } header: {
                 header
             } footer: {
@@ -23,9 +27,13 @@ struct SignInView: View {
                     if app.usingDevAccount { Text("No database is configured, so any email and password will do. This library stays on this device.") }
                 }
             }
+            // In the form rather than a bottom inset, so the keyboard scrolls the
+            // focused field into view instead of the buttons riding up over it.
+            Section { buttons }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
         }
         .scrollDismissesKeyboard(.interactively)
-        .safeAreaInset(edge: .bottom) { buttons }
         .animation(.snappy, value: error)
     }
     private var header: some View {
@@ -44,9 +52,9 @@ struct SignInView: View {
         .frame(maxWidth: .infinity)
         .padding(.top, 48).padding(.bottom, 20)
     }
+    private var disabled: Bool { !app.store.online || busy || email.isEmpty || password.isEmpty }
     private var buttons: some View {
-        let disabled = !app.store.online || busy || email.isEmpty || password.isEmpty
-        return VStack(spacing: 8) {
+        VStack(spacing: 8) {
             Button { submit(false) } label: {
                 Group {
                     if busy { ProgressView().accessibilityLabel("Signing In") } else { Text("Sign In") }
@@ -59,10 +67,10 @@ struct SignInView: View {
                 .accessibilityIdentifier("create-account")
         }
         .disabled(disabled)
-        .padding(.horizontal, 20).padding(.bottom, 8)
+        .padding(.top, 8)
     }
     private func submit(_ up: Bool) {
-        busy = true; error = nil
+        busy = true; error = nil; focus = nil
         Task {
             do { try await app.store.signIn(email.trimmingCharacters(in: CharacterSet(charactersIn: Uci.whitespace)), password, signUp: up) }
             catch {

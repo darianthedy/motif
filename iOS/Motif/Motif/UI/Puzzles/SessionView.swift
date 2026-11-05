@@ -84,7 +84,7 @@ private struct SessionPuzzle: View {
         }
         .animation(.smooth, value: model.done)
         // Pushed inside the session, so going back returns to this result.
-        .navigationDestination(isPresented: $analyzing) { PuzzleAnalysisView(puzzle: puzzle) }
+        .navigationDestination(isPresented: $analyzing) { PuzzleAnalysisView(puzzle: puzzle).libraryBanners() }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(flagged ? "Unflag" : "Flag", systemImage: flagged ? "flag.fill" : "flag") {

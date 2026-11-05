@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Motif · iPhone Duo · Sheets canvas (S05, S13, S14, S16)</title>
+<link rel="stylesheet" href="kit.css">
+</head>
+<body>
+<div class="top">
+  <h1>Motif · iPhone Duo · Sheets</h1>
+  <button data-tab="s05" class="on">S05 Import puzzles</button>
+  <button data-tab="s13">S13 Import PGN</button>
+  <button data-tab="s14">S14 New Game</button>
+  <button data-tab="s16">S16 Analysis sheets</button>
+  <button data-tab="var">Variants &amp; storyboard</button>
+  <button data-tab="cov">Coverage grid</button>
+  <button data-tab="notes">Notes &amp; §6 check</button>
+  <button id="dark">Dark mode</button>
+</div>
+<div class="tab on" id="s05"></div>
+<div class="tab" id="s13"></div>
+<div class="tab" id="s14"></div>
+<div class="tab" id="s16"></div>
+<div class="tab" id="var"></div>
+<div class="tab" id="cov"></div>
+<div class="tab note" id="notes">
+  <h2>What this canvas decides (for review)</h2>
+  <p><b>System placement, as measured in Phase 1.</b> O and SV: the sheet spans the display 8 pt from each edge, with ✕ (<code>cancellationAction</code>) and ✓ (<code>confirmationAction</code>) at the top of the side bar. IL, IP and iPad: centered form sheet, 653 pt (580 pt on iPad), horizontal ✕ / ✓. FB: the system moves the sheet onto the left page. FT: below the division. With the keyboard up the sheet grows to the top; the frames record how much of the form stays visible.</p>
+  <p><b>F18, New Game.</b> The preview board no longer fills the sheet. Sheets ≥ 600 pt wide put a capped board beside the form; narrower ones cap it at 40 % of the visible sheet, so the FEN field, its error and the offline note stay on screen with the keyboard up.</p>
+  <p><b>F19, offline.</b> The "needs a connection" note moves to the top of the form, next to the disabled ✓, instead of below the visible area.</p>
+  <p><b>F20, comment editor.</b> Solid background (<code>secondarySystemBackground</code>), so the board no longer shows through. The medium detent still covers the lower board on O while editing (F29, accepted).</p>
+  <p><b>Files picker and share sheet</b> are system UI, drawn for placement only.</p>
+  <h2>§6 check</h2>
+  <ol>
+    <li>System containers: sheet, Form/List sections, segmented Picker, TextEditor, fileImporter, ShareLink.</li>
+    <li>Size classes: IP sheets are compact width inside (§8.1), so the New Game preview uses the narrow rule there.</li>
+    <li>Same app in every pose: same fields and actions.</li>
+    <li>Reserved regions: on FB and FT nothing sits on the division (system placement).</li>
+    <li>Bars: ✕ and ✓ have titles (Cancel, the confirm title) and symbols.</li>
+    <li>Hit targets: rows ≥ 52 pt, toolbar items 44 pt.</li>
+    <li>Readable width: sheets ≤ 653 pt.</li>
+    <li>Sheets: ✕ cancellation, ✓ confirmation; detents for the comment sheet; nothing on the fold.</li>
+    <li>Dialogs: none new.</li>
+    <li>Typography: AX5 frames; FEN and PGN stay monospaced.</li>
+    <li>Color: errors use red text with a warning symbol.</li>
+    <li>Glass on bars only; editors solid (F20).</li>
+    <li>Motion: system.</li>
+    <li>VoiceOver: title, ✕, form, ✓.</li>
+    <li>Continuity: storyboard shows the draft text and keyboard session surviving the fold.</li>
+    <li>Folding: system placement only.</li>
+  </ol>
+</div>
+<script src="kit.js"></script>
+<script src="sheets.js"></script>
+<script>
+  document.getElementById('s05').innerHTML = renderCanvas('S05');
+  document.getElementById('s13').innerHTML = renderCanvas('S13');
+  document.getElementById('s14').innerHTML = renderCanvas('S14');
+  document.getElementById('s16').innerHTML = renderCanvas('S16');
+  document.getElementById('var').innerHTML = '<h2>System variants (primary states)</h2>' + renderVariants() + '<h2>Transition storyboard (§5.7)</h2>' + renderStoryboards();
+  document.getElementById('cov').innerHTML = '<h2>Coverage grid · Sheets</h2>' + renderCoverage();
+  const show = (t) => { document.querySelectorAll('.tab').forEach((e) => e.classList.toggle('on', e.id === t)); document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === t)); };
+  document.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => show(b.dataset.tab));
+  const q = new URLSearchParams(location.search);
+  if (q.get('tab')) show(q.get('tab'));
+  if (q.get('dark')) document.body.classList.add('dark');
+  document.getElementById('dark').onclick = () => document.body.classList.toggle('dark');
+</script>
+</body>
+</html>

@@ -22,7 +22,7 @@
 > Phase 4 canvases (`design/iphone-duo/`, open the HTML in a browser):
 > Analysis (S15, S10) `analysis.html`; Session and detail (S09, S08)
 > `session.html`; Shell and homes (S01–S04, S11, S17) `shell.html`; Lists (S06,
-> S07, S12) `lists.html`. Sheets to follow.
+> S07, S12) `lists.html`; Sheets (S05, S13, S14, S16) `sheets.html`.
 
 ---
 
@@ -889,7 +889,7 @@ The inventory is now **16 screens, 167 states**.
 - Confirmation dialogs and menus (F15, F16) get one frame per size class under §5
   rule 5, drawn from state rather than anchored.
 
-**Phase 4 — Mockups.** Build the canvases to the §5 rules, in the order Analysis
+**Phase 4 — Mockups.** *Done 2026-11-05 (§8.5).* Build the canvases to the §5 rules, in the order Analysis
 (riskiest), Session and detail, Shell and homes, then the rest. Share the link
 after each canvas so the direction can be corrected early. Check every frame
 against §6, then fill the coverage grid.
@@ -986,6 +986,26 @@ sides. Direction drawn:
 - Confirmations anchor to the overflow item, the Delete bulk item or the row
   (F15); the destination sheet is fitted; the share sheet is a popover from Export
   on regular width.
+
+**Sheets canvas (S05, S13, S14, S16), 2026-11-05.** 35 states × 8 columns = 280
+cells: 95 drawn, 185 marked with the frame they equal, none blank; plus 16
+system-variant frames and the "fold with a sheet and keyboard" storyboard.
+Direction drawn:
+- **System placement as measured in Phase 1:** side ✕ / ✓ on O and SV (below the
+  status zone), centered 653 pt on IL and IP, the left page on FB, below the
+  division on FT. Each keyboard frame records how much of the form stays visible.
+- **New Game (F18):** the preview board is capped: beside the form on sheets
+  ≥ 600 pt with regular width inside (IL, FB is narrower so it stacks, iPad);
+  otherwise 40 % of the visible sheet, so the FEN field and its error stay
+  visible. With the keyboard up on O that leaves a 96 pt preview.
+- **Offline (F19):** the "needs a connection" note moves to the top of the form.
+- **Comment editor (F20):** solid background; F29 stays accepted.
+
+**Phase 4 totals.** Five canvases, 167 states plus S17 on three hosts (175 rows):
+1,416 cells, 496 drawn and 920 marked with the frame they equal, none blank;
+581 frames in all including system variants, storyboards and comparisons (the §5
+estimate was ~600). All five §5 rule 7 storyboards are drawn. Every canvas has a
+coverage grid tab and a §6 check tab. Next: Phase 5 review.
 
 Open for Phase 5:
 - ~~Q1 — FT board~~ settled as decision 10.

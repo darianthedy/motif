@@ -928,8 +928,7 @@ Direction drawn, for review:
 
 Open for Phase 5:
 - ~~Q1 — FT board~~ settled as decision 10.
-- **Q2 — IL board 504 pt.** A 560 pt board fits the height but leaves a 207 pt
-  column, too narrow for engine lines.
+- ~~Q2 — IL board~~ settled as decision 11.
 
 **Phase 5 — Review.** Settle §10 with the user, update the mockups, and record
 the decisions here (like §7 of the refresh plan).
@@ -978,6 +977,10 @@ existing format (`scripts/run-ios-*-prompts.sh`).
     (34 pt squares) above the division, an accepted exception to §6.6 like
     decision 5 (user, 2026-11-05). Hiding the bar to reach 304 pt (S15a·FT alt) is
     not pursued.
+11. **Open-wide (IL) Analysis board: 504 pt** (63 pt squares), leaving a 263 pt
+    column. 560 pt fits the height but leaves 207 pt, which cuts engine lines to
+    about two moves and pushes IL toward the compact "lines replace the move list"
+    layout (user, 2026-11-05).
 
 ## 11. Done when
 

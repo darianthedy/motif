@@ -6,12 +6,6 @@ name: iOS Duo Capture
 # covers those. See "Motif - iOS iPhone Duo Plan.md" §8.
 
 on:
-  push:
-    branches: [iphone-duo-phase-2]
-    paths:
-      - "iOS/**"
-      - "scripts/ios-duo-capture.sh"
-      - ".github/workflows/ios-duo-capture.yml"
   workflow_dispatch:
     inputs:
       only:

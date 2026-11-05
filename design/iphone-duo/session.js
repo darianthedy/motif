@@ -36,6 +36,11 @@ const STATES = [
   { id: 'S08g', t: 'Comment sheet', kind: 'detail', overlay: 'comment' },
   { id: 'S08h', t: 'Delete confirmation', kind: 'detail', overlay: 'delete' },
   { id: 'S08i', t: 'Offline', kind: 'detail', offline: true },
+  { id: 'S17a-S09', t: 'Banner: offline', kind: 'session', offline: true },
+  { id: 'S17b-S09', t: 'Banner: offline, N waiting', kind: 'session', offline: true, waiting: true },
+  { id: 'S17c-S09', t: 'Banner: server error', kind: 'session', banner: 'server' },
+  { id: 'S17d-S09', t: 'Banner: dismissible error', kind: 'session', banner: 'dismiss' },
+  { id: 'S17e-S09', t: 'Toast', kind: 'session', banner: 'toast' },
 ];
 const S = Object.fromEntries(STATES.map((s) => [s.id, s]));
 
@@ -153,7 +158,7 @@ function compose(id, k, opts = {}) {
   // title + progress
   let tx = g.title ? g.title.x : 20, tw = g.title ? g.title.w : cfg.w - 40;
   if (g.bars === 'side') {
-    if (st.offline && g.compact) html += abs(tx, 12, tw, 30, banner('offline', 'Offline'), '', 'display:flex;justify-content:flex-end;z-index:2');
+    if (st.offline && g.compact) html += abs(tx, 12, tw, 30, banner('offline', st.waiting ? 'Offline · 2 waiting' : 'Offline'), '', 'display:flex;justify-content:flex-end;z-index:2');
     html += abs(tx, 14, tw - (st.offline && g.compact ? 96 : 0), 44, fs > 1 ? `<div class="ttl" style="font-size:28px;line-height:40px">${title}</div>` : `<div class="ttl">${title}</div><div class="sub">${sub}</div>`);
   }
   const dy = st.kind === 'session' ? 6 : 0;
@@ -185,7 +190,7 @@ function compose(id, k, opts = {}) {
   const col = { ...g.col, y: g.col.y + dy, h: g.col.h - dy };
   const gap = 12;
   let y = col.y;
-  if (st.offline && !g.compact) { html += abs(col.x, y, col.w, 30, banner('offline', 'Offline · results upload later'), '', 'display:flex;justify-content:flex-start'); y += 42; }
+  if (st.offline && !g.compact) { html += abs(col.x, y, col.w, 30, banner('offline', st.waiting ? 'Offline · 2 results waiting' : 'Offline · results upload later'), '', 'display:flex;justify-content:flex-start'); y += 42; }
 
   if (st.kind === 'session') {
     const guidance = st.wrong ? 'Not quite.' : st.hint ? 'Not quite. Play the highlighted move.' : st.replying ? 'Opponent is replying…' : st.missing === 'tap' ? 'Tap the square where a piece is missing.' : st.missing === 'hint' ? 'Not quite. Add the knight on the orange square.' : st.missing === 'choose' ? 'Choose the piece for f6.' : 'Find the best move.';
@@ -217,6 +222,7 @@ function compose(id, k, opts = {}) {
     g.listClipped = il.h > avail;
     html += overlays(g, st, cfg, col);
   }
+  if (st.banner) html += transientBanner(col.x, col.w, g.mode === 'stack' && g.bars === 'nav' || g.mode === 'halves' ? g.bottomY - 4 : col.y + col.h, st.banner, st.banner === 'toast' ? 'Flagged. It shows in the Flagged scope.' : BANNER_TEXT[st.banner]);
   return wrap(html, g, st, id, k, opts, B, cfg);
 }
 
@@ -299,7 +305,7 @@ function wrap(html, g, st, id, k, opts, B, cfg) {
 
 function renderCanvas(prefix) {
   let out = '';
-  STATES.filter((s) => s.id.startsWith(prefix)).forEach((s) => {
+  STATES.filter((s) => s.id.startsWith(prefix) || (prefix === 'S09' && s.id.endsWith('-S09'))).forEach((s) => {
     out += `<div class="state-row"><div class="state-label"><b>${s.id}</b>${s.t}</div>`;
     COLS.forEach((col) => {
       const p = cellPlan(s.id, col);

@@ -21,7 +21,8 @@
 >
 > Phase 4 canvases (`design/iphone-duo/`, open the HTML in a browser):
 > Analysis (S15, S10) `analysis.html`; Session and detail (S09, S08)
-> `session.html`. Shell and homes, Lists and Sheets to follow.
+> `session.html`; Shell and homes (S01–S04, S11, S17) `shell.html`. Lists and
+> Sheets to follow.
 
 ---
 
@@ -947,6 +948,27 @@ in each pose. Direction drawn:
   division on FT.
 - **Puzzle detail:** Copy FEN / Delete Puzzle move to `ToolbarOverflowMenu` (F16);
   solution chips 44 pt; the delete confirmation anchors to the overflow item (F15).
+
+**Shell and homes canvas (S01–S04, S11, S17), 2026-11-05.** 47 states × 8 columns
+= 376 cells: 121 drawn, 255 marked with the frame they equal, none blank; plus 20
+system-variant frames (all five primary states on O and IL), S04a on both Split
+View sides and one `.sidebarAdaptable` comparison. S17 on the S15 and S09 hosts is
+added to those canvases (5 states each, drawn on O and IL). Direction drawn:
+- **Shell (decision 4):** `TabView` + one `NavigationSplitView` per tab, two
+  columns. Regular: home list as the sidebar (340 pt on IL, the left page on FB,
+  300 pt on IP), selected collection as the detail; a pushed board screen hides
+  the sidebar. Three columns would leave the board screens under 300 pt.
+  `.sidebarAdaptable` would squeeze the detail to 365 pt for two tabs, so it isn't
+  chosen.
+- **Avatar (F32)** becomes a titled "Account" toolbar item beside +.
+- **Banners (F25, F26), one rule on every canvas:** Offline / Offline · N waiting
+  is a pill trailing the title; server errors, dismissible errors and toasts are a
+  glass capsule ≤ 480 pt at the bottom of the content, never over a board.
+- **Sign in and launch:** centered column ≤ 480 pt; with the keyboard up the
+  header collapses to the title so the fields and Sign In stay above it.
+- **Account sheet:** opts out of the vertical bar on compact (one item, ✕); the
+  reset confirmation anchors to its row inside the sheet (F15).
+- FT shows the IP layout for these screens: lists are scrolling content.
 
 Open for Phase 5:
 - ~~Q1 — FT board~~ settled as decision 10.

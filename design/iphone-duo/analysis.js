@@ -70,6 +70,11 @@ const STATES = [
   { id: 'S10d', t: 'Save as Game: existing collection', puzzle: true, overlay: 'save' },
   { id: 'S10e', t: 'Save as Game: new collection', puzzle: true, overlay: 'saveNew' },
   { id: 'S10f', t: 'Offline (F14 fixed)', puzzle: true, offline: true },
+  { id: 'S17a-S15', t: 'Banner: offline', puzzle: false, offline: true },
+  { id: 'S17b-S15', t: 'Banner: offline, N waiting', offline: true, waiting: true },
+  { id: 'S17c-S15', t: 'Banner: server error', banner: 'server' },
+  { id: 'S17d-S15', t: 'Banner: dismissible error', banner: 'dismiss' },
+  { id: 'S17e-S15', t: 'Toast', banner: 'toast' },
 ];
 const S = Object.fromEntries(STATES.map((s) => [s.id, s]));
 
@@ -150,7 +155,7 @@ function compose(id, k, opts = {}) {
   const shift = 0;
   if (g.bars === 'side') {
     // compact: the offline pill shares the title row instead of pushing the board down
-    if (st.offline && g.compact) html += abs(g.title.x, g.title.y - 2, g.title.w, 30, banner('offline', 'Offline'), '', 'display:flex;justify-content:flex-end;z-index:2');
+    if (st.offline && g.compact) html += abs(g.title.x, g.title.y - 2, g.title.w, 30, banner('offline', st.waiting ? 'Offline · 2 waiting' : 'Offline'), '', 'display:flex;justify-content:flex-end;z-index:2');
     // At AX5 the subtitle doesn't fit above the board; it stays reachable in the overflow menu's header
     html += abs(g.title.x, g.title.y + shift, g.title.w - (st.offline && g.compact ? 96 : 0), 44, fs > 1
       ? `<div class="ttl" style="font-size:28px;line-height:40px">${src.title}</div>`
@@ -177,6 +182,8 @@ function compose(id, k, opts = {}) {
   if (shift && g.mode === 'stack') { /* board shrank by shift, column keeps its place */ }
   html += column(g, st, col, src, pos, fs, opts);
 
+  // transient banners: bottom of the column, never over the board
+  if (st.banner) html += transientBanner(col.x, col.w, g.mode === 'stack' && g.bars === 'nav' ? g.bottomY - 4 : col.y + col.h, st.banner, BANNER_TEXT[st.banner]);
   // overlays
   html += overlays(g, st, cfg, col, src);
   return wrap(html, g, st, id, k, opts, B);
@@ -188,7 +195,7 @@ function column(g, st, col, src, pos, fs, opts) {
   const gap = g.compact ? 8 : 10;
   const rowH = opts.ax5 ? 64 : 34;
   if (st.offline && !g.compact) {
-    html += abs(col.x, y, w, 30, banner('offline', 'Offline · changes save when you reconnect'), '', 'display:flex;justify-content:center');
+    html += abs(col.x, y, w, 30, banner('offline', st.waiting ? 'Offline · 2 results waiting' : 'Offline · changes save when you reconnect'), '', 'display:flex;justify-content:center');
     y += 30 + gap;
   }
   if (st.problem) {
@@ -236,7 +243,7 @@ function unreadable(g, st, cfg) {
   const x = x0 + (x1 - x0 - w) / 2;
   let y = g.bars === 'nav' ? 110 : 80;
   let html = '';
-  if (st.offline) { html += abs(x, y - 40, w, 30, banner('offline', 'Offline'), '', 'display:flex;justify-content:center'); }
+  if (st.offline) { html += abs(x, y - 40, w, 30, banner('offline', st.waiting ? 'Offline · 2 waiting' : 'Offline'), '', 'display:flex;justify-content:center'); }
   html += abs(x, y, w, 120, `<div class="cuv"><div style="display:flex;justify-content:center;color:var(--label2)">${icon('warn', 44, 1.8)}</div><b>Can't Read This Game</b>The PGN has a problem Motif can't fix. Here it is as stored.</div>`);
   html += abs(x, y + 140, w, 180, `<div class="pgnbox">[Event "Club championship"]<br>[White "Me"]<br>[Black "Club friend"]<br>[Result "1-0"]<br><br>1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6 8. c3 O-O 9. h3 Na5 10. Bc2 c5 11. d4 {unclosed comment 12. Nbd2</div>`);
   return html;
@@ -367,7 +374,7 @@ function composeSVR(id) {
 
 function renderCanvas(prefix) {
   let out = '';
-  STATES.filter((s) => s.id.startsWith(prefix)).forEach((s) => {
+  STATES.filter((s) => s.id.startsWith(prefix) || (prefix === 'S15' && s.id.endsWith('-S15'))).forEach((s) => {
     out += `<div class="state-row"><div class="state-label"><b>${s.id}</b>${s.t}</div>`;
     COLS.forEach((col) => {
       const p = cellPlan(s.id, col);

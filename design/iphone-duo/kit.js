@@ -202,7 +202,7 @@ function stepPill(sw, y, items, dir) {
 
 function sideItem(sw, y, it) {
   const cls = `tb ${it.on ? 'on' : ''} ${it.disabled ? 'dis' : ''} ${it.step ? 'step' : ''} ${it.cls || ''}`;
-  return abs((sw - 44) / 2, y, 44, 44, icon(it.icon, 21) + (it.label ? `<span class="tb-tip">${it.label}</span>` : ''), cls);
+  return abs((sw - 44) / 2, y, 44, 44, ((it.cls || '').includes('avatar-tb') ? '<span class="avatar">S</span>' : icon(it.icon, 21)) + (it.label ? `<span class="tb-tip">${it.label}</span>` : ''), cls);
 }
 
 function navBar(cfg, y, left, title, right, o = {}) {
@@ -392,6 +392,14 @@ function boardGeom(k, st) {
   return g;
 }
 
+
+// Transient banner / toast (S17c–e): glass capsule ≤ 480 pt, centered at (x, w), bottom edge at y
+function transientBanner(x, w, y, kind, text) {
+  const ww = Math.min(480, w);
+  const dismiss = kind === 'dismiss' ? `<span class="tb" style="width:32px;height:32px;margin-left:auto;flex:none">${icon('xmark', 13)}</span>` : '';
+  return abs(x + (w - ww) / 2, y - 52, ww, 52, `<span class="banner ${kind === 'toast' ? 'toast' : 'error'}" style="height:auto;min-height:40px;padding:8px 8px 8px 14px;white-space:normal;max-width:${ww}px">${icon(kind === 'toast' ? 'check' : 'warn', 15)}<span>${text}</span>${dismiss}</span>`, '', 'display:flex;justify-content:center;align-items:flex-end;z-index:48');
+}
+const BANNER_TEXT = { server: 'Couldn’t reach the server. Changes stay on this device until it answers.', dismiss: 'Couldn’t save the comment. Try again.', toast: 'PGN copied.' };
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 

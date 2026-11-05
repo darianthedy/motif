@@ -264,3 +264,52 @@ body.dark .prompt.warn .guide { color: #ff9f0a; }
 .tile span { font-size: 15px; color: var(--label2); }
 .flash { box-shadow: inset 0 0 0 100px rgba(255,59,48,.45); }
 .tb.flagged { color: #ff9500; }
+
+/* lists (shell, homes) */
+.listwrap { display: flex; flex-direction: column; }
+.sec-h { font-size: 20px; font-weight: 700; padding: 14px 4px 8px; }
+.sec-f { font-size: 13px; color: var(--label2); padding: 8px 16px 4px; line-height: 17px; }
+.sh-body .sec-h { font-size: 15px; font-weight: 600; color: var(--label2); padding: 18px 16px 6px; }
+.lrow { min-height: 52px; display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: .5px solid var(--sep); background: var(--bg2); position: relative; }
+.glist > .lrow:last-child, .glist > .swipewrap:last-child .lrow { border-bottom: 0; }
+.lrow.dis .lr-t { color: var(--label2); }
+.lrow.sel { background: var(--accent); color: #fff; }
+.lrow.sel .lr-s, .lrow.sel .lr-v, .lrow.sel .ring span { color: rgba(255,255,255,.85); }
+.lrow.lifted { z-index: 45; transform: scale(1.03); box-shadow: 0 10px 30px rgba(0,0,0,.25); border-radius: 12px; }
+.lr-main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.lr-t { font-weight: 500; display: flex; gap: 8px; align-items: center; }
+.lr-s { font-size: 13px; color: var(--label2); }
+.lr-v { color: var(--label2); font-variant-numeric: tabular-nums; }
+.chev { color: var(--label3); font-size: 22px; font-weight: 600; }
+.badge { min-width: 22px; height: 22px; border-radius: 11px; background: #ff9500; color: #fff; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.inprog { font-size: 11px; font-weight: 600; color: var(--accent); background: rgba(110,171,71,.18); padding: 2px 7px; border-radius: 8px; }
+.itile { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; flex: none; }
+.ring { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none; }
+.ring span { width: 29px; height: 29px; border-radius: 50%; background: var(--bg2); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; color: var(--label2); }
+.ring.big { width: 64px; height: 64px; } .ring.big span { width: 52px; height: 52px; font-size: 15px; }
+.swipewrap { position: relative; overflow: hidden; }
+.swipewrap .swiped { transform: translateX(-84px); }
+.swipewrap .swiped2 { transform: translateX(-168px); }
+.swipe-btn { position: absolute; top: 0; bottom: 0; width: 84px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #fff; font-size: 13px; right: 0; }
+.swipe-btn.red { background: #ff3b30; } .swipe-btn.gray { background: #8e8e93; right: 84px; }
+.tabbar { border-radius: 26px; display: flex; z-index: 21; padding: 4px; gap: 4px; }
+.tabbar.v { flex-direction: column; }
+.tabbar-i { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 22px; color: var(--label); }
+.tabbar-i small { font-size: 10px; font-weight: 600; }
+.tabbar-i.on { color: var(--accent); background: var(--fill3); }
+.avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; }
+.avatar.big { width: 52px; height: 52px; font-size: 24px; }
+.logo { width: 72px; height: 72px; border-radius: 18px; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; }
+.btn.dis { opacity: .4; }
+.banner.toast { color: var(--label); }
+.lrow.sync .ic { color: var(--label2); }
+.lrow.sync.ok .ic { color: var(--accent); }
+.lrow.sync.error .ic { color: var(--red); }
+.ax .lrow { min-height: 88px; }
+.ax .lr-s { font-size: 24px; }
+.ax .sec-h { font-size: 30px; }
+
+.btn { flex: none; }
+.lrow.sel .ring span { background: var(--accent); color: #fff; }
+.lrow.sel .inprog { background: rgba(255,255,255,.25); color: #fff; }
+.popover { background: var(--bg3); }

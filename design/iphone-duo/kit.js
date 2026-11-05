@@ -290,7 +290,7 @@ function alertBox(cx, cy, title, msg, buttons, stacked) {
   const btns = stacked
     ? buttons.map((b) => `<div class="al-btn ${b.role || ''}">${b.label}</div>`).join('')
     : `<div class="al-row">${buttons.map((b) => `<div class="al-btn ${b.role || ''}">${b.label}</div>`).join('')}</div>`;
-  return abs(cx - w / 2, cy - h / 2, w, h, `<div class="al-title">${title}</div>${msg ? `<div class="al-msg">${msg}</div>` : ''}${btns}`, 'glass alert');
+  return abs(cx - w / 2, cy, w, null, `<div class="al-title">${title}</div>${msg ? `<div class="al-msg">${msg}</div>` : ''}${btns}`, 'glass alert', 'transform:translateY(-50%)');
 }
 
 // sheet with header (✕ title ✓); placement handled by caller

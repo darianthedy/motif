@@ -164,7 +164,8 @@ body { margin: 0; background: var(--canvas); color: var(--canvas-ink);
 .pop-btn { height: 50px; display: flex; align-items: center; justify-content: center; font-size: 17px; color: var(--accent); border-top: .5px solid var(--sep); }
 .alert { border-radius: 26px; z-index: 50; padding-top: 18px; text-align: center; }
 .al-title { font-weight: 600; font-size: 17px; padding: 0 16px; }
-.al-msg { font-size: 13px; padding: 4px 16px 0; height: 40px; }
+.al-msg { font-size: 13px; padding: 4px 16px 12px; }
+.alert { padding-bottom: 4px; }
 .al-row { display: flex; gap: 8px; padding: 12px; }
 .al-row .al-btn { flex: 1; }
 .al-btn { height: 44px; margin: 0 12px 8px; border-radius: 22px; background: var(--fill3); display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 500; color: var(--label); }

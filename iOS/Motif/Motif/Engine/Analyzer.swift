@@ -133,7 +133,7 @@ struct LineSet {
     static func live(route: String? = nil) -> Analyzer {
         #if DEBUG
         if UserDefaults.standard.bool(forKey: "MotifMemoryBackend") {
-            return Analyzer(engine: route == "game-eval" ? FakeEngine.climb() : FakeEngine())
+            return Analyzer(engine: route == "game-eval" || CaptureFixture.current.has("engine") ? FakeEngine.climb() : FakeEngine())
         }
         #endif
         return Analyzer(engine: StockfishEngine.shared)

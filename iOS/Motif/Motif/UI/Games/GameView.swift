@@ -61,6 +61,7 @@ struct GameContentView: View {
                 if app.launchRoute == "game-details" { panel = .details }
                 if app.launchRoute == "game-comment" { model.next(); panel = .comment }
                 if app.launchRoute == "game-variation" { model.go([0, 0, 1]) }
+                if CaptureFixture.current.has("problem") { model.problem = "That move isn't legal in this position." }
                 #endif
             }
     }

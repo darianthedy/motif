@@ -53,7 +53,8 @@ struct GamesHomeView: View {
         .task {
             #if DEBUG
             if let route = app.launchRoute, let first = app.store.library?.gameCollections.first, ["game-collection", "game-add", "game-new", "game-select"].contains(route) { app.gamesPath = [.collection(first.id)] }
-            if let route = app.launchRoute, route.hasPrefix("game:") || ["game-details", "game-comment", "game-variation", "game-unreadable", "game-eval"].contains(route), let game = app.store.library?.games.first { app.gamesPath = [.collection(game.collectionId), .game(game.collectionId, game.id)] }
+            if let route = app.launchRoute, route.hasPrefix("game:") || ["game-details", "game-comment", "game-variation", "game-unreadable", "game-eval"].contains(route), let library = app.store.library,
+               let game = library.games.first(where: { "game:" + $0.id == route }) ?? library.games.first { app.gamesPath = [.collection(game.collectionId), .game(game.collectionId, game.id)] }
             #endif
         }
     }

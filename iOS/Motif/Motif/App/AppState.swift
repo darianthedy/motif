@@ -38,10 +38,16 @@ final class AppState {
         if UserDefaults.standard.bool(forKey: "MotifMemoryBackend") {
             let seeded = UserDefaults.standard.bool(forKey: "MotifSeedSamples")
             let route = UserDefaults.standard.string(forKey: "MotifRoute")
-            let account = ScreenshotAccount(seed: seeded, signedIn: seeded && route != "signin", unreadableGame: route == "game-unreadable")
+            let fixture = CaptureFixture.current
+            fixture.resetPreferences()
+            let account = ScreenshotAccount(seed: seeded, signedIn: seeded && route != "signin", unreadableGame: route == "game-unreadable", fixture: fixture)
             let paths = StoragePaths(root: FileManager.default.temporaryDirectory.appendingPathComponent("Motif-debug-" + newID()))
             let defaults = UserDefaults(suiteName: "Motif-debug-" + newID())!
-            return AppState(store: LibraryStore(account: account, cache: Cache(storage: paths), outbox: Outbox(storage: paths), defaults: defaults), debug: true, route: route)
+            // Signed in on an earlier launch, offline now, with nothing cached.
+            let offlineFirst = fixture.has("offline-first")
+            if offlineFirst { defaults.set(try? JSONEncoder().encode(ScreenshotAccount.sample), forKey: "motif:user") }
+            let store = LibraryStore(account: account, cache: Cache(storage: paths), outbox: Outbox(storage: paths), defaults: defaults, online: !offlineFirst)
+            return AppState(store: store, usingDevAccount: !fixture.has("prod-account"), debug: true, route: route)
         }
         #endif
         let url = AppConfig.neonBaseURL
@@ -53,6 +59,7 @@ final class AppState {
         await store.open()
         #if DEBUG
         if debug && UserDefaults.standard.bool(forKey: "MotifOffline") { await store.setOnline(false) }
+        if debug { await CaptureFixture.current.apply(to: self) }
         #endif
     }
     func begin(_ scope: String, _ mode: SessionMode, _ ids: [String]) async {
@@ -81,15 +88,22 @@ final class AppState {
         }
     }
     func dismissNotice() { noticeTimer?.cancel(); notice = nil }
+    #if DEBUG
+    /// A toast that stays up for a screenshot.
+    func pinNotice(_ text: String) { noticeTimer?.cancel(); notice = text }
+    #endif
 }
 
 #if DEBUG
 /// Clean per launch; only deterministic bundled samples are used for screenshots.
 actor ScreenshotAccount: Account {
+    static let sample = User(id: "sample", email: "sample@motif.local")
     private var user: User?
     private let memory: MemoryBackend
-    init(seed: Bool, signedIn: Bool, unreadableGame: Bool = false) {
-        user = signedIn ? User(id: "sample", email: "sample@motif.local") : nil
+    private let fixture: CaptureFixture
+    init(seed: Bool, signedIn: Bool, unreadableGame: Bool = false, fixture: CaptureFixture = CaptureFixture("")) {
+        self.fixture = fixture
+        user = signedIn ? Self.sample : nil
         var library = Library()
         if seed {
             for name in ["sample-back-rank", "sample-missing-piece"] {
@@ -113,12 +127,24 @@ actor ScreenshotAccount: Account {
                 library.games[1].position = 1
             }
         }
+        if seed { CaptureSeed.apply(fixture.seed, to: &library) }
         memory = MemoryBackend(library)
     }
-    func currentUser() -> User? { user }
-    func signIn(_ email: String, _ password: String) { user = User(id: email, email: email) }
-    func signUp(_ email: String, _ password: String) { signIn(email, password) }
-    func signOut() { user = nil }
-    func backend(_ user: User) -> any Backend { memory }
+    private static func hang() async throws -> Never { while true { try await Task.sleep(for: .seconds(3600)) } }
+    func currentUser() async throws -> User? {
+        if fixture.has("hang-user") { try await Self.hang() }
+        return user
+    }
+    func signIn(_ email: String, _ password: String) async throws {
+        if fixture.has("hang-signin") { try await Self.hang() }
+        if fixture.has("fail-signin") { throw DataFailure(message: "Wrong email or password.") }
+        user = User(id: email, email: email)
+    }
+    func signUp(_ email: String, _ password: String) async throws { try await signIn(email, password) }
+    func signOut() throws {
+        if fixture.has("fail-signout") { throw DataFailure(message: "Couldn’t sign out: the server didn’t answer.") }
+        user = nil
+    }
+    func backend(_ user: User) -> any Backend { FixtureBackend(base: memory, fixture: fixture) }
 }
 #endif

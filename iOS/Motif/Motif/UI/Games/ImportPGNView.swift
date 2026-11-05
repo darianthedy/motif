@@ -44,6 +44,11 @@ struct ImportPGNView: View {
                 Task { if await model.add(app, collectionId: collectionId) != nil { dismiss() } }
             }
             .scrollDismissesKeyboard(.interactively).editorKeyboard()
+            .task {
+                #if DEBUG
+                if let text = CaptureSeed.importText { model.text = text }
+                #endif
+            }
             .fileImporter(isPresented: $files, allowedContentTypes: [.chessPGN, .plainText], allowsMultipleSelection: true) { result in
                 do { model.text = try result.get().map(readImportFile).joined(separator: "\n\n"); sourceError = nil }
                 catch { sourceError = error.localizedDescription }

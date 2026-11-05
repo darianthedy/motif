@@ -994,10 +994,11 @@ Direction drawn:
 - **System placement as measured in Phase 1:** side ✕ / ✓ on O and SV (below the
   status zone), centered 653 pt on IL and IP, the left page on FB, below the
   division on FT. Each keyboard frame records how much of the form stays visible.
-- **New Game (F18):** the preview board is capped: beside the form on sheets
-  ≥ 600 pt with regular width inside (IL, FB is narrower so it stacks, iPad);
-  otherwise 40 % of the visible sheet, so the FEN field and its error stay
-  visible. With the keyboard up on O that leaves a 96 pt preview.
+- **New Game (F18):** the preview board is capped. On IL and iPad (sheets
+  ≥ 600 pt, regular width inside) it sits beside the form; everywhere else (O,
+  SV, IP, FT, and FB's 440 pt sheet) it is stacked and capped at 40 % of the
+  visible sheet, so the FEN field and its error stay visible. With the keyboard
+  up on O that leaves a 96 pt preview.
 - **Offline (F19):** the "needs a connection" note moves to the top of the form.
 - **Comment editor (F20):** solid background; F29 stays accepted.
 

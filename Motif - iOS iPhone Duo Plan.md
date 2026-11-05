@@ -1025,6 +1025,9 @@ existing format (`scripts/run-ios-*-prompts.sh`).
     column. 560 pt fits the height but leaves 207 pt, which cuts engine lines to
     about two moves and pushes IL toward the compact "lines replace the move list"
     layout (user, 2026-11-05).
+12. **Regular-width split: two columns** (home list | selected collection), not the
+    three sketched in §7. A pushed board screen hides the sidebar. A third column
+    would leave the puzzle detail board under 300 pt at 867 pt (user, 2026-11-05).
 
 ## 11. Done when
 

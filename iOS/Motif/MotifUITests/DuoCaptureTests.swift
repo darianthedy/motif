@@ -125,7 +125,11 @@ import XCTest
     /// Scrolls until `element` exists: lazy lists and forms on the inner display keep
     /// rows below a full-height board out of the hierarchy.
     private func reveal(_ element: XCUIElement) {
-        for _ in 0..<5 where missing == nil && !(element.exists && element.isHittable) { app.swipeUp(); Thread.sleep(forTimeInterval: 0.4) }
+        // Swipe the frontmost list (a sheet's form sits above the screen's list), not the window.
+        for _ in 0..<6 where missing == nil && !(element.exists && element.isHittable) {
+            let lists = app.collectionViews.allElementsBoundByIndex.filter(\.isHittable)
+            (lists.last ?? app).swipeUp(velocity: .fast); Thread.sleep(forTimeInterval: 0.5)
+        }
     }
     /// A menu item whose label carries a subtitle ("Delete From Here, 24 moves").
     private func menuItem(_ title: String) -> XCUIElement {

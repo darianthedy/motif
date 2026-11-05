@@ -445,7 +445,7 @@ With the case gap these are 319 pt and 341 pt. All are under the 352 pt minimum.
 Layout reads container size, so the case gap needs no special code; frames on O
 are drawn at 466 pt with one 457 pt check per board screen.
 
-**Phase 2 — Capture today.** Run every screen × configuration and screenshot it,
+**Phase 2 — Capture today.** *Done 2026-11-05 (§8.2, §8.3).* Run every screen × configuration and screenshot it,
 twice, by extending `scripts/ios-screenshot.sh`:
 1. the current build (iOS 26 SDK, compatibility mode);
 2. the same code built with the 27.1 SDK, with no layout changes.
@@ -495,14 +495,256 @@ states. Phase 2 uses a UI-test capture suite instead:
   shows edit mode with the handles instead.
 
 **Device captures (2026-11-04).** TestFlight build 25 (Xcode 27.1) on the user's
-iPhone Duo, in Split View beside Discord (S04a beside the App Store), dark mode, the user's
-own library: screenshots named `SVL-<cell>.png` / `SVR-<cell>.png` (Motif on the left or right
-half), kept outside the repo with the Phase 1 set, 36 in all. Cells on both sides:
-S03a, S04a, S05a, S06a, S07a, S08a, S09a, S09i, S10a, S11a, S12a, S12f, S14a, S15a,
-S15c, S15e, S16a, S16d. First look: each half gets the compact (O) layout with the
-bars on Motif's outer edge, including the S12f bulk bar; the keyboard (S16d) spans
-both halves; the Analysis view toggles persisted, so S10a shows engine lines on.
-Pinned video (PP) isn't captured (decision 9).
+iPhone Duo, in Split View beside Discord (S04a beside the App Store), dark mode,
+the user's own library: screenshots named `SVL-<cell>.png` / `SVR-<cell>.png`
+(Motif on the left or right half), kept outside the repo with the Phase 1 set, 36
+in all. Cells on both sides: S03a, S04a, S05a, S06a, S07a, S08a, S09a, S09i, S10a,
+S11a, S12a, S12f, S14a, S15a, S15c, S15e, S16a, S16d. Pinned video (PP) isn't
+captured (decision 9).
+
+### 8.3 Phase 2 results (2026-11-05)
+
+Run [41938432623](https://github.com/darianthedy/motif/actions/runs/41938432623)
+at `4545c60`: 175 states (165 in §4 plus S17 on three hosts) in each pose on the
+27.1 SDK build, and on O and IL on the iOS 26 SDK build; the iOS 26 build's primary
+states on IP, FB and FT. 1,273 simulator screenshots plus the 36 Split View device
+shots, kept outside the repo (`iphone-duo-motif/simulator/sdk<N>-<pose>/<cell>.png`,
+with each pose's `pose-before.json` and `unreached.txt`). The workflow's artifacts
+hold the same files for 90 days. Every capture is in light mode; the device shots
+are dark.
+
+- **O 27**: 173 reached, 2 not reached; pose 0.0°, cover screen, portrait, [466.0, 678.0] pt
+- **IL 27**: 172 reached, 2 not reached; pose 180.0°, inner screen, landscape, [951.0, 669.0] pt
+- **IP 27**: 174 reached, 1 not reached; pose 180.0°, inner screen, portrait, [669.0, 951.0] pt
+- **FB 27**: 173 reached, 2 not reached; pose 90.0°, inner screen, landscape, [951.0, 669.0] pt
+- **FT 27**: 174 reached, 1 not reached; pose 90.0°, inner screen, portrait, [669.0, 951.0] pt
+- **O 26**: 168 reached, 2 not reached; pose 0.0°, cover screen, portrait, [466.0, 678.0] pt
+- **IL 26**: 171 reached, 1 not reached; pose 180.0°, inner screen, landscape, [951.0, 669.0] pt
+- **IP 26**: 18 reached, 1 not reached; pose 180.0°, inner screen, portrait, [669.0, 951.0] pt
+- **FB 26**: 18 reached, 1 not reached; pose 90.0°, inner screen, landscape, [951.0, 669.0] pt
+- **FT 26**: 18 reached, 1 not reached; pose 90.0°, inner screen, portrait, [669.0, 951.0] pt
+- **SV device**: 18 cells, both halves
+
+Not reached, and why:
+- **S07c, every pose:** the search scopes never show. With the search field active
+  there is no scope bar on any size, with or without the keyboard. A Phase 3 finding.
+- **S08g, IL and FB:** the puzzle detail board is as wide as the screen (867 pt) and
+  taller than it, so the comment row can't be scrolled into reach. A Phase 3 finding
+  (the §2 "no height cap" row).
+- **S09o on O 27 and S17b-S09 on O 26:** the session route didn't open on that
+  launch, twice. A launch race seen in the existing UI tests too; the other build's
+  frame shows the state.
+- **S10a on the iOS 26 build's inner poses:** XCTest's tap on Analyze doesn't land
+  in the letterboxed compatibility window. The window is the closed screen's, so the
+  cell equals O 26.
+- **S12h** shows edit mode with its handles, since a drag can't be held mid-gesture.
+
+What the captures show (input to Phase 3):
+- **iOS 26 SDK (today's build):** O is the iPhone layout beside the side bar. Every
+  inner pose shows the same iPhone-sized window letterboxed in black, with an expand
+  button, so the inner display gains nothing until the SDK moves.
+- **27.1 SDK, no layout changes:**
+  - *O* matches §8.1: the side bar holds the toolbar and tabs, and the Analysis board
+    is 328 pt with the eval bar.
+  - *IL and FB* look the same: the app ignores the fold. The puzzle detail and session
+    boards fill the width and run off the bottom, so the result card covers most of
+    the board and the solution, status and comment rows are out of reach. The Analysis
+    board is capped by height (293 pt) with wide empty strips beside it, and the
+    engine lines, comment card and controls stretch across the full 867 pt. Lists
+    stretch to the full width.
+  - *IP and FT* look the same: horizontal bars and a bottom tab bar. Boards fill the
+    669 pt width and cross the fold line on FT.
+  - *Sheets* sit centered on the inner display. The New Game preview board fills the
+    sheet, which pushes the FEN field below the fold (S14c–e needed scrolling).
+  - Toolbar items in the side bar and menu items lose their accessibility
+    identifiers, so the suite finds them by title. D09 has to keep that in mind
+    (§6.14).
+- **Split View (device):** each half gets the O layout with the bars on Motif's
+  outer edge, including the S12f bulk bar and the tab bar. The keyboard (S16d) spans
+  both halves.
+
+Coverage grid. ✓ captured and reached · ✗ captured, state not reached · = O the
+letterboxed compatibility window, same as O 26 · – not captured by design (the
+iOS 26 build's non-primary states on IP, FB and FT; Split View's non-primary
+states; S17 on the device). PP isn't captured (decision 9), and PD waits for D11.
+
+| State | O 27 | IL 27 | IP 27 | FB 27 | FT 27 | O 26 | IL 26 | IP 26 | FB 26 | FT 26 | SV device |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| S01a | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – |
+| S01b | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | – | – | – | – |
+| S01c | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – | – | – |
+| S01d | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – | – | – |
+| S01e | ✓ | – | ✓ | ✓ | ✓ | – | – | – | – | – | – |
+| S02a | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – |
+| S02b | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S02c | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S02d | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S02e | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S02f | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S02g | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S03a | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| S03b | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S03c | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S03d | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S03e | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S03f | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S03g | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S03h | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S03i | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S03j | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S03k | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S04a | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| S04b | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S04c | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S04d | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S04e | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S04f | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S04g | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S04h | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S04i | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S04j | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S05a | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| S05b | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S05c | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S05d | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S05e | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S05f | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S05g | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S05h | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S05i | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S05j | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S05k | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S06a | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| S06b | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S06c | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S06d | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S06e | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S06f | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S06g | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S07a | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| S07b | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S07c | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | = O | – | – | – | – |
+| S07d | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S07e | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S07f | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S07g | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S07h | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S07i | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S08a | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| S08b | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S08c | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S08d | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S08e | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S08f | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S08g | ✓ | ✗ | ✓ | ✗ | ✓ | ✓ | ✓ | – | – | – | – |
+| S08h | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S08i | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S09a | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| S09b | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S09c | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S09d | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S09e | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S09f | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S09g | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S09h | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S09i | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | ✓ |
+| S09j | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S09k | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S09l | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S09m | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S09n | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S09o | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S10a | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | = O | = O | = O | ✓ |
+| S10b | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S10c | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S10d | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S10e | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S10f | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S11a | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| S11b | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S11c | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S11d | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S11e | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S11f | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S11g | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S11h | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S11i | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S12a | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| S12b | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S12c | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S12d | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S12e | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S12f | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | ✓ |
+| S12g | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S12h | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S12i | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S12j | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S12k | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S12l | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S12m | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S12n | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S12o | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S12p | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S12q | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S13a | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – |
+| S13b | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S13c | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S13d | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S13e | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S13f | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S13g | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S13h | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S13i | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S14a | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| S14b | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S14c | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S14d | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S14e | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S14f | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15a | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| S15b | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15c | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | ✓ |
+| S15d | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15e | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | ✓ |
+| S15f | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15g | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15h | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15i | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15j | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15k | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15l | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15m | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15n | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15o | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15p | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15q | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15r | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15s | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15t | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15u | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S15v | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S16a | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| S16b | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S16c | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S16d | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | ✓ |
+| S16e | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S16f | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S16g | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S17a-S04 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – |
+| S17a-S09 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – |
+| S17a-S15 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – |
+| S17b-S04 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S17b-S09 | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | – | – | – | – |
+| S17b-S15 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S17c-S04 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S17c-S09 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S17c-S15 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S17d-S04 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S17d-S09 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S17d-S15 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S17e-S04 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S17e-S09 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
+| S17e-S15 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
 
 **Phase 3 — Audit.** For each captured cell, list where it breaks the §6
 checklist or wastes the screen. Output is a findings table (screen · config ·

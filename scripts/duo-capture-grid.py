@@ -7,7 +7,8 @@
 `sdk<N>-<pose>/` folder of `<cell>.png`, `unreached.txt`, `pose-before.json`).
 [device dir] holds the device shots named `<config>-<cell>.png` (SVL, SVR).
 Prints a markdown table: one row per state, one column per build and configuration.
-✓ captured · ✗ captured but the state wasn't reached · – not captured by design.
+✓ captured · ✗ captured but the state wasn't reached · = O compatibility mode, same as O 26
+· – not captured by design.
 """
 import json, os, re, sys
 
@@ -64,7 +65,9 @@ def main():
             if state not in shots:
                 row.append("–")
             elif state in missed:
-                row.append("✗"); totals[column][1] += 1
+                # Compatibility mode letterboxes the iPhone-sized window, where XCTest taps
+                # don't land; that window is the closed screen's, so the cell equals O 26.
+                row.append("= O" if column[0] == "26" and column[1] != "O" else "✗"); totals[column][1] += 1
             else:
                 row.append("✓"); totals[column][0] += 1
         cell = state.split("-")[0]

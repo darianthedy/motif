@@ -18,6 +18,10 @@
 > Checked against the code at `fd6675b` and Apple's guidance on 2026-11-02.
 > Decisions recorded 2026-11-03 (§10). Outer-display Analysis options:
 > https://claude.ai/artifact/1jThHMrrJzkPHC77F25JR2
+>
+> Phase 4 canvases (`design/iphone-duo/`, open the HTML in a browser):
+> Analysis (S15, S10) `analysis.html`. Session and detail, Shell and homes,
+> Lists and Sheets to follow.
 
 ---
 
@@ -888,6 +892,47 @@ The inventory is now **16 screens, 167 states**.
 (riskiest), Session and detail, Shell and homes, then the rest. Share the link
 after each canvas so the direction can be corrected early. Check every frame
 against §6, then fill the coverage grid.
+
+### 8.5 Phase 4 progress
+
+**Canvas format.** The session that built the canvases had no claude.ai Artifact
+tool, so each canvas is a static HTML page in `design/iphone-duo/` instead of a
+Design artifact. The §5.1 conventions hold: one component set (`kit.js`,
+`kit.css`), one table of states and drawn cells per canvas, frames at 1:1 points
+from §8.1, device chrome with the camera, fold line and shaded division, chips
+for size class, bar edge, container and board size, a dark mode toggle and a
+coverage grid tab. `render.mjs` renders any frame or state row to PNG with
+Playwright (`PLAYWRIGHT_FROM=<repo>/node_modules/`), and `sheet.mjs` joins PNGs
+into a contact sheet. The pages can be pasted into a Design artifact later.
+
+**Analysis canvas (S15, S10), 2026-11-05.** 28 states × 8 columns = 224 cells: 92
+drawn, 132 marked with the frame they equal, none blank; plus 8 system-variant
+frames, 6 storyboard frames, S15a on both Split View sides and an FT alternative.
+Direction drawn, for review:
+- **Layout rule:** wider than tall → board pane + column; taller than wide →
+  stacked; an active division puts the split on the fold. `AnyLayout` switches, so
+  `GameViewModel` survives.
+- **No custom capsule.** Flip Board and Engine Lines are top toolbar items, and
+  Previous / Next Move are a `.bottomBar` group. The system puts them in the side
+  bar (O, SV, IL, FB) or the navigation and bottom bars (IP, FT, iPad), so nothing
+  custom reads `toolbarVerticalEdge`, and the toast collision (F24) goes away.
+- **Overflow:** the game ⋯ menu becomes `ToolbarOverflowMenu` (F16).
+- **Boards:** O 328 pt (6 move rows), SV 316 pt, IL 504 pt (from 293, F6), FB
+  392 pt on the left page (F3), IP 512 pt (capped so the column keeps 240 pt), FT
+  272 pt above the division (F4), iPad 704 pt.
+- **Short columns** (O, SV, IP): engine lines replace the move list, alternatives
+  are one scrolling row of 44 pt chips, the comment shows one line (F7, F8).
+- Promotion is a row of 56 pt buttons in the column (F12); confirmation dialogs
+  anchor to the row or toolbar item that asked (F15); Save as Game is a fitted sheet
+  (F17, F29); Puzzle analysis shows the offline pill (F14).
+
+Open for Phase 5:
+- **Q1 — FT board.** With the system navigation bar the FT board is 272 pt
+  (34 pt squares). Hiding the navigation bar while folded and moving its items to a
+  bar below the division (S15a·FT alt) gives 304 pt (38 pt). Both are under 44 pt;
+  the proposal is to keep the system bar and accept FT like decision 5.
+- **Q2 — IL board 504 pt.** A 560 pt board fits the height but leaves a 207 pt
+  column, too narrow for engine lines.
 
 **Phase 5 — Review.** Settle §10 with the user, update the mockups, and record
 the decisions here (like §7 of the refresh plan).

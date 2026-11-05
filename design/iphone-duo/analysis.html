@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Motif · iPhone Duo · Analysis canvas (S15, S10)</title>
+<link rel="stylesheet" href="kit.css">
+</head>
+<body>
+<div class="top">
+  <h1>Motif · iPhone Duo · Analysis canvas</h1>
+  <button data-tab="s15" class="on">S15 Analysis view</button>
+  <button data-tab="s10">S10 Puzzle analysis</button>
+  <button data-tab="var">Variants &amp; storyboards</button>
+  <button data-tab="cov">Coverage grid</button>
+  <button data-tab="notes">Notes &amp; §6 check</button>
+  <button id="dark">Dark mode</button>
+  <span style="font-size:13px;opacity:.7">Columns: O · IL · IP · SV · FB · FT · PP · PD (plan §3). Frames 1:1 in points from §8.1.</span>
+</div>
+<div class="tab on" id="s15"></div>
+<div class="tab" id="s10"></div>
+<div class="tab" id="var"></div>
+<div class="tab" id="cov"></div>
+<div class="tab note" id="notes">
+  <h2>What this canvas decides (for review, Phase 5)</h2>
+  <p><b>One rule from the container shape.</b> Wider than tall → board pane + column (HStack). Taller than wide → stacked (VStack). An active division moves the split onto the fold (FB: left page / right page; FT: top half / bottom half). <code>AnyLayout</code> switches between them so <code>GameViewModel</code>, selection and unsaved moves survive (§6.15). Board size is computed from the container, never the device.</p>
+  <p><b>Every control is a system toolbar item.</b> Top: Back, Flip Board, Engine Lines (toggle), and the overflow menu. Bottom (<code>.bottomBar</code>): Previous / Next Move. The system puts them in the side bar on O, SV, IL and FB (top items at the top, bottom items at the bottom), and in the navigation bar and bottom toolbar on IP, FT and iPad. This replaces today's custom capsule (<code>.safeAreaBar</code>), so nothing custom has to track <code>toolbarVerticalEdge</code>, and the move list gains the capsule's 64 pt.</p>
+  <p><b>Overflow.</b> The game ⋯ menu becomes <code>ToolbarOverflowMenu</code> (F16): Save / Edit Details / Add Comment · Show/Hide Evaluation · Copy PGN / Export PGN… · Delete Game. Ellipsis now means overflow only.</p>
+  <p><b>Alternatives</b> are a wrapping row of 44 pt chips in the column, under the board on compact (F8, F9). <b>Promotion</b> is a row of four 56 pt buttons in the column, so the board stays visible (F12). <b>Confirmation dialogs</b> are attached to the control that asks: the move row or the overflow item (F15). <b>Save as Game</b> uses a fitted sheet (F17, F29). <b>Offline banner</b> shows in Puzzle analysis (F14).</p>
+  <h2>Board sizes (each frame records its own)</h2>
+  <ul>
+    <li><b>O</b>: 328 pt with eval bar (41 pt squares), 350 pt without — accepted, decision 5. Move list 6 rows (5 with today's capsule). With engine lines on, the lines replace the move list.</li>
+    <li><b>SV</b>: 316 pt with eval bar (39.5 pt), 16 pt clear of the 13.5 pt division strip (F33). Same exception as O.</li>
+    <li><b>IL</b>: 504 pt (63 pt squares), up from 293 pt (F6). Column 263 pt wide, room for 16 move rows.</li>
+    <li><b>FB</b>: 392 pt (49 pt) on the left page, 416 pt without the eval bar; column on the right page.</li>
+    <li><b>IP</b>: 512 pt (64 pt). The stacked board is capped so the column keeps 240 pt: 7 move rows, or lines + comment + alternatives (S15v). A full-width 608 pt board left 4 rows and the densest state overflowed.</li>
+    <li><b>FT</b>: <b>272 pt (34 pt squares)</b> above the division with the system navigation bar. <b>Open question Q1</b>: hide the navigation bar while folded and move its items below the fold (S15a·FT alt): 304 pt (38 pt). Both are under 44 pt; FT is a transient pose, so propose accepting it like decision 5.</li>
+    <li><b>iPad</b>: 704 pt (88 pt).</li>
+    <li><b>Short columns</b> (under 300 pt: O, SV, IP): engine lines replace the move list, alternatives become one scrolling row, and the comment card shows one line (tap opens the comment sheet).</li>
+  </ul>
+  <h2>§6 check, Analysis canvas</h2>
+  <ol>
+    <li>System containers: ✓ toolbar items, ToolbarOverflowMenu, Menu, confirmationDialog, alert, sheet, ContentUnavailableView. The custom capsule is removed.</li>
+    <li>Size classes, not devices: ✓ one rule from container size.</li>
+    <li>Same app in every pose: ✓ same items and functions everywhere; only placement changes.</li>
+    <li>Safe areas and reserved regions: ✓ nothing interactive on the division in FB/FT; SV keeps 16 pt from the 13.5 pt strip (F33).</li>
+    <li>Bars: ✓ every item has a title and a symbol; ellipsis = overflow only; navigation screens keep the tab bar, this task screen hides it.</li>
+    <li>Hit targets: board exceptions recorded per frame (O, SV, FT). Alternatives now 44 pt; move rows stay 34 pt (F9, accepted).</li>
+    <li>Margins and readable width: ✓ 16 / 20 pt; the unreadable-PGN view stays within 672 pt (F13).</li>
+    <li>Sheets: ✓ fitted Save as Game; ✕ / ✓ in the side bar on O, horizontal on the inner display; on FB it sits on one page.</li>
+    <li>Dialogs: ✓ driven from state, anchored to their source.</li>
+    <li>Typography: AX5 frames show move rows at 64 pt and two engine lines; the game subtitle drops from above the board on O (still in the overflow menu header); SAN and numbers stay tabular.</li>
+    <li>Color: semantic colors, dark mode toggle above. Secondary text uses <code>secondaryLabel</code> (F35 check in D10).</li>
+    <li>Liquid Glass on bars, menus and the comment card only; Reduce Transparency frames show solid fills (and fix F20's see-through editor the same way).</li>
+    <li>Motion: system layout animation only (storyboard 2 is mid-animation).</li>
+    <li>VoiceOver order: board → column (alternatives, lines, comment, moves) → toolbar.</li>
+    <li>Continuity: storyboards show selection, unsaved moves and the alert surviving.</li>
+    <li>Folding: small adjustments; the board never crosses an active division.</li>
+  </ol>
+  <h2>Not on this canvas</h2>
+  <p>S16 comment/details sheets are on the Sheets canvas. PP cells read "= IL" (decision 9). PD shows the primary states only (D11).</p>
+</div>
+<script src="kit.js"></script>
+<script src="analysis.js"></script>
+<script>
+  document.getElementById('s15').innerHTML = renderCanvas('S15');
+  document.getElementById('s10').innerHTML = renderCanvas('S10');
+  document.getElementById('var').innerHTML = '<h2>System variants</h2>' + renderVariants() + '<h2>Transition storyboards (§5.7)</h2>' + renderStoryboards();
+  document.getElementById('cov').innerHTML = '<h2>Coverage grid · Analysis canvas</h2>' + renderCoverage();
+  const show = (t) => {
+    document.querySelectorAll('.tab').forEach((e) => e.classList.toggle('on', e.id === t));
+    document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
+  };
+  document.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => show(b.dataset.tab));
+  const q = new URLSearchParams(location.search);
+  if (q.get('tab')) show(q.get('tab'));
+  if (q.get('dark')) document.body.classList.add('dark');
+  document.getElementById('dark').onclick = () => document.body.classList.toggle('dark');
+</script>
+</body>
+</html>

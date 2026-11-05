@@ -824,12 +824,12 @@ Each row names the slice (§9) expected to fix it.
 | F25 | S17c on S09 | O | The error banner pushes the session down; Skip then overlaps the status pill and truncates "Find the best move" | 10 | Medium | D08 |
 | F26 | S17a–e | IL | Banners stretch the full 867 pt across the board column and side strips | 7 | Low | D08 |
 | F27 | S09m | IL, FB, IP, FT | Session complete: stat tiles and the Done button stretch to the full width (Done ~830 pt on IL). On FT the "Session Complete" title sits on the fold | 7, 16 | Low | D06 |
-| F28 | S06e, S07c | O | A solid black circle replaces a toolbar item at the top of the side bar while an alert or search field is active | 5 | Medium | D02 |
+| F28 | S06e, S07c | O | ~~A solid black circle replaces a toolbar item at the top of the side bar while an alert or search field is active~~ Simulator only: on the device the side bar keeps ‹ and ⋯ (rename) and ‹, + and ⋯ (search) (2026-11-06) | 5 | Dropped | — |
 | F29 | S08g, S10d, S12i, S16a | O | Sheets at medium detent cover the lower half of the board, so the move being commented on is hidden | 8 | Low | D08 |
 | F30 | S12e–i, S12l, S12p | O, IL, SV | Edit mode: `Select All` / `Deselect All` is a text button at the top of the content; bulk-bar items (Move, Copy, Export, Delete) are symbols with no titles in the side bar and bottom bar | 5 | Medium | D04 |
 | F31 | all tab screens | O, IL, SV | Vertical tab bar shows symbols only (puzzle piece, board); titles appear only on IP's bottom tab bar | 5 | Low | D02 |
 | F32 | S04, S11 | O, IL | The account avatar sits at the top of the content beside the title, while + is in the side bar. Phase 1 recorded the avatar in the side bar; it isn't | 5 | Low | D02 |
-| F33 | S08a, S09a | SV left | The board's right edge runs into the 13.5 pt division strip on the inner edge | 4 | Medium | D07 |
+| F33 | S08a, S09a | SV left | The board's right edge runs into the 13.5 pt division strip on the inner edge. Confirmed on the device (2026-11-06): the board's h-file is flush with Motif's inner edge, with no margin, while the side bar has 59 pt on the outer edge | 4, 7 | Medium | D07 |
 | F34 | S16d | SV | The split keyboard spans both halves of Split View (system behavior; the sheet is unaffected) | — | Info | — |
 | F35 | S02, S03, S04, S15 captions | all | Secondary text (sign-in tagline, placeholders, "White to move", Detail values "Unknown/Unrated") is light gray on gray; check ≥ 4.5:1 in the mockups | 11 | Low | D10 |
 | F36 | all | IP, FT | The 82 pt top inset plus horizontal bars leave the IP title inline and small; top-level lists keep large titles | 5 | Info | — |
@@ -843,8 +843,10 @@ need them fixed so each cell shows its state.
   the fixture raced the launch.
 - **S02b on IP** shows empty fields with the keyboard up.
 - **S03j on O and IL:** the reset toast isn't on screen (it is on IP). Either the
-  toast is hidden behind the Account sheet or the shot was early. Verify on the
-  device; if it is hidden, it is an F24-type bug.
+  toast is hidden behind the Account sheet or the shot was early. Not checked on the
+  device, since that would reset the user's real progress. The toast is an overlay
+  on the sheet's own content, so it is most likely a timing issue; D09 checks it
+  with the `notice` fixture rather than a real reset.
 - **S05k and S12q on IL** (Files picker, share sheet) were captured before their
   content loaded, and S05k on O is blank.
 - **S09m** shows 0 solved / 0 missed: the fixture finishes the session without
@@ -876,9 +878,9 @@ The inventory is now **16 screens, 167 states**.
   trailing pane for the result card and solution. These are the only High findings
   that block a task on today's 27.1 build.
 - **New Game sheet** (F18) needs the same board height cap inside a sheet.
-- The **missing banners in Puzzle Analysis** (F14) also happen on a normal iPhone.
-  The **sign-in keyboard** overlap (F21) shows on O, which is laid out like an
-  iPhone, so it very likely does too. Both can be fixed ahead of D08.
+- The **missing banners in Puzzle Analysis** (F14) and the **sign-in keyboard**
+  overlap (F21) also affect a normal iPhone, so they are fixed ahead of D08 in their
+  own PR (`fix-analysis-banners-signin-keyboard`).
 - Confirmation dialogs and menus (F15, F16) get one frame per size class under §5
   rule 5, drawn from state rather than anchored.
 

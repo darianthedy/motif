@@ -40,6 +40,7 @@ const ICONS = {
   puzzle: '<path d="M4 8h4a2 2 0 114 0h4v4a2 2 0 110 4v4H4v-4a2 2 0 100-4z"/>',
   board: '<path d="M4 4h16v16H4zM4 12h16M12 4v16"/><path d="M4 4h8v8H4zM12 12h8v8h-8z" fill="currentColor" stroke="none" opacity=".35"/>',
   person: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 18c1.5-2.5 3.5-3 5.5-3s4 .5 5.5 3"/>',
+  folder: '<path d="M3 6.5h6.5l2 2H21V19H3z"/>',
   flag: '<path d="M6 21V4M6 4h11l-2.5 4L17 12H6"/>',
   flagFill: '<path d="M6 21V4M6 4h11l-2.5 4L17 12H6z" fill="currentColor"/>',
   skip: '<path d="M4 6l7 6-7 6zM12 6l7 6-7 6z" fill="currentColor"/>',
@@ -400,6 +401,73 @@ function transientBanner(x, w, y, kind, text) {
   return abs(x + (w - ww) / 2, y - 52, ww, 52, `<span class="banner ${kind === 'toast' ? 'toast' : 'error'}" style="height:auto;min-height:40px;padding:8px 8px 8px 14px;white-space:normal;max-width:${ww}px">${icon(kind === 'toast' ? 'check' : 'warn', 15)}<span>${text}</span>${dismiss}</span>`, '', 'display:flex;justify-content:center;align-items:flex-end;z-index:48');
 }
 const BANNER_TEXT = { server: 'Couldn’t reach the server. Changes stay on this device until it answers.', dismiss: 'Couldn’t save the comment. Try again.', toast: 'PGN copied.' };
+
+// ---------- Lists (shared by the Shell and Lists canvases) ----------
+
+
+function shellGeom(k) {
+  const cfg = CFG[k];
+  const g = { k, cfg, compact: cfg.size.startsWith('C') };
+  if (k === 'O') { g.bars = 'side'; g.cols = [{ x: 0, w: 382, kind: 'single' }]; g.top = 0; }
+  else if (k === 'SVL') { g.bars = 'side'; g.cols = [{ x: 84, w: 371.5, kind: 'single' }]; g.top = 0; }
+  else if (k === 'SVR') { g.bars = 'side'; g.cols = [{ x: 13.5, w: 371.5, kind: 'single' }]; g.top = 0; }
+  else if (k === 'IL') { g.bars = 'side'; g.cols = [{ x: 0, w: 340, kind: 'sidebar' }, { x: 341, w: 526, kind: 'detail' }]; g.top = 0; }
+  else if (k === 'FB') { g.bars = 'side'; g.cols = [{ x: 0, w: 455.5, kind: 'sidebar' }, { x: 495.5, w: 371.5, kind: 'detail' }]; g.top = 0; }
+  else if (k === 'IP' || k === 'FT') { g.bars = 'nav'; g.cols = [{ x: 0, w: 300, kind: 'sidebar' }, { x: 301, w: 368, kind: 'detail' }]; g.top = 50; }
+  else if (k === 'PD') { g.bars = 'nav'; g.cols = [{ x: 0, w: 360, kind: 'sidebar' }, { x: 361, w: 833, kind: 'detail' }]; g.top = 24; }
+  g.contentX0 = g.cols[0].x; g.contentX1 = g.cols[g.cols.length - 1].x + g.cols[g.cols.length - 1].w;
+  return g;
+}
+
+
+
+const tile = (ic, color, dim) => `<span class="itile" style="background:${color};opacity:${dim ? 0.4 : 1}">${icon(ic, 17, 2.4)}</span>`;
+const ring = (pct) => `<span class="ring" style="background:conic-gradient(var(--accent-fill) ${pct * 3.6}deg, var(--fill2) 0)"><span>${pct}%</span></span>`;
+
+function section(title, rows, o = {}) {
+  return `${title ? `<div class="sec-h">${title}</div>` : ''}<div class="glist${o.cls ? ' ' + o.cls : ''}">${rows.join('')}</div>${o.footer ? `<div class="sec-f">${o.footer}</div>` : ''}`;
+}
+function row(o) {
+  return `<div class="lrow ${o.cls || ''}" style="${o.style || ''}">${o.lead || ''}<span class="lr-main"><span class="lr-t">${o.title}${o.chip ? `<span class="inprog">${o.chip}</span>` : ''}</span>${o.sub ? `<span class="lr-s">${o.sub}</span>` : ''}</span>${o.trail || ''}${o.chev ? '<span class="chev">›</span>' : ''}</div>`;
+}
+
+function puzzlesList(st, w) {
+  if (st.empty) return '';
+  const practice = st.noPuzzles ? '' : section('Practice', [
+    st.noSession ? '' : row({ lead: tile('skip', 'var(--accent)'), title: 'Resume Random Session', trail: '<span class="lr-v">5 left</span>' }),
+    row({ lead: tile('sparkle', '#007aff'), title: 'Random From Everything' }),
+    row({ lead: tile('flip', '#ff9500', st.noSession), title: 'Review Mistakes', cls: st.noSession ? 'dis' : '', trail: st.noSession ? '' : '<span class="badge">1</span>' }),
+  ]);
+  const cols = [
+    { n: 'Back-rank mates', p: 33, s: '3 puzzles · 1 solved · 1 to review', chip: 'In progress' },
+    { n: 'Missing pieces', p: 0, s: '3 puzzles · 0 solved' },
+    { n: 'Endgame drills', p: 60, s: '20 puzzles · 12 solved' },
+  ];
+  const rows = cols.map((c, i) => {
+    const sub = st.noPuzzles ? '0 puzzles' : c.s;
+    const sel = st._split && i === 0 ? ' sel' : '';
+    if (st.swipe && i === 0) return `<div class="swipewrap">${row({ lead: ring(c.p), title: c.n, sub, chip: c.chip, chev: true, cls: 'swiped' })}<span class="swipe-btn red">${icon('trash', 20)}<span>Delete</span></span></div>`;
+    return row({ lead: ring(st.noPuzzles ? 0 : c.p), title: c.n, sub, chip: st.noPuzzles ? '' : c.chip, chev: !st._split, cls: sel + (st.overlay === 'ctx' && i === 0 ? ' lifted' : '') });
+  });
+  return practice + section('Collections', rows);
+}
+
+function gamesList(st) {
+  if (st.empty) return '';
+  const cols = [{ n: 'Club games', s: '24 games' }, { n: 'Study games', s: '8 games' }, { n: 'Openings', s: '1 game' }];
+  const rows = cols.map((c, i) => {
+    const sel = st._split && i === 0 ? ' sel' : '';
+    if (st.swipe && i === 0) return `<div class="swipewrap">${row({ lead: tile('board', 'var(--accent)'), title: c.n, sub: c.s, chev: true, cls: 'swiped2' })}<span class="swipe-btn gray">${icon('pencil', 20)}<span>Rename</span></span><span class="swipe-btn red" style="right:0">${icon('trash', 20)}<span>Delete</span></span></div>`;
+    return row({ lead: tile('board', 'var(--accent)'), title: c.n, sub: c.s, chev: !st._split, cls: sel + (st.overlay === 'ctx' && i === 0 ? ' lifted' : '') });
+  });
+  return section('', rows);
+}
+
+function cuv(ic, title, desc, btn, o = {}) {
+  return `<div class="cuv" style="padding:0 20px"><div style="display:flex;justify-content:center;color:var(--label2)">${icon(ic, 46, 1.7)}</div><b>${title}</b>${desc}${btn ? `<div style="margin-top:14px;display:flex;flex-direction:column;align-items:center;gap:8px">${btn}</div>` : ''}</div>`;
+}
+const pbtn = (t, o = {}) => `<span class="btn ${o.prom ? 'prom' : 'glassbtn'}${o.dis ? ' dis' : ''}" style="flex:none;${o.red ? 'color:var(--red)' : ''}">${t}</span>`;
+
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 

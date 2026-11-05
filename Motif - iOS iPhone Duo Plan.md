@@ -21,8 +21,8 @@
 >
 > Phase 4 canvases (`design/iphone-duo/`, open the HTML in a browser):
 > Analysis (S15, S10) `analysis.html`; Session and detail (S09, S08)
-> `session.html`; Shell and homes (S01–S04, S11, S17) `shell.html`. Lists and
-> Sheets to follow.
+> `session.html`; Shell and homes (S01–S04, S11, S17) `shell.html`; Lists (S06,
+> S07, S12) `lists.html`. Sheets to follow.
 
 ---
 
@@ -969,6 +969,23 @@ added to those canvases (5 states each, drawn on O and IL). Direction drawn:
 - **Account sheet:** opts out of the vertical bar on compact (one item, ✕); the
   reset confirmation anchors to its row inside the sheet (F15).
 - FT shows the IP layout for these screens: lists are scrolling content.
+
+**Lists canvas (S06, S07, S12), 2026-11-05.** 33 states × 8 columns = 264 cells:
+87 drawn, 177 marked with the frame they equal, none blank; plus 12 system-variant
+frames, the "enter Split View in edit mode" storyboard and S12f on both Split View
+sides. Direction drawn:
+- These screens are the **detail column** on regular width (decision 12): 526 pt
+  on IL, the right page on FB, 368 pt on IP; content ≤ 672 pt on iPad. The sidebar
+  keeps the home list with the collection selected.
+- **⋯ menus → `ToolbarOverflowMenu`** (F16); + (Add Games) keeps its own menu.
+- **Search scopes (F23):** `.searchScopes(…, activation: .onSearchPresentation)`
+  shows the scope bar as soon as search is active.
+- **Edit mode (F30):** Select All / Deselect All becomes a titled toolbar item
+  beside Done; the bulk items stay a `.bottomBar` group (side bar on O, SV, IL,
+  FB; a capsule on IP and iPad, titled where the column is ≥ 440 pt).
+- Confirmations anchor to the overflow item, the Delete bulk item or the row
+  (F15); the destination sheet is fitted; the share sheet is a popover from Export
+  on regular width.
 
 Open for Phase 5:
 - ~~Q1 — FT board~~ settled as decision 10.

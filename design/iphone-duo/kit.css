@@ -313,3 +313,21 @@ body.dark .prompt.warn .guide { color: #ff9f0a; }
 .lrow.sel .ring span { background: var(--accent); color: #fff; }
 .lrow.sel .inprog { background: rgba(255,255,255,.25); color: #fff; }
 .popover { background: var(--bg3); }
+
+/* lists canvas */
+.search { height: 44px; border-radius: 22px; background: var(--fill3); display: flex; align-items: center; gap: 8px; padding: 0 14px; color: var(--label2); font-size: 17px; }
+.search.on span:not(.caret) { color: var(--label); }
+.thumb { width: 36px; height: 36px; border-radius: 6px; overflow: hidden; flex: none; }
+.status { font-size: 13px; font-weight: 500; white-space: nowrap; }
+.resbadge { font-size: 12px; font-weight: 600; color: var(--label2); background: var(--fill3); padding: 3px 8px; border-radius: 8px; font-variant-numeric: tabular-nums; }
+.handle { color: var(--label3); font-size: 22px; }
+.selcirc { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--label3); flex: none; display: flex; align-items: center; justify-content: center; color: #fff; }
+.selcirc.on { background: var(--accent); border-color: var(--accent); }
+.lrow.picked { background: var(--fill2); }
+.tb.redtb { color: var(--red); } .tb.redtb.dis { color: var(--label3); }
+.bulkbar { display: inline-flex; gap: 4px; padding: 3px; border-radius: 25px; }
+.bulkbar > span { display: flex; gap: 6px; align-items: center; height: 44px; padding: 0 14px; border-radius: 22px; font-weight: 500; font-size: 15px; color: var(--accent); }
+.bulkbar > span.dis { color: var(--label3); }
+.bulkbar > span.redtb { color: var(--red); }
+.shapp { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: var(--label2); }
+.shapp span { width: 52px; height: 52px; border-radius: 13px; background: var(--fill2); }

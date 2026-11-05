@@ -141,7 +141,8 @@ storyboard (§5, rule 7).
 
 Read from the code at `fd6675b`: 16 screens plus the shared banners,
 **165 states**. Phase 2 re-checks this list, and any state found there that is
-missing here is added before mockups start.
+missing here is added before mockups start. Phase 3 added S05l and S16h and
+redefined S07c (§8.4): **167 states**.
 
 | # | Screen (file) | States |
 |---|---|---|
@@ -149,9 +150,9 @@ missing here is added before mockups start.
 | S02 | Sign in (`SignInView`) | a empty (buttons disabled) · b filled · c keyboard up · d busy · e wrong password · f offline · g dev-account footer |
 | S03 | Account sheet (`AccountView`) | a up to date · b syncing · c N waiting to upload · d offline (Sign Out disabled) · e offline, N waiting · f server error · g nothing to reset · h reset confirmation · i dev-account footer · j toast after reset · k error banner |
 | S04 | Puzzles home (`PuzzlesHomeView`) | a populated (resume, review count, In progress chip) · b no session, nothing to review · c collections but no puzzles (Practice hidden) · d empty · e empty offline · f offline · g context menu · h swipe delete · i rename alert · j delete confirmation |
-| S05 | Import puzzles sheet (`ImportView`) | a nothing yet · b parsed, existing collection · c parsed, new collection · d rejected rows · e all rows rejected · f several collections · g source error · h busy · i offline · j keyboard in editor · k Files picker |
+| S05 | Import puzzles sheet (`ImportView`) | a nothing yet · b parsed, existing collection · c parsed, new collection · d rejected rows · e all rows rejected · f several collections · g source error · h busy · i offline · j keyboard in editor · k Files picker · l opened from a collection (preselected) |
 | S06 | Collection (`CollectionView`) | a stats card · b session in progress (Resume, Discard) · c ⋯ menu · d empty · e rename alert · f delete confirmation · g offline |
-| S07 | Puzzle list (`PuzzleListView`) | a default · b searching · c scope applied · d empty scope · e no search results · f no puzzles · g swipe actions · h delete confirmation · i offline |
+| S07 | Puzzle list (`PuzzleListView`) | a default · b searching · c scope applied with a query · d empty scope · e no search results · f no puzzles · g swipe actions · h delete confirmation · i offline |
 | S08 | Puzzle detail (`PuzzleDetailView`) | a move puzzle at start · b stepping a solution · c several solution lines · d missing piece · e flagged · f ⋯ menu · g comment sheet · h delete confirmation · i offline |
 | S09 | Session (`SessionView`, `PuzzleSolveView`, `MissingPieceSolveView`, `ResultCard`, `PiecePicker`) | a your move · b wrong move · c answer shown · d opponent replying · e promotion picker · f missing piece: tap square · g missing piece: choose piece · h missing piece: hint · i solved · j solved, several lines · k missed · l long result (card scrolls) · m session complete · n flagged · o offline |
 | S10 | Puzzle analysis (`PuzzleAnalysisView` → scratch `GameContentView`) | a solution preloaded · b missing piece placed · c ⋯ menu · d Save as Game: existing collection · e Save as Game: new collection · f offline. Board states are as S15 |
@@ -160,7 +161,7 @@ missing here is added before mockups start.
 | S13 | Import PGN sheet (`ImportPGNView`) | a nothing yet · b games read · c more than 5 games · d read errors · e source error · f busy · g offline · h keyboard · i Files picker |
 | S14 | New Game sheet (`NewGameView`) | a standard start · b from FEN, empty · c valid FEN · d invalid FEN (board dimmed) · e keyboard · f offline |
 | S15 | Analysis view (`GameView`) | a default with eval bar · b evaluation hidden · c engine lines · d engine starting · e comment card · f alternatives (≤ 3) · g alternatives expanded · h variations in the list · i no moves yet · j at start / at end · k promotion picker · l move context menu · m delete-from-here confirmation · n ⋯ game menu · o delete game confirmation · p unsaved, back alert · q unsaved, offline discard alert · r offline · s illegal-move problem · t unreadable PGN · u unreadable PGN offline · v densest case (engine lines + comment + alternatives) |
-| S16 | Analysis sheets (`CommentSheet`, `GameDetailsSheet`) | a comment, empty · b comment with text (Remove Comment) · c comment at large detent · d comment keyboard · e details · f details keyboard · g share sheet |
+| S16 | Analysis sheets (`CommentSheet`, `GameDetailsSheet`) | a comment, empty · b comment with text (Remove Comment) · c comment at large detent · d comment keyboard · e details · f details keyboard · g share sheet · h game note |
 | S17 | Library banners (`LibraryBanners`, `Toast`) | a offline · b offline, N waiting · c server error · d dismissible error · e toast |
 
 S17 is drawn on three hosts: a list (S04), the session (S09) and the Analysis
@@ -746,10 +747,142 @@ states; S17 on the device). PP isn't captured (decision 9), and PD waits for D11
 | S17e-S09 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
 | S17e-S15 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – | – | – |
 
-**Phase 3 — Audit.** For each captured cell, list where it breaks the §6
+**Phase 3 — Audit.** *Done 2026-11-05 (§8.4).* For each captured cell, list where it breaks the §6
 checklist or wastes the screen. Output is a findings table (screen · config ·
 issue · checklist item · severity), appended to this file, starting from the §2
 rows. Re-check the §4 inventory against the code at the same time.
+
+### 8.4 Phase 3 results (2026-11-05)
+
+**Method.** Every 27.1 SDK capture from §8.3 was put on contact sheets, one row
+per state. Board screens (S08, S09, S10, S15) were read in all five simulator
+poses, and the other screens on O, IL and IP. FB matched IL and FT matched IP
+pixel for pixel apart from the fold, as §8.3 found, so FB and FT were checked
+only where something sits on the fold. Split View was read from the 36 device
+shots, and the iOS 26 build from its primary states. Points below are measured
+off the screenshots at the §8.1 scale.
+
+**Severity.** **High**: a task can't be finished, or a control or content can't
+be reached, without a workaround. **Medium**: breaks a §6 rule in a way users
+will notice. **Low**: polish, or wasted space that doesn't block anything.
+
+#### §2 rows, checked against the captures
+
+- **Toolchain:** confirmed. The iOS 26 build letterboxes an iPhone window on every
+  inner pose (on IP it is scaled to about half size, with an expand button). On FB
+  the window sits on the right page.
+- **Orientation:** confirmed. Portrait-only is honored on O and ignored on the
+  inner display.
+- **Navigation:** confirmed. One stretched column at 867 pt on IL, 669 pt on IP.
+- **View state:** not checkable from still captures. The device kept the game and
+  move on unfold (§8.1); the §5 rule 7 storyboards cover the rest.
+- **Analysis board:** confirmed. O 328 pt with the eval bar, IL and FB 293 pt
+  between two empty strips.
+- **Other boards:** confirmed, and worse than expected. See F1–F4.
+- **Custom bottom items:** confirmed. Skip, the result card and the Analysis capsule
+  ignore the fold, and the toast collides with the capsule (F24).
+- **Toolbar labels:** confirmed. Nothing went to overflow. `Select All` stays a
+  horizontal text button at the top of the content (F30).
+- **Tab bar:** the vertical tab bar on O and IL shows symbols with no titles. The
+  bottom tab bar on IP has titles (F31).
+- **Session result card:** confirmed (F5).
+- **Banners on `PuzzleAnalysisView`:** **confirmed bug.** S10f shows no offline pill
+  where S15r does (F14).
+- **Sheets:** confirmed. Centered 653 pt on IL, side ✕/✓ on O. See F17–F20.
+- **Adaptive code:** holds. Nothing broke because of a device check.
+
+#### Findings
+
+Each row names the slice (§9) expected to fix it.
+
+| # | Screen | Config | Issue | §6 | Sev. | Slice |
+|---|---|---|---|---|---|---|
+| F1 | S08 all states | IL, FB | Puzzle detail board is 867 pt wide and taller than the 669 pt screen. Only ranks 8–3 show. Solution chips, line picker, Status/Motif/Rating/Comment rows are off screen; S08g couldn't even be scrolled to | 4, 7 | High | D05, D06 |
+| F2 | S09 all board states, S17a–e on S09 | IL, FB | Session board is 867 pt and runs off the bottom. Ranks 2–1 and the status pill are hidden until the board auto-scrolls (S09c then hides ranks 8–5). Solving needs scrolling, which competes with piece drags | 4, 6 | High | D05, D06 |
+| F3 | S08, S09, S15, S10, S16 boards | FB | The board crosses the active fold division (x 455.5–495.5) on every board screen. On S08/S09 it spans both pages; on S15/S10 the 293 pt board straddles the fold at x ≈ 266–578 | 4, 16 | High | D07 |
+| F4 | S08, S09, S15, S10 boards | FT | The board crosses the fold division (y 373.5–413.5). The S09k promotion picker and S09g piece picker sit on or beside the fold | 4, 16 | High | D07 |
+| F5 | S09i–l | O, IL, FB, IP, FT | The result card covers 40–75 % of the board. On IL it is 867 pt wide, with the Continue button about 400 pt wide and S09l's text in lines of ~140 characters | 7 | Medium | D06 |
+| F6 | S15 all states | IL, FB | Board capped at 293 pt (37 pt squares) by height, with ~290 pt of empty space on each side. Engine lines, comment card, move list and capsule stretch to 867 pt: white and black moves sit ~250 pt apart, and alternatives chips float at the far right, away from the move they belong to | 6, 7 | High | D05 |
+| F7 | S15c, S15e–h, S15v | O | With engine lines or alternatives on, the 678 pt height leaves 0–1 move rows visible. S15v (densest) shows no move rows at all, and the comment card is half under the capsule | 7 | Medium | D05 |
+| F8 | S15g | O | Expanded alternatives column overlaps the board's bottom-right squares | 4 | Medium | D05 |
+| F9 | S15 all, S10 all | O | Board 328 pt (41 pt squares) with eval bar, as accepted in decision 5. Move rows 34 pt and alternatives 36 pt are under 44 pt on every pose | 6 | Low (accepted) | D05 |
+| F10 | S08, S09 | O | Board runs edge to edge (382 pt, 0 pt leading margin) next to the side bar, so a-file squares sit against the display corner | 7 | Low | D05 |
+| F11 | S08, S09 | IP, FT | Board fills the 669 pt width edge to edge (84 pt squares) and pushes the status pill and solution rows to the bottom. On S08 the floating step controls cover the Status row | 7 | Medium | D05, D06 |
+| F12 | S15k, S09e | all | Promotion picker is an overlay card centered on the board, covering the squares around the promotion square; its four choices are ~40 pt | 6 | Low | D05 |
+| F13 | S15t, S15u, S01c, S04d, S11b, S12m and other empty states | IL | `ContentUnavailableView` descriptions run on one line up to ~600 pt; S15t's PGN box stretches to 867 pt | 7 | Low | D03, D04 |
+| F14 | S10f | all | **Bug:** offline pill missing in Puzzle Analysis. `libraryBanners()` isn't applied to the pushed `PuzzleAnalysisView`, so toasts and save errors also don't show (§2) | 15 | Medium | D08 |
+| F15 | S04j, S06f, S07h, S08h, S11h, S12k, S12l, S15m, S15o, S03h | O, IL | Confirmation dialogs show as popovers anchored to the wrong place: the title or top-left of the content (S15m/o, S08h, S06f, S12k/l on O), the stats card, or outside the Account sheet (S03h on IL). On IP the same dialogs anchor to the bottom | 9 | Medium | D02 |
+| F16 | S08f, S10c, S15n, S06c, S12d | all | The ellipsis menus hold custom actions (Copy FEN/Delete, Save/Edit Details/Copy PGN…, Rename/Delete) rather than overflow | 5 | Medium | D02 |
+| F17 | S10d, S10e | O, IL, IP | Save as Game is a `.large` sheet holding one or two rows, about 85 % empty | 8 | Low | D08 |
+| F18 | S14a–f | IL, IP | New Game preview board fills the 653 pt sheet (~610 pt), so the FEN field, its error and the offline note are below the fold of the sheet. In S14b on IL the segmented control has scrolled away | 7, 8 | High | D05, D08 |
+| F19 | S05i, S14f | O, IL | Offline: ✓ is disabled, but the "importing needs a connection" note is below the visible area of the sheet, so the reason isn't shown | 3, 11 | Medium | D08 |
+| F20 | S16a–c | all | The comment sheet's text editor is translucent: board pieces show through the blurred field behind the text | 12 | Medium | D08 |
+| F21 | S02c | O, IL | With the keyboard up, the Sign In button (in `.safeAreaInset`) rises over the Password field and hides it | 4 | High | D08 |
+| F22 | S02 all, S04, S06, S07, S11, S12 lists, S03 | IL | Sign-in form and buttons, lists, the stats card and Solve rows stretch to 867 pt, past the ~672 pt readable width. Below them, half the screen is empty: no split view | 7 | Medium | D02–D04, D08 |
+| F23 | S07c, S07d | all | Search scopes show only once a query is typed. With an empty search there is no scope bar, so a scope (Flagged…) can't be picked or left without typing (S07c unreachable) | 1, 3 | Medium | D03 |
+| F24 | S17e on S15, S17e on S09 | O, IL, IP | The "PGN copied." toast sits on top of the Analysis capsule (over ‹/›) and next to Skip in a session | 4 | Medium | D08 |
+| F25 | S17c on S09 | O | The error banner pushes the session down; Skip then overlaps the status pill and truncates "Find the best move" | 10 | Medium | D08 |
+| F26 | S17a–e | IL | Banners stretch the full 867 pt across the board column and side strips | 7 | Low | D08 |
+| F27 | S09m | IL, FB, IP, FT | Session complete: stat tiles and the Done button stretch to the full width (Done ~830 pt on IL). On FT the "Session Complete" title sits on the fold | 7, 16 | Low | D06 |
+| F28 | S06e, S07c | O | ~~A solid black circle replaces a toolbar item at the top of the side bar while an alert or search field is active~~ Simulator only: on the device the side bar keeps ‹ and ⋯ (rename) and ‹, + and ⋯ (search) (2026-11-06) | 5 | Dropped | — |
+| F29 | S08g, S10d, S12i, S16a | O | Sheets at medium detent cover the lower half of the board, so the move being commented on is hidden | 8 | Low | D08 |
+| F30 | S12e–i, S12l, S12p | O, IL, SV | Edit mode: `Select All` / `Deselect All` is a text button at the top of the content; bulk-bar items (Move, Copy, Export, Delete) are symbols with no titles in the side bar and bottom bar | 5 | Medium | D04 |
+| F31 | all tab screens | O, IL, SV | Vertical tab bar shows symbols only (puzzle piece, board); titles appear only on IP's bottom tab bar | 5 | Low | D02 |
+| F32 | S04, S11 | O, IL | The account avatar sits at the top of the content beside the title, while + is in the side bar. Phase 1 recorded the avatar in the side bar; it isn't | 5 | Low | D02 |
+| F33 | S08a, S09a | SV left | The board's right edge runs into the 13.5 pt division strip on the inner edge. Confirmed on the device (2026-11-06): the board's h-file is flush with Motif's inner edge, with no margin, while the side bar has 59 pt on the outer edge | 4, 7 | Medium | D07 |
+| F34 | S16d | SV | The split keyboard spans both halves of Split View (system behavior; the sheet is unaffected) | — | Info | — |
+| F35 | S02, S03, S04, S15 captions | all | Secondary text (sign-in tagline, placeholders, "White to move", Detail values "Unknown/Unrated") is light gray on gray; check ≥ 4.5:1 in the mockups | 11 | Low | D10 |
+| F36 | all | IP, FT | The 82 pt top inset plus horizontal bars leave the IP title inline and small; top-level lists keep large titles | 5 | Info | — |
+
+#### Capture issues to fix before D09
+
+These are problems with the capture run, not with the app. The D09 screenshot tests
+need them fixed so each cell shows its state.
+
+- **S01b on IL** shows the offline screen (S01c), and **S01d on IL** shows sign-in:
+  the fixture raced the launch.
+- **S02b on IP** shows empty fields with the keyboard up.
+- **S03j on O and IL:** the reset toast isn't on screen (it is on IP). Either the
+  toast is hidden behind the Account sheet or the shot was early. Not checked on the
+  device, since that would reset the user's real progress. The toast is an overlay
+  on the sheet's own content, so it is most likely a timing issue; D09 checks it
+  with the `notice` fixture rather than a real reset.
+- **S05k and S12q on IL** (Files picker, share sheet) were captured before their
+  content loaded, and S05k on O is blank.
+- **S09m** shows 0 solved / 0 missed: the fixture finishes the session without
+  recording results.
+- **S07c** can't be reached as written (F23). It is redefined below.
+
+#### §4 inventory re-check
+
+The code at this branch matches §4 (Phase 2 only added capture hooks), with these
+changes:
+- **S05l (new):** Import Puzzles opened from a collection (`ImportView(collectionId:)`
+  via the collection ⋯ menu's Import Into Collection…), with the collection
+  preselected. Layout = S05b.
+- **S16h (new):** game note: the comment sheet on the game itself (⋯ → Edit Game
+  Note), titled with the game name. Layout = S16a/b.
+- **S07c redefined:** "scope applied with a query", since scopes only show with
+  search text (F23). The mockups draw the intended state: scopes reachable with
+  no query.
+- **S12h** stays "edit mode with handles" (§8.2).
+
+The inventory is now **16 screens, 167 states**.
+
+#### What this changes for Phase 4
+
+- **Analysis canvas first (as planned)**, with F3, F6 and F7 as the main problems.
+  The IL board must grow past 293 pt into one page or a column (§7), and the move
+  list must stop stretching.
+- **Session and puzzle detail** (F1, F2, F5, F11) need a height-capped board and a
+  trailing pane for the result card and solution. These are the only High findings
+  that block a task on today's 27.1 build.
+- **New Game sheet** (F18) needs the same board height cap inside a sheet.
+- The **missing banners in Puzzle Analysis** (F14) and the **sign-in keyboard**
+  overlap (F21) also affect a normal iPhone, so they are fixed ahead of D08 in their
+  own PR (`fix-analysis-banners-signin-keyboard`).
+- Confirmation dialogs and menus (F15, F16) get one frame per size class under §5
+  rule 5, drawn from state rather than anchored.
 
 **Phase 4 — Mockups.** Build the canvases to the §5 rules, in the order Analysis
 (riskiest), Session and detail, Shell and homes, then the rest. Share the link

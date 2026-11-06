@@ -10,23 +10,34 @@
 set -euo pipefail
 
 sdk=$(xcrun --sdk iphonesimulator --show-sdk-version)
+# Runtime versions come from simctl's runtime list; the identifier's spelling is only a
+# fallback, since not every runtime's identifier ends in its version (ios-ci's IL
+# destination found no "Motif Duo Capture" by identifier alone).
+runtimes=$(xcrun simctl list runtimes --json)
 xcrun simctl list devices available --json | python3 -c '
 import json, os, re, sys
 
+versions = {r["identifier"]: r["version"] for r in json.loads(sys.argv[2])["runtimes"]
+            if r.get("platform", "iOS") == "iOS" and r.get("version")}
 preferred = "com.apple.CoreSimulator.SimRuntime.iOS-" + sys.argv[1].replace(".", "-")
 requested = os.environ.get("IOS_SIMULATOR_UDID")
 named = os.environ.get("MOTIF_SIM")
 major = os.environ.get("MOTIF_RUNTIME")
 candidates = []
-for runtime, devices in json.load(sys.stdin)["devices"].items():
+listed = json.load(sys.stdin)["devices"]
+for runtime, devices in listed.items():
     match = re.search(r"\.iOS-(\d+(?:-\d+)*)$", runtime)
-    if not match:
+    if runtime in versions:
+        version = tuple(int(part) for part in re.findall(r"\d+", versions[runtime]))
+    elif match:
+        version = tuple(int(part) for part in match[1].split("-"))
+    else:
         continue
-    version = tuple(int(part) for part in match[1].split("-"))
     if version < (26, 1):
         continue
     for device in devices:
-        if not device.get("isAvailable"):
+        # The list is already filtered to available devices.
+        if not device.get("isAvailable", True):
             continue
         if named:
             if named not in (device["name"], device["udid"]):
@@ -40,9 +51,13 @@ if not candidates:
     print("No available iPhone simulator with iOS 26.1 or newer" + (" named " + named if named else "") + ". "
           "Install an iOS runtime in Xcode Settings > Components, "
           "or check IOS_SIMULATOR_UDID / MOTIF_SIM.", file=sys.stderr)
+    for runtime, devices in listed.items():
+        for device in devices:
+            if named and named in (device["name"], device["udid"]):
+                print("  seen on %s (version %s): %s" % (runtime, versions.get(runtime, "unknown"), device), file=sys.stderr)
     sys.exit(1)
 candidates.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
 device, version = candidates[0][3], candidates[0][2]
 print("%s on iOS %s (%s)" % (device["name"], ".".join(map(str, version)), device["udid"]), file=sys.stderr)
 print(device["udid"])
-' "$sdk"
+' "$sdk" "$runtimes"

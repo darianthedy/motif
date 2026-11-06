@@ -1058,7 +1058,13 @@ and anything deferred to a later slice or a follow-up PR.
   one, else 27.1; the "Build and test" log names the runtime used) and `IL` (a fresh
   "Motif Duo Capture" posed by the new `ios-duo-capture.sh pose`). TestFlight builds on
   27.1 by default; the `xcode_26` input falls back to `macos-26`. `SystemCompat.swift`
-  holds `motifToolbarVerticalBehaviorDisabled()`, unused so far.
+  holds `motifToolbarVerticalBehaviorDisabled()`, unused so far. The first run found no
+  iOS 26.x runtime on the image: the iPhone 17 ran on iOS 27.2. On that runtime, menu items
+  inside a `Section` (Copy PGN, Export PGN…, Save as Game…) lose their identifiers, so UI
+  tests find them by title too (`FlowTestCase.button(_:title:)`), and a text field tap can
+  leave no keyboard focus, so `type(_:into:)` taps again until it has it.
+  `ios-simulator.sh` reads runtime versions from `simctl list runtimes`, since the Duo's
+  device wasn't found by its runtime identifier alone.
 
 ## 9. Implementation slices
 

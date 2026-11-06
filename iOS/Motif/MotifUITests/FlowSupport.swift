@@ -2,6 +2,9 @@ import XCTest
 
 @MainActor class FlowTestCase: XCTestCase {
     let app = XCUIApplication()
+    /// The destination ios-ci runs on (`iphone`, `IL`; empty elsewhere), from `MOTIF_POSE`, for UI tests that
+    /// only hold in one pose: `try XCTSkipIf(pose == "IL", "…")`.
+    var pose: String { ProcessInfo.processInfo.environment["MOTIF_POSE"] ?? "" }
     /// A loaded CI simulator can stall for a minute reaping the previous test's app, and `launch()` then fails
     /// with "Failed to terminate com.dthedy.Motif:<pid>" before this test has done anything. That one issue is
     /// the simulator's, so it buys a second launch; the app must still come up in the foreground.

@@ -6,6 +6,11 @@
 #   scripts/ios-verify.sh            # npm test + xcodebuild test
 #   scripts/ios-verify.sh --ios      # skip npm test
 #
+# MOTIF_SIM (a device name or UDID) picks the simulator, and MOTIF_RUNTIME an iOS
+# major version to prefer (see ios-simulator.sh); the default is the first
+# available iPhone. MOTIF_POSE (iphone, IL…) reaches the tests as MOTIF_POSE, for
+# UI tests that only hold in one pose. ios-ci sets all three per destination.
+#
 # Written for macOS's bash 3.2: no associative arrays, no GNU-only flags.
 
 set -euo pipefail
@@ -26,7 +31,9 @@ scripts/fetch-nnue.sh
 # A UDID distinguishes simulators with the same name on different runtimes.
 sim=$(scripts/ios-simulator.sh)
 
-echo "== xcodebuild test on '$sim'"
+echo "== xcodebuild test on '$sim'${MOTIF_POSE:+ (pose $MOTIF_POSE)}"
+# xcodebuild hands TEST_RUNNER_-prefixed variables to the test runner, unprefixed.
+export TEST_RUNNER_MOTIF_POSE="${MOTIF_POSE:-}"
 set -- xcodebuild test -project "$PROJECT" -scheme "$SCHEME" \
   -destination "platform=iOS Simulator,id=$sim" \
   -derivedDataPath build/DerivedData \

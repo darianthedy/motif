@@ -157,7 +157,7 @@ function compose(id, k, opts = {}) {
   const gk = opts.geomKey || (k === 'SV' ? 'SVL' : k);
   const cfg = CFG[gk];
   const g = shellGeom(gk);
-  const split = g.cols.length > 1;
+  const split = g.split;
   const fs = opts.ax5 ? 1.9 : 1;
   const tb = toolbarFor(st, split);
   const editing = st.edit != null;
@@ -179,18 +179,19 @@ function compose(id, k, opts = {}) {
     html += statusBar(cfg);
     const d = g.cols[g.cols.length - 1], c0 = g.cols[0];
     const ty = g.top + (gk === 'PD' ? 30 : 0);
-    // sidebar column items
-    html += abs(c0.x + c0.w - 56, ty, 44, 44, '<span class="avatar">S</span>', 'tb');
+    // sidebar column items (decision 16: on IP the sidebar is an overlay, so only its button shows)
+    if (g.overlay) html += abs(12, ty, 44, 44, icon('sidebarLeft', 20), 'tb');
+    else html += abs(c0.x + c0.w - 56, ty, 44, 44, '<span class="avatar">S</span>', 'tb');
     // detail items
     let x = d.x + d.w - 56;
     tb.top.filter((i) => !(i.cls || '').includes('avatar') && i.icon !== 'chevL').reverse().forEach((it) => { html += abs(x, ty, 44, 44, icon(it.icon, 20), `tb ${it.on ? 'on' : ''}`); x -= 50; });
-    if (tb.top.some((i) => i.icon === 'chevL')) html += abs(d.x + 12, ty, 44, 44, icon('chevL', 20), 'tb');
+    if (tb.top.some((i) => i.icon === 'chevL')) html += abs(d.x + 12 + (g.overlay ? 50 : 0), ty, 44, 44, icon('chevL', 20), 'tb');
     if (editing) html += abs(d.x, cfg.h - cfg.bottom - 56, d.w, 50, `<span class="glass bulkbar">${tb.bottom.map((it) => `<span class="${it.disabled ? 'dis' : ''} ${it.cls || ''}">${icon(it.icon, 18)}${d.w >= 440 ? it.label : ''}</span>`).join('')}</span>`, '', 'display:flex;justify-content:center;z-index:22');
     else html += abs((cfg.w - 220) / 2, gk === 'PD' ? 26 : cfg.h - cfg.bottom - 58, 220, 56, tabsH, 'glass tabbar h');
   }
 
   // sidebar column (regular): home list with the collection selected
-  if (split) {
+  if (split && !g.overlay) {
     const c0 = g.cols[0];
     const ty = g.bars === 'side' ? 14 : g.top + (gk === 'PD' ? 80 : 50);
     html += abs(c0.x + 20, ty, c0.w - 40, 60, `<div class="ttl" style="font-size:34px;line-height:41px">${games ? 'Games' : 'Puzzles'}</div><div class="sub">${games ? '33 games in 3 collections' : '26 puzzles in 3 collections'}</div>`);
@@ -233,7 +234,7 @@ function compose(id, k, opts = {}) {
   // keyboard for active search
   if (st.search === 'active' || st.search === 'query') html += keyboard(g, cfg);
   html += overlays(st, g, cfg, d, x, w);
-  const chips = [{ text: cfg.size }, { text: split ? `detail column of NavigationSplitView (${Math.round(d.w)} pt)` : 'NavigationStack (split collapsed)', kind: 'ct' }];
+  const chips = [{ text: cfg.size }, { text: g.overlay ? `detail of NavigationSplitView, .detailOnly (${Math.round(d.w)} pt); sidebar button` : split ? `detail column of NavigationSplitView (${Math.round(d.w)} pt)` : 'NavigationStack (split collapsed)', kind: 'ct' }];
   if (editing) chips.push({ text: g.bars === 'side' ? 'bulk bar: .bottomBar → bottom of the side bar; tab bar hidden' : (d.w >= 440 ? 'bulk bar: .bottomBar, titled items' : 'bulk bar: .bottomBar, symbols (column too narrow for titles)'), kind: 'ct' });
   if (gk === 'FB') chips.push({ text: 'sidebar on the left page, detail on the right', kind: 'fix' });
   if (w < d.w - 32) chips.push({ text: 'readable width 672 pt', kind: 'fix' });
@@ -251,7 +252,7 @@ function overlays(st, g, cfg, d, x, w) {
   const o = st.overlay; if (!o) return '';
   let html = '';
   const sideX = cfg.side ? (cfg.side.edge === 'R' ? cfg.w - cfg.side.w : cfg.side.w) : null;
-  const tb = toolbarFor(st, g.cols.length > 1);
+  const tb = toolbarFor(st, g.split);
   const itemY = (icon) => 186 + 52 * tb.top.findIndex((i) => i.icon === icon);
   const menuAt = (iconName, w2) => g.bars === 'side' ? { x: (cfg.side.edge === 'R' ? sideX - w2 - 8 : sideX + 8), y: itemY(iconName) - 6 } : { x: d.x + d.w - 12 - w2, y: g.top + 50 };
   if (o === 'menu') {

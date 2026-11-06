@@ -21,7 +21,7 @@
 <div class="tab" id="var"></div>
 <div class="tab" id="cov"></div>
 <div class="tab note" id="notes">
-  <h2>What this canvas decides (for review, Phase 5)</h2>
+  <h2>What this canvas decides (approved in Phase 5, decisions 13–22)</h2>
   <p><b>One rule from the container shape.</b> Wider than tall → board pane + column (HStack). Taller than wide → stacked (VStack). An active division moves the split onto the fold (FB: left page / right page; FT: top half / bottom half). <code>AnyLayout</code> switches between them so <code>GameViewModel</code>, selection and unsaved moves survive (§6.15). Board size is computed from the container, never the device.</p>
   <p><b>Every control is a system toolbar item.</b> Top: Back, Flip Board, Engine Lines (toggle), and the overflow menu. Bottom (<code>.bottomBar</code>): Previous / Next Move. The system puts them in the side bar on O, SV, IL and FB (top items at the top, bottom items at the bottom), and in the navigation bar and bottom toolbar on IP, FT and iPad. This replaces today's custom capsule (<code>.safeAreaBar</code>), so nothing custom has to track <code>toolbarVerticalEdge</code>, and the move list gains the capsule's 64 pt.</p>
   <p><b>Overflow.</b> The game ⋯ menu becomes <code>ToolbarOverflowMenu</code> (F16): Save / Edit Details / Add Comment · Show/Hide Evaluation · Copy PGN / Export PGN… · Delete Game. Ellipsis now means overflow only.</p>

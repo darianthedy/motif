@@ -121,7 +121,8 @@ function compose(id, k, opts = {}) {
   else html += home(st, g, cfg, fs);
   const chips = [{ text: cfg.size }];
   if (st.scr === 'puzzles' || st.scr === 'games') {
-    chips.push({ text: g.cols.length > 1 ? `TabView › NavigationSplitView: sidebar ${Math.round(g.cols[0].w)} + detail ${Math.round(g.cols[1].w)}` : 'TabView › NavigationSplitView (collapsed to a stack)', kind: 'ct' });
+    chips.push({ text: g.overlay ? `TabView › NavigationSplitView: detail ${g.cols[0].w}; sidebar ${g.overlay.w} overlays it (${st.empty || st._sidebar ? 'columnVisibility .all' : '.detailOnly'})` : g.cols.length > 1 ? `TabView › NavigationSplitView: sidebar ${Math.round(g.cols[0].w)} + detail ${Math.round(g.cols[1].w)}` : 'TabView › NavigationSplitView (collapsed to a stack)', kind: 'ct' });
+    if (g.overlay) chips.push({ text: st.empty || st._sidebar ? 'sidebar shown: no selection, or the sidebar button' : 'decision 16: detail only, sidebar button', kind: 'fix' });
     chips.push({ text: g.bars === 'side' ? 'tab bar: bottom of the side bar' : gk === 'PD' ? 'tab bar: top (iPadOS)' : 'tab bar: bottom', kind: '' });
     if (gk === 'FB') chips.push({ text: 'column boundary on the fold', kind: 'fix' });
   }
@@ -221,7 +222,7 @@ function home(st, g0, cfg, fs) {
   let html = '';
   const items = [{ icon: 'person', label: 'Account', cls: 'avatar-tb' }, { icon: 'plus', label: games ? 'New Collection' : 'Import Puzzles', disabled: st.offline && !games }];
   if (st._adaptable) g = { ...g, cols: [{ x: 0, w: 200, kind: 'tabs' }, { x: 201, w: 300, kind: 'sidebar' }, { x: 502, w: 365, kind: 'detail' }] };
-  const split = g.cols.length > 1;
+  const split = g.split;
   if (split && !st.empty) items.push({ icon: 'ellipsis', label: 'Collection actions' });
   // tab bar: bottom of the side bar (O, SV, IL, FB), bottom (IP, FT), top (iPad)
   const tabs = `<span class="tabbar-i${games ? '' : ' on'}">${icon('puzzle', 22)}</span><span class="tabbar-i${games ? ' on' : ''}">${icon('board', 22)}</span>`;
@@ -238,6 +239,18 @@ function home(st, g0, cfg, fs) {
     html += statusBar(cfg);
     const ty = g.k === 'PD' ? 26 : cfg.h - cfg.bottom - 58;
     html += abs((cfg.w - 220) / 2, ty, 220, 56, tabsH, 'glass tabbar h');
+    if (g.overlay) {
+      // decision 16: detail only, with the system sidebar button; Account and + live in the sidebar column
+      html += abs(12, g.top, 44, 44, icon('sidebarLeft', 21), 'tb');
+      if (!st.empty) html += abs(cfg.w - 12 - 44, g.top, 44, 44, icon('ellipsis', 21), 'tb');
+      if (!st.empty) html += detail(st, g.cols[0], g.top + 56);
+      if (st.empty || st._sidebar) html += overlaySidebar(g, cfg, games, { empty: st.empty, offline: st.offline, waiting: st.waiting });
+      else if (st.offline) html += abs(20, g.top + 56, cfg.w - 40, 30, banner('offline', st.waiting ? 'Offline · 2 waiting' : 'Offline'), '', 'display:flex;justify-content:flex-end');
+      if (st.banner === 'server') html += transient(g, cfg, 'error', 'Couldn’t reach the server. Changes stay on this device until it answers.');
+      if (st.banner === 'dismiss') html += transient(g, cfg, 'dismiss', 'Couldn’t rename the collection. Try again.');
+      if (st.banner === 'toast') html += transient(g, cfg, 'toast', 'Collection renamed.');
+      return html;
+    }
     // toolbar items at the top of the sidebar column
     const c0 = g.cols[0];
     html += abs(c0.x + c0.w - 12 - 44, g.top + (g.k === 'PD' ? 30 : 0), 44, 44, `<span class="avatar">S</span>`, 'tb');
@@ -311,6 +324,7 @@ function renderCanvas(prefixes) {
       if (p.drawn) {
         if (col === 'SV') { out += compose(s.id, 'SV', { fid: `${s.id}·SV` + (s.id === 'S04a' ? ' (left)' : '') }); if (s.id === 'S04a') out += compose(s.id, 'SVR', { geomKey: 'SVR', fid: 'S04a·SV (right)' }); }
         else out += compose(s.id, col);
+        if (col === 'IP' && (s.id === 'S04a' || s.id === 'S11a')) out += compose(s.id, 'IP', { fid: `${s.id}·IP (sidebar shown)`, caption: 'After tapping the sidebar button: the home list slides over the collection', st: { _sidebar: true } });
         if (col === 'IL' && s.id === 'S04a') out += compose('S04a', 'IL', { fid: 'S04a·IL (.sidebarAdaptable)', caption: 'Comparison only (decision 4): tab sidebar instead of the tab bar', st: { _adaptable: true }, chips: [{ text: 'tab sidebar adds a third column and squeezes the detail: not chosen', kind: 'exc' }] });
       } else out += `<div class="eqcell"><b>${s.id}·${col}</b>= ${p.eq}${p.why ? `<br><i>${p.why}</i>` : ''}</div>`;
     });
@@ -336,5 +350,5 @@ function renderCoverage() {
     rows += '</tr>';
   });
   const hosts = ['S15', 'S09'].map((h) => ['a', 'b', 'c', 'd', 'e'].map((x) => `<tr><th style="text-align:left">S17${x}-${h}</th><td colspan="8" class="eq">on the ${h === 'S15' ? 'Analysis' : 'Session and detail'} canvas (O, IL drawn; other columns equal a drawn frame there)</td></tr>`).join('')).join('');
-  return `<p>${STATES.length} states × ${COLS.length} configurations = ${STATES.length * COLS.length} cells: <b>${drawn} drawn</b>, ${eq} equal to a drawn frame, 0 blank. Plus 20 system-variant frames, S04a on the right Split View half and the .sidebarAdaptable comparison. S17 on the S09 and S15 hosts is drawn on those canvases.</p><table class="cov"><tr><th></th>${COLS.map((c) => `<th>${c}</th>`).join('')}</tr>${rows}${hosts}</table>`;
+  return `<p>${STATES.length} states × ${COLS.length} configurations = ${STATES.length * COLS.length} cells: <b>${drawn} drawn</b>, ${eq} equal to a drawn frame, 0 blank. Plus 20 system-variant frames, S04a·IP and S11a·IP with the sidebar shown, S04a on the right Split View half and the .sidebarAdaptable comparison. S17 on the S09 and S15 hosts is drawn on those canvases.</p><table class="cov"><tr><th></th>${COLS.map((c) => `<th>${c}</th>`).join('')}</tr>${rows}${hosts}</table>`;
 }

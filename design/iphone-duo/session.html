@@ -20,7 +20,7 @@
 <div class="tab" id="var"></div>
 <div class="tab" id="cov"></div>
 <div class="tab note" id="notes">
-  <h2>What this canvas decides (for review)</h2>
+  <h2>What this canvas decides (approved in Phase 5, decisions 13–22)</h2>
   <p><b>Same rule as the Analysis canvas</b> (<code>boardGeom</code>, decisions 5, 10, 11), with no eval bar. Puzzle detail, the session and Puzzle analysis show the same board size in a given pose, so tapping Analyze doesn't resize the board.</p>
   <p><b>The board always fits without scrolling (F1, F2, F11).</b> Today the session and detail boards fill the width inside a <code>ScrollView</code> / <code>List</code>. Here the board is pinned and only the column scrolls: the session no longer competes with piece drags, and puzzle detail's info rows scroll under a fixed board on compact.</p>
   <p><b>Session.</b> End Session and Flag are top toolbar items. <b>Skip becomes a <code>.bottomBar</code> item</b> ("Skip" with <code>forward.fill</code>): bottom of the side bar on O, SV, IL and FB; a titled capsule in the bottom bar on IP, FT and iPad. That removes the custom overlay that collided with the toast and the error banner (F24, F25). The prompt capsule and the piece pickers sit under the board (stacked) or at the top of the column (two panes); pickers no longer cover the board (F12).</p>

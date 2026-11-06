@@ -18,6 +18,7 @@ const MIN_TARGET = 44;
 
 const ICONS = {
   chevL: '<path d="M15 4l-8 8 8 8"/>',
+  sidebarLeft: '<rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M9.5 4.5v15M5.5 8h1.5M5.5 11h1.5"/>',
   chevR: '<path d="M9 4l8 8-8 8"/>',
   ellipsis: '<circle cx="5" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.7" fill="currentColor" stroke="none"/>',
   flip: '<path d="M7 20V4M3.5 7.5L7 4l3.5 3.5M17 4v16M13.5 16.5L17 20l3.5-3.5"/>',
@@ -413,10 +414,31 @@ function shellGeom(k) {
   else if (k === 'SVR') { g.bars = 'side'; g.cols = [{ x: 13.5, w: 371.5, kind: 'single' }]; g.top = 0; }
   else if (k === 'IL') { g.bars = 'side'; g.cols = [{ x: 0, w: 340, kind: 'sidebar' }, { x: 341, w: 526, kind: 'detail' }]; g.top = 0; }
   else if (k === 'FB') { g.bars = 'side'; g.cols = [{ x: 0, w: 455.5, kind: 'sidebar' }, { x: 495.5, w: 371.5, kind: 'detail' }]; g.top = 0; }
-  else if (k === 'IP' || k === 'FT') { g.bars = 'nav'; g.cols = [{ x: 0, w: 300, kind: 'sidebar' }, { x: 301, w: 368, kind: 'detail' }]; g.top = 50; }
+  // Decision 16 (8B): on open tall (669 pt) the detail takes the full width and the home list
+  // slides over it from the leading edge (NavigationSplitView, columnVisibility .detailOnly /
+  // .all with the system sidebar button), as on iPad in portrait.
+  else if (k === 'IP' || k === 'FT') { g.bars = 'nav'; g.cols = [{ x: 0, w: 669, kind: 'detail' }]; g.overlay = { w: 320 }; g.top = 50; }
   else if (k === 'PD') { g.bars = 'nav'; g.cols = [{ x: 0, w: 360, kind: 'sidebar' }, { x: 361, w: 833, kind: 'detail' }]; g.top = 24; }
   g.contentX0 = g.cols[0].x; g.contentX1 = g.cols[g.cols.length - 1].x + g.cols[g.cols.length - 1].w;
+  g.split = g.cols.length > 1 || !!g.overlay;
   return g;
+}
+
+// Overlay sidebar (decision 16): the home list over the dimmed detail, shown with the
+// system sidebar button. Width 320 pt, the system's overlay column width on a 669 pt window.
+function overlaySidebar(g, cfg, games, o = {}) {
+  const w = g.overlay.w, top = g.top;
+  let h = abs(0, 0, cfg.w, cfg.h, '', 'dimmer', 'z-index:40');
+  let inner = abs(12, top, 44, 44, icon('sidebarLeft', 21), 'tb on');
+  inner += abs(w - 12 - 44, top, 44, 44, '<span class="avatar">S</span>', 'tb');
+  inner += abs(w - 12 - 94, top, 44, 44, icon('plus', 21), 'tb');
+  inner += abs(20, top + 50, w - 40, 60, `<div class="ttl" style="font-size:34px;line-height:41px">${games ? 'Games' : 'Puzzles'}</div><div class="sub">${o.empty ? '' : games ? '33 games in 3 collections' : '26 puzzles in 3 collections'}</div>`);
+  if (o.offline) inner += abs(20, top + 54, w - 40, 30, banner('offline', o.waiting ? 'Offline · 2 waiting' : 'Offline'), '', 'display:flex;justify-content:flex-end');
+  const list = o.empty ? '' : games ? gamesList({ _split: true }) : puzzlesList({ _split: true });
+  if (list) inner += abs(16, top + 122, w - 32, cfg.h - top - 122 - cfg.bottom, list, 'listwrap', 'overflow:hidden');
+  else inner += abs(0, top + 180, w, 300, cuv(games ? 'board' : 'puzzle', games ? 'No Games Yet' : 'No Puzzles Yet', games ? 'Create a collection, then import PGN or play moves on the board.' : 'Import puzzles from text or a file to start solving.', pbtn(games ? 'New Collection' : 'Import Puzzles', { prom: true, dis: o.offline && !games })));
+  h += abs(0, 0, w, cfg.h, inner, '', 'z-index:41;background:var(--bg2);box-shadow:0 0 30px rgba(0,0,0,.25)');
+  return h;
 }
 
 

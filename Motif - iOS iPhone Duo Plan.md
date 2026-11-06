@@ -16,7 +16,8 @@
 > (https://claude.ai/artifact/RKcf2qk5mBRwyKdTj1MhRN).
 >
 > Checked against the code at `fd6675b` and Apple's guidance on 2026-11-02.
-> Decisions recorded 2026-11-03 (§10). Outer-display Analysis options:
+> Decisions recorded 2026-11-03 (§10); Phase 5 review approved 2026-11-06
+> (decisions 13–22, §8.6). Outer-display Analysis options:
 > https://claude.ai/artifact/1jThHMrrJzkPHC77F25JR2
 >
 > Phase 4 canvases (`design/iphone-duo/`, open the HTML in a browser):
@@ -1012,8 +1013,36 @@ Open for Phase 5:
 - ~~Q1 — FT board~~ settled as decision 10.
 - ~~Q2 — IL board~~ settled as decision 11.
 
-**Phase 5 — Review.** Settle §10 with the user, update the mockups, and record
-the decisions here (like §7 of the refresh plan).
+**Phase 5 — Review.** *Done 2026-11-06 (§8.6).* Settle §10 with the user, update
+the mockups, and record the decisions here (like §7 of the refresh plan).
+
+### 8.6 Phase 5 results (2026-11-06)
+
+The user reviewed the five canvases (rendered contact sheets of S15a, S15c, S09a,
+S09i, S08a, S04a, S12f and S14c in every pose) and approved every recommendation,
+asking for the approaches Apple documents and follows in its own design guidance.
+The design is for the first release and will change after it ships. Recorded as
+decisions 13–22 (§10). Each names the API it rests on, so the build prompts (Phase 6)
+can cite it.
+
+Canvas changes:
+- **Decision 16** (open tall, IP and FT): `shellGeom` gives the detail the full 669 pt
+  with an overlay sidebar (320 pt). `shell.js` draws S04a·IP and S11a·IP twice:
+  detail only, and with the sidebar shown. The empty states (S04d, S11b) show the
+  sidebar, since nothing is selected. The Lists canvas detail on IP is now 669 pt
+  (bulk-bar items titled), with the sidebar button before Back. Coverage counts are
+  unchanged apart from the two extra frames. FT follows IP as before.
+- The "for review" headings on all five canvases now read "approved in Phase 5".
+- Decisions 13–15, 17–22 were already drawn as approved; no frame changed.
+
+Carried into Phase 6:
+- D02 checks on the device which overlay `NavigationSplitViewStyle.automatic` gives
+  at 669 pt (decision 16) before choosing a style explicitly.
+- `ToolbarOverflowMenu` and `toolbarVerticalBehavior` are iOS 27.1 APIs. Every use
+  is gated with `if #available(iOS 27.1, *)`, with today's `Menu` (ellipsis) and
+  default toolbar behavior as the fallback on iOS 26.1 to 27.0 (§8 Phase 0).
+- Decisions 13, 14, 15, 17, 18, 19 and 22 also change a normal iPhone. D01's regression
+  pass and D09's screenshot tests cover an iPhone 17 alongside the Duo poses.
 
 **Phase 6 — Slices.** Turn the approved mockups into build prompts (§9) in the
 existing format (`scripts/run-ios-*-prompts.sh`).
@@ -1066,6 +1095,49 @@ existing format (`scripts/run-ios-*-prompts.sh`).
 12. **Regular-width split: two columns** (home list | selected collection), not the
     three sketched in §7. A pushed board screen hides the sidebar. A third column
     would leave the puzzle detail board under 300 pt at 867 pt (user, 2026-11-05).
+
+13. **Analysis controls: system toolbar items, no custom capsule** (F24). Flip
+    Board and Engine Lines are `ToolbarItem`s at the top, Previous / Next Move a
+    `ToolbarItemGroup(placement: .bottomBar)`, each a `Button(_:systemImage:)` so
+    it has a title and a symbol. The game ⋯ menu becomes `ToolbarOverflowMenu`
+    (F16; iOS 27.1, gated). The `.safeAreaBar` capsule goes. Applies on every
+    iPhone (user, 2026-11-06).
+14. **Skip: a `.bottomBar` toolbar item** (`Button("Skip", systemImage:
+    "forward.fill")`) instead of the overlay (F24, F25). Every iPhone.
+15. **Result card on compact width: sized to its content**, capped at 62 % of the
+    container height and scrolling past that (S09l). `ResultCard` keeps its
+    `ViewThatFits`; the cap comes from the container size the screen already
+    reads. On two panes the card sits in the column; stacked with room (IP, FT),
+    below the board (F5).
+16. **Open tall (IP, FT) homes: detail only, sidebar over it.** The same
+    `NavigationSplitView(columnVisibility:)`; with a collection selected the window
+    shows the detail with the system sidebar button, and the home list slides over
+    it (overlay), as on iPad in portrait. With nothing selected the sidebar shows.
+    D02 starts from `.navigationSplitViewStyle(.automatic)` and switches to
+    `.prominentDetail` by container width only if the device shows two columns at
+    669 pt. Two columns stay on IL, FB and iPad landscape (decision 12). Replaces
+    the 300 + 368 pt split drawn in Phase 4.
+17. **Promotion and piece pickers: in the layout, not over the board** (F12). A
+    row of four 56 pt `Button`s under the board (stacked) or at the top of the
+    column (two panes). Every iPhone.
+18. **Puzzle detail: the board is pinned** (F1, F11). The board sits outside the
+    `List`, which scrolls under it in the column or below it; no `ScrollView`
+    around the board in puzzle detail or the session. Every iPhone.
+19. **Search scopes on presentation** (F23):
+    `.searchScopes($scope, activation: .onSearchPresentation)`, so a scope can be
+    picked before typing. Every iPhone.
+20. **Edit mode: Select All / Deselect All is a toolbar item** with a title and a
+    symbol, beside Done (F30). The bulk actions stay a `.bottomBar` group.
+21. **New Game preview: capped.** Sheets at least 600 pt wide (IL, iPad) put the
+    board beside the form; narrower ones (O, SV, IP, FT, FB) stack it, capped at
+    40 % of the visible sheet, one `AnyLayout` switched by container width so the
+    FEN draft survives. With the keyboard up on O that leaves a 96 pt preview,
+    accepted for the first release (F18).
+22. **Banners: one rule everywhere** (F25, F26). Persistent status (Offline,
+    Offline · N waiting) is a pill trailing the title. Transient banners and toasts
+    are a capsule at most 480 pt wide at the bottom of the content
+    (`.safeAreaInset(edge: .bottom)`), clear of bars and never over a board. Every
+    iPhone.
 
 ## 11. Done when
 

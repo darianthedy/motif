@@ -6,9 +6,9 @@
 > design uses standard iOS containers and controls and follows the Human
 > Interface Guidelines (§6).
 >
-> This plan covers **investigation and mockups only**. Implementation slices
-> (D01–D10, §9) are sketched so the mockups can be checked against what we
-> can build. They get their own build prompts once the mockups are approved.
+> This plan covered **investigation and mockups** (Phases 0–5). Phase 6 turned the
+> approved mockups into build prompts: slices D01–D11 in §9, run by
+> `scripts/run-ios-duo-prompts.sh`.
 >
 > Prior work this builds on: UI refresh (`Motif - iOS UI Refresh Plan.md`,
 > mockups https://claude.ai/artifact/LWDMhxnGuDKZFqkdQ79QCb), Analysis view
@@ -1044,24 +1044,496 @@ Carried into Phase 6:
 - Decisions 13, 14, 15, 17, 18, 19 and 22 also change a normal iPhone. D01's regression
   pass and D09's screenshot tests cover an iPhone 17 alongside the Duo poses.
 
-**Phase 6 — Slices.** Turn the approved mockups into build prompts (§9) in the
-existing format (`scripts/run-ios-*-prompts.sh`).
+**Phase 6 — Slices.** *Done 2026-11-07 (§9).* Turn the approved mockups into
+build prompts (§9) in the existing format (`scripts/run-ios-*-prompts.sh`).
 
-## 9. Implementation slices (sketch, for after the mockups)
+### 8.7 Build log
 
-| Slice | Scope |
-|---|---|
-| D01 | Build with Xcode 27.1 (`runs-on: xcode-27`) in CI and TestFlight, with a regression pass on a normal iPhone; `Info.plist` orientations per decisions 2, 3 and 6; iPhone Duo simulator in UI tests |
-| D02 | One `NavigationSplitView` per tab; shared navigation model; toolbar titles and overflow; continuity on fold and unfold |
-| D03 | Puzzles columns (S04, S06, S07, S08 in the detail column) |
-| D04 | Games columns (S11, S12) |
-| D05 | Board layout rule and height caps; Analysis view controls aware of `toolbarVerticalEdge` |
-| D06 | Puzzle detail and session two-pane, with the result card in the trailing pane |
-| D07 | Folded poses: `ReservedRegion` division handling for the board screens (FB/FT) |
-| D08 | Sheets, overlays, banners and toasts clear of the side bar and fold; sign-in and loading column |
-| D09 | Screenshot tests: every mockup cell as a route × simulator pose |
-| D10 | Polish: Dynamic Type AX5, dark mode, Reduce Transparency, VoiceOver order across panes |
-| D11 | iPad: device family, orientations, iPad simulator in CI, spot checks, including Stage Manager window sizes |
+Each slice adds a line or two here: what it settled on the runner or the device
+(e.g. the split view style D02 chose at 669 pt, the iPhone 17 runtime D01 found),
+and anything deferred to a later slice or a follow-up PR.
+
+- *(none yet)*
+
+## 9. Implementation slices
+
+Phase 6 (2026-11-07) turned the approved canvases into one build prompt per slice,
+in the format of the UI refresh (`Motif - iOS UI Refresh Plan.md` §8) and run by
+the same driver. Each slice is one PR with `ios-ci` green.
+
+| Slice | Scope | Main files | Findings, decisions |
+|---|---|---|---|
+| **D01** Toolchain | `ios-ci` and TestFlight on Xcode 27.1 (`xcode-27`); a PR check on an iPhone 17 and on the Duo simulator opened wide (IL); the gated-API file | `.github/workflows/`, `scripts/ios-verify.sh`, `UI/Shared/SystemCompat.swift` | §8 Phase 0, decisions 2, 3 |
+| **D02** Shell | One `NavigationSplitView` per tab with a shared navigation model; titled toolbar items; `ToolbarOverflowMenu`; dialogs from state | `RootView`, `AppState`, `PuzzlesHomeView`, `GamesHomeView`, every ⋯ menu | F15, F16, F31, F32; decisions 4, 12, 16 |
+| **D03** Puzzles columns | Collection and puzzle list as the detail column; readable width; scopes on presentation | `CollectionView`, `PuzzleListView`, `PuzzlesHomeView` | F13, F22, F23; decision 19 |
+| **D04** Games columns | Game collection as the detail column; edit mode toolbar; titled bulk bar | `GameCollectionView`, `GamesHomeView` | F13, F22, F30; decision 20 |
+| **D05** Board layout rule, Analysis | `BoardLayout` (the `boardGeom` rule in Swift) and the Analysis view on it; system toolbar controls; short columns; promotion row | new `UI/Board/BoardLayout.swift`, `GameView`, `MoveListView`, `EngineLinesView` | F6–F9, F12, F24; decisions 5, 11, 13, 17 |
+| **D06** Puzzle detail and session | Both on `BoardLayout`: pinned board, Skip in the bottom bar, the result card in the column, pickers in the layout, session complete | `PuzzleDetailView`, `SessionView`, `PuzzleSolveView`, `MissingPieceSolveView`, `ResultCard`, `PiecePicker` | F1, F2, F5, F10–F12, F25, F27; decisions 14, 15, 17, 18 |
+| **D07** Folded poses | The division (`ReservedRegion`) in `BoardLayout`: FB pages, FT halves, the Split View inner edge | `BoardLayout`, `SystemCompat` | F3, F4, F33; decision 10 |
+| **D08** Sheets, banners, sign-in | One banner rule; sheets per the Sheets canvas; New Game preview cap; Account sheet opt-out; sign-in and loading column | `Banners.swift`, `Toast.swift`, `NewGameView`, `SaveAsGameSheet`, `CommentSheet`, `ImportView`, `ImportPGNView`, `AccountView`, `SignInView`, `RootView` | F17–F20, F22, F26, F29; decisions 21, 22 |
+| **D09** Screenshot tests | `DuoCaptureTests` → one screenshot per drawn cell × pose, on the Duo and an iPhone 17, paired with the rendered mockup frame | `MotifUITests/DuoCaptureTests.swift`, `CaptureFixture`, `ios-duo-capture.yml`, `scripts/` | §8.4 capture issues |
+| **D10** Polish | AX5, dark mode, Reduce Transparency / Increase Contrast, VoiceOver order across panes, contrast | any view | F35; §6.10–6.14 |
+| **D11** iPad | Device family, iPad orientations, iPad simulator in CI, spot checks incl. Stage Manager sizes | `project.pbxproj`, `Info.plist`, workflows | decision 6 |
+
+**Order.** D01 first: until the SDK moves, the app runs in compatibility mode and
+nothing below can be seen. D02 before D03 and D04 (they fill its detail column).
+D05 before D06 and D07 (they use its `BoardLayout`). D08 needs only D01. D09 after
+D02–D08, then D10 and D11. The driver runs them in this order.
+
+**What every slice is checked on.** From D01, `ios-ci` runs `MotifTests` and
+`MotifUITests` twice: on an iPhone 17 and on the iPhone Duo simulator set to IL with
+`duoctl` (as in `ios-duo-capture.yml`). UI tests that only hold in one pose read
+`MOTIF_POSE` (`iphone`, `IL`) and skip elsewhere. A slice that changes layout adds
+UI tests that assert frames, not pixels: board size, the board staying clear of the
+division, a column's width, an item being in the toolbar. Other poses are checked
+by D09's capture run, which the user starts by hand (`ios-duo-capture.yml`,
+`only` = the slice's states) when a slice wants a look before D09.
+
+### 9.1 Running the slices
+
+**One fresh Claude session per slice**, in order, each ending in a PR with
+`ios-ci` green, then merge.
+
+- **Unattended:** from a clean, dedicated checkout on `main`, run
+  `scripts/run-ios-duo-prompts.sh` (all slices) or `scripts/run-ios-duo-prompts.sh
+  D05` (resume at D05). It reuses `run-ios-prompts.sh`: branch `ios-duo/Dxx`, PR,
+  CI fix loop, merge, TestFlight check (`SKIP_TESTFLIGHT=1` to skip that wait).
+  Merge this plan (with Phase 5's PR #50) to `main` first, since the driver
+  branches from `main`.
+- **By hand:** open a new session in the repo, paste the slice's **Run** line,
+  review the PR, merge, then start the next slice in a new session.
+- **On the device:** each merge to `main` uploads a TestFlight build (Xcode 27.1
+  from D01). Device checks named in a slice's **Device** line are for the user,
+  after the merge; they don't block the driver. Anything they turn up becomes a
+  follow-up PR before the next dependent slice.
+
+There is no Mac-mode variant: the Duo simulator and the 27.1 SDK exist only on
+the `xcode-27` runner.
+
+### 9.2 Shared rules (inlined into every slice)
+
+> 1. **UI only.** Do not change `Model/`, `Data/`, `Engine/` or the behaviour
+>    `src/` defines. View models may change shape; the rules they enforce may not.
+> 2. **The approved canvases are the spec**, with §10 decisions 4–22 and §8.5–8.6.
+>    They are static HTML in `design/iphone-duo/` (`README.md` there): read the
+>    canvas file's state table and `kit.js` (`CFG`, `boardGeom`, `shellGeom`) for
+>    sizes, and render the frames the slice names to PNG and look at them
+>    (`npm ci` once, then `PLAYWRIGHT_FROM=$PWD/node_modules/ node
+>    design/iphone-duo/render.mjs design/iphone-duo/<canvas>.html /tmp/duo
+>    "<tab>:#<cell>"`; `npx playwright install chromium` if it asks). Where a
+>    frame and this text disagree, the decision in §10 wins; say so in the PR.
+> 3. **Lay out by container size and size class**, never by idiom, orientation,
+>    `UIScreen` or a pose (§6.2–6.3). One view tree per screen: switch layouts with
+>    `AnyLayout` or modifiers so `@State` (sessions, drafts, selection, unsaved
+>    moves) survives a fold (§6.15). No new `GeometryReader` where a container
+>    size read (`onGeometryChange`, `containerRelativeFrame`) does the job.
+> 4. **iOS 27.1 APIs are gated.** The deployment target stays 26.1. Every use of
+>    `ToolbarOverflowMenu`, `toolbarVerticalBehavior`, `toolbarVerticalEdge`,
+>    `ReservedRegion` / `reservedRegions` and `ArrangementView` goes through a
+>    wrapper in `UI/Shared/SystemCompat.swift` with `if #available(iOS 27.1, *)`
+>    and today's behaviour as the fallback. Check each API against Apple's
+>    documentation (developer.apple.com) before writing it; these APIs are newer
+>    than most training data, so don't guess a signature. Keeping them in one file
+>    keeps a compile fix in one place.
+> 5. **System components first** (§6.1, §6.5): `NavigationSplitView`, `.toolbar`
+>    with `ToolbarItem` / `ToolbarItemGroup`, `Button(_:systemImage:)` so every
+>    item has a title and a symbol, `.searchable`, `confirmationDialog` /
+>    `alert` driven from state, `.sheet` with `SheetToolbar`. No custom capsule,
+>    overlay or bar where a system piece exists.
+> 6. **Keep accessibility identifiers** the UI tests use, on whatever control now
+>    does that job. Items in the vertical side bar lose their identifier (§8.3), so
+>    UI tests find toolbar items by title there, as `DuoCaptureTests` does. Update
+>    `MotifUITests` in the same slice for anything you move.
+> 7. **Never show tags, comments or motif while solving.**
+> 8. **Synchronized folders:** new files under `Motif/`, `MotifTests/`,
+>    `MotifUITests/` need no `project.pbxproj` edit.
+> 9. **No Mac, so CI is the compiler.** Done = `ios-ci` green on both
+>    destinations + the slice's "Done when" + nothing from a later slice. Record
+>    anything the slice settles or defers in §8.7 of this plan, in one or two lines.
+
+### D01 — Toolchain on Xcode 27.1
+
+**Run:**
+> In this repo, read `Motif - iOS iPhone Duo Plan.md` §2, §8 (Phase 0, §8.1, §8.2,
+> §8.6) and §9 → **D01**. Move `ios-ci` and the TestFlight build to Xcode 27.1 on
+> `xcode-27`, run the tests on an iPhone 17 and on the iPhone Duo simulator opened
+> wide, and add the gated-API file. Get `ios-ci` green.
+
+**Build:**
+- `ios-ci.yml`: `runs-on: xcode-27`, Xcode pinned to `27.1` (as
+  `ios-duo-capture.yml` does). A matrix of two destinations: `iphone` (an iPhone
+  17; on an iOS 26.x simulator runtime if the image has one, so the 26.1 fallbacks
+  run, otherwise on 27.1, and say which in §8.7) and `IL` (the iPhone Duo, set
+  open + landscape with `duoctl` before the tests, as `scripts/ios-duo-capture.sh`
+  does). `fail-fast: false`; the xcresult upload names the destination. The
+  driver waits on the workflow run, so a red destination fails the run. Keep the
+  `web` job and the `paths` filter (every slice touches `iOS/**`).
+- `scripts/ios-verify.sh`: an optional `MOTIF_SIM` (device name or UDID) and
+  `MOTIF_POSE`, passed to the tests as a test-plan environment variable; the
+  default stays "first available iPhone" so the Mac flow still works.
+- `ios-testflight.yml`: Xcode 27.1 on `xcode-27` becomes the default for pushes
+  to `main`; the `xcode_27` input becomes `xcode_26` (fallback to `macos-26`).
+  Build numbers stay in one sequence.
+- `UI/Shared/SystemCompat.swift`: the home for gated wrappers (§9.2 rule 4),
+  empty but for a short doc comment and one wrapper the next slices need first:
+  `View.motifToolbarVerticalBehaviorDisabled()` or similar, checked against the
+  docs. Nothing in the app uses it yet.
+- `Info.plist`: no change. Decision 2 (outer display portrait only) is today's
+  value, and Phase 1 showed Split View needs none (decision 3). iPad keys wait
+  for D11.
+- Fix only what the 27.1 SDK breaks (deprecations that fail the build, test
+  queries that no longer match on the Duo). Tests that can't hold on IL until a
+  later slice (e.g. a tap on a toolbar item by identifier) switch to the title.
+
+**Out of scope:** any layout change. **Device:** the TestFlight build from this
+merge runs edge to edge on the Duo, closed and open.
+**Done when:** `ios-ci` green on both destinations at Xcode 27.1; the merge to
+`main` uploads a 27.1 TestFlight build.
+
+### D02 — Shell: split view per tab, toolbars, overflow, dialogs
+
+**Run:**
+> In this repo, read `Motif - iOS iPhone Duo Plan.md` §1, §6, §7 "App shell",
+> §8.5 "Shell and homes", §8.6, §10 (decisions 4, 7, 12, 13, 16) and §9 → **D02**.
+> Put each tab in one `NavigationSplitView` with a shared navigation model, give
+> every toolbar item a title, move custom ⋯ actions into `ToolbarOverflowMenu`, and
+> drive every confirmation dialog from state. Get `ios-ci` green.
+
+**Mockups:** `shell.html` homes tab: S04a, S04d, S11a, S11b on O, IL, IP (both
+S04a·IP frames), FB; S04g–j and S11d–h (overlays, O and IL); the
+`.sidebarAdaptable` comparison is not built.
+**Build:**
+- **Navigation model.** `AppState` keeps one selection per tab
+  (`puzzlesCollection`, `gamesCollection`: the collection shown in the detail
+  column) plus `puzzlesPath` / `gamesPath` for what is pushed on top of it, and
+  `columnVisibility` per tab. Selecting a collection in the sidebar sets the
+  selection and clears the path. Existing callers and launch routes that set a
+  full path (`[.collection(id), .puzzles(id), .puzzle(…)]`) keep working through
+  one function that splits it into selection + path; add a `MotifTests` case for it.
+- **Shell.** `TabView` (two tabs, unchanged) → in each tab
+  `NavigationSplitView(columnVisibility:)`: sidebar = the home list (selection
+  bound to the tab's collection), detail = `NavigationStack(path:)` rooted at the
+  selected collection screen, or the home's empty state when nothing is selected.
+  Compact width collapses to one stack by itself; check that Back from the
+  collection returns to the home list and clears the selection. A pushed board
+  screen (puzzle detail, Analysis view) sets `.detailOnly`; popping restores the
+  previous visibility. Start from `.navigationSplitViewStyle(.automatic)`
+  (decision 16); if IP (669 pt) shows two columns rather than the overlay sidebar,
+  switch to `.prominentDetail` below a width threshold and record it in §8.7.
+  Sidebar width per `shellGeom` (340 pt on IL) via
+  `.navigationSplitViewColumnWidth`. `libraryBanners()` stays on every column
+  root and pushed screen.
+- **Toolbars (F31, F32, decision 13 groundwork).** Tabs keep their titled `Tab`;
+  check the vertical tab bar's labels against the frames and record what the
+  system shows. The avatar becomes `Button("Account", systemImage:
+  "person.crop.circle")` in the toolbar beside + (identifier kept). Every toolbar
+  item in the app is a `Button(_:systemImage:)` or a `Menu` with a titled label;
+  give status-bearing items a higher `ToolbarItemVisibilityPriority` where the
+  docs offer it.
+- **Overflow (F16).** One wrapper in `SystemCompat.swift`: on 27.1 the custom
+  actions go in `ToolbarOverflowMenu`; before 27.1, today's `Menu` with the
+  ellipsis. Use it for the Analysis game menu, puzzle detail (Copy FEN, Delete
+  Puzzle), collection and game collection ⋯ menus. + (Add Games) keeps its own
+  `Menu` with a plus symbol. Keep `game-actions` and the other identifiers on the
+  fallback; on 27.1 tests find the items by title.
+- **Dialogs (F15).** Every `confirmationDialog` presented from a menu item or
+  overflow item is driven by a state flag set by the item and attached to the
+  screen (or to the row for row actions), never inside the menu, so it doesn't
+  anchor to a control that moved. The Account reset dialog anchors to its row
+  inside the sheet.
+- **Continuity.** A `MotifTests` case on the navigation model: with a collection
+  selected and a puzzle pushed, collapsing to one stack and expanding again keeps
+  both. A UI test on IL opens a collection and a puzzle through the sidebar. The
+  fold itself is a device check.
+
+**Out of scope:** detail column contents and widths (D03, D04), board layouts (D05),
+banners (D08).
+**Device:** the overlay `.automatic` gives on IP (decision 16); fold/unfold with a
+collection and a puzzle open keeps both; Split View halves show the compact stack.
+**Done when:** on IL the homes show sidebar + detail and a pushed board hides the
+sidebar; on the iPhone 17 navigation is unchanged; every ⋯ is the overflow wrapper;
+UI tests updated; CI green on both destinations.
+
+### D03 — Puzzles columns
+
+**Run:**
+> In this repo, read `Motif - iOS iPhone Duo Plan.md` §6.7, §7 "Lists", §8.5
+> "Lists" and "Shell and homes", §10 (decisions 12, 19) and §9 → **D03**. Fit
+> Puzzles home, the collection and the puzzle list to the split view columns at
+> readable width, and show search scopes on presentation. Get `ios-ci` green.
+
+**Mockups:** `shell.html` homes tab S04a–f on O, IL, IP; `lists.html` S06a–g, S07a–i
+on O, IL, IP, FB (detail 526 pt on IL, the right page on FB, 669 pt on IP).
+**Build:**
+- Sidebar rows for Puzzles home (Practice section, collections with progress rings)
+  as drawn: selection highlight on regular width, push on compact. Practice actions
+  (Solve All, Review) still start sessions and don't change the selection.
+- Detail column: collection stats card and session card, puzzle list rows and
+  thumbnails at the column's width; on iPad-sized columns, content capped at
+  ~672 pt (§6.7) with `.frame(maxWidth:)` centred, lists left to the system.
+- Empty states (F13): `ContentUnavailableView` descriptions wrap within the
+  readable width.
+- Search scopes (F23, decision 19): `.searchScopes($scope, activation:
+  .onSearchPresentation)` (check the parameter name in the docs; gate if it is
+  27.1-only). S07c becomes reachable: activate search, pick Flagged, no text.
+- Keep `solve-ordered`, `resume-session`, `browse-puzzles`, `puzzle-<id>`,
+  `collection-<id>`, `solve-all`, `import-puzzles`.
+
+**Out of scope:** puzzle detail's own layout (D06); the import sheet (D08).
+**Done when:** a UI test picks a scope with an empty query and sees the filtered
+list; on IL the puzzle list fills the detail column beside the sidebar; CI green.
+
+### D04 — Games columns
+
+**Run:**
+> In this repo, read `Motif - iOS iPhone Duo Plan.md` §6.5, §7 "Lists", §8.5
+> "Lists" and "Shell and homes", §10 (decisions 12, 20) and §9 → **D04**. Fit
+> Games home and the game collection to the split view columns, and move Select
+> All / Deselect All into the toolbar with titled bulk actions. Get `ios-ci` green.
+
+**Mockups:** `shell.html` homes tab S11a–i; `lists.html` S12a–q on O, IL, IP, FB
+and the "enter Split View in edit mode" storyboard.
+**Build:**
+- Games home as the sidebar, the game collection as the detail column, as D03 did
+  for Puzzles (readable width, empty states F13).
+- Edit mode (F30, decision 20): `Button("Select All", systemImage:
+  "checkmark.circle")` / `Button("Deselect All", systemImage: "circle")` as a
+  toolbar item beside Done. The bulk actions stay one
+  `ToolbarItemGroup(placement: .bottomBar)` of titled `Button(_:systemImage:)`s
+  (Move, Copy, Export, Delete), so the system puts them in the side bar or the
+  bottom capsule.
+- Edit mode and the selection survive a size change (they live in
+  `GameCollectionModel` / `@State` on the same view): a model test.
+- The destination sheet stays fitted; the share sheet presents from Export.
+- Keep `new-game-collection`, `game-collection-name`, `game-collection-<id>`,
+  `game-search`, `add-games`, `game-row-<id>`.
+
+**Out of scope:** the Analysis view (D05); Import PGN and New Game (D08).
+**Done when:** bulk move/copy/export/delete still work from the toolbar items; UI
+tests find them by title on IL; CI green.
+
+### D05 — Board layout rule and the Analysis view
+
+**Run:**
+> In this repo, read `Motif - iOS iPhone Duo Plan.md` §3, §6.4–6.6, §7 "Board
+> layout rule" and "Analysis view", §8.1, §8.5 "Analysis canvas", §10 (decisions
+> 5, 10, 11, 13, 17) and §9 → **D05**. Port the canvas board rule to a shared
+> `BoardLayout`, rebuild the Analysis view on it with system toolbar controls, and
+> put promotion in the layout. Get `ios-ci` green.
+
+**Mockups:** `analysis.html` s15 tab: S15a, S15b, S15c, S15e, S15f, S15g, S15k, S15v
+on O, SV, IL, IP, and S15a on the 457 pt case-gap check; s10 tab S10a–f on O and IL.
+FB and FT frames are D07's.
+**Build:**
+- `UI/Board/BoardLayout.swift`: a pure function from container size (inside the
+  safe area), size class, eval bar on/off and a minimum column height to a mode
+  (`stack` or `panes`), a board size snapped to 8 pt, and the column frame. It is
+  `boardGeom` in `design/iphone-duo/kit.js` without the device table: wider than
+  tall → panes, board capped by height (504 pt on IL per decision 11, leaving the
+  column ≥ 263 pt); taller than wide → stacked, board by width but leaving the
+  column 240 pt (IP 512 pt); compact → stacked at full width minus margins (O 328 /
+  350 pt). `MotifTests` cases for each §3 size (O, O case gap, SV, IL, IP, PP flat
+  and bent, iPad portrait and landscape), with and without the eval bar, against
+  the canvas numbers. A `division` input is accepted and ignored until D07.
+- `GameView` on it: one `AnyLayout` (`HStackLayout` / `VStackLayout`) switched by
+  the mode, so `GameViewModel`, the analyzer and the sheets survive.
+- **Controls (decision 13, F24).** Remove the `.safeAreaBar` capsule. Flip Board
+  and Engine Lines are top `ToolbarItem`s; Previous / Next Move a
+  `ToolbarItemGroup(placement: .bottomBar)`; all `Button(_:systemImage:)`. The
+  game menu is D02's overflow wrapper. Keyboard arrows stay.
+- **Short columns (F7, F8).** Where the column is short (O, SV, IP), engine lines
+  replace the move list when shown; alternatives are one horizontally scrolling
+  row of 44 pt chips under the board, never over it; the comment card shows one
+  line and opens the sheet. Move rows and chips reach 44 pt where the canvas
+  draws them so (F9 records the rest).
+- **Promotion (decision 17, F12).** A row of four 56 pt `Button`s (titled for
+  VoiceOver) under the board when stacked, at the top of the column on two panes.
+  `BoardView`'s picker overlay goes for the Analysis view; the session keeps it
+  until D06.
+- Puzzle analysis (S10) uses the same view; its offline pill already shows (#48).
+- Keep `eval-bar`, `game-actions`, `game-back`, `square-*`, the move-row and
+  engine-line identifiers.
+
+**Out of scope:** the division (D07); puzzle detail and session (D06).
+**Device:** IL board 504 pt with the column beside it; O unchanged at 328 pt.
+**Done when:** `BoardLayout` tests pass; a UI test on IL finds the board at 504 pt
+(± 1) with Previous / Next in the toolbar; the iPhone 17 Analysis view keeps every
+feature; CI green.
+
+### D06 — Puzzle detail and session
+
+**Run:**
+> In this repo, read `Motif - iOS iPhone Duo Plan.md` §7 "Puzzle detail and
+> session", §8.5 "Session and detail canvas", §10 (decisions 14, 15, 17, 18) and §9
+> → **D06**. Put puzzle detail and the session on `BoardLayout` with the board
+> pinned, Skip in the bottom bar, the result card in the column and the pickers in
+> the layout. Get `ios-ci` green.
+
+**Mockups:** `session.html` s09 tab: S09a, S09b, S09e, S09g, S09i, S09k, S09l, S09m
+on O, SV, IL, IP and the unfold-mid-session storyboard; s08 tab S08a–i on O, IL, IP.
+**Build:**
+- **Pinned board (decision 18, F1, F2, F11).** No `ScrollView` around the board in
+  `SessionView` or `PuzzleDetailView`. The board sits outside the puzzle detail
+  `List`, which scrolls under it in the column or below it. Boards without the
+  eval bar: O 350, SV 336, IL 504, IP 512 pt. 16 pt margins on compact (F10).
+- **Skip (decision 14, F24, F25).** `ToolbarItem(placement: .bottomBar)` with
+  `Button("Skip", systemImage: "forward.fill")`, replacing the overlay; keep
+  `session-skip`.
+- **Result card (decision 15, F5).** On two panes it is the column's content
+  (≤ 560 pt). Stacked with room (IP, FT): below the board. Compact: it still rises
+  from the bottom but is sized to its content (`ViewThatFits`), capped at 62 % of
+  the container height and scrolling past that (S09l).
+- **Pickers (decision 17).** Promotion and the missing-piece picker are rows of
+  56 pt buttons under the board or at the top of the column, using D05's row.
+- **Session complete (F27).** Content ≤ 480 pt wide, centred.
+- Puzzle detail: solution chips 44 pt; the replay controls follow the Analysis
+  bottom bar group; Copy FEN / Delete are already in overflow (D02).
+- The `fullScreenCover` stays. A fold mid-session keeps `SolveModel`: one view
+  tree, `AnyLayout` only.
+- Keep `session-stop`, `session-skip`, `result-verdict`, `result-continue`,
+  `puzzle-comment`, `puzzle-tags`, `choose-*`, `picker-cancel`, `edit-puzzle-comment`;
+  `SolveModel` timing and the drag behaviour from PR #22.
+
+**Out of scope:** the division (D07).
+**Device:** a session solved start to finish on O and IL; unfold mid-puzzle.
+**Done when:** every solve UI test passes unchanged in intent on both
+destinations; on IL the board is 504 pt and the result card doesn't overlap it (a
+frame assertion); CI green.
+
+### D07 — Folded poses and the division
+
+**Run:**
+> In this repo, read `Motif - iOS iPhone Duo Plan.md` §1 (reserved regions), §3,
+> §6.4 and §6.16, §8.1, §8.5, §10 (decisions 8, 10) and §9 → **D07**. Teach
+> `BoardLayout` the fold division so boards never cross it on FB, FT or the Split
+> View inner edge. Get `ios-ci` green.
+
+**Mockups:** `analysis.html` S15a, S15c, S15k, S10a on FB, FT, SVL, SVR and the
+"bend open to book" storyboard; `session.html` S09a, S09e, S09g, S09i, S09m, S08a on
+FB, FT, SVL.
+**Build:**
+- A `SystemCompat` wrapper that reads the active division's frame
+  (`reservedRegions(kind: .division)` / `ReservedRegion`, per the docs) into the
+  layout's coordinate space, nil before 27.1 or when the region is inactive. The
+  frames already include the region's margins (§6.16).
+- `BoardLayout` with a division: vertical (FB) → `pages`: board on the leading
+  page, snapped to 8 pt (Analysis 392 pt with the eval bar, sessions 416 pt), the
+  column on the trailing page; horizontal (FT) → `halves`: board above the
+  division (272 pt, decision 10), controls and column below. The thin Split View
+  strip (13.5 pt, F33) is an inset on that edge, not a split. Tests for each.
+- Analysis, puzzle detail, session and session complete use it; pickers and Skip
+  stay off the division. `onHingeChange` is not used for layout.
+- Layout changes on bend animate with the system; no custom transition.
+
+**Out of scope:** sheets on the fold (system placement, D08 checks).
+**Device:** FB and FT on S15a, S09a, S08a; bend IL → FB in the Analysis view with
+engine lines on.
+**Done when:** layout tests for FB, FT, SVL, SVR pass; CI green. (CI's IL is flat,
+so the division is inactive there: assert the IL layout is unchanged.)
+
+### D08 — Sheets, banners, sign-in
+
+**Run:**
+> In this repo, read `Motif - iOS iPhone Duo Plan.md` §6.8, §7 "Sheets" and "Sign
+> in and loading", §8.1 (sheets and keyboard), §8.5 "Sheets canvas" and "Shell
+> and homes", §10 (decisions 21, 22) and §9 → **D08**. Apply the one banner rule,
+> fit the sheets to the Sheets canvas, cap the New Game preview, and centre sign-in
+> and loading. Get `ios-ci` green.
+
+**Mockups:** `sheets.html` S05a, S05d, S05i, S05j, S13a, S13h, S14a–f, S16a, S16d on
+O, IL, IP, FB and the "fold with a sheet and keyboard" storyboard; `shell.html`
+launch, account and banners tabs (S01, S02, S03, S17 on S04).
+**Build:**
+- **Banners (decision 22, F25, F26).** `libraryBanners()`: Offline / Offline · N
+  waiting is a pill trailing the title (`ToolbarItem` or the navigation subtitle,
+  as drawn); server errors, dismissible errors and the toast are one glass capsule
+  ≤ 480 pt at the bottom of the content via `.safeAreaInset(edge: .bottom)`, clear
+  of bars and never over a board. Keep `offline-banner` and the banner/toast
+  identifiers.
+- **New Game (decision 21, F18).** One `AnyLayout` by the sheet's own width: ≥ 600
+  pt → preview beside the form; narrower → stacked, preview capped at 40 % of the
+  visible sheet height, so the FEN field and its error stay visible. The FEN draft
+  survives the switch.
+- **Offline (F19):** the "needs a connection" note moves to the top of the Import
+  Puzzles, Import PGN and New Game forms.
+- **Comment sheet (F20):** solid background behind the text editor.
+- **Save as Game (F17):** fitted detent (`.presentationSizing(.fitted)` or a
+  measured detent), not `.large`.
+- **Account sheet:** on compact, opt out of the vertical bar (D01's wrapper) so ✕
+  stays in its navigation bar.
+- **Sign in and loading (F22):** a centred column ≤ 480 pt on regular width; with
+  the keyboard up the header collapses to the title so the fields and Sign In stay
+  above it (keep #48's fix). Loading, offline and error states in the same column.
+- Sheet placement stays the system's (`presentationPlacement` not used).
+
+**Out of scope:** board screens' own layout.
+**Device:** S14e on O (96 pt preview), a sheet with the keyboard up while folding.
+**Done when:** a UI test on IL finds the New Game FEN field and board side by side
+and the toast clear of the bottom bar; banner tests updated; CI green.
+
+### D09 — Screenshot tests
+
+**Run:**
+> In this repo, read `Motif - iOS iPhone Duo Plan.md` §5, §8.2, §8.3, §8.4 "Capture
+> issues", §8.5 and §9 → **D09**. Turn `DuoCaptureTests` into the screenshot test
+> run for every drawn mockup cell in every simulator pose plus an iPhone 17, paired
+> with the rendered mockup frame. Get `ios-ci` green.
+
+**Build:**
+- Fix the §8.4 capture issues: the S01b / S01d launch race, S02b on IP, S03j via
+  the `notice` fixture, S05k / S12q waiting for content, S09m recording results,
+  S07c as redefined.
+- New states from Phase 4–5 get routes or fixtures: S04a·IP and S11a·IP with the
+  sidebar shown, S15k/S09e promotion row, the Split View cells stay device-only.
+- `ios-duo-capture.yml`: drop the iOS 26 SDK build (compatibility mode is history
+  after D01); poses O, IL, IP, FB, FT plus `iphone` (iPhone 17). After capture, a
+  job renders the matching canvas frame for every captured cell
+  (`design/iphone-duo/render.mjs`) and joins each pair with `sheet.mjs` into one
+  contact sheet per canvas tab and pose, uploaded as artifacts.
+- `unreached.txt` per pose must be empty apart from S12h (a held drag) and the
+  device-only cells; the job fails otherwise.
+- The PR check stays as D01 left it; this run is manual (`workflow_dispatch`).
+
+**Out of scope:** pixel diffing (the mockups are approximations); fixing layouts
+the sheets reveal (each gets a follow-up PR against its slice).
+**Done when:** a full run on the D09 branch is green with every pose's unreached
+list as above, and the contact sheets are linked in §8.7.
+
+### D10 — Polish
+
+**Run:**
+> In this repo, read `Motif - iOS iPhone Duo Plan.md` §5 rule 6, §6.10–6.14, §8.4
+> (F35) and §9 → **D10**. Check every screen at AX5, in dark mode and with Reduce
+> Transparency / Increase Contrast, fix VoiceOver order across panes and the fold,
+> and fix contrast. Get `ios-ci` green.
+
+**Build:** the system-variant frames on each canvas's `var` tab are the target.
+No key label truncated at AX5 on O and IL (lists may wrap; toolbar items may go to
+overflow). Glass falls back legibly with Reduce Transparency. VoiceOver order on
+two panes and across the fold: board, then moves or solution, then controls
+(`accessibilitySortPriority` or container order). Secondary text ≥ 4.5:1 in light
+and dark (F35). D09's capture gets AX5 and Reduce Transparency fixtures for the
+primary states.
+**Done when:** a UI test at AX5 on IL reaches every primary action; CI green.
+
+### D11 — iPad
+
+**Run:**
+> In this repo, read `Motif - iOS iPhone Duo Plan.md` §3 (PD), §7 "iPad", §10
+> (decision 6) and §9 → **D11**. Make Motif a universal app with the regular-width
+> layouts, all four iPad orientations and an iPad simulator in CI. Get `ios-ci`
+> green.
+
+**Build:** `TARGETED_DEVICE_FAMILY = "1,2"`; `UISupportedInterfaceOrientations~ipad`
+with all four; the iPhone keys unchanged (decision 2). `ios-ci` gains an `ipad`
+destination (11″, landscape). `BoardLayout` tests already cover 834 × 1194 and
+1194 × 834; add a UI test that the iPad shows sidebar + detail and the Analysis
+board fits without scrolling. Stage Manager window sizes fall under the same rule
+(compact windows get the O layout). iPad screenshots for the App Store are a
+release task, not this slice.
+**Out of scope:** iPad-only screens or features; multiple windows (decision 7).
+**Done when:** CI green on all three destinations; the TestFlight build installs on
+an iPad.
 
 ## 10. Decisions
 
@@ -1147,7 +1619,7 @@ existing format (`scripts/run-ios-*-prompts.sh`).
 - The canvases cover every cell required by §5, with no blank cell in the
   coverage grid. Each frame passes the §6 checklist (or records an accepted
   exception), and the links are at the top of this file.
-- §10 decisions are recorded, and §9 is ready to become build prompts.
+- §10 decisions are recorded, and §9 holds a build prompt for every slice.
 
 ## 12. Sources
 

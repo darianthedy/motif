@@ -26,7 +26,7 @@ import XCTest
         toggle("Hide Evaluation"); expect(bar, "exists == false")
         XCTAssertGreaterThanOrEqual(square("a1").frame.width, beside, "The hidden bar gives the board its width back")
 
-        launch("game-eval"); wait(square("e2")); wait(button("game-actions"))
+        launch("game-eval"); wait(square("e2")); wait(button("game-actions", title: "Game actions"))
         XCTAssertFalse(bar.waitForExistence(timeout: 3), "Hide Evaluation lasts across launches")
         toggle("Show Evaluation"); wait(bar); expect(bar, "value == 'White is better by 0.6, depth 22'")
     }
@@ -54,7 +54,7 @@ import XCTest
     }
 
     private func toggle(_ label: String) {
-        button("game-actions").tap()
+        button("game-actions", title: "Game actions").tap()
         let item = button("game-toggle-evaluation"); wait(item)
         // The menu closes once the tap lands, so a dropped tap shows as the item still there.
         XCTAssertEqual(item.label, label); tap(item, until: "exists == false")

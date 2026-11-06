@@ -16,17 +16,17 @@ import XCTest
         launch("game-collection"); let menu = button("add-games"); wait(menu); menu.tap()
         let item = app.buttons["New Game on Board…"]; wait(item); item.tap()
         let create = button("game-new-board"); wait(create); XCTAssertTrue(create.isEnabled)
-        app.buttons["From a FEN"].tap(); let fen = app.descendants(matching: .any)["game-start-fen"]; wait(fen); fen.tap(); fen.typeText("bad")
+        app.buttons["From a FEN"].tap(); type("bad", into: app.descendants(matching: .any)["game-start-fen"])
         dismissKeyboard(); wait(app.descendants(matching: .any)["game-fen-error"]); expect(create, "isEnabled == false"); capture("new-game-invalid")
         app.buttons["Standard Start"].tap(); expect(create, "isEnabled == true"); create.tap()
         // The sheet's preview board is one element, so these squares are the viewer's.
-        wait(button("game-actions")); wait(square("e2")); XCTAssertTrue(square("e2").label.contains("Pawn"))
+        wait(button("game-actions", title: "Game actions")); wait(square("e2")); XCTAssertTrue(square("e2").label.contains("Pawn"))
     }
     func testStepPlayVariationCommentPromoteFlipAndExport() {
         launch("game:sample"); wait(square("e2")); XCTAssertTrue(square("e2").label.contains("Pawn"))
         tap(button("game-next-move"), until: "label CONTAINS 'Pawn'", on: square("e4"))
         hold(button("game-previous-move"), until: "label CONTAINS 'empty'", on: square("e4")); move("c2", "c4"); wait(button("move-1"))
-        button("game-actions").tap(); wait(button("game-edit-comment")); button("game-edit-comment").tap(); let comment = app.textViews["game-comment-text"]; wait(comment); comment.tap(); comment.typeText("English idea")
+        button("game-actions", title: "Game actions").tap(); wait(button("game-edit-comment")); button("game-edit-comment").tap(); type("English idea", into: app.textViews["game-comment-text"])
         button("game-comment-save").tap(); wait(button("game-comment")); expect(button("game-comment"), "label CONTAINS 'English idea'")
         // The comment card slides the list down as it appears; press again if the first press landed mid-move.
         let move = button("move-1"), promote = app.buttons["Make Main Line"]
@@ -38,7 +38,7 @@ import XCTest
         let before = square("a1").frame.minY
         button("game-flip-board").tap(); XCTAssertLessThan(square("a1").frame.minY, before)
         capture("annotated-game")
-        button("game-actions").tap(); wait(button("game-export-pgn")); button("game-export-pgn").tap()
+        button("game-actions", title: "Game actions").tap(); let export = button("game-export-pgn", title: "Export PGN…"); wait(export); export.tap()
         let share = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Save to Files' OR label == 'Copy'")).firstMatch
         wait(share); capture("pgn-share-sheet")
     }
@@ -46,7 +46,7 @@ import XCTest
         launch("game:sample"); wait(square("e2")); move("c2", "c4"); wait(button("move-1"))
         button("game-back").tap(); let alert = app.alerts["Save changes to this game?"]; wait(alert); capture("game-unsaved-alert")
         alert.buttons["Cancel"].tap(); XCTAssertTrue(button("move-1").exists)
-        button("game-actions").tap(); wait(button("game-save")); button("game-save").tap()
+        button("game-actions", title: "Game actions").tap(); wait(button("game-save")); button("game-save").tap()
         expect(button("game-back"), "exists == false"); XCTAssertTrue(button("move-1").exists)
         hold(button("game-previous-move"), until: "label CONTAINS 'empty'", on: square("c4")); move("d2", "d4"); wait(button("move-2")); button("game-back").tap(); wait(alert)
         alert.buttons["Discard Changes"].tap(); wait(button("game-row-sample-game"))
@@ -74,7 +74,7 @@ import XCTest
         XCTAssertLessThanOrEqual(banner.frame.maxY, square("a8").frame.minY)
         XCTAssertTrue(button("game-flip-board").isEnabled)
         tap(button("game-next-move"), until: "label CONTAINS 'Pawn'", on: square("e4")); capture("offline-game")
-        button("game-actions").tap(); wait(button("game-edit-comment")); XCTAssertTrue(button("game-edit-comment").isEnabled)
+        button("game-actions", title: "Game actions").tap(); wait(button("game-edit-comment")); XCTAssertTrue(button("game-edit-comment").isEnabled)
         // Close the menu by tapping above the board, where nothing reacts.
         XCTAssertFalse(button("game-save").isEnabled); app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02)).tap()
         move("c7", "c5"); wait(button("game-back")); button("game-back").tap()

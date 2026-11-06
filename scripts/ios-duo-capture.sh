@@ -6,6 +6,7 @@
 #
 #   scripts/ios-duo-capture.sh build                    # build-for-testing with the selected Xcode
 #   scripts/ios-duo-capture.sh capture <pose> <label> [app]
+#   scripts/ios-duo-capture.sh pose <pose>              # boot a fresh Duo in the pose, for ios-ci
 #
 # Poses: O (closed), IL (open, wide), IP (open, tall), FB (half open, wide: book),
 # FT (half open, tall: tabletop). The hinge and rotation are set with duoctl, which
@@ -45,22 +46,10 @@ for devices in json.load(sys.stdin)["devices"].values():
   echo "$udid"
 }
 
-case "${1:-}" in
-build)
-  sim=$(duo) || exit 1
-  scripts/fetch-nnue.sh >/dev/null || exit 1
-  xcodebuild build-for-testing -project "$PROJECT" -scheme Motif -configuration Debug \
-    -destination "platform=iOS Simulator,id=$sim" -derivedDataPath "$DERIVED" \
-    CODE_SIGNING_ALLOWED=NO -quiet || exit 1
-  ls "$PRODUCTS"/*.xctestrun
-  ;;
-capture)
-  pose="${2:?usage: $0 capture <O|IL|IP|FB|FT> <label> [app]}"
-  label="${3:?usage: $0 capture <pose> <label> [app]}"
-  app="${4:-}"
-  dir="$OUT/$label"
-  rm -rf "$dir" "$dir.xcresult"; mkdir -p "$dir"
-  sim=$(duo fresh) || exit 1
+# A fresh capture device, booted and put in a pose; sets $sim and exports DUOCTL_UDID.
+pose_duo() {
+  local pose="$1" want steps attempt command list words
+  sim=$(duo fresh) || return 1
   export DUOCTL_UDID="$sim"
   xcrun simctl boot "$sim" 2>/dev/null || true
   xcrun simctl bootstatus "$sim" -b >/dev/null
@@ -70,16 +59,9 @@ capture)
   if ! ready; then
     echo "No active display after boot; rebooting the simulator" >&2
     xcrun simctl shutdown "$sim"; xcrun simctl boot "$sim"; xcrun simctl bootstatus "$sim" -b >/dev/null
-    ready || { echo "No active display on the iPhone Duo simulator" >&2; exit 1; }
+    ready || { echo "No active display on the iPhone Duo simulator" >&2; return 1; }
   fi
   duoctl state
-
-  if [ -n "$app" ]; then
-    # Same bundle ID, so the UI tests drive whichever app sits at the test target's path.
-    target="$PRODUCTS/Debug-iphonesimulator/Motif.app"
-    rm -rf "$target" && cp -R "$app" "$target" || exit 1
-    xcrun simctl uninstall "$sim" com.dthedy.Motif 2>/dev/null || true
-  fi
 
   # duoctl can briefly find no active display while the screens switch, so each
   # step is retried, and the pose is checked against what it should be.
@@ -97,7 +79,7 @@ sys.exit(0 if abs(s["hingeAngle"] - float(hinge)) < 15 and s["activeScreen"] == 
     # Rotate while open, then bend: bending first and rotating to portrait lands on the cover screen.
     FB) want="90 inner landscape";   steps="open|rotate landscape|half" ;;
     FT) want="90 inner portrait";    steps="open|rotate portrait|half" ;;
-    *) echo "Unknown pose $pose" >&2; exit 1 ;;
+    *) echo "Unknown pose $pose" >&2; return 1 ;;
   esac
   for attempt in 1 2 3; do
     IFS='|' read -ra list <<< "$steps"
@@ -106,9 +88,40 @@ sys.exit(0 if abs(s["hingeAngle"] - float(hinge)) < 15 and s["activeScreen"] == 
     # shellcheck disable=SC2086
     posed $want && break
     echo "Pose $pose not reached (attempt $attempt): $(duoctl state 2>&1 | tr -d '\n ')" >&2
-    [ "$attempt" = 3 ] && { echo "duoctl couldn't set pose $pose" >&2; exit 1; }
+    [ "$attempt" = 3 ] && { echo "duoctl couldn't set pose $pose" >&2; return 1; }
   done
   sleep 2
+}
+
+case "${1:-}" in
+build)
+  sim=$(duo) || exit 1
+  scripts/fetch-nnue.sh >/dev/null || exit 1
+  xcodebuild build-for-testing -project "$PROJECT" -scheme Motif -configuration Debug \
+    -destination "platform=iOS Simulator,id=$sim" -derivedDataPath "$DERIVED" \
+    CODE_SIGNING_ALLOWED=NO -quiet || exit 1
+  ls "$PRODUCTS"/*.xctestrun
+  ;;
+pose)
+  # Leaves "Motif Duo Capture" booted in the pose, for ios-ci's IL destination
+  # (MOTIF_SIM="Motif Duo Capture" scripts/ios-verify.sh).
+  pose_duo "${2:?usage: $0 pose <O|IL|IP|FB|FT>}" || exit 1
+  duoctl state
+  ;;
+capture)
+  pose="${2:?usage: $0 capture <O|IL|IP|FB|FT> <label> [app]}"
+  label="${3:?usage: $0 capture <pose> <label> [app]}"
+  app="${4:-}"
+  dir="$OUT/$label"
+  rm -rf "$dir" "$dir.xcresult"; mkdir -p "$dir"
+  pose_duo "$pose" || exit 1
+  if [ -n "$app" ]; then
+    # Same bundle ID, so the UI tests drive whichever app sits at the test target's path.
+    target="$PRODUCTS/Debug-iphonesimulator/Motif.app"
+    rm -rf "$target" && cp -R "$app" "$target" || exit 1
+    xcrun simctl uninstall "$sim" com.dthedy.Motif 2>/dev/null || true
+  fi
+
   duoctl state > "$dir/pose-before.json" 2>&1
 
   # The suite asks for each shot through $dir/request; duoctl takes it from the screen showing.
@@ -159,5 +172,5 @@ EOF
   echo "xcodebuild exited $status; $(wc -l < "$dir/unreached.txt" | tr -d ' ') states not reached (unreached.txt)"
   ;;
 *)
-  sed -n 3,16p "$0"; exit 1 ;;
+  sed -n 3,17p "$0"; exit 1 ;;
 esac

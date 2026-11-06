@@ -2,6 +2,9 @@ import XCTest
 
 @MainActor class FlowTestCase: XCTestCase {
     let app = XCUIApplication()
+    /// The destination ios-ci runs on (`iphone`, `IL`; empty elsewhere), from `MOTIF_POSE`, for UI tests that
+    /// only hold in one pose: `try XCTSkipIf(pose == "IL", "…")`.
+    var pose: String { ProcessInfo.processInfo.environment["MOTIF_POSE"] ?? "" }
     /// A loaded CI simulator can stall for a minute reaping the previous test's app, and `launch()` then fails
     /// with "Failed to terminate com.dthedy.Motif:<pid>" before this test has done anything. That one issue is
     /// the simulator's, so it buys a second launch; the app must still come up in the foreground.
@@ -25,6 +28,22 @@ import XCTest
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30), "Motif never came to the foreground", file: file, line: line)
     }
     func button(_ id: String) -> XCUIElement { app.buttons[id] }
+    /// Since the iOS 27 SDK, menu items inside a `Section` (and toolbar items in the side bar) can lose their
+    /// identifier, so the item's title finds it too.
+    func button(_ id: String, title: String) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", id, title)).firstMatch
+    }
+    /// Tap a text field or view, again while the tap left no keyboard focus in it (the New Game sheet's FEN field,
+    /// on the iOS 27 runtime), then type. The focus may sit on the element or a descendant, as `typeText` checks.
+    func type(_ text: String, into field: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(field.waitForExistence(timeout: 10), app.debugDescription, file: file, line: line)
+        let inside = field.descendants(matching: .any).matching(NSPredicate(format: "hasKeyboardFocus == true")).firstMatch
+        for _ in 0..<3 {
+            field.tap()
+            if matches(field, "hasKeyboardFocus == true", timeout: 5) || inside.exists { field.typeText(text); return }
+        }
+        XCTFail("\(field) never took keyboard focus after 3 taps\n\(app.debugDescription)", file: file, line: line)
+    }
     func square(_ name: String) -> XCUIElement { button("square-" + name) }
     func tap(_ name: String) { XCTAssertTrue(square(name).waitForExistence(timeout: 10)); square(name).tap() }
     /// A loaded CI simulator can drop a tap outright (XCTest reports it sent; the app never sees it). Tap, then

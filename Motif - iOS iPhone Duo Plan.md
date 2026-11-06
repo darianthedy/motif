@@ -1053,7 +1053,18 @@ Each slice adds a line or two here: what it settled on the runner or the device
 (e.g. the split view style D02 chose at 669 pt, the iPhone 17 runtime D01 found),
 and anything deferred to a later slice or a follow-up PR.
 
-- *(none yet)*
+- **D01:** `ios-ci` runs on `xcode-27` with Xcode 27.1 as a two-job matrix, `iphone`
+  (`MOTIF_SIM="iPhone 17"`, `MOTIF_RUNTIME=26`: an iOS 26.x runtime when the image has
+  one, else 27.1; the "Build and test" log names the runtime used) and `IL` (a fresh
+  "Motif Duo Capture" posed by the new `ios-duo-capture.sh pose`). TestFlight builds on
+  27.1 by default; the `xcode_26` input falls back to `macos-26`. `SystemCompat.swift`
+  holds `motifToolbarVerticalBehaviorDisabled()`, unused so far. The first run found no
+  iOS 26.x runtime on the image: the iPhone 17 ran on iOS 27.2. On that runtime, menu items
+  inside a `Section` (Copy PGN, Export PGN…, Save as Game…) lose their identifiers, so UI
+  tests find them by title too (`FlowTestCase.button(_:title:)`), and a text field tap can
+  leave no keyboard focus, so `type(_:into:)` taps again until it has it.
+  `ios-simulator.sh` reads runtime versions from `simctl list runtimes`, since the Duo's
+  device wasn't found by its runtime identifier alone.
 
 ## 9. Implementation slices
 

@@ -1070,7 +1070,8 @@ and anything deferred to a later slice or a follow-up PR.
 
 Phase 6 (2026-11-07) turned the approved canvases into one build prompt per slice,
 in the format of the UI refresh (`Motif - iOS UI Refresh Plan.md` §8) and run by
-the same driver. Each slice is one PR with `ios-ci` green.
+the same driver, in batch mode (§9.1): every slice is a commit on one branch, and
+`ios-ci` runs once, after D11.
 
 | Slice | Scope | Main files | Findings, decisions |
 |---|---|---|---|
@@ -1091,32 +1092,44 @@ nothing below can be seen. D02 before D03 and D04 (they fill its detail column).
 D05 before D06 and D07 (they use its `BoardLayout`). D08 needs only D01. D09 after
 D02–D08, then D10 and D11. The driver runs them in this order.
 
-**What every slice is checked on.** From D01, `ios-ci` runs `MotifTests` and
+**What the final run checks.** From D01, `ios-ci` runs `MotifTests` and
 `MotifUITests` twice: on an iPhone 17 and on the iPhone Duo simulator set to IL with
 `duoctl` (as in `ios-duo-capture.yml`). UI tests that only hold in one pose read
 `MOTIF_POSE` (`iphone`, `IL`) and skip elsewhere. A slice that changes layout adds
 UI tests that assert frames, not pixels: board size, the board staying clear of the
 division, a column's width, an item being in the toolbar. Other poses are checked
-by D09's capture run, which the user starts by hand (`ios-duo-capture.yml`,
-`only` = the slice's states) when a slice wants a look before D09.
+by D09's capture run, which the user starts by hand (`ios-duo-capture.yml`) once
+the batch has merged.
 
 ### 9.1 Running the slices
 
-**One fresh Claude session per slice**, in order, each ending in a PR with
-`ios-ci` green, then merge.
+**One fresh Claude session per slice**, in order, **all on one branch with no CI
+between them** (user, 2026-11-09). Waiting for the macOS runner after every slice
+cost more than it caught, so CI runs once at the end and one fix loop clears every
+error.
 
-- **Unattended:** from a clean, dedicated checkout on `main`, run
+- **Unattended:** from a clean, dedicated checkout, run
   `scripts/run-ios-duo-prompts.sh` (all slices) or `scripts/run-ios-duo-prompts.sh
-  D05` (resume at D05). It reuses `run-ios-prompts.sh`: branch `ios-duo/Dxx`, PR,
-  CI fix loop, merge, TestFlight check (`SKIP_TESTFLIGHT=1` to skip that wait).
-  Merge this plan (with Phase 5's PR #50) to `main` first, since the driver
-  branches from `main`.
-- **By hand:** open a new session in the repo, paste the slice's **Run** line,
-  review the PR, merge, then start the next slice in a new session.
-- **On the device:** each merge to `main` uploads a TestFlight build (Xcode 27.1
-  from D01). Device checks named in a slice's **Device** line are for the user,
-  after the merge; they don't block the driver. Anything they turn up becomes a
-  follow-up PR before the next dependent slice.
+  D05` (resume at D05, on the existing branch). Each session commits one slice on
+  `ios-duo/all`, starting from the branch's tip; nothing is pushed. After D11 the
+  driver pushes, opens one PR, runs `ios-ci` and sends each failing log to a fresh
+  fix session (up to 10 rounds, `MAX_FIX_ATTEMPTS`), then merges and checks
+  TestFlight once (`SKIP_TESTFLIGHT=1` skips that wait).
+- **Since no slice is compiled before the end**, each session checks the APIs it
+  calls against the code and Apple's docs, updates the tests its change affects,
+  and fixes anything an earlier slice obviously broke in the code it touches. The
+  fix sessions read the slices' prompts for scope and clear every error in the
+  log, not only the first. A fix never weakens or deletes a test to get past it.
+- **D01 started in the old per-slice flow** (PR #53, `ios-duo/D01`, two CI
+  failures). Its commits are the base of `ios-duo/all`, and its remaining failures
+  go to the final fix loop; #53 is closed.
+- **Per-slice flow** (a PR and CI per slice) is still there:
+  `BATCH_BRANCH= scripts/run-ios-duo-prompts.sh`.
+- **By hand:** open a new session in the repo on `ios-duo/all`, paste the slice's
+  **Run** line, commit, then start the next slice in a new session.
+- **On the device:** only the final merge uploads a TestFlight build, so the
+  slices' **Device** checks happen together after it. Anything they turn up
+  becomes a follow-up PR.
 
 There is no Mac-mode variant: the Duo simulator and the 27.1 SDK exist only on
 the `xcode-27` runner.
@@ -1158,8 +1171,10 @@ the `xcode-27` runner.
 > 7. **Never show tags, comments or motif while solving.**
 > 8. **Synchronized folders:** new files under `Motif/`, `MotifTests/`,
 >    `MotifUITests/` need no `project.pbxproj` edit.
-> 9. **No Mac, so CI is the compiler.** Done = `ios-ci` green on both
->    destinations + the slice's "Done when" + nothing from a later slice. Record
+> 9. **No Mac, and no CI until the end.** CI is the only compiler, and it runs
+>    once after D11 (§9.1). A slice is done when its "Done when" is written (the
+>    tests it names exist and should pass) and committed, with nothing from a
+>    later slice; "CI green" in a slice means green in that final run. Record
 >    anything the slice settles or defers in §8.7 of this plan, in one or two lines.
 
 ### D01 — Toolchain on Xcode 27.1
@@ -1168,7 +1183,7 @@ the `xcode-27` runner.
 > In this repo, read `Motif - iOS iPhone Duo Plan.md` §2, §8 (Phase 0, §8.1, §8.2,
 > §8.6) and §9 → **D01**. Move `ios-ci` and the TestFlight build to Xcode 27.1 on
 > `xcode-27`, run the tests on an iPhone 17 and on the iPhone Duo simulator opened
-> wide, and add the gated-API file. Get `ios-ci` green.
+> wide, and add the gated-API file. Commit; `ios-ci` runs after D11.
 
 **Build:**
 - `ios-ci.yml`: `runs-on: xcode-27`, Xcode pinned to `27.1` (as
@@ -1208,7 +1223,7 @@ merge runs edge to edge on the Duo, closed and open.
 > §8.5 "Shell and homes", §8.6, §10 (decisions 4, 7, 12, 13, 16) and §9 → **D02**.
 > Put each tab in one `NavigationSplitView` with a shared navigation model, give
 > every toolbar item a title, move custom ⋯ actions into `ToolbarOverflowMenu`, and
-> drive every confirmation dialog from state. Get `ios-ci` green.
+> drive every confirmation dialog from state. Commit; `ios-ci` runs after D11.
 
 **Mockups:** `shell.html` homes tab: S04a, S04d, S11a, S11b on O, IL, IP (both
 S04a·IP frames), FB; S04g–j and S11d–h (overlays, O and IL); the
@@ -1271,7 +1286,7 @@ UI tests updated; CI green on both destinations.
 > In this repo, read `Motif - iOS iPhone Duo Plan.md` §6.7, §7 "Lists", §8.5
 > "Lists" and "Shell and homes", §10 (decisions 12, 19) and §9 → **D03**. Fit
 > Puzzles home, the collection and the puzzle list to the split view columns at
-> readable width, and show search scopes on presentation. Get `ios-ci` green.
+> readable width, and show search scopes on presentation. Commit; `ios-ci` runs after D11.
 
 **Mockups:** `shell.html` homes tab S04a–f on O, IL, IP; `lists.html` S06a–g, S07a–i
 on O, IL, IP, FB (detail 526 pt on IL, the right page on FB, 669 pt on IP).
@@ -1300,7 +1315,7 @@ list; on IL the puzzle list fills the detail column beside the sidebar; CI green
 > In this repo, read `Motif - iOS iPhone Duo Plan.md` §6.5, §7 "Lists", §8.5
 > "Lists" and "Shell and homes", §10 (decisions 12, 20) and §9 → **D04**. Fit
 > Games home and the game collection to the split view columns, and move Select
-> All / Deselect All into the toolbar with titled bulk actions. Get `ios-ci` green.
+> All / Deselect All into the toolbar with titled bulk actions. Commit; `ios-ci` runs after D11.
 
 **Mockups:** `shell.html` homes tab S11a–i; `lists.html` S12a–q on O, IL, IP, FB
 and the "enter Split View in edit mode" storyboard.
@@ -1330,7 +1345,7 @@ tests find them by title on IL; CI green.
 > layout rule" and "Analysis view", §8.1, §8.5 "Analysis canvas", §10 (decisions
 > 5, 10, 11, 13, 17) and §9 → **D05**. Port the canvas board rule to a shared
 > `BoardLayout`, rebuild the Analysis view on it with system toolbar controls, and
-> put promotion in the layout. Get `ios-ci` green.
+> put promotion in the layout. Commit; `ios-ci` runs after D11.
 
 **Mockups:** `analysis.html` s15 tab: S15a, S15b, S15c, S15e, S15f, S15g, S15k, S15v
 on O, SV, IL, IP, and S15a on the 457 pt case-gap check; s10 tab S10a–f on O and IL.
@@ -1378,7 +1393,7 @@ feature; CI green.
 > session", §8.5 "Session and detail canvas", §10 (decisions 14, 15, 17, 18) and §9
 > → **D06**. Put puzzle detail and the session on `BoardLayout` with the board
 > pinned, Skip in the bottom bar, the result card in the column and the pickers in
-> the layout. Get `ios-ci` green.
+> the layout. Commit; `ios-ci` runs after D11.
 
 **Mockups:** `session.html` s09 tab: S09a, S09b, S09e, S09g, S09i, S09k, S09l, S09m
 on O, SV, IL, IP and the unfold-mid-session storyboard; s08 tab S08a–i on O, IL, IP.
@@ -1417,7 +1432,7 @@ frame assertion); CI green.
 > In this repo, read `Motif - iOS iPhone Duo Plan.md` §1 (reserved regions), §3,
 > §6.4 and §6.16, §8.1, §8.5, §10 (decisions 8, 10) and §9 → **D07**. Teach
 > `BoardLayout` the fold division so boards never cross it on FB, FT or the Split
-> View inner edge. Get `ios-ci` green.
+> View inner edge. Commit; `ios-ci` runs after D11.
 
 **Mockups:** `analysis.html` S15a, S15c, S15k, S10a on FB, FT, SVL, SVR and the
 "bend open to book" storyboard; `session.html` S09a, S09e, S09g, S09i, S09m, S08a on
@@ -1449,7 +1464,7 @@ so the division is inactive there: assert the IL layout is unchanged.)
 > in and loading", §8.1 (sheets and keyboard), §8.5 "Sheets canvas" and "Shell
 > and homes", §10 (decisions 21, 22) and §9 → **D08**. Apply the one banner rule,
 > fit the sheets to the Sheets canvas, cap the New Game preview, and centre sign-in
-> and loading. Get `ios-ci` green.
+> and loading. Commit; `ios-ci` runs after D11.
 
 **Mockups:** `sheets.html` S05a, S05d, S05i, S05j, S13a, S13h, S14a–f, S16a, S16d on
 O, IL, IP, FB and the "fold with a sheet and keyboard" storyboard; `shell.html`
@@ -1488,7 +1503,7 @@ and the toast clear of the bottom bar; banner tests updated; CI green.
 > In this repo, read `Motif - iOS iPhone Duo Plan.md` §5, §8.2, §8.3, §8.4 "Capture
 > issues", §8.5 and §9 → **D09**. Turn `DuoCaptureTests` into the screenshot test
 > run for every drawn mockup cell in every simulator pose plus an iPhone 17, paired
-> with the rendered mockup frame. Get `ios-ci` green.
+> with the rendered mockup frame. Commit; `ios-ci` runs after D11.
 
 **Build:**
 - Fix the §8.4 capture issues: the S01b / S01d launch race, S02b on IP, S03j via
@@ -1507,8 +1522,9 @@ and the toast clear of the bottom bar; banner tests updated; CI green.
 
 **Out of scope:** pixel diffing (the mockups are approximations); fixing layouts
 the sheets reveal (each gets a follow-up PR against its slice).
-**Done when:** a full run on the D09 branch is green with every pose's unreached
-list as above, and the contact sheets are linked in §8.7.
+**Done when:** the suite, fixtures and workflow are committed. After the batch
+merges, the user starts a full run on `main`; it should be green with every pose's
+unreached list as above, and its contact sheets get linked in §8.7.
 
 ### D10 — Polish
 
@@ -1516,7 +1532,7 @@ list as above, and the contact sheets are linked in §8.7.
 > In this repo, read `Motif - iOS iPhone Duo Plan.md` §5 rule 6, §6.10–6.14, §8.4
 > (F35) and §9 → **D10**. Check every screen at AX5, in dark mode and with Reduce
 > Transparency / Increase Contrast, fix VoiceOver order across panes and the fold,
-> and fix contrast. Get `ios-ci` green.
+> and fix contrast. Commit; `ios-ci` runs after D11.
 
 **Build:** the system-variant frames on each canvas's `var` tab are the target.
 No key label truncated at AX5 on O and IL (lists may wrap; toolbar items may go to
@@ -1532,8 +1548,8 @@ primary states.
 **Run:**
 > In this repo, read `Motif - iOS iPhone Duo Plan.md` §3 (PD), §7 "iPad", §10
 > (decision 6) and §9 → **D11**. Make Motif a universal app with the regular-width
-> layouts, all four iPad orientations and an iPad simulator in CI. Get `ios-ci`
-> green.
+> layouts, all four iPad orientations and an iPad simulator in CI. Commit; `ios-ci` runs
+> after D11.
 
 **Build:** `TARGETED_DEVICE_FAMILY = "1,2"`; `UISupportedInterfaceOrientations~ipad`
 with all four; the iPhone keys unchanged (decision 2). `ios-ci` gains an `ipad`

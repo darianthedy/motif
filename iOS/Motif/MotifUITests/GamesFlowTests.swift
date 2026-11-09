@@ -42,6 +42,32 @@ import XCTest
         let share = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Save to Files' OR label == 'Copy'")).firstMatch
         wait(share); capture("pgn-share-sheet")
     }
+    /// D04: Select All / Deselect All and the bulk actions are titled toolbar items (side bar on IL, bottom
+    /// bar on iPhone), found by title, and Move and Export still work from them.
+    func testSelectAllAndBulkActionsWorkFromTheToolbarItems() {
+        launch("game-select"); wait(button("game-select-done", title: "Done"))
+        let titled = { (title: String) in self.app.buttons.matching(NSPredicate(format: "label == %@", title)).firstMatch }
+        expect(app.navigationBars.staticTexts["1 Selected"], "exists == true")
+        let deselect = titled("Deselect All"); wait(deselect); deselect.tap()
+        expect(app.navigationBars.staticTexts["Select Games"], "exists == true")
+        let selectAll = titled("Select All"); wait(selectAll); selectAll.tap()
+        expect(app.navigationBars.staticTexts["1 Selected"], "exists == true")
+        let move = titled("Move"); wait(move); move.tap()
+        let sheet = app.navigationBars["Move 1 Game"]; wait(sheet)
+        let cancel = sheet.buttons.matching(NSPredicate(format: "label == 'Cancel' OR label == 'Close'")).firstMatch
+        wait(cancel); cancel.tap(); expect(sheet, "exists == false")
+        let export = titled("Export"); wait(export); export.tap()
+        wait(app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Save to Files'")).firstMatch)
+        capture("bulk-export-share-sheet")
+    }
+    /// D04: Delete in the bulk bar asks, deletes the selection and leaves edit mode.
+    func testBulkDeleteFromTheToolbarItem() {
+        launch("game-select"); wait(button("game-select-done", title: "Done"))
+        expect(app.navigationBars.staticTexts["1 Selected"], "exists == true")
+        let delete = app.buttons.matching(NSPredicate(format: "label == 'Delete'")).firstMatch; wait(delete); delete.tap()
+        let confirm = app.buttons["Delete 1 Game"]; wait(confirm); confirm.tap()
+        wait(app.staticTexts["No Games"]); expect(button("game-select-done", title: "Done"), "exists == false")
+    }
     func testUnsavedChangesAskBeforeLeavingAndSaveFromTheMenu() {
         launch("game:sample"); wait(square("e2")); move("c2", "c4"); wait(button("move-1"))
         button("game-back").tap(); let alert = app.alerts["Save changes to this game?"]; wait(alert); capture("game-unsaved-alert")

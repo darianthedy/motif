@@ -1080,6 +1080,11 @@ and anything deferred to a later slice or a follow-up PR.
   caps empty states and the "No Collection Selected" placeholder at 672 pt; lists keep the system's width,
   and the collection's title is inline as the detail column (regular width). Thumbnails stay 48 pt (36 pt
   drawn) and the scope keeps the title "Review" ("To review" drawn); D04 can reuse `readableWidth()`.
+- **D04:** edit mode moved from the view's `@State EditMode` into `GameCollectionModel.editing` (with the
+  selection; leaving it clears the selection), bridged to the list as `editMode`. Select All / Deselect All
+  (`checkmark.circle` / `circle`, per the plan rather than the canvas's drawn glyphs) sits beside Done in
+  `.topBarTrailing`; Move, Copy, Export (`ShareLink`) and Delete are one `.bottomBar` group, so the flexible
+  spacer before Delete is gone. The collection title is inline as the detail column; empty states use `readableWidth()`.
 
 ## 9. Implementation slices
 

@@ -18,6 +18,7 @@ struct GamesHomeView: View {
                 EmptyState(title: "No Games Yet", systemImage: "checkerboard.rectangle",
                            description: "Make a collection, then add games as PGN or play them in on the board.",
                            action: .init(title: "New Collection", identifier: "new-game-collection-empty", disabled: !app.store.online) { startCreating() })
+                    .readableWidth()
             }
         }
         .navigationTitle("Games")

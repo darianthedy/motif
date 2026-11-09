@@ -3,6 +3,14 @@ import SwiftUI
 @Observable @MainActor final class GameCollectionModel {
     var query = ""
     var selected: Set<String> = []
+    /// Edit mode lives here with the selection, beside the view's other `@State`, so a fold or a
+    /// size change that rebuilds the columns keeps both (Duo plan §6.15). Leaving it drops the selection.
+    var editing = false { didSet { if !editing { selected = [] } } }
+    /// `editing` as the `EditMode` the list reads from the environment.
+    var editMode: EditMode {
+        get { editing ? .active : .inactive }
+        set { editing = newValue.isEditing }
+    }
     /// The order just dragged in, shown until the library catches up with the write.
     private(set) var pendingOrder: [String]?
     func shown(_ games: [Game]) -> [Game] {
@@ -14,6 +22,10 @@ import SwiftUI
         return games.filter { matchesSearch(readHeaders($0.pgn), query) }
     }
     func allSelected(_ shown: [Game]) -> Bool { !shown.isEmpty && Set(shown.map(\.id)).isSubset(of: selected) }
+    /// The edit-mode toolbar item beside Done (F30, Duo plan decision 20).
+    func selectAllItem(_ shown: [Game]) -> (title: String, systemImage: String) {
+        allSelected(shown) ? ("Deselect All", "circle") : ("Select All", "checkmark.circle")
+    }
     func toggleAll(_ shown: [Game]) {
         let ids = Set(shown.map(\.id))
         selected = allSelected(shown) ? selected.subtracting(ids) : selected.union(ids)
@@ -52,16 +64,16 @@ enum GameTransfer: String, Identifiable { case move, copy; var id: String { rawV
 struct GameCollectionView: View {
     @Environment(AppState.self) private var app
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let collectionId: String
     @State private var model = GameCollectionModel()
-    @State private var editMode = EditMode.inactive
     @State private var adding: GameAddSheet?
     @State private var renaming = false
     @State private var name = ""
     @State private var deletingCollection = false
     @State private var deletingGames = false
     @State private var transfer: GameTransfer?
-    private var editing: Bool { editMode.isEditing }
+    private var editing: Bool { model.editing }
     var body: some View {
         @Bindable var model = model
         Group {
@@ -70,10 +82,9 @@ struct GameCollectionView: View {
             } else { Color.clear.onAppear { dismiss() } }
         }
             .searchable(text: $model.query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Players, event, opening")
-            .environment(\.editMode, $editMode)
+            .environment(\.editMode, $model.editMode)
             .navigationBarBackButtonHidden(editing)
             .toolbar(editing ? .hidden : .automatic, for: .tabBar)
-            .onChange(of: editing) { if !editing { model.selected = [] } }
             .sheet(item: $adding) { sheet in
                 switch sheet {
                 case .importPGN: ImportPGNView(collectionId: collectionId).environment(app)
@@ -81,7 +92,7 @@ struct GameCollectionView: View {
                 }
             }
             .sheet(item: $transfer) { transfer in
-                GameDestinationSheet(model: model, collectionId: collectionId, transfer: transfer) { withAnimation { editMode = .inactive } }.environment(app)
+                GameDestinationSheet(model: model, collectionId: collectionId, transfer: transfer) { withAnimation { model.editing = false } }.environment(app)
             }
             .alert("Rename the collection", isPresented: $renaming) {
                 TextField("Name", text: $name)
@@ -97,7 +108,7 @@ struct GameCollectionView: View {
             .confirmationDialog("Delete the selected games?", isPresented: $deletingGames, titleVisibility: .visible) {
                 Button("Delete \(countLabel(model.selected.count, "Game"))", role: .destructive) {
                     let ids = Array(model.selected)
-                    Task { if await app.edit({ try await $0.deleteGames(ids) }, done: "Deleted \(countLabel(ids.count, "game")).") { withAnimation { editMode = .inactive } } }
+                    Task { if await app.edit({ try await $0.deleteGames(ids) }, done: "Deleted \(countLabel(ids.count, "game")).") { withAnimation { model.editing = false } } }
                 }
             }
             .task {
@@ -106,7 +117,7 @@ struct GameCollectionView: View {
                 if app.launchRoute == "game-new" { adding = .newGame }
                 if app.launchRoute == "game-select", let first = app.store.library.map({ gamesIn($0, collectionId) })?.first {
                     // The list drops its selection as it enters editing, so select only once that has landed.
-                    editMode = .active; try? await Task.sleep(for: .milliseconds(500)); model.selected = [first.id]
+                    model.editing = true; try? await Task.sleep(for: .milliseconds(500)); model.selected = [first.id]
                 }
                 #endif
             }
@@ -121,6 +132,7 @@ struct GameCollectionView: View {
                            description: "Import games as PGN or play one in on the board.",
                            action: .init(title: "Import PGN", identifier: "add-games-empty", disabled: !app.store.online) { adding = .importPGN },
                            secondary: .init(title: "New Game on Board", disabled: !app.store.online) { adding = .newGame })
+                    .readableWidth()
             } else {
                 List(selection: Bindable(model).selected) {
                     ForEach(shown, id: \.id) { game in
@@ -131,20 +143,24 @@ struct GameCollectionView: View {
                     }
                     .onMove(perform: reorder)
                 }
-                .overlay { if shown.isEmpty { ContentUnavailableView.search(text: model.query) } }
+                .overlay { if shown.isEmpty { ContentUnavailableView.search(text: model.query).readableWidth() } }
             }
         }
         .navigationTitle(editing ? (chosen.isEmpty ? "Select Games" : "\(chosen.count) Selected") : collection.name)
         .navigationSubtitle(editing ? "" : countLabel(games.count, "game"))
-        .navigationBarTitleDisplayMode(editing ? .inline : .large)
+        // Large when pushed from the home list on compact; inline as the detail column beside it (§6.5).
+        .navigationBarTitleDisplayMode(editing || sizeClass == .regular ? .inline : .large)
         .toolbar {
             if editing {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(model.allSelected(shown) ? "Deselect All" : "Select All", systemImage: model.allSelected(shown) ? "circle.dashed" : "checkmark.circle.fill") { model.toggleAll(shown) }
+                // Select All / Deselect All is a titled item beside Done (F30, decision 20), so the side
+                // bar shows it with its symbol and title instead of a text button over the list.
+                ToolbarItem(placement: .topBarTrailing) {
+                    let item = model.selectAllItem(shown)
+                    Button(item.title, systemImage: item.systemImage) { model.toggleAll(shown) }
                         .disabled(shown.isEmpty).accessibilityIdentifier("game-select-all")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done", systemImage: "checkmark") { withAnimation { editMode = .inactive } }
+                    Button("Done", systemImage: "checkmark") { withAnimation { model.editing = false } }
                         .buttonStyle(.glassProminent).accessibilityIdentifier("game-select-done")
                 }
                 bulkBar(collection, chosen: chosen)
@@ -160,7 +176,7 @@ struct GameCollectionView: View {
         // Not while editing: Select All and Done own the bar then. Items set flags; the alert and
         // dialog hang off the screen, not the menu (F15).
         .motifOverflowMenu("More", identifier: "game-collection-actions", shown: !editing) {
-            Button("Select Games", systemImage: "checkmark.circle") { withAnimation { editMode = .active } }
+            Button("Select Games", systemImage: "checkmark.circle") { withAnimation { model.editing = true } }
                 .disabled(games.isEmpty).accessibilityIdentifier("game-select")
             ShareLink(item: PGNExport(text: gamesAsFile(games), name: collection.name), preview: SharePreview(collection.name)) {
                 Label("Export as PGN", systemImage: "square.and.arrow.up")
@@ -170,6 +186,9 @@ struct GameCollectionView: View {
             Button("Delete Collection", systemImage: "trash", role: .destructive) { deletingCollection = true }.disabled(!app.store.online)
         }
     }
+    /// The bulk actions: one `.bottomBar` group of titled items (F30), which the system puts in the
+    /// side bar (O, SV, IL, FB) or the bottom capsule (IP, iPad). Export is a `ShareLink`, so the share
+    /// sheet presents from it (a popover on regular width); Delete's confirmation is the screen's dialog.
     @ToolbarContentBuilder private func bulkBar(_ collection: GameCollection, chosen: [Game]) -> some ToolbarContent {
         let none = chosen.isEmpty, offline = !app.store.online
         ToolbarItemGroup(placement: .bottomBar) {
@@ -178,9 +197,6 @@ struct GameCollectionView: View {
             ShareLink(item: PGNExport(text: gamesAsFile(chosen), name: collection.name), preview: SharePreview(collection.name)) {
                 Label("Export", systemImage: "square.and.arrow.up")
             }.disabled(none).accessibilityIdentifier("game-bulk-export")
-        }
-        ToolbarSpacer(.flexible, placement: .bottomBar)
-        ToolbarItem(placement: .bottomBar) {
             Button("Delete", systemImage: "trash", role: .destructive) { deletingGames = true }
                 .tint(.red).disabled(none || offline).accessibilityIdentifier("game-bulk-delete")
         }

@@ -33,6 +33,25 @@ import XCTest
         XCTAssertLessThanOrEqual(puzzle.frame.maxX, window.maxX)
         capture("split-puzzle-list")
     }
+    /// D04, open wide (IL): the game collection fills the detail column beside the Games sidebar, and in edit
+    /// mode Select All, Done and the bulk actions are toolbar items found by their titles (side bar items lose
+    /// their identifiers).
+    func testGameCollectionFillsTheDetailColumnAndEditModeItemsHaveTitles() throws {
+        try XCTSkipUnless(pose == "IL", "Two columns only show on the open display")
+        launch("game-collection"); let collection = row("game-collection-sample-games"), game = button("game-row-sample-game")
+        wait(collection); wait(game)
+        XCTAssertTrue(collection.isHittable, "The home list stays beside the game collection\n\(app.debugDescription)")
+        XCTAssertGreaterThanOrEqual(game.frame.minX, collection.frame.maxX - 1, "The game collection is in the detail column")
+        XCTAssertGreaterThan(game.frame.width, 400, "The rows span the detail column\n\(app.debugDescription)")
+        XCTAssertLessThanOrEqual(game.frame.width, 672, "The rows stay within the readable width")
+        capture("split-game-collection")
+        overflow("game-collection-actions").tap()
+        let select = button("game-select", title: "Select Games"); wait(select); select.tap()
+        for title in ["Done", "Select All", "Move", "Copy", "Export", "Delete"] {
+            wait(app.buttons.matching(NSPredicate(format: "label == %@", title)).firstMatch)
+        }
+        capture("split-game-select")
+    }
     /// iPhone: the split view collapses to one stack, and Back from a collection clears the
     /// selection, so tapping the same row opens it again.
     func testBackFromACollectionClearsTheSelectionOnCompactWidth() throws {

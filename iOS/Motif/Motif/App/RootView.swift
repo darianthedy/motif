@@ -138,6 +138,7 @@ private struct NoSelection: View {
         else {
             ContentUnavailableView("No Collection Selected", systemImage: systemImage,
                                    description: Text("Choose a collection in the sidebar."))
+                .readableWidth()
                 .accessibilityIdentifier("no-collection-selected")
         }
     }

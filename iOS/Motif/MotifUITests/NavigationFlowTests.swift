@@ -18,6 +18,21 @@ import XCTest
         XCTAssertFalse(collection.exists && collection.isHittable, "The sidebar still shows beside the puzzle\n\(app.debugDescription)")
         capture("split-puzzle")
     }
+    /// D03, open wide (IL): the puzzle list fills the detail column beside the sidebar (526 pt in the
+    /// canvases), within the readable width.
+    func testPuzzleListFillsTheDetailColumnOnTheOpenDisplay() throws {
+        try XCTSkipUnless(pose == "IL", "Two columns only show on the open display")
+        launch(); let collection = row("collection-sample-back-rank"); wait(collection); collection.tap()
+        let browse = button("browse-puzzles"); wait(browse); browse.tap()
+        let puzzle = button("puzzle-sample-back-rank-0"); wait(puzzle)
+        XCTAssertTrue(collection.isHittable, "The home list stays beside the puzzle list\n\(app.debugDescription)")
+        XCTAssertGreaterThanOrEqual(puzzle.frame.minX, collection.frame.maxX - 1, "The puzzle list is in the detail column")
+        let window = app.windows.firstMatch.frame
+        XCTAssertGreaterThan(puzzle.frame.width, 400, "The rows span the detail column\n\(app.debugDescription)")
+        XCTAssertLessThanOrEqual(puzzle.frame.width, 672, "The rows stay within the readable width")
+        XCTAssertLessThanOrEqual(puzzle.frame.maxX, window.maxX)
+        capture("split-puzzle-list")
+    }
     /// iPhone: the split view collapses to one stack, and Back from a collection clears the
     /// selection, so tapping the same row opens it again.
     func testBackFromACollectionClearsTheSelectionOnCompactWidth() throws {

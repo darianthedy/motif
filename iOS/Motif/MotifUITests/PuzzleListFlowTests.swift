@@ -14,6 +14,31 @@ import XCTest
         expect(doomed, "exists == false")
         XCTAssertTrue(first.exists)
     }
+    /// Scopes on presentation (F23, Duo plan decision 19): with search active and nothing typed,
+    /// the scope bar is there, and picking Flagged filters the list.
+    func testScopeFiltersTheListWithAnEmptyQuery() {
+        launch("puzzle-list"); let flagged = button("puzzle-sample-back-rank-0"); wait(flagged)
+        flagged.swipeLeft(); let flag = app.buttons["Flag"]; wait(flag); flag.tap()
+        expect(flagged, "label CONTAINS 'Flagged'")
+        let other = button("puzzle-sample-back-rank-1"); wait(other)
+
+        // On compact width the search field hides until the list is pulled down.
+        let field = app.searchFields.firstMatch
+        if !field.waitForExistence(timeout: 4) {
+            app.swipeDown()
+            if !field.waitForExistence(timeout: 3), app.buttons["Search"].exists { app.buttons["Search"].tap() }
+        }
+        wait(field); field.tap()
+        let scopes = app.buttons.matching(NSPredicate(format: "label == %@", "Flagged"))
+        if !scopes.firstMatch.waitForExistence(timeout: 5) { app.typeText("\n") }
+        wait(scopes.firstMatch)
+        let scope = scopes.allElementsBoundByIndex.first(where: \.isHittable) ?? scopes.firstMatch
+        scope.tap(); capture("puzzle-list-scope-flagged")
+        expect(other, "exists == false")
+        XCTAssertTrue(flagged.exists, app.debugDescription)
+        XCTAssertEqual((field.value as? String).map { $0 == field.placeholderValue || $0.isEmpty } ?? true, true,
+                       "The query stays empty\n\(app.debugDescription)")
+    }
     func testCollectionMenuImportsIntoThisCollection() {
         launch("collection"); let menu = overflow("collection-actions"); wait(menu); capture("collection")
         menu.tap(); let item = app.buttons["Import Into Collection…"]; wait(item); item.tap()

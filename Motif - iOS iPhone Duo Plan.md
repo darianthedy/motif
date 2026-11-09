@@ -1075,6 +1075,11 @@ and anything deferred to a later slice or a follow-up PR.
   is deferred: `ToolbarContentBuilder` can only gate it for customizable items. The session cover
   and import sheet moved to `RootView`, since the sidebar can leave the screen. The vertical tab
   bar's labels are a device check.
+- **D03:** the puzzle list uses `.searchScopes(_:activation: .onSearchPresentation)` (iOS 16.4, no
+  gate), so a scope can be picked with an empty query. `readableWidth()` (`UI/Shared/ReadableWidth.swift`)
+  caps empty states and the "No Collection Selected" placeholder at 672 pt; lists keep the system's width,
+  and the collection's title is inline as the detail column (regular width). Thumbnails stay 48 pt (36 pt
+  drawn) and the scope keeps the title "Review" ("To review" drawn); D04 can reuse `readableWidth()`.
 
 ## 9. Implementation slices
 

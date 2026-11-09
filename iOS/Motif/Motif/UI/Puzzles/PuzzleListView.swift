@@ -81,7 +81,11 @@ struct PuzzleListView: View {
         }
         .navigationTitle("All Puzzles")
         .searchable(text: $model.query, prompt: "Number or motif")
-        .searchScopes($model.scope) { ForEach(PuzzleScope.allCases, id: \.self) { Text($0.title).tag($0) } }
+        // The scope bar shows as soon as search is presented, so a scope can be picked (or left)
+        // before typing anything (F23, Duo plan decision 19). iOS 16.4+, no gate needed.
+        .searchScopes($model.scope, activation: .onSearchPresentation) {
+            ForEach(PuzzleScope.allCases, id: \.self) { Text($0.title).tag($0) }
+        }
         .task {
             #if DEBUG
             // The samples have no flagged puzzles, so this scope shows the empty state.
@@ -89,13 +93,17 @@ struct PuzzleListView: View {
             #endif
         }
     }
+    /// Capped at the readable width, so the descriptions wrap there (F13).
     @ViewBuilder private func empty(_ noPuzzles: Bool) -> some View {
-        if noPuzzles { EmptyState(title: "No Puzzles", systemImage: "puzzlepiece") }
-        else if !model.query.trimmingCharacters(in: .whitespaces).isEmpty { ContentUnavailableView.search(text: model.query) }
-        else {
-            let label = model.scope == .review ? "Puzzles to Review" : "\(model.scope.title) Puzzles"
-            EmptyState(title: "No \(label)", systemImage: model.scope == .flagged ? "flag" : "line.3.horizontal.decrease.circle")
+        Group {
+            if noPuzzles { EmptyState(title: "No Puzzles", systemImage: "puzzlepiece") }
+            else if !model.query.trimmingCharacters(in: .whitespaces).isEmpty { ContentUnavailableView.search(text: model.query) }
+            else {
+                let label = model.scope == .review ? "Puzzles to Review" : "\(model.scope.title) Puzzles"
+                EmptyState(title: "No \(label)", systemImage: model.scope == .flagged ? "flag" : "line.3.horizontal.decrease.circle")
+            }
         }
+        .readableWidth()
     }
 }
 private struct PuzzleRow: View {

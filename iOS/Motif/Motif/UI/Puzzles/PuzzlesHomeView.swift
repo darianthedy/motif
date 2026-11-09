@@ -22,6 +22,7 @@ struct PuzzlesHomeView: View {
                 EmptyState(title: "No Puzzles Yet", systemImage: "puzzlepiece",
                            description: "Import a JSON collection to start solving.",
                            action: .init(title: "Import Puzzles", identifier: "import-puzzles-empty", disabled: !app.store.online) { app.importingPuzzles = true })
+                    .readableWidth()
             }
         }
         .navigationTitle("Puzzles")

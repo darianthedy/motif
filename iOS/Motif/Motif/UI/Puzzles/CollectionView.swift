@@ -2,6 +2,7 @@ import SwiftUI
 struct CollectionView: View {
     @Environment(AppState.self) private var app
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let collectionId: String
     @State private var rename = false
     @State private var name = ""
@@ -16,6 +17,7 @@ struct CollectionView: View {
                         EmptyState(title: "No Puzzles", systemImage: "puzzlepiece",
                                    description: "Import puzzles into this collection to start solving.",
                                    action: .init(title: "Import Puzzles", identifier: "import-into-collection-empty", disabled: !app.store.online) { importing = true })
+                            .readableWidth()
                     } else {
                         List {
                             Section { StatsCard(stats: statsFor(puzzles.map(\.id), puzzleRecords(library.attempts))) }
@@ -39,6 +41,8 @@ struct CollectionView: View {
                     }
                 }
                 .navigationTitle(collection.name)
+                // Large when pushed from the home list; inline as the detail column beside it (§6.5).
+                .navigationBarTitleDisplayMode(sizeClass == .regular ? .inline : .automatic)
                 // Each item sets a flag; the alert, dialog and sheet hang off the screen, not the menu (F15).
                 .motifOverflowMenu("More", identifier: "collection-actions") {
                     Button("Rename…", systemImage: "pencil") { name = collection.name; rename = true }.disabled(!app.store.online)

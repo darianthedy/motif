@@ -3,7 +3,7 @@ import XCTest
 /// Every list screen at the largest accessibility text size, and the newer states in dark mode.
 @MainActor final class PolishFlowTests: FlowTestCase {
     func testListScreensKeepTextOnScreenAtLargestTextSize() {
-        let routes: [(String?, String)] = [(nil, "solve-all"), ("collection", "collection-actions"), ("puzzle-list", "puzzle-sample-back-rank-0"),
+        let routes: [(String?, String)] = [(nil, "solve-all"), ("collection", "solve-ordered"), ("puzzle-list", "puzzle-sample-back-rank-0"),
                                            ("game-collection", "game-row-sample-game"), ("game-select", "game-select-done")]
         for (route, ready) in routes {
             launch(route, extra: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])

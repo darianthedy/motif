@@ -39,15 +39,12 @@ struct CollectionView: View {
                     }
                 }
                 .navigationTitle(collection.name)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Menu("More", systemImage: "ellipsis") {
-                            Button("Rename…", systemImage: "pencil") { name = collection.name; rename = true }
-                            Button("Import Into Collection…", systemImage: "square.and.arrow.down") { importing = true }
-                            Divider()
-                            Button("Delete Collection", systemImage: "trash", role: .destructive) { deletion = true }
-                        }.disabled(!app.store.online).accessibilityIdentifier("collection-actions")
-                    }
+                // Each item sets a flag; the alert, dialog and sheet hang off the screen, not the menu (F15).
+                .motifOverflowMenu("More", identifier: "collection-actions") {
+                    Button("Rename…", systemImage: "pencil") { name = collection.name; rename = true }.disabled(!app.store.online)
+                    Button("Import Into Collection…", systemImage: "square.and.arrow.down") { importing = true }.disabled(!app.store.online)
+                    Divider()
+                    Button("Delete Collection", systemImage: "trash", role: .destructive) { deletion = true }.disabled(!app.store.online)
                 }
             } else { Color.clear.onAppear { dismiss() } }
         }
@@ -60,7 +57,7 @@ struct CollectionView: View {
                 Button("Cancel", role: .cancel) {}
             }
             .confirmationDialog("Delete this collection and its puzzles?", isPresented: $deletion, titleVisibility: .visible) {
-                Button("Delete Collection", role: .destructive) { Task { if await app.edit({ try await $0.deleteCollection(collectionId) }) { app.puzzlesPath = [] } } }
+                Button("Delete Collection", role: .destructive) { Task { if await app.edit({ try await $0.deleteCollection(collectionId) }) { app.openPuzzles([]) } } }
             }
             .sheet(isPresented: $importing) { ImportView(collectionId: collectionId).environment(app) }
     }

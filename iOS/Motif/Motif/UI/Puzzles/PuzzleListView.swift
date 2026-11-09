@@ -68,6 +68,11 @@ struct PuzzleListView: View {
                                     Task { _ = await app.edit { try await $0.setFlagged(item.puzzle.id, item.puzzle.flagged != true) } }
                                 }.tint(.orange).disabled(!app.store.online)
                             }
+                            // On the row that asked, so on regular width it anchors there (F15).
+                            .confirmationDialog("Delete this puzzle from the library?", isPresented: Binding(get: { deleting?.id == item.puzzle.id }, set: { if !$0 { deleting = nil } }),
+                                                titleVisibility: .visible) {
+                                Button("Delete Puzzle", role: .destructive) { Task { _ = await app.edit { try await $0.deletePuzzle(item.puzzle.id) } } }
+                            }
                     }
                 }
                 .overlay { if items.isEmpty { empty(puzzles.isEmpty) } }
@@ -82,10 +87,6 @@ struct PuzzleListView: View {
             // The samples have no flagged puzzles, so this scope shows the empty state.
             if app.launchRoute == "puzzle-list-empty" { model.scope = .flagged }
             #endif
-        }
-        .confirmationDialog("Delete this puzzle from the library?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
-                            titleVisibility: .visible, presenting: deleting) { puzzle in
-            Button("Delete Puzzle", role: .destructive) { Task { _ = await app.edit { try await $0.deletePuzzle(puzzle.id) } } }
         }
     }
     @ViewBuilder private func empty(_ noPuzzles: Bool) -> some View {

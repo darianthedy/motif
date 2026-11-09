@@ -36,7 +36,7 @@ import XCTest
         expect(square("a1"), "label CONTAINS 'Rook'"); XCTAssertTrue(app.navigationBars.staticTexts["Puzzle Analysis"].exists)
         tap(button("game-next-move"), until: "label CONTAINS 'Rook'", on: square("a8")); capture("puzzle-analysis")
         let saveAsGame = button("game-save-as-game", title: "Save as Game…")
-        tap(button("game-actions", title: "Game actions"), until: "exists == true", on: saveAsGame)
+        tap(overflow("game-actions"), until: "exists == true", on: saveAsGame)
         XCTAssertFalse(button("game-save", title: "Save").exists)
         saveAsGame.tap(); wait(button("save-game-confirm")); capture("save-as-game")
         tap(button("save-game-confirm"), until: "exists == false")

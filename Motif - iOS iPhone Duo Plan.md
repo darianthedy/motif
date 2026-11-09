@@ -1065,6 +1065,16 @@ and anything deferred to a later slice or a follow-up PR.
   leave no keyboard focus, so `type(_:into:)` taps again until it has it.
   `ios-simulator.sh` reads runtime versions from `simctl list runtimes`, since the Duo's
   device wasn't found by its runtime identifier alone.
+- **D02:** each tab is `NavigationSplitView(columnVisibility:)` with
+  `.navigationSplitViewStyle(.automatic)`; the 669 pt (IP) overlay is a device check still owed,
+  so no `.prominentDetail` switch yet. `AppState` holds `puzzlesCollection` / `gamesCollection`,
+  the paths and `TabColumns` (a pushed board sets `.detailOnly`, popping restores);
+  `openPuzzles` / `openGames` split full routes. The ⋯ menus go through `motifOverflowMenu`
+  (`toolbarOverflowMenu`, which Apple's docs list from iOS 27.0, gated at 27.1); UI tests open it
+  with `overflow(_:)`, assuming the system button's label is "More". `visibilityPriority` (27.0)
+  is deferred: `ToolbarContentBuilder` can only gate it for customizable items. The session cover
+  and import sheet moved to `RootView`, since the sidebar can leave the screen. The vertical tab
+  bar's labels are a device check.
 
 ## 9. Implementation slices
 

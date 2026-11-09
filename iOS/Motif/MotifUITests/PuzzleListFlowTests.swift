@@ -15,7 +15,7 @@ import XCTest
         XCTAssertTrue(first.exists)
     }
     func testCollectionMenuImportsIntoThisCollection() {
-        launch("collection"); let menu = button("collection-actions"); wait(menu); capture("collection")
+        launch("collection"); let menu = overflow("collection-actions"); wait(menu); capture("collection")
         menu.tap(); let item = app.buttons["Import Into Collection…"]; wait(item); item.tap()
         wait(app.textViews["puzzle-import-text"])
     }
@@ -37,10 +37,10 @@ import XCTest
         text.tap(); text.typeText(" Rook lift."); button("puzzle-comment-save").tap()
         expect(button("puzzle-detail-comment"), "label CONTAINS 'Rook lift.'")
 
-        button("puzzle-actions").tap(); let copy = app.buttons["Copy FEN"]; wait(copy); copy.tap()
+        overflow("puzzle-actions").tap(); let copy = app.buttons["Copy FEN"]; wait(copy); copy.tap()
         wait(app.buttons["toast"])
 
-        button("puzzle-actions").tap(); let delete = app.buttons["Delete Puzzle"]; wait(delete); delete.tap()
+        overflow("puzzle-actions").tap(); let delete = app.buttons["Delete Puzzle"]; wait(delete); delete.tap()
         wait(app.staticTexts["Delete this puzzle from the library?"])
         let confirms = app.buttons.matching(NSPredicate(format: "label == %@", "Delete Puzzle")); wait(confirms.firstMatch)
         let confirm = confirms.allElementsBoundByIndex.first(where: \.isHittable); XCTAssertNotNil(confirm, app.debugDescription); confirm?.tap()

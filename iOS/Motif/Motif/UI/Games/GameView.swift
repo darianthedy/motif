@@ -69,6 +69,8 @@ struct GameContentView: View {
     private var screen: some View {
         content
             .navigationBarBackButtonHidden(guardsLeaving).toolbar { toolbar }
+            // The game menu (F16); its items set flags the sheet and dialogs below read (F15).
+            .motifOverflowMenu("Game actions", identifier: "game-actions") { gameMenu }
             .safeAreaBar(edge: .bottom) { if model.tree != nil { controls } }
             .sheet(item: $panel) { presented in
                 switch presented {
@@ -115,7 +117,6 @@ struct GameContentView: View {
         if guardsLeaving {
             ToolbarItem(placement: .topBarLeading) { Button("Back", systemImage: "chevron.backward") { leaving = true }.accessibilityIdentifier("game-back") }
         }
-        ToolbarItem(placement: .topBarTrailing) { Menu { gameMenu } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Game actions").accessibilityIdentifier("game-actions") }
     }
     /// Side margin for the board and the engine lines.
     private static let margin: CGFloat = 16

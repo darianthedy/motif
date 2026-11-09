@@ -1,14 +1,12 @@
 import SwiftUI
 
-/// The toolbar avatar on both home screens; it opens the Account sheet.
+/// The Account toolbar item beside + on both home screens; it opens the Account sheet.
+/// Titled with a symbol, so it shows in the vertical side bar and reads in overflow (F32).
 struct AccountButton: View {
     @Environment(AppState.self) private var app
     var body: some View {
-        Button { app.showingAccount = true } label: {
-            AccountAvatar(email: app.store.user?.email ?? "", size: 30)
-        }
-        .accessibilityLabel("Account")
-        .accessibilityIdentifier("account")
+        Button("Account", systemImage: "person.crop.circle") { app.showingAccount = true }
+            .accessibilityIdentifier("account")
     }
 }
 struct AccountAvatar: View {
@@ -52,6 +50,13 @@ struct AccountView: View {
                     Button("Reset Puzzle Progress…", role: .destructive) { resetting = true }
                         .disabled(!app.store.online || app.store.library?.attempts.isEmpty != false)
                         .accessibilityIdentifier("reset-progress")
+                        // On its row inside the sheet, not the form, so the popover anchors there (F15).
+                        .confirmationDialog("Reset puzzle progress?", isPresented: $resetting, titleVisibility: .visible) {
+                            Button("Reset Progress", role: .destructive) { Task { _ = await app.edit({ try await $0.resetProgress() }, done: "Progress reset. Every puzzle is unseen again.") } }
+                                .accessibilityIdentifier("reset-confirm")
+                        } message: {
+                            Text("Forget every attempt? Your puzzles and collections stay. Solved, mistakes and in-progress sessions are cleared on every device.")
+                        }
                 } header: { Text("Progress") } footer: {
                     Text("Forgets every attempt on every device: solved, mistakes and sessions in progress. Your puzzles and collections stay.")
                 }
@@ -87,12 +92,6 @@ struct AccountView: View {
             }
             .animation(.snappy, value: app.notice)
             .animation(.snappy, value: app.error)
-            .confirmationDialog("Reset puzzle progress?", isPresented: $resetting, titleVisibility: .visible) {
-                Button("Reset Progress", role: .destructive) { Task { _ = await app.edit({ try await $0.resetProgress() }, done: "Progress reset. Every puzzle is unseen again.") } }
-                    .accessibilityIdentifier("reset-confirm")
-            } message: {
-                Text("Forget every attempt? Your puzzles and collections stay. Solved, mistakes and in-progress sessions are cleared on every device.")
-            }
         }
     }
     private var email: String { app.store.user?.email ?? "" }

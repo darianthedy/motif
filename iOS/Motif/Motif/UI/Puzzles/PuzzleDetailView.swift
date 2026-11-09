@@ -64,12 +64,6 @@ private struct PuzzleDetailContent: View {
                     Task { _ = await app.edit { try await $0.setFlagged(puzzle.id, !flagged) } }
                 }.tint(flagged ? .orange : nil).disabled(!app.store.online).accessibilityIdentifier("puzzle-flag")
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button("Copy FEN", systemImage: "doc.on.doc") { UIPasteboard.general.string = puzzle.fen; app.showNotice("FEN copied.") }
-                    Section { Button("Delete Puzzle", systemImage: "trash", role: .destructive) { deleteConfirmation = true }.disabled(!app.store.online) }
-                } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Puzzle actions").accessibilityIdentifier("puzzle-actions")
-            }
             if puzzle.addPiece == nil {
                 ToolbarSpacer(.flexible, placement: .bottomBar)
                 ToolbarItemGroup(placement: .bottomBar) {
@@ -80,6 +74,11 @@ private struct PuzzleDetailContent: View {
                 }
                 ToolbarSpacer(.flexible, placement: .bottomBar)
             }
+        }
+        // Copy FEN and Delete Puzzle (F16); Delete only sets the flag the dialog below reads (F15).
+        .motifOverflowMenu("Puzzle actions", identifier: "puzzle-actions") {
+            Button("Copy FEN", systemImage: "doc.on.doc") { UIPasteboard.general.string = puzzle.fen; app.showNotice("FEN copied.") }
+            Section { Button("Delete Puzzle", systemImage: "trash", role: .destructive) { deleteConfirmation = true }.disabled(!app.store.online) }
         }
         .sheet(isPresented: $commenting) {
             CommentSheet(title: title, value: puzzle.comment, online: app.store.online,

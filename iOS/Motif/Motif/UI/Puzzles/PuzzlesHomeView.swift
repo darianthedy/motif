@@ -8,11 +8,13 @@ struct PuzzlesHomeView: View {
     @State private var deleting: Collection?
     var body: some View {
         @Bindable var app = app
-        // One container for both states so the launch route, sheet and cover
-        // aren't re-attached (and re-run or dismissed) when the first import lands.
+        // One container for both states so the launch route isn't re-attached (and re-run)
+        // when the first import lands. The import sheet and the session cover hang off
+        // `RootView`, since this sidebar can leave the screen (a pushed board, the overlay).
         ZStack {
             if let library = app.store.library, !library.collections.isEmpty {
-                List {
+                // The split view's sidebar: the selection is the collection in the detail column.
+                List(selection: $app.puzzlesSelection) {
                     if !library.puzzles.isEmpty { practice(library) }
                     collections(library)
                 }
@@ -40,12 +42,6 @@ struct PuzzlesHomeView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
-        .confirmationDialog("Delete this collection and its puzzles?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
-                            titleVisibility: .visible, presenting: deleting) { collection in
-            Button("Delete Collection", role: .destructive) { Task { _ = await app.edit { try await $0.deleteCollection(collection.id) } } }
-        }
-        .sheet(isPresented: $app.importingPuzzles) { ImportView().environment(app) }
-        .fullScreenCover(item: $app.session) { SessionView(scope: $0.scope).environment(app) }
         .task { await openLaunchRoute() }
     }
     private var subtitle: String {
@@ -82,7 +78,7 @@ struct PuzzlesHomeView: View {
         return Section("Collections") {
             ForEach(collectionsOf(library), id: \.id) { collection in
                 let stats = statsFor(puzzlesIn(library, collection.id).map(\.id), records)
-                NavigationLink(value: PuzzleRoute.collection(collection.id)) {
+                NavigationLink(value: collection.id) {
                     CollectionRow(name: collection.name, stats: stats, inProgress: resumable(library, collection.id))
                 }
                 .accessibilityIdentifier("collection-" + collection.id)
@@ -93,6 +89,11 @@ struct PuzzlesHomeView: View {
                     Button("Rename…", systemImage: "pencil") { name = collection.name; renaming = collection }.disabled(!app.store.online)
                     Button("Delete", systemImage: "trash", role: .destructive) { deleting = collection }.disabled(!app.store.online)
                 }
+                // On the row that asked, so on regular width it anchors there (F15).
+                .confirmationDialog("Delete this collection and its puzzles?", isPresented: Binding(get: { deleting?.id == collection.id }, set: { if !$0 { deleting = nil } }),
+                                    titleVisibility: .visible) {
+                    Button("Delete Collection", role: .destructive) { Task { _ = await app.edit { try await $0.deleteCollection(collection.id) } } }
+                }
             }
         }
     }
@@ -100,13 +101,13 @@ struct PuzzlesHomeView: View {
         #if DEBUG
         guard let route = app.launchRoute, let library = app.store.library else { return }
         if route == "import" { app.importingPuzzles = true }
-        if ["puzzle-list", "puzzle-list-empty"].contains(route), let first = library.collections.first { app.puzzlesPath = [.collection(first.id), .puzzles(first.id)] }
-        if route == "puzzle-detail", let first = library.collections.first, let puzzle = puzzlesIn(library, first.id).first { app.puzzlesPath = [.collection(first.id), .puzzles(first.id), .puzzle(first.id, puzzle.id)] }
+        if ["puzzle-list", "puzzle-list-empty"].contains(route), let first = library.collections.first { app.openPuzzles([.collection(first.id), .puzzles(first.id)]) }
+        if route == "puzzle-detail", let first = library.collections.first, let puzzle = puzzlesIn(library, first.id).first { app.openPuzzles([.collection(first.id), .puzzles(first.id), .puzzle(first.id, puzzle.id)]) }
         // `puzzle-detail:<puzzle id>` opens that puzzle instead.
         if route.hasPrefix("puzzle-detail:"), let puzzle = library.puzzles.first(where: { $0.id == route.dropFirst("puzzle-detail:".count) }) {
-            app.puzzlesPath = [.collection(puzzle.collectionId), .puzzles(puzzle.collectionId), .puzzle(puzzle.collectionId, puzzle.id)]
+            app.openPuzzles([.collection(puzzle.collectionId), .puzzles(puzzle.collectionId), .puzzle(puzzle.collectionId, puzzle.id)])
         }
-        if route == "collection", let first = library.collections.first { app.puzzlesPath = [.collection(first.id)] }
+        if route == "collection", let first = library.collections.first { app.openPuzzles([.collection(first.id)]) }
         if route.hasPrefix("session:") || route.hasPrefix("result:") {
             // `session:<collection id>` and `result:<collection id>` start in that collection.
             let named = String(route.drop { $0 != ":" }.dropFirst())

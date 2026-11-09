@@ -33,6 +33,13 @@ import XCTest
     func button(_ id: String, title: String) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", id, title)).firstMatch
     }
+    /// A screen's ⋯ menu (`motifOverflowMenu`): before iOS 27.1 a `Menu` with `id`; on 27.1 the system
+    /// overflow button, which carries neither the identifier nor the fallback's title.
+    func overflow(_ id: String) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", id, FlowTestCase.overflowLabel)).firstMatch
+    }
+    /// The system overflow button's accessibility label on iOS 27.1.
+    static let overflowLabel = "More"
     /// Tap a text field or view, again while the tap left no keyboard focus in it (the New Game sheet's FEN field,
     /// on the iOS 27 runtime), then type. The focus may sit on the element or a descendant, as `typeText` checks.
     func type(_ text: String, into field: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {

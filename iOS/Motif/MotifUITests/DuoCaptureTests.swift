@@ -90,14 +90,16 @@ import XCTest
         "save-game-confirm": "Save Game", "game-new-board": "Create Game", "puzzle-import-add": "Add 2 Puzzles",
         "game-import-add": "Add 2 Games", "game-back": "Back", "game-save-as-game": "Save as Game…",
         "game-export-pgn": "Export PGN…", "game-select": "Select Games", "game-select-all": "Select All",
-        "add-games": "Add Games", "game-collection-actions": "More", "collection-actions": "More",
-        "puzzle-actions": "Puzzle actions", "game-actions": "Game actions", "result-analyze": "Analyze",
+        "add-games": "Add Games", "account": "Account", "result-analyze": "Analyze",
         "session-skip": "Skip", "session-flag": "Flag", "session-stop": "End Session", "reset-progress": "Reset Puzzle Progress…",
         "new-game-collection": "New Collection", "import-puzzles": "Import Puzzles", "puzzle-next-move": "Next move",
         "game-next-move": "Next move", "puzzle-detail-comment": "Comment", "puzzle-import-paste": "Paste From Clipboard",
         "game-import-paste": "Paste From Clipboard", "load-sign-out": "Sign Out", "sign-in": "Sign In",
     ]
+    /// The ⋯ menus, which are the system overflow button on iOS 27.1 (`overflow(_:)`).
+    private static let overflows: Set = ["game-collection-actions", "collection-actions", "puzzle-actions", "game-actions"]
     override func button(_ id: String) -> XCUIElement {
+        if Self.overflows.contains(id) { return overflow(id) }
         guard let title = Self.titles[id] else { return super.button(id) }
         return app.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", id, title)).firstMatch
     }

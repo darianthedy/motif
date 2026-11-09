@@ -6,7 +6,7 @@ import XCTest
         // The attempt is recorded on Continue, not when the card appears.
         button("result-continue").tap()
         expect(app.staticTexts["result-verdict"], "exists == false")
-        button("session-stop").tap(); wait(button("account")); button("account").tap()
+        button("session-stop").tap(); let account = button("account", title: "Account"); wait(account); account.tap()
         let reset = button("reset-progress"); wait(reset); expect(reset, "isEnabled == true")
         XCTAssertTrue(app.descendants(matching: .any)["account-email"].label.contains("sample@motif.local"))
         capture("account")

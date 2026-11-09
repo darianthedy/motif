@@ -92,7 +92,7 @@ struct GameCollectionView: View {
                 Button("Cancel", role: .cancel) {}
             }
             .confirmationDialog("Delete this collection and its games?", isPresented: $deletingCollection, titleVisibility: .visible) {
-                Button("Delete Collection", role: .destructive) { Task { if await app.edit({ try await $0.deleteGameCollection(collectionId) }) { app.gamesPath = [] } } }
+                Button("Delete Collection", role: .destructive) { Task { if await app.edit({ try await $0.deleteGameCollection(collectionId) }) { app.openGames([]) } } }
             }
             .confirmationDialog("Delete the selected games?", isPresented: $deletingGames, titleVisibility: .visible) {
                 Button("Delete \(countLabel(model.selected.count, "Game"))", role: .destructive) {
@@ -140,7 +140,7 @@ struct GameCollectionView: View {
         .toolbar {
             if editing {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(model.allSelected(shown) ? "Deselect All" : "Select All") { model.toggleAll(shown) }
+                    Button(model.allSelected(shown) ? "Deselect All" : "Select All", systemImage: model.allSelected(shown) ? "circle.dashed" : "checkmark.circle.fill") { model.toggleAll(shown) }
                         .disabled(shown.isEmpty).accessibilityIdentifier("game-select-all")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -155,20 +155,19 @@ struct GameCollectionView: View {
                         Button("New Game on Board…", systemImage: "checkerboard.rectangle") { adding = .newGame }
                     }.disabled(!app.store.online).accessibilityIdentifier("add-games")
                 }
-                ToolbarSpacer(.fixed, placement: .topBarTrailing)
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu("More", systemImage: "ellipsis") {
-                        Button("Select Games", systemImage: "checkmark.circle") { withAnimation { editMode = .active } }
-                            .disabled(games.isEmpty).accessibilityIdentifier("game-select")
-                        ShareLink(item: PGNExport(text: gamesAsFile(games), name: collection.name), preview: SharePreview(collection.name)) {
-                            Label("Export as PGN", systemImage: "square.and.arrow.up")
-                        }.disabled(games.isEmpty)
-                        Button("Rename…", systemImage: "pencil") { name = collection.name; renaming = true }.disabled(!app.store.online)
-                        Divider()
-                        Button("Delete Collection", systemImage: "trash", role: .destructive) { deletingCollection = true }.disabled(!app.store.online)
-                    }.accessibilityIdentifier("game-collection-actions")
-                }
             }
+        }
+        // Not while editing: Select All and Done own the bar then. Items set flags; the alert and
+        // dialog hang off the screen, not the menu (F15).
+        .motifOverflowMenu("More", identifier: "game-collection-actions", shown: !editing) {
+            Button("Select Games", systemImage: "checkmark.circle") { withAnimation { editMode = .active } }
+                .disabled(games.isEmpty).accessibilityIdentifier("game-select")
+            ShareLink(item: PGNExport(text: gamesAsFile(games), name: collection.name), preview: SharePreview(collection.name)) {
+                Label("Export as PGN", systemImage: "square.and.arrow.up")
+            }.disabled(games.isEmpty)
+            Button("Rename…", systemImage: "pencil") { name = collection.name; renaming = true }.disabled(!app.store.online)
+            Divider()
+            Button("Delete Collection", systemImage: "trash", role: .destructive) { deletingCollection = true }.disabled(!app.store.online)
         }
     }
     @ToolbarContentBuilder private func bulkBar(_ collection: GameCollection, chosen: [Game]) -> some ToolbarContent {

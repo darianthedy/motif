@@ -42,7 +42,14 @@ WORKFLOW="ios-testflight.yml"
 read -r -a PROMPTS <<< "${PROMPT_IDS:-P01 P02 P03 P04 P05 P06 P07 P08 P09 P10 P11 P12}"
 BRANCH_PREFIX="${BRANCH_PREFIX:-ios/}"
 SPEC_RULE="${SPEC_RULE:-The TypeScript in src/ is the spec; port it, do not redesign it.}"
-MAX_FIX_ATTEMPTS=3
+MAX_FIX_ATTEMPTS="${MAX_FIX_ATTEMPTS:-3}"
+# Batch mode: set BATCH_BRANCH to build every slice as one commit each on that
+# branch, with no push and no CI between slices. After the last slice the branch
+# is pushed, ONE PR opened, ios-ci run and fixed (up to MAX_FIX_ATTEMPTS), merged,
+# and TestFlight checked once. BATCH_BASE is where the branch starts if it doesn't
+# exist yet (default main). A resume (`… D05`) continues on the existing branch.
+BATCH_BRANCH="${BATCH_BRANCH:-}"
+BATCH_BASE="${BATCH_BASE:-main}"
 SKIP_TESTFLIGHT="${SKIP_TESTFLIGHT:-0}"
 # Headless permissions. Sessions edit files + run git; for unattended runs this
 # is the practical choice. Drop to --permission-mode acceptEdits to babysit.
@@ -348,6 +355,73 @@ merge_pr() {
   MERGE_SHA=$(git rev-parse HEAD)
 }
 
+# Wait for TestFlight on the merge, fixing on new branches. $1 = label  $2 = merge sha
+testflight_until_green() {
+  local P="$1" sha="$2" attempt=0 fix_branch
+  if [ "$SKIP_TESTFLIGHT" = 1 ]; then log "=== $P : merged (TestFlight skipped) ==="; return 0; fi
+  until wait_for_run "$WORKFLOW" "$sha"; do
+    attempt=$((attempt+1))
+    [ "$attempt" -gt "$MAX_FIX_ATTEMPTS" ] && die "$P: TestFlight still failing after $MAX_FIX_ATTEMPTS fixes"
+    log "=== $P : TestFlight FAILED — fix attempt $attempt ==="
+    fix_branch="$BRANCH_PREFIX${P%% *}-tf-fix$attempt"
+    implement_and_open_pr "$fix_branch" "The iOS TestFlight build on \`main\` for prompt $P of \"$DOC\" \
+FAILED, though the simulator check passed — so look first at signing, archiving and \
+Release-only settings. Fix only what's needed to make \`fastlane beta\` (scheme Motif) \
+build, sign and upload. Commit; do not push.
+
+--- failing TestFlight log (tail) ---
+$(failed_log "$RUN_ID")"
+    ci_until_green "$P" "$fix_branch"
+    merge_pr "$fix_branch"; sha="$MERGE_SHA"
+  done
+  log "=== $P : TestFlight GREEN ✅ ==="
+}
+
+# --- batch mode -------------------------------------------------------------
+if [ -n "$BATCH_BRANCH" ]; then
+  git fetch -q origin || die "fetch failed"
+  if git rev-parse -q --verify "refs/heads/$BATCH_BRANCH" >/dev/null; then
+    git switch "$BATCH_BRANCH" >/dev/null || die "switch $BATCH_BRANCH failed"
+  elif git rev-parse -q --verify "refs/remotes/origin/$BATCH_BRANCH" >/dev/null; then
+    git switch -c "$BATCH_BRANCH" --track "origin/$BATCH_BRANCH" >/dev/null || die "track $BATCH_BRANCH failed"
+  else
+    base="$BATCH_BASE"; git rev-parse -q --verify "refs/remotes/origin/$base" >/dev/null && base="origin/$base"
+    git switch -c "$BATCH_BRANCH" "$base" >/dev/null || die "create $BATCH_BRANCH from $base failed"
+  fi
+  [ -z "$(git status --porcelain)" ] || die "$BATCH_BRANCH has uncommitted changes"
+  started=0; done_ids=()
+  for P in "${PROMPTS[@]}"; do
+    [ "$P" = "$START_AT" ] && started=1
+    [ "$started" = 1 ] || { log "skip $P (resuming at $START_AT)"; continue; }
+    log "=== $P : implementing on $BATCH_BRANCH (no CI until the last slice) ==="
+    preflight_wait
+    run_until_committed "$P" "In this repo, read \"$DOC\", find prompt $P, and follow its \
+**Run** line exactly — read the §refs it cites and implement ONLY the $P slice, \
+no more, no less. $SPEC_RULE \
+BATCH MODE: you are on branch \`$BATCH_BRANCH\`, where the earlier slices are committed \
+but have NEVER been compiled or tested. There is no CI between slices: ios-ci runs once \
+after the last slice, and a fix session then gets the whole log. You cannot compile, so \
+check every API you call against the code in the repo or Apple's documentation, keep the \
+earlier slices' code working, and update the tests your change affects. If an earlier \
+slice left something obviously broken that your slice touches, fix it and say so in the \
+commit message. When finished, commit all changes with a message starting \"$P:\". \
+Do not push or open a PR."
+    done_ids+=("$P")
+  done
+  label="${PROMPTS[0]}–${PROMPTS[${#PROMPTS[@]}-1]}"
+  git push -u origin "$BATCH_BRANCH" >/dev/null || die "push $BATCH_BRANCH failed"
+  if [ -z "$(gh pr list --head "$BATCH_BRANCH" --state open --json number -q '.[0].number' 2>/dev/null)" ]; then
+    gh pr create --base main --head "$BATCH_BRANCH" --title "$label (batch): $DOC" \
+      --body "Every slice $label of \`$DOC\`, one commit each, built without CI between slices; ios-ci and its fixes run once at the end." \
+      >/dev/null || die "pr create failed"
+  fi
+  ci_until_green "$label (all slices, built without CI between them; read each slice's prompt for scope, and fix every error in the log, not just the first)" "$BATCH_BRANCH"
+  merge_pr "$BATCH_BRANCH"
+  testflight_until_green "$label" "$MERGE_SHA"
+  log "All prompts complete (batch). 🎉"
+  exit 0
+fi
+
 # --- main loop --------------------------------------------------------------
 started=0
 for P in "${PROMPTS[@]}"; do
@@ -367,29 +441,7 @@ changes with a clear message. Do not push or open a PR."
   ci_until_green "$P" "$branch"
   merge_pr "$branch"; sha="$MERGE_SHA"
 
-  if [ "$SKIP_TESTFLIGHT" = 1 ]; then
-    log "=== $P : merged (TestFlight skipped) ==="
-    continue
-  fi
-
-  attempt=0
-  until wait_for_run "$WORKFLOW" "$sha"; do
-    attempt=$((attempt+1))
-    [ "$attempt" -gt "$MAX_FIX_ATTEMPTS" ] && die "$P: TestFlight still failing after $MAX_FIX_ATTEMPTS fixes"
-    log "=== $P : TestFlight FAILED — fix attempt $attempt ==="
-    fix_branch="$BRANCH_PREFIX$P-tf-fix$attempt"
-    implement_and_open_pr "$fix_branch" "The iOS TestFlight build on \`main\` for prompt $P of \"$DOC\" \
-FAILED, though the simulator check passed — so look first at signing, archiving and \
-Release-only settings. Fix only what's needed to make \`fastlane beta\` (scheme Motif) \
-build, sign and upload. Commit; do not push.
-
---- failing TestFlight log (tail) ---
-$(failed_log "$RUN_ID")"
-    ci_until_green "$P" "$fix_branch"
-    merge_pr "$fix_branch"; sha="$MERGE_SHA"
-  done
-
-  log "=== $P : TestFlight GREEN ✅ ==="
+  testflight_until_green "$P" "$sha"
 done
 
 log "All prompts complete. 🎉"

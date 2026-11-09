@@ -44,6 +44,19 @@ import XCTest
         menu.tap(); let item = app.buttons["Import Into Collection…"]; wait(item); item.tap()
         wait(app.textViews["puzzle-import-text"])
     }
+    /// D06: puzzle detail pins its board, 504 pt on the Duo opened wide (IL), with the list in the column
+    /// beside it and the replay steps in the side bar (decision 18).
+    func testOpenWidePuzzleDetailPinsA504BoardBesideTheList() throws {
+        try XCTSkipIf(pose != "IL", "Only the Duo opened wide (IL) has this layout")
+        launch("puzzle-detail:sample-back-rank-1"); wait(square("a1")); wait(square("h8"))
+        let board = boardFrame()
+        XCTAssertEqual(board.width, 504, accuracy: 1); XCTAssertEqual(board.height, 504, accuracy: 1)
+        let list = app.descendants(matching: .any)["puzzle-detail-list"]; wait(list)
+        XCTAssertGreaterThanOrEqual(list.frame.minX, board.maxX, "The list sits beside the board")
+        let next = button("puzzle-next-move"); wait(next)
+        XCTAssertFalse(next.frame.intersects(board)); XCTAssertGreaterThanOrEqual(next.frame.minX, list.frame.maxX, "Next Move is in the side bar")
+        list.swipeUp(); XCTAssertEqual(boardFrame().minY, board.minY, accuracy: 1, "The list scrolls; the board stays")
+    }
     func testPuzzleDetailReplaysSwitchesLinesFlagsCommentsCopiesAndDeletes() {
         launch("puzzle-list"); let row = button("puzzle-sample-back-rank-2"); wait(row); row.tap()
         let first = button("puzzle-move-0"); wait(first); XCTAssertTrue(first.label.contains("Rb8"))
@@ -54,11 +67,14 @@ import XCTest
 
         tap(button("puzzle-flag"), until: "label == 'Unflag'")
 
-        // The Comment row starts below the fold, behind the replay bar. isHittable still reports it as
-        // tappable there (a sliver shows above the bar), so scroll until the whole row clears the bar.
+        // The Comment row can start below the fold, behind the replay bar (the bottom bar on an iPhone; the
+        // side bar on the Duo sits beside it). isHittable still reports it as tappable there (a sliver shows
+        // above the bar), so scroll the list, not the pinned board (D06), until the whole row clears the bar.
         let comment = button("puzzle-detail-comment"); wait(comment); let bar = button("puzzle-go-to-start")
-        for _ in 0..<3 where comment.frame.maxY > bar.frame.minY { app.swipeUp() }
-        XCTAssertLessThanOrEqual(comment.frame.maxY, bar.frame.minY, app.debugDescription); let text = app.textViews["edit-puzzle-comment"]; tap(comment, until: "exists == true", on: text); capture("puzzle-detail-comment")
+        let list = app.descendants(matching: .any)["puzzle-detail-list"]; wait(list)
+        let behindBar = { comment.frame.maxY > bar.frame.minY && comment.frame.minX < bar.frame.maxX && comment.frame.maxX > bar.frame.minX }
+        for _ in 0..<3 where behindBar() { list.swipeUp() }
+        XCTAssertFalse(behindBar(), app.debugDescription); let text = app.textViews["edit-puzzle-comment"]; tap(comment, until: "exists == true", on: text); capture("puzzle-detail-comment")
         text.tap(); text.typeText(" Rook lift."); button("puzzle-comment-save").tap()
         expect(button("puzzle-detail-comment"), "label CONTAINS 'Rook lift.'")
 

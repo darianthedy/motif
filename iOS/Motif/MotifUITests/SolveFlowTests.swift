@@ -54,6 +54,7 @@ import XCTest
         launch("import")
         importPuzzle(#"{"collection":"Promotion","puzzles":[{"fen":"7k/4P3/8/8/8/8/8/6K1 w - - 0 1","solutions":[["e7e8q"]]}]}"#, name: "Promotion")
         move("e7", "e8"); wait(button("choose-q")); XCTAssertFalse(button("choose-p").exists)
+        XCTAssertFalse(button("choose-q").frame.intersects(boardFrame()), "The promotion row sits beside or under the board (decision 17)")
         capture("promotion-picker")
         button("picker-cancel").tap(); XCTAssertTrue(square("e7").label.contains("Pawn")); XCTAssertFalse(app.staticTexts["result-verdict"].exists)
         move("e7", "e8"); wait(button("choose-q")); button("choose-q").tap(); wait(app.staticTexts["result-verdict"])
@@ -62,11 +63,36 @@ import XCTest
     func testMissingPiecePickerCancelAndWrongGuess() {
         launch("session:missing"); tap("g7"); XCTAssertFalse(button("choose-q").exists)
         place("g6"); wait(button("choose-p")); XCTAssertFalse(button("choose-k").exists); capture("placement-picker")
+        XCTAssertFalse(button("choose-p").frame.intersects(boardFrame()), "The piece row sits beside or under the board (decision 17)")
         button("picker-cancel").tap(); XCTAssertTrue(square("g6").label.contains("empty"))
         place("g6"); wait(button("choose-q")); button("choose-q").tap(); expect(square("g6"), "isSelected == false"); XCTAssertTrue(square("g6").label.contains("empty"))
         place("g6"); wait(button("choose-n")); button("choose-n").tap(); wait(app.staticTexts["result-verdict"])
         XCTAssertEqual(app.staticTexts["result-verdict"].label, "Missed · 1 wrong guess"); XCTAssertTrue(square("g6").label.contains("Knight"))
         XCTAssertTrue(app.staticTexts["puzzle-comment"].exists); capture("missing-result")
+    }
+    /// D06: the session board is pinned and whole, with Skip in a bar beside or under it (decision 14, 18).
+    func testSessionBoardFitsWithoutScrolling() {
+        launch("session:all"); wait(square("a1")); wait(square("h8"))
+        XCTAssertTrue(square("a1").isHittable); XCTAssertTrue(square("h8").isHittable)
+        let window = app.windows.firstMatch.frame, board = boardFrame()
+        XCTAssertTrue(window.contains(board), "\(board) runs off \(window)")
+        let skip = button("session-skip"); wait(skip)
+        XCTAssertFalse(skip.frame.intersects(board), "Skip is a bar item, not an overlay on the board")
+    }
+    /// D06: on the Duo opened wide (IL) the session board is 504 pt and the result card sits in the column
+    /// beside it, never over it (decision 15).
+    func testOpenWideSessionHasA504BoardAndTheResultBesideIt() throws {
+        try XCTSkipIf(pose != "IL", "Only the Duo opened wide (IL) has this layout")
+        launch("session:all"); wait(square("a1")); wait(square("h8"))
+        let board = boardFrame()
+        XCTAssertEqual(board.width, 504, accuracy: 1); XCTAssertEqual(board.height, 504, accuracy: 1)
+        move("a1", "a8"); wait(app.staticTexts["result-verdict"]); wait(button("result-continue"))
+        for element in [app.staticTexts["result-verdict"], button("result-continue"), button("result-analyze")] {
+            XCTAssertFalse(element.frame.intersects(board), "\(element) covers the board")
+            XCTAssertGreaterThanOrEqual(element.frame.minX, board.maxX, "\(element) is in the column beside the board")
+        }
+        XCTAssertEqual(boardFrame().minY, board.minY, accuracy: 1, "The board doesn't move when the result shows")
+        capture("open-wide-result")
     }
     func testFinalOpponentReplyAppearsBeforeCompletion() {
         launch("import")

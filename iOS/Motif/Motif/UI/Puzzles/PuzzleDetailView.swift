@@ -38,24 +38,41 @@ struct PuzzleDetailView: View {
 }
 private struct PuzzleDetailContent: View {
     @Environment(AppState.self) private var app
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let puzzle: Puzzle
     @State private var model: PuzzleDetailModel
     @State private var deleteConfirmation = false
     @State private var commenting = false
+    /// The content's size inside the safe area and the bars, for `BoardLayout`.
+    @State private var container: CGSize = .zero
     init(puzzle: Puzzle) { self.puzzle = puzzle; _model = State(initialValue: PuzzleDetailModel(puzzle)) }
     private var flagged: Bool { puzzle.flagged == true }
     private var title: String { "#" + (puzzle.sourceId ?? "\(puzzle.position + 1)") }
     var body: some View {
-        List {
-            Section {
-                // Display-only: its square buttons would otherwise swallow a drag meant to scroll the page.
-                BoardView(fen: model.fen, orientation: solverSide(puzzle), interactive: false, highlight: model.highlight)
-                    .allowsHitTesting(false).listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
-            }.listSectionMargins(.horizontal, 0)
-            if puzzle.addPiece == nil { solution }
-            info
+        // The board is pinned outside the list, which scrolls in the column beside it or below
+        // it (decision 18, F1, F11). `AnyLayout` switches between the two, so a fold keeps the
+        // step, the line and the sheets.
+        let layout = BoardLayout(container: container, compact: sizeClass == .compact, evalBar: false)
+        let stack = layout.mode == .panes
+            ? AnyLayout(HStackLayout(alignment: .top, spacing: BoardLayout.paneGap))
+            : AnyLayout(VStackLayout(alignment: .center, spacing: BoardLayout.stackGap))
+        stack {
+            // Display-only: the detail replays, it doesn't take moves.
+            BoardView(fen: model.fen, orientation: solverSide(puzzle), interactive: false, highlight: model.highlight)
+                .allowsHitTesting(false).frame(width: layout.board, height: layout.board)
+            List {
+                if puzzle.addPiece == nil { solution }
+                info
+            }
+            .listStyle(.insetGrouped).listSectionSpacing(.compact)
+            .scrollContentBackground(.hidden).contentMargins(.top, 0, for: .scrollContent)
+            .accessibilityIdentifier("puzzle-detail-list")
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .listSectionSpacing(.compact)
+        .padding(.horizontal, layout.margin).padding(.top, BoardLayout.inset)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { container = $0 }
+        .background(Color(.systemGroupedBackground))
         .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
         .navigationSubtitle(app.store.library?.collections.first(where: { $0.id == puzzle.collectionId })?.name ?? "")
         .toolbar {
@@ -64,15 +81,15 @@ private struct PuzzleDetailContent: View {
                     Task { _ = await app.edit { try await $0.setFlagged(puzzle.id, !flagged) } }
                 }.tint(flagged ? .orange : nil).disabled(!app.store.online).accessibilityIdentifier("puzzle-flag")
             }
+            // The replay steps, as the Analysis view's bottom bar group (decision 13): the side bar
+            // on the Duo, the bottom bar on an iPhone.
             if puzzle.addPiece == nil {
-                ToolbarSpacer(.flexible, placement: .bottomBar)
                 ToolbarItemGroup(placement: .bottomBar) {
-                    control("Go to start", "backward.end.fill", disabled: model.ply == 0) { model.ply = 0 }
-                    control("Previous move", "chevron.left", disabled: model.ply == 0, action: model.back)
-                    control("Next move", "chevron.right", disabled: model.ply >= model.steps.count, action: model.next)
-                    control("Go to end", "forward.end.fill", disabled: model.ply >= model.steps.count, action: model.end)
+                    control("Go to Start", "backward.end.fill", disabled: model.ply == 0) { model.ply = 0 }
+                    control("Previous Move", "chevron.left", disabled: model.ply == 0, action: model.back)
+                    control("Next Move", "chevron.right", disabled: model.ply >= model.steps.count, action: model.next)
+                    control("Go to End", "forward.end.fill", disabled: model.ply >= model.steps.count, action: model.end)
                 }
-                ToolbarSpacer(.flexible, placement: .bottomBar)
             }
         }
         // Copy FEN and Delete Puzzle (F16); Delete only sets the flag the dialog below reads (F15).
@@ -104,7 +121,7 @@ private struct PuzzleDetailContent: View {
             if puzzle.solutions.count > 1 {
                 Picker("Solution", selection: $model.lineIndex) { ForEach(puzzle.solutions.indices, id: \.self) { Text("Line \($0 + 1)").tag($0) } }
                     .pickerStyle(.segmented).labelsHidden().accessibilityIdentifier("puzzle-line")
-                    .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                    .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
             }
             ScrollViewReader { proxy in
                 ScrollView(.horizontal) {
@@ -113,12 +130,12 @@ private struct PuzzleDetailContent: View {
                             let selected = model.ply == index + 1
                             Button { model.ply = index + 1 } label: {
                                 Text(chip).font(.subheadline.weight(selected ? .semibold : .regular).monospacedDigit())
-                                    .foregroundStyle(selected ? Color.white : Color.primary).padding(.horizontal, 14).frame(minHeight: 36)
+                                    .foregroundStyle(selected ? Color.white : Color.primary).padding(.horizontal, 14).frame(minHeight: 44)
                             }.buttonStyle(.plain)
                                 .glassEffect(selected ? .regular.tint(.motifAccentStrong).interactive() : .regular.interactive(), in: .capsule)
                                 .accessibilityAddTraits(selected ? .isSelected : []).accessibilityIdentifier("puzzle-move-\(index)").id(index)
                         }
-                    }.padding(.horizontal, 16).padding(.vertical, 4)
+                    }.padding(.vertical, 4)
                 }.scrollIndicators(.hidden)
                     .onChange(of: model.ply) { _, ply in withAnimation { proxy.scrollTo(max(ply - 1, 0)) } }
             }
@@ -150,10 +167,10 @@ private struct PuzzleDetailContent: View {
                     Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
                 }.contentShape(.rect)
             }.buttonStyle(.plain).disabled(!app.store.online).accessibilityIdentifier("puzzle-detail-comment")
-        }
+        }.listSectionMargins(.horizontal, 0)
     }
     private func control(_ label: String, _ image: String, disabled: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Label(label, systemImage: image).font(.title3).imageScale(.large).frame(minWidth: 40, minHeight: 40) }
+        Button(label, systemImage: image, action: action)
             .disabled(disabled).accessibilityIdentifier("puzzle-" + label.lowercased().replacingOccurrences(of: " ", with: "-"))
     }
 }

@@ -115,7 +115,7 @@ struct GameContentView: View {
         HStack(spacing: layout.evalGap) {
             if evalBarShown { EvalBar(evaluation: analyzer.evaluation, orientation: model.orientation).frame(height: layout.board) }
             BoardView(fen: model.fen, orientation: model.orientation, interactive: true,
-                      highlight: model.node.map { (moveFrom($0.uci), moveTo($0.uci)) }, onMove: model.play, promotion: $promotion)
+                      highlight: model.node.map { (moveFrom($0.uci), moveTo($0.uci)) }, onMove: model.play, pending: $promotion)
                 .frame(width: layout.board, height: layout.board)
         }
     }
@@ -126,7 +126,7 @@ struct GameContentView: View {
         VStack(spacing: layout.compact ? 8 : 10) {
             if let problem = model.problem { Text(problem).font(.caption).foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading) }
             if let promoting {
-                PromotionRow(color: Board.turnOf(model.fen) ?? .white, choose: { piece in
+                PieceRow(color: Board.turnOf(model.fen) ?? .white, choose: { piece in
                     let fen = model.fen
                     promotion = nil
                     if let move = BoardInteraction.promotion(fen, promoting.from, promoting.to, piece) { model.play(move) }

@@ -1,24 +1,18 @@
 import SwiftUI
+/// The move puzzle's board. The session puts it in its `BoardLayout`; the prompt and the
+/// promotion row go in the column (decision 17), handed over through `pending`.
 struct PuzzleSolveView: View {
     let model: SolveModel
+    @Binding var pending: BoardPending?
     var body: some View {
-        let side = solverSide(model.puzzle)
-        VStack(spacing: 16) {
-            BoardView(fen: model.fen, orientation: side, interactive: model.phase == .solving,
-                      highlight: model.marked, highlightColor: model.hint == nil ? .blue : .orange,
-                      shakeKey: model.shakeKey, onMove: model.submit)
-            if !model.done {
-                SolvePrompt(side: side, guidance: guidance, warning: model.hint != nil)
-            }
-        }.sensoryFeedback(.success, trigger: model.phase == .solved)
-    }
-    private var guidance: String {
-        if model.hint != nil { return "Not quite. Play the highlighted move." }
-        return model.phase == .replying ? "Opponent is replying…" : "Find the best move."
+        BoardView(fen: model.fen, orientation: solverSide(model.puzzle), interactive: model.phase == .solving,
+                  highlight: model.marked, highlightColor: model.hint == nil ? .blue : .orange,
+                  shakeKey: model.shakeKey, onMove: model.submit, pending: $pending)
+            .sensoryFeedback(.success, trigger: model.phase == .solved)
     }
 }
 
-/// The capsule under the board: side to move and one line of guidance.
+/// The capsule under the board or atop the column: side to move and one line of guidance.
 struct SolvePrompt: View {
     let side: Side
     let guidance: String
@@ -36,7 +30,23 @@ struct SolvePrompt: View {
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
         .glassEffect(.regular, in: .capsule)
-        .padding(.horizontal)
         .accessibilityElement(children: .contain)
+    }
+}
+extension SolvePrompt {
+    /// The prompt for either kind of puzzle, as the solve views showed it under the board.
+    init(model: SolveModel) {
+        let side = solverSide(model.puzzle)
+        if model.puzzle.addPiece != nil {
+            if let hint = model.placementHint {
+                self.init(side: side, guidance: "Not quite. Add the \(hint.type.name.lowercased()) on the orange square.", warning: true)
+            } else {
+                self.init(side: side, guidance: "Tap the square where a piece is missing.")
+            }
+        } else if model.hint != nil {
+            self.init(side: side, guidance: "Not quite. Play the highlighted move.", warning: true)
+        } else {
+            self.init(side: side, guidance: model.phase == .replying ? "Opponent is replying…" : "Find the best move.")
+        }
     }
 }

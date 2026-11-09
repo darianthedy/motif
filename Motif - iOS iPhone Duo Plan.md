@@ -1091,6 +1091,11 @@ and anything deferred to a later slice or a follow-up PR.
   54 pt on the inline title, a device check. The eval bar is 14 pt. Hold-to-jump on Previous / Next is a
   `simultaneousGesture` on the toolbar buttons, plus VoiceOver actions; whether it survives in the side bar is a device check.
   The promotion row has a Cancel button (`picker-cancel`) the canvas doesn't draw. UI tests find the four toolbar items by title.
+- **D06:** session and puzzle detail sit on `BoardLayout` without the eval bar; the session measures its container with the
+  progress bar, as the canvas does, so IP keeps 512 pt and the column gives up 16 pt. `PromotionRow` became `PieceRow` (promotion
+  and the missing piece, titled "Add on <square>" rather than the canvas's "Which piece is missing?"); `BoardView` hands every
+  pending pick to the screen, so `PiecePicker` and the overlay are gone. Puzzle detail's replay items are retitled "Go to Start",
+  "Previous Move", "Next Move", "Go to End" (identifiers unchanged) and UI tests find them, Skip and End Session by title.
 
 ## 9. Implementation slices
 

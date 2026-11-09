@@ -92,7 +92,7 @@ import XCTest
         "game-export-pgn": "Export PGN…", "game-select": "Select Games", "game-select-all": "Select All",
         "add-games": "Add Games", "account": "Account", "result-analyze": "Analyze",
         "session-skip": "Skip", "session-flag": "Flag", "session-stop": "End Session", "reset-progress": "Reset Puzzle Progress…",
-        "new-game-collection": "New Collection", "import-puzzles": "Import Puzzles", "puzzle-next-move": "Next move",
+        "new-game-collection": "New Collection", "import-puzzles": "Import Puzzles", "puzzle-next-move": "Next Move",
         "game-next-move": "Next Move", "puzzle-detail-comment": "Comment", "puzzle-import-paste": "Paste From Clipboard",
         "game-import-paste": "Paste From Clipboard", "load-sign-out": "Sign Out", "sign-in": "Sign In",
     ]

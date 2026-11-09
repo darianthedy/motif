@@ -39,12 +39,17 @@ struct SessionView: View {
 }
 private struct SessionPuzzle: View {
     @Environment(AppState.self) private var app
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let puzzle: Puzzle
     let run: Run
     let progress: RunProgress
     @State private var model: SolveModel
     @State private var recording = false
     @State private var analyzing = false
+    /// A promotion or a tapped square waiting for its piece, answered by the row in the layout (decision 17).
+    @State private var pending: BoardPending?
+    /// The content's size inside the safe area and the bars, for `BoardLayout`.
+    @State private var container: CGSize = .zero
     init(puzzle: Puzzle, run: Run, progress: RunProgress) {
         self.puzzle = puzzle; self.run = run; self.progress = progress
         #if DEBUG
@@ -57,28 +62,33 @@ private struct SessionPuzzle: View {
         _model = State(initialValue: SolveModel(puzzle))
     }
     private var flagged: Bool { puzzle.flagged == true }
+    /// The result card's cap on compact width: 62 % of the content, scrolling past that (decision 15).
+    private var cardCap: CGFloat { container.height > 0 ? container.height * 0.62 : .infinity }
     var body: some View {
+        // The board is pinned: no scroll view around it, so solving never competes with
+        // scrolling (decision 18, F2). One view tree in every pose: `AnyLayout` switches
+        // between two panes and a stack, so `SolveModel` and a pending pick survive a fold.
+        let layout = BoardLayout(container: container, compact: sizeClass == .compact, evalBar: false)
+        let stack = layout.mode == .panes
+            ? AnyLayout(HStackLayout(alignment: .top, spacing: BoardLayout.paneGap))
+            : AnyLayout(VStackLayout(alignment: .center, spacing: BoardLayout.stackGap))
         VStack(spacing: 0) {
-            ProgressView(value: progress.progress).tint(.motifAccent).padding(.horizontal).padding(.vertical, 6)
+            ProgressView(value: progress.progress).tint(.motifAccent).padding(.horizontal, layout.margin).padding(.vertical, 6)
                 .accessibilityLabel("Session progress")
-            ScrollView {
-                if puzzle.addPiece != nil { MissingPieceSolveView(model: model) }
-                else { PuzzleSolveView(model: model) }
+            stack {
+                board.frame(width: layout.board, height: layout.board)
+                column(layout)
             }
-            // Scroll only when the content overflows: a scroll view that always
-            // bounces competes with piece drags for every vertical gesture.
-            .scrollBounceBehavior(.basedOnSize)
+            .padding(.horizontal, layout.margin).padding(.vertical, BoardLayout.inset)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .overlay(alignment: .bottomTrailing) {
-            if !model.done {
-                Button("Skip", systemImage: "forward.fill") { model.cancel(); record(.skipped, 0, false) }
-                    .buttonStyle(.glass).controlSize(.large).disabled(recording)
-                    .padding().accessibilityIdentifier("session-skip")
-            }
-        }
+        // Measured with the progress bar, as the canvas sizes the boards (IP 512 pt); the column gives up its 16 pt.
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { container = $0 }
+        // Compact width: the card still rises from the bottom, sized to its content (F5).
         .overlay(alignment: .bottom) {
-            if model.done {
-                ResultCard(model: model, analyze: { analyzing = true }) { record(model.result, model.mistakes, model.hinted) }
+            if model.done && layout.compact {
+                resultCard.padding(.horizontal, 8).padding(.bottom, 8)
+                    .frame(maxHeight: cardCap, alignment: .bottom)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
@@ -90,6 +100,14 @@ private struct SessionPuzzle: View {
                 Button(flagged ? "Unflag" : "Flag", systemImage: flagged ? "flag.fill" : "flag") {
                     Task { _ = await app.edit { try await $0.setFlagged(puzzle.id, !flagged) } }
                 }.tint(flagged ? .orange : nil).disabled(!app.store.online).accessibilityIdentifier("session-flag")
+            }
+            // Skip is a system bottom bar item, not an overlay (decision 14, F24, F25): the side
+            // bar on the Duo, the bottom bar on an iPhone.
+            if !model.done {
+                ToolbarItem(placement: .bottomBar) {
+                    Button("Skip", systemImage: "forward.fill") { pending = nil; model.cancel(); record(.skipped, 0, false) }
+                        .disabled(recording).accessibilityIdentifier("session-skip")
+                }
             }
         }.onDisappear { model.cancel() }
             .task {
@@ -107,6 +125,51 @@ private struct SessionPuzzle: View {
                 #endif
             }
     }
+    @ViewBuilder private var board: some View {
+        if puzzle.addPiece != nil { MissingPieceSolveView(model: model, pending: $pending) }
+        else { PuzzleSolveView(model: model, pending: $pending) }
+    }
+    /// Under the board or beside it: the prompt, or the piece row while a pick is pending, or
+    /// (except on compact width) the result card, at most 560 pt wide (decision 15). Stacked with
+    /// room (IP), the card sits at the bottom of the column, below the board.
+    private func column(_ layout: BoardLayout) -> some View {
+        let panes = layout.mode == .panes
+        let alignment: Alignment = panes ? .topLeading : model.done && !layout.compact ? .bottom : .top
+        return VStack(alignment: panes ? .leading : .center, spacing: 12) {
+            if model.done {
+                if !layout.compact { resultCard.frame(maxWidth: ResultCard.maxWidth).transition(.opacity) }
+            } else if pending != nil {
+                picker.frame(maxWidth: 380)
+            } else {
+                SolvePrompt(model: model)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
+    }
+    private var resultCard: some View {
+        ResultCard(model: model, analyze: { analyzing = true }) { record(model.result, model.mistakes, model.hinted) }
+    }
+    /// Promotion, or the missing piece for the tapped square. Choosing clears the pick first, so
+    /// the board drops its selection whatever the answer (a wrong piece costs a guess, as before).
+    @ViewBuilder private var picker: some View {
+        switch pending {
+        case .promotion(let from, let to)?:
+            PieceRow(color: Board.turnOf(model.fen) ?? .white, choose: { piece in
+                let fen = model.fen
+                pending = nil
+                if let move = BoardInteraction.promotion(fen, from, to, piece) { model.submit(move) }
+            }, cancel: { pending = nil })
+        case .placement(let square)?:
+            if let color = puzzle.addPiece?.color {
+                PieceRow(title: "Add on " + square, pieces: PieceRow.placement, color: color, choose: { piece in
+                    pending = nil
+                    if Board.pieceAt(model.fen, square) == nil { model.submit(Placement(color: color, type: piece, square: square)) }
+                }, cancel: { pending = nil })
+            }
+        case nil:
+            EmptyView()
+        }
+    }
     private func record(_ result: AttemptResult, _ mistakes: Int, _ hinted: Bool) {
         guard !recording else { return }; recording = true
         Task {
@@ -116,9 +179,11 @@ private struct SessionPuzzle: View {
     }
 }
 private struct SessionComplete: View {
+    static let maxWidth: CGFloat = 480
     let progress: RunProgress
     let done: () -> Void
     var body: some View {
+        // Content at most 480 pt wide, centred (F27).
         VStack(spacing: 24) {
             Spacer()
             Image(systemName: "checkmark.circle.fill").font(.system(size: 72)).foregroundStyle(Color.motifAccent).accessibilityHidden(true)
@@ -131,7 +196,7 @@ private struct SessionComplete: View {
             Button(action: done) { Text("Done").frame(maxWidth: .infinity) }
                 .buttonStyle(.glassProminent).controlSize(.large).padding()
                 .accessibilityIdentifier("session-done")
-        }.frame(maxWidth: .infinity)
+        }.frame(maxWidth: SessionComplete.maxWidth).frame(maxWidth: .infinity)
     }
     private func tile(_ value: Int, _ label: String, _ color: Color) -> some View {
         VStack(spacing: 4) {

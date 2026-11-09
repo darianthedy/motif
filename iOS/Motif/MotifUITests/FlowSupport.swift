@@ -35,6 +35,9 @@ import XCTest
     static let toolbarTitles = [
         "game-flip-board": "Flip Board", "game-engine-lines": "Engine Lines",
         "game-previous-move": "Previous Move", "game-next-move": "Next Move",
+        "session-skip": "Skip", "session-stop": "End Session",
+        "puzzle-go-to-start": "Go to Start", "puzzle-previous-move": "Previous Move",
+        "puzzle-next-move": "Next Move", "puzzle-go-to-end": "Go to End",
     ]
     /// Since the iOS 27 SDK, menu items inside a `Section` (and toolbar items in the side bar) can lose their
     /// identifier, so the item's title finds it too.
@@ -60,6 +63,8 @@ import XCTest
         XCTFail("\(field) never took keyboard focus after 3 taps\n\(app.debugDescription)", file: file, line: line)
     }
     func square(_ name: String) -> XCUIElement { button("square-" + name) }
+    /// The board's frame, from its corner squares (either orientation).
+    func boardFrame() -> CGRect { square("a1").frame.union(square("h8").frame) }
     func tap(_ name: String) { XCTAssertTrue(square(name).waitForExistence(timeout: 10)); square(name).tap() }
     /// A loaded CI simulator can drop a tap outright (XCTest reports it sent; the app never sees it). Tap, then
     /// tap again only while `target` provably still doesn't match `format`, so a slow-but-delivered tap isn't doubled.

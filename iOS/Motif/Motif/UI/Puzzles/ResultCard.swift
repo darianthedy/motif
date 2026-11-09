@@ -1,7 +1,11 @@
 import SwiftUI
-/// The glass sheet that rises over the lower half of the board once a puzzle
-/// is done. Its details scroll only when they outgrow the space.
+/// The glass card shown once a puzzle is done, sized to its content (decision 15, F5).
+/// The session places it: in the column beside the board on two panes, below the board
+/// when stacked with room, rising from the bottom on compact width. Its details scroll
+/// only when they outgrow the height the session proposes (62 % of the screen on compact).
 struct ResultCard: View {
+    /// On two panes and stacked regular layouts the card is at most this wide.
+    static let maxWidth: CGFloat = 560
     let model: SolveModel
     /// Opens the puzzle's start position in the Analysis view.
     let analyze: () -> Void
@@ -22,8 +26,6 @@ struct ResultCard: View {
         }
         .padding(20)
         .glassEffect(.regular, in: .rect(cornerRadius: 28))
-        .padding(.horizontal, 8)
-        .containerRelativeFrame(.vertical, alignment: .bottom) { height, _ in height * 0.62 }
     }
     private var details: some View {
         VStack(alignment: .leading, spacing: 12) {

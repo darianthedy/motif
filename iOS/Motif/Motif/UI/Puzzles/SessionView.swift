@@ -17,13 +17,15 @@ struct SessionView: View {
                         SessionComplete(progress: progress) { dismiss() }
                     }
                 } else { Color.clear.onAppear { dismiss() } }
-            }.libraryBanners().navigationTitle(title).navigationBarTitleDisplayMode(.inline)
+            }.libraryStatus().navigationTitle(title).navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("End Session", systemImage: "xmark") { dismiss() }.accessibilityIdentifier("session-stop")
                     }
                 }
         }
+        // Once for the cover, so Puzzle analysis pushed inside it shows the same capsule (F14).
+        .libraryMessages()
     }
     private var title: String {
         switch scope {
@@ -101,7 +103,7 @@ private struct SessionPuzzle: View {
         }
         .animation(.smooth, value: model.done)
         // Pushed inside the session, so going back returns to this result.
-        .navigationDestination(isPresented: $analyzing) { PuzzleAnalysisView(puzzle: puzzle).libraryBanners() }
+        .navigationDestination(isPresented: $analyzing) { PuzzleAnalysisView(puzzle: puzzle).libraryStatus() }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(flagged ? "Unflag" : "Flag", systemImage: flagged ? "flag.fill" : "flag") {

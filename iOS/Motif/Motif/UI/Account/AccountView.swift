@@ -26,6 +26,7 @@ struct AccountView: View {
     @Environment(AppState.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var resetting = false
+    @Environment(\.horizontalSizeClass) private var sizeClass
     var body: some View {
         NavigationStack {
             Form {
@@ -84,15 +85,12 @@ struct AccountView: View {
                     Button("Close", systemImage: "xmark", role: .close) { dismiss() }.accessibilityIdentifier("account-close")
                 }
             }
-            .safeAreaInset(edge: .top, spacing: 0) {
-                if let error = app.error { ErrorBanner(text: error) { app.error = nil } }
-            }
-            .overlay(alignment: .bottom) {
-                if let notice = app.notice { Toast(text: notice) { app.dismissNotice() }.padding(.bottom, 12) }
-            }
-            .animation(.snappy, value: app.notice)
-            .animation(.snappy, value: app.error)
+            // The sync row already shows a server error, so only the app's own errors and toasts.
+            .libraryMessages(serverStatus: false)
         }
+        // One toolbar item (✕): on compact it stays in the sheet's navigation bar rather than
+        // a vertical side bar of its own (Duo plan §7, S03).
+        .motifToolbarVerticalBehaviorDisabled(sizeClass == .compact)
     }
     private var email: String { app.store.user?.email ?? "" }
     @ViewBuilder private var syncRow: some View {
@@ -122,3 +120,4 @@ struct AccountView: View {
         return "Motif \(short) (\(build))"
     }
 }
+

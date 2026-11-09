@@ -10,6 +10,9 @@ struct SaveAsGameSheet: View {
     @State private var collectionId = ""
     @State private var name = "Puzzles"
     @State private var busy = false
+    /// The form's measured height (rows plus the bar above them), so the sheet fits its one or
+    /// two rows instead of a mostly empty `.large` sheet (F17).
+    @State private var height: CGFloat = 0
     private var collections: [GameCollection] { app.store.library.map(gameCollectionsOf) ?? [] }
     private var chosenName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
     var body: some View {
@@ -25,11 +28,15 @@ struct SaveAsGameSheet: View {
                     if !app.store.online { Text("You’re offline. Saving needs a connection.") }
                 }
             }
+            .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height + $0.contentInsets.top + $0.contentInsets.bottom } action: { _, new in
+                height = new.rounded(.up)
+            }
             .navigationTitle("Save as Game").navigationBarTitleDisplayMode(.inline)
             .sheetToolbar(confirm: "Save Game", disabled: !app.store.online || busy || (collectionId.isEmpty && chosenName.isEmpty),
                           identifier: "save-game-confirm", onCancel: { dismiss() }) { Task { await save() } }
             .onAppear { if collectionId.isEmpty, let first = collections.first { collectionId = first.id } }
         }
+        .presentationDetents(height > 0 ? [.height(height)] : [.medium])
     }
     private func save() async {
         guard let library = app.store.library, !busy else { return }

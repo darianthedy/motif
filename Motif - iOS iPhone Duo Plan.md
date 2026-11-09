@@ -1101,6 +1101,13 @@ and anything deferred to a later slice or a follow-up PR.
   check. `BoardLayout` adds `pages` / `halves` plus `padding` and `spacing` for the `AnyLayout` stacks; a division with < 100 pt
   on one side (SV 13.5 pt, PP bent 9.8 pt) is an edge inset. The session reads the division under its progress bar; session
   complete puts its heading on the board's side and the tiles and Done across the division.
+- **D08:** `libraryBanners()` split in two: `libraryStatus()` (the offline pill, trailing, in a top inset under each column's and
+  destination's title; not a toolbar item, which the side bar would move off the title) and `libraryMessages()` (errors and the toast,
+  capsules ≤ 480 pt in `.safeAreaInset(edge: .bottom)`) installed once per tab's split view, session cover, Account sheet and launch screen,
+  so IL shows one capsule. New Game reads its own size (`onGeometryChange`): ≥ 600 pt puts the preview beside the form (42 % of the width);
+  stacked it sits under the picker, capped at 40 % of the visible sheet. Save as Game uses a measured `.height` detent (form content plus
+  insets) rather than `.presentationSizing(.fitted)`. Sign-in collapses its header while a field has focus, on every iPhone. Whether the
+  capsule sits above an IP / iPhone bottom bar, and the measured detent's height, are device checks.
 
 ## 9. Implementation slices
 

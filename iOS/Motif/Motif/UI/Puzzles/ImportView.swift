@@ -65,6 +65,13 @@ struct ImportView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if !app.store.online {
+                    // At the top, where it explains the disabled ✓ before anything else (F19).
+                    Section {
+                        Label("You’re offline. Importing needs a connection.", systemImage: "wifi.slash")
+                            .foregroundStyle(.secondary).accessibilityIdentifier("puzzle-import-offline")
+                    }
+                }
                 Section {
                     Button("Choose File…", systemImage: "doc") { filePicker = true }
                     Button("Paste From Clipboard", systemImage: "doc.on.clipboard") { paste() }.accessibilityIdentifier("puzzle-import-paste")
@@ -126,7 +133,6 @@ struct ImportView: View {
         }
     }
     private var addFooter: String {
-        if !app.store.online { return "You’re offline. Importing needs a connection." }
         if model.multi { return "Each collection in the file is added as a new collection." }
         return "Puzzles already in the collection are refreshed, not duplicated."
     }

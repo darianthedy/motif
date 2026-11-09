@@ -8,9 +8,11 @@ import SwiftUI
 extension View {
     /// Opts this view out of the vertical side bar, so its toolbar items stay in the
     /// horizontal top and bottom bars. iOS 26 has no vertical bar, so it's a no-op there.
-    @ViewBuilder func motifToolbarVerticalBehaviorDisabled() -> some View {
+    /// `disabled: false` leaves the choice to the system (`.automatic`) without changing the
+    /// view's identity, so a size-class switch keeps the view's state.
+    @ViewBuilder func motifToolbarVerticalBehaviorDisabled(_ disabled: Bool = true) -> some View {
         if #available(iOS 27.1, *) {
-            toolbarVerticalBehavior(.disabled)
+            toolbarVerticalBehavior(disabled ? .disabled : .automatic)
         } else {
             self
         }

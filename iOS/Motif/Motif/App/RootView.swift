@@ -47,7 +47,7 @@ struct RootView: View {
     private var puzzlesSplit: some View {
         @Bindable var app = app
         return NavigationSplitView(columnVisibility: $app.puzzlesColumns.visibility) {
-            PuzzlesHomeView().libraryBanners()
+            PuzzlesHomeView().libraryStatus()
                 .navigationSplitViewColumnWidth(min: 300, ideal: Self.sidebarWidth, max: 360)
         } detail: {
             NavigationStack(path: $app.puzzlesPath) {
@@ -58,7 +58,7 @@ struct RootView: View {
                         NoSelection(empty: app.store.library?.collections.isEmpty != false, systemImage: "puzzlepiece")
                     }
                 }
-                .libraryBanners()
+                .libraryStatus()
                 .navigationDestination(for: PuzzleRoute.self) { route in
                     Group {
                         switch route {
@@ -66,16 +66,18 @@ struct RootView: View {
                         case .puzzles(let id): PuzzleListView(collectionId: id)
                         case .puzzle(_, let id): PuzzleDetailView(puzzleId: id)
                         }
-                    }.libraryBanners()
+                    }.libraryStatus()
                 }
             }
         }
         .navigationSplitViewStyle(.automatic)
+        // One capsule for both columns, centred in the content above the tab bar (decision 22, F26).
+        .libraryMessages()
     }
     private var gamesSplit: some View {
         @Bindable var app = app
         return NavigationSplitView(columnVisibility: $app.gamesColumns.visibility) {
-            GamesHomeView().libraryBanners()
+            GamesHomeView().libraryStatus()
                 .navigationSplitViewColumnWidth(min: 300, ideal: Self.sidebarWidth, max: 360)
         } detail: {
             NavigationStack(path: $app.gamesPath) {
@@ -86,18 +88,20 @@ struct RootView: View {
                         NoSelection(empty: app.store.library?.gameCollections.isEmpty != false, systemImage: "checkerboard.rectangle")
                     }
                 }
-                .libraryBanners()
+                .libraryStatus()
                 .navigationDestination(for: GamesRoute.self) { route in
                     Group {
                         switch route {
                         case .collection(let id): GameCollectionView(collectionId: id)
                         case .game(_, let id): GameView(gameId: id)
                         }
-                    }.libraryBanners()
+                    }.libraryStatus()
                 }
             }
         }
         .navigationSplitViewStyle(.automatic)
+        // One capsule for both columns, centred in the content above the tab bar (decision 22, F26).
+        .libraryMessages()
     }
     /// The sidebar column on the open display (`shellGeom` in the Duo canvases: 340 pt on IL).
     private static let sidebarWidth: CGFloat = 340
@@ -123,9 +127,11 @@ struct RootView: View {
                 ProgressView("Loading your library…").accessibilityIdentifier("load-progress")
             }
         }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            if let error = app.error { ErrorBanner(text: error) { app.error = nil } }
-        }
+        // The same centred column as sign-in (F22); errors use the one banner rule at the bottom.
+        // The load error is already the screen, so the server status isn't repeated.
+        .frame(maxWidth: SignInView.columnWidth)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .libraryMessages(serverStatus: false)
     }
 }
 /// The detail column before a collection is picked. With no collections at all the

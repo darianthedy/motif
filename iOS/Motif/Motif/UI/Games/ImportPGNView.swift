@@ -13,6 +13,13 @@ struct ImportPGNView: View {
         let count = model.read?.games.count ?? 0
         NavigationStack {
             Form {
+                if !app.store.online {
+                    // At the top, where it explains the disabled ✓ before anything else (F19).
+                    Section {
+                        Label("You’re offline. Adding games needs a connection.", systemImage: "wifi.slash")
+                            .foregroundStyle(.secondary).accessibilityIdentifier("game-import-offline")
+                    }
+                }
                 Section {
                     Button("Choose Files…", systemImage: "doc") { files = true }
                     Button("Paste From Clipboard", systemImage: "doc.on.clipboard") { paste() }.accessibilityIdentifier("game-import-paste")
@@ -32,9 +39,7 @@ struct ImportPGNView: View {
                         ForEach(Array(read.errors.enumerated()), id: \.offset) { _, error in Text("Game \(error.game): \(error.message)").font(.footnote).foregroundStyle(.red) }
                         ForEach(Array(read.games.prefix(5).enumerated()), id: \.offset) { _, game in Text(gameTitle(game.headers)) }
                         if read.games.count > 5 { Text("and \(countLabel(read.games.count - 5, "more game"))").foregroundStyle(.secondary) }
-                    } header: { Text("Found") } footer: {
-                        if !app.store.online { Text("You’re offline. Adding games needs a connection.") }
-                    }
+                    } header: { Text("Found") }
                 }
             }
             .navigationTitle("Import PGN").navigationBarTitleDisplayMode(.inline)

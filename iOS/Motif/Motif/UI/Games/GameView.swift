@@ -36,6 +36,8 @@ struct GameContentView: View {
     @State private var promotion: BoardPending?
     /// The content's size inside the safe area and the bars, for `BoardLayout`.
     @State private var container: CGSize = .zero
+    /// The fold's active division in the same coordinates, nil when flat (D07).
+    @State private var division: CGRect?
     init(game: Game, app: AppState, scratch: ScratchAnalysis? = nil) {
         self.game = game; self.app = app; self.scratch = scratch
         _model = State(initialValue: GameViewModel(game, online: app.store.online) { changes in
@@ -92,17 +94,19 @@ struct GameContentView: View {
         if let tree = model.tree {
             // One view tree in every pose: the layout rule picks two panes or a stack, and
             // `AnyLayout` switches between them so the board, the list and the sheets keep their state.
-            let layout = BoardLayout(container: container, compact: sizeClass == .compact, evalBar: evalBarShown)
-            let stack = layout.mode == .panes
-                ? AnyLayout(HStackLayout(alignment: .top, spacing: BoardLayout.paneGap))
-                : AnyLayout(VStackLayout(alignment: .center, spacing: BoardLayout.stackGap))
+            // On a fold the board takes the leading page or the top half, never crossing it (D07).
+            let layout = BoardLayout(container: container, compact: sizeClass == .compact, evalBar: evalBarShown, division: division)
+            let stack = layout.sideBySide
+                ? AnyLayout(HStackLayout(alignment: .top, spacing: layout.spacing))
+                : AnyLayout(VStackLayout(alignment: .center, spacing: layout.spacing))
             stack {
                 boardPane(layout)
                 column(tree, layout).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
-            .padding(.horizontal, layout.margin).padding(.vertical, BoardLayout.inset)
+            .padding(layout.padding)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .onGeometryChange(for: CGSize.self) { $0.size } action: { container = $0 }
+            .motifDivision($division)
             .navigationTitle(scratch?.title ?? gameTitle(tree.headers)).navigationSubtitle(scratch?.subtitle ?? gameSubtitle(tree.headers)).navigationBarTitleDisplayMode(.inline)
         } else { unreadable }
     }

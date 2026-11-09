@@ -40,3 +40,24 @@ extension View {
         }
     }
 }
+extension GeometryProxy {
+    /// The fold's active division (`ReservedRegion`, kind `.division`) in this view's own
+    /// coordinates, margins included, as `BoardLayout` takes it (D07, plan §6.16). Nil when
+    /// the division is inactive (open flat, closed) or before iOS 27.1. The frame is mirrored
+    /// for right-to-left layouts (the default), matching the `AnyLayout` stacks it feeds.
+    var motifDivision: CGRect? {
+        if #available(iOS 27.1, *) {
+            // Active regions only by default; iPhone Duo has one fold.
+            return reservedRegions(kind: .division).first(where: { $0.isActive })?.frame
+        }
+        return nil
+    }
+}
+extension View {
+    /// Reads the active fold division of this view into `division`, in this view's coordinates,
+    /// so it lines up with a container size read on the same view. Not `onHingeChange`: that is
+    /// for effects, not layout (§1).
+    func motifDivision(_ division: Binding<CGRect?>) -> some View {
+        onGeometryChange(for: CGRect?.self) { $0.motifDivision } action: { division.wrappedValue = $0 }
+    }
+}

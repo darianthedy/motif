@@ -50,6 +50,8 @@ private struct SessionPuzzle: View {
     @State private var pending: BoardPending?
     /// The content's size inside the safe area and the bars, for `BoardLayout`.
     @State private var container: CGSize = .zero
+    /// The fold's active division, read under the progress bar where the board sits (D07).
+    @State private var division: CGRect?
     init(puzzle: Puzzle, run: Run, progress: RunProgress) {
         self.puzzle = puzzle; self.run = run; self.progress = progress
         #if DEBUG
@@ -68,19 +70,24 @@ private struct SessionPuzzle: View {
         // The board is pinned: no scroll view around it, so solving never competes with
         // scrolling (decision 18, F2). One view tree in every pose: `AnyLayout` switches
         // between two panes and a stack, so `SolveModel` and a pending pick survive a fold.
-        let layout = BoardLayout(container: container, compact: sizeClass == .compact, evalBar: false)
-        let stack = layout.mode == .panes
-            ? AnyLayout(HStackLayout(alignment: .top, spacing: BoardLayout.paneGap))
-            : AnyLayout(VStackLayout(alignment: .center, spacing: BoardLayout.stackGap))
+        // On a fold the board takes the leading page or the top half, and the column (prompt,
+        // pickers, result card) the other side; Skip is a bar item the system keeps off it (D07).
+        let layout = BoardLayout(container: container, compact: sizeClass == .compact, evalBar: false, division: division)
+        let stack = layout.sideBySide
+            ? AnyLayout(HStackLayout(alignment: .top, spacing: layout.spacing))
+            : AnyLayout(VStackLayout(alignment: .center, spacing: layout.spacing))
         VStack(spacing: 0) {
-            ProgressView(value: progress.progress).tint(.motifAccent).padding(.horizontal, layout.margin).padding(.vertical, 6)
+            ProgressView(value: progress.progress).tint(.motifAccent)
+                .padding(.leading, layout.padding.leading).padding(.trailing, layout.padding.trailing).padding(.vertical, 6)
                 .accessibilityLabel("Session progress")
             stack {
                 board.frame(width: layout.board, height: layout.board)
                 column(layout)
             }
-            .padding(.horizontal, layout.margin).padding(.vertical, BoardLayout.inset)
+            .padding(layout.padding)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            // In the stack's own coordinates, so the board's top is the layout's.
+            .motifDivision($division)
         }
         // Measured with the progress bar, as the canvas sizes the boards (IP 512 pt); the column gives up its 16 pt.
         .onGeometryChange(for: CGSize.self) { $0.size } action: { container = $0 }
@@ -133,7 +140,7 @@ private struct SessionPuzzle: View {
     /// (except on compact width) the result card, at most 560 pt wide (decision 15). Stacked with
     /// room (IP), the card sits at the bottom of the column, below the board.
     private func column(_ layout: BoardLayout) -> some View {
-        let panes = layout.mode == .panes
+        let panes = layout.sideBySide
         let alignment: Alignment = panes ? .topLeading : model.done && !layout.compact ? .bottom : .top
         return VStack(alignment: panes ? .leading : .center, spacing: 12) {
             if model.done {
@@ -180,23 +187,46 @@ private struct SessionPuzzle: View {
 }
 private struct SessionComplete: View {
     static let maxWidth: CGFloat = 480
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let progress: RunProgress
     let done: () -> Void
+    @State private var container: CGSize = .zero
+    @State private var division: CGRect?
     var body: some View {
-        // Content at most 480 pt wide, centred (F27).
-        VStack(spacing: 24) {
-            Spacer()
-            Image(systemName: "checkmark.circle.fill").font(.system(size: 72)).foregroundStyle(Color.motifAccent).accessibilityHidden(true)
-            Text("Session Complete").font(.title.bold())
-            HStack(spacing: 12) {
-                tile(progress.solved, "Solved cleanly", .motifAccentStrong)
-                tile(progress.failed, "Missed", .orange)
-            }.padding(.horizontal)
-            Spacer()
-            Button(action: done) { Text("Done").frame(maxWidth: .infinity) }
-                .buttonStyle(.glassProminent).controlSize(.large).padding()
-                .accessibilityIdentifier("session-done")
-        }.frame(maxWidth: SessionComplete.maxWidth).frame(maxWidth: .infinity)
+        // Content at most 480 pt wide, centred (F27). On a fold the heading takes the board's
+        // side (the leading page, the top half) and the tiles and Done the other, so nothing
+        // sits on the division (D07). One view tree: `AnyLayout` switches.
+        let layout = BoardLayout(container: container, compact: sizeClass == .compact, evalBar: false, division: division)
+        let folded = layout.mode == .pages || layout.mode == .halves
+        // Across the division: from the board's side to the column's.
+        let gap = layout.mode == .pages ? layout.column.minX - layout.boardSide.maxX : layout.column.minY - layout.boardSide.maxY
+        let stack = layout.mode == .pages
+            ? AnyLayout(HStackLayout(alignment: .center, spacing: gap))
+            : AnyLayout(VStackLayout(alignment: .center, spacing: folded ? gap : 24))
+        stack {
+            VStack(spacing: 16) {
+                if !folded { Spacer() }
+                Image(systemName: "checkmark.circle.fill").font(.system(size: 72)).foregroundStyle(Color.motifAccent).accessibilityHidden(true)
+                Text("Session Complete").font(.title.bold())
+            }
+            .frame(width: layout.mode == .pages ? layout.boardSide.width : nil, height: layout.mode == .halves ? layout.boardSide.height : nil)
+            .frame(maxHeight: layout.mode == .pages ? .infinity : nil)
+            VStack(spacing: 24) {
+                HStack(spacing: 12) {
+                    tile(progress.solved, "Solved cleanly", .motifAccentStrong)
+                    tile(progress.failed, "Missed", .orange)
+                }.padding(.horizontal)
+                Spacer()
+                Button(action: done) { Text("Done").frame(maxWidth: .infinity) }
+                    .buttonStyle(.glassProminent).controlSize(.large).padding()
+                    .accessibilityIdentifier("session-done")
+            }
+            .frame(maxWidth: SessionComplete.maxWidth).frame(maxWidth: .infinity, maxHeight: folded ? .infinity : nil)
+        }
+        .padding(folded ? layout.padding : EdgeInsets())
+        .frame(maxWidth: folded ? .infinity : SessionComplete.maxWidth).frame(maxWidth: .infinity)
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { container = $0 }
+        .motifDivision($division)
     }
     private func tile(_ value: Int, _ label: String, _ color: Color) -> some View {
         VStack(spacing: 4) {

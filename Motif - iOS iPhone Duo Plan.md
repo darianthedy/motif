@@ -1096,6 +1096,11 @@ and anything deferred to a later slice or a follow-up PR.
   and the missing piece, titled "Add on <square>" rather than the canvas's "Which piece is missing?"); `BoardView` hands every
   pending pick to the screen, so `PiecePicker` and the overlay are gone. Puzzle detail's replay items are retitled "Go to Start",
   "Previous Move", "Next Move", "Go to End" (identifiers unchanged) and UI tests find them, Skip and End Session by title.
+- **D07:** `motifDivision` (`SystemCompat.swift`) reads `reservedRegions(kind: .division)` (active only) through the same
+  `onGeometryChange` as the container, not a new `GeometryReader`; whether it fires on a bend with no size change is a device
+  check. `BoardLayout` adds `pages` / `halves` plus `padding` and `spacing` for the `AnyLayout` stacks; a division with < 100 pt
+  on one side (SV 13.5 pt, PP bent 9.8 pt) is an edge inset. The session reads the division under its progress bar; session
+  complete puts its heading on the board's side and the tiles and Done across the division.
 
 ## 9. Implementation slices
 

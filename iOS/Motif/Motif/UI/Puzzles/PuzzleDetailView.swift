@@ -45,6 +45,8 @@ private struct PuzzleDetailContent: View {
     @State private var commenting = false
     /// The content's size inside the safe area and the bars, for `BoardLayout`.
     @State private var container: CGSize = .zero
+    /// The fold's active division in the same coordinates, nil when flat (D07).
+    @State private var division: CGRect?
     init(puzzle: Puzzle) { self.puzzle = puzzle; _model = State(initialValue: PuzzleDetailModel(puzzle)) }
     private var flagged: Bool { puzzle.flagged == true }
     private var title: String { "#" + (puzzle.sourceId ?? "\(puzzle.position + 1)") }
@@ -52,10 +54,14 @@ private struct PuzzleDetailContent: View {
         // The board is pinned outside the list, which scrolls in the column beside it or below
         // it (decision 18, F1, F11). `AnyLayout` switches between the two, so a fold keeps the
         // step, the line and the sheets.
-        let layout = BoardLayout(container: container, compact: sizeClass == .compact, evalBar: false)
-        let stack = layout.mode == .panes
-            ? AnyLayout(HStackLayout(alignment: .top, spacing: BoardLayout.paneGap))
-            : AnyLayout(VStackLayout(alignment: .center, spacing: BoardLayout.stackGap))
+        // On a fold the board takes the leading page or the top half (D07).
+        let layout = BoardLayout(container: container, compact: sizeClass == .compact, evalBar: false, division: division)
+        let stack = layout.sideBySide
+            ? AnyLayout(HStackLayout(alignment: .top, spacing: layout.spacing))
+            : AnyLayout(VStackLayout(alignment: .center, spacing: layout.spacing))
+        // The list scrolls to the bottom edge, so no inset under it.
+        let padding = EdgeInsets(top: layout.padding.top, leading: layout.padding.leading,
+                                 bottom: layout.padding.bottom - BoardLayout.inset, trailing: layout.padding.trailing)
         stack {
             // Display-only: the detail replays, it doesn't take moves.
             BoardView(fen: model.fen, orientation: solverSide(puzzle), interactive: false, highlight: model.highlight)
@@ -69,9 +75,10 @@ private struct PuzzleDetailContent: View {
             .accessibilityIdentifier("puzzle-detail-list")
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(.horizontal, layout.margin).padding(.top, BoardLayout.inset)
+        .padding(padding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onGeometryChange(for: CGSize.self) { $0.size } action: { container = $0 }
+        .motifDivision($division)
         .background(Color(.systemGroupedBackground))
         .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
         .navigationSubtitle(app.store.library?.collections.first(where: { $0.id == puzzle.collectionId })?.name ?? "")

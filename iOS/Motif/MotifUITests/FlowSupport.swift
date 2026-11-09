@@ -27,7 +27,15 @@ import XCTest
         continueAfterFailure = false
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30), "Motif never came to the foreground", file: file, line: line)
     }
-    func button(_ id: String) -> XCUIElement { app.buttons[id] }
+    func button(_ id: String) -> XCUIElement {
+        if let title = Self.toolbarTitles[id] { return button(id, title: title) }
+        return app.buttons[id]
+    }
+    /// Toolbar items that lose their identifier in the side bar (§8.3), found by title there too.
+    static let toolbarTitles = [
+        "game-flip-board": "Flip Board", "game-engine-lines": "Engine Lines",
+        "game-previous-move": "Previous Move", "game-next-move": "Next Move",
+    ]
     /// Since the iOS 27 SDK, menu items inside a `Section` (and toolbar items in the side bar) can lose their
     /// identifier, so the item's title finds it too.
     func button(_ id: String, title: String) -> XCUIElement {

@@ -38,6 +38,15 @@ final class BoardInteractionTests: XCTestCase {
             XCTAssertNil(board.choose(piece))
         }
     }
+    /// The Analysis view's promotion row (decision 17) builds its move the same way the picker does.
+    func testThePromotionRowsMoveMatchesThePickers() throws {
+        let position = "7k/4P3/8/8/8/8/8/6K1 w - - 0 1"
+        for piece in [PieceType.queen, .rook, .bishop, .knight] {
+            XCTAssertEqual(BoardInteraction.promotion(position, "e7", "e8", piece), try uci("e7e8" + piece.rawValue))
+        }
+        XCTAssertNil(BoardInteraction.promotion(position, "e7", "e8", .pawn))
+        XCTAssertNil(BoardInteraction.promotion(position, "e7", "d8", .queen))
+    }
     func testCancelledPromotionAndPlacementCostNothing() {
         var promotion = BoardInteraction(fen: "7k/4P3/8/8/8/8/8/6K1 w - - 0 1")
         XCTAssertNil(promotion.drop("e7", "e8")); promotion.cancel(); XCTAssertNil(promotion.choose(.queen))

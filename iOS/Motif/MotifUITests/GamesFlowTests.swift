@@ -88,6 +88,23 @@ import XCTest
         let confirm = confirms.allElementsBoundByIndex.first(where: \.isHittable); XCTAssertNotNil(confirm, app.debugDescription); confirm?.tap()
         wait(button("game-row-sample-game")); expect(button("game-row-sample-unreadable"), "exists == false")
     }
+    /// D05: on the Duo opened wide (IL) the Analysis view is two panes with a 504 pt board (decision 11),
+    /// and Previous / Next Move are toolbar items in the side bar, clear of the board and the column.
+    func testOpenWideAnalysisHasA504BoardAndStepsInTheToolbar() throws {
+        try XCTSkipIf(pose != "IL", "Only the Duo opened wide (IL) has this layout")
+        launch("game:sample"); wait(square("a1")); wait(square("h8"))
+        let board = square("a1").frame.union(square("h8").frame)
+        XCTAssertEqual(board.width, 504, accuracy: 1); XCTAssertEqual(board.height, 504, accuracy: 1)
+        let list = app.descendants(matching: .any)["game-move-list"]; wait(list)
+        XCTAssertGreaterThanOrEqual(list.frame.minX, board.maxX, "The moves sit beside the board")
+        for id in ["game-previous-move", "game-next-move"] {
+            let item = button(id); wait(item)
+            XCTAssertFalse(item.frame.intersects(board), id)
+            XCTAssertGreaterThanOrEqual(item.frame.minX, list.frame.maxX, "\(id) is in the trailing side bar")
+        }
+        tap(button("game-next-move"), until: "label CONTAINS 'Pawn'", on: square("e4"))
+        hold(button("game-previous-move"), until: "label CONTAINS 'empty'", on: square("e4"))
+    }
     func testOfflineGameAllowsEditingButNotSaving() throws {
         launch("game:sample", offline: true); wait(square("e2"))
         let banners = app.staticTexts.matching(identifier: "offline-banner"); wait(banners.firstMatch)

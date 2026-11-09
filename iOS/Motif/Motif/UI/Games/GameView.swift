@@ -21,6 +21,7 @@ struct GameContentView: View {
     var scratch: ScratchAnalysis?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var model: GameViewModel
     /// Follows the board's position for the evaluation bar.
     @State private var analyzer: Analyzer
@@ -30,8 +31,11 @@ struct GameContentView: View {
     @State private var deleteMove = false
     @State private var deleteGame = false
     @State private var leaving = false
-    @State private var alternativesHidden = false
     @State private var alternativesOpen = false
+    /// A promotion waiting for its piece, answered by the row in the layout (decision 17).
+    @State private var promotion: BoardPending?
+    /// The content's size inside the safe area and the bars, for `BoardLayout`.
+    @State private var container: CGSize = .zero
     init(game: Game, app: AppState, scratch: ScratchAnalysis? = nil) {
         self.game = game; self.app = app; self.scratch = scratch
         _model = State(initialValue: GameViewModel(game, online: app.store.online) { changes in
@@ -44,7 +48,7 @@ struct GameContentView: View {
         screen
             .sensoryFeedback(.selection, trigger: model.path)
             .sensoryFeedback(.error, trigger: model.problem) { _, problem in problem != nil }
-            .onChange(of: model.path) { alternativesHidden = false; alternativesOpen = false }
+            .onChange(of: model.path) { alternativesOpen = false }
             .onChange(of: game) { _, next in model.receive(next) }
             .onChange(of: app.store.online) { _, online in model.online = online }
             .onChange(of: evalBarShown || linesShown, initial: true) { _, needed in analyzer.enabled = needed }
@@ -71,7 +75,6 @@ struct GameContentView: View {
             .navigationBarBackButtonHidden(guardsLeaving).toolbar { toolbar }
             // The game menu (F16); its items set flags the sheet and dialogs below read (F15).
             .motifOverflowMenu("Game actions", identifier: "game-actions") { gameMenu }
-            .safeAreaBar(edge: .bottom) { if model.tree != nil { controls } }
             .sheet(item: $panel) { presented in
                 switch presented {
                 case .comment: CommentSheet(title: model.currentName, value: model.node?.comment ?? (model.path.isEmpty ? model.tree?.comment : nil), online: true, save: model.comment)
@@ -87,72 +90,94 @@ struct GameContentView: View {
     }
     @ViewBuilder private var content: some View {
         if let tree = model.tree {
-            GeometryReader { geometry in
-                // The bar takes its width from the board, so the move list and toolbars keep their layout.
-                let width = min(geometry.size.width - 2 * Self.margin - (evalBarShown ? EvalBar.width + EvalBar.gap : 0), geometry.size.height * 0.6)
-                VStack(spacing: 0) {
-                    HStack(spacing: EvalBar.gap) {
-                        if evalBarShown { EvalBar(evaluation: analyzer.evaluation, orientation: model.orientation).frame(height: width) }
-                        BoardView(fen: model.fen, orientation: model.orientation, interactive: true,
-                                  highlight: model.node.map { (moveFrom($0.uci), moveTo($0.uci)) }, onMove: model.play)
-                            .frame(width: width, height: width)
-                    }.padding(.top, 8)
-                    if linesShown {
-                        EngineLinesView(lines: analyzer.lines, fen: model.fen, play: model.play)
-                            .padding(.horizontal, Self.margin).padding(.top, 12)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
-                    if let problem = model.problem { Text(problem).font(.caption).foregroundStyle(.red).padding(.top, 4) }
-                    MoveListView(game: tree, path: model.path, go: model.go, scrolled: hideAlternatives) { moveMenu($0) }
-                        .safeAreaInset(edge: .top, spacing: 0) { commentCard }
-                        .overlay(alignment: .bottomTrailing) { alternatives(tree) }
-                        .frame(maxHeight: .infinity)
-                }.frame(maxWidth: .infinity)
-            }.navigationTitle(scratch?.title ?? gameTitle(tree.headers)).navigationSubtitle(scratch?.subtitle ?? gameSubtitle(tree.headers)).navigationBarTitleDisplayMode(.inline)
+            // One view tree in every pose: the layout rule picks two panes or a stack, and
+            // `AnyLayout` switches between them so the board, the list and the sheets keep their state.
+            let layout = BoardLayout(container: container, compact: sizeClass == .compact, evalBar: evalBarShown)
+            let stack = layout.mode == .panes
+                ? AnyLayout(HStackLayout(alignment: .top, spacing: BoardLayout.paneGap))
+                : AnyLayout(VStackLayout(alignment: .center, spacing: BoardLayout.stackGap))
+            stack {
+                boardPane(layout)
+                column(tree, layout).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+            .padding(.horizontal, layout.margin).padding(.vertical, BoardLayout.inset)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { container = $0 }
+            .navigationTitle(scratch?.title ?? gameTitle(tree.headers)).navigationSubtitle(scratch?.subtitle ?? gameSubtitle(tree.headers)).navigationBarTitleDisplayMode(.inline)
         } else { unreadable }
+    }
+    private var promoting: (from: String, to: String)? {
+        if case .promotion(let from, let to) = promotion { return (from, to) }
+        return nil
+    }
+    /// The board with the evaluation bar on its leading side.
+    private func boardPane(_ layout: BoardLayout) -> some View {
+        HStack(spacing: layout.evalGap) {
+            if evalBarShown { EvalBar(evaluation: analyzer.evaluation, orientation: model.orientation).frame(height: layout.board) }
+            BoardView(fen: model.fen, orientation: model.orientation, interactive: true,
+                      highlight: model.node.map { (moveFrom($0.uci), moveTo($0.uci)) }, onMove: model.play, promotion: $promotion)
+                .frame(width: layout.board, height: layout.board)
+        }
+    }
+    /// Under the board or beside it, in the canvas's order. A short column (O, SV, IP)
+    /// shows the engine lines instead of the moves, the alternatives as one row and the
+    /// comment as one line (F7, F8).
+    private func column(_ tree: ParsedGame, _ layout: BoardLayout) -> some View {
+        VStack(spacing: layout.compact ? 8 : 10) {
+            if let problem = model.problem { Text(problem).font(.caption).foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading) }
+            if let promoting {
+                PromotionRow(color: Board.turnOf(model.fen) ?? .white, choose: { piece in
+                    let fen = model.fen
+                    promotion = nil
+                    if let move = BoardInteraction.promotion(fen, promoting.from, promoting.to, piece) { model.play(move) }
+                }, cancel: { promotion = nil })
+            }
+            alternatives(tree, row: layout.short)
+            if linesShown {
+                EngineLinesView(lines: analyzer.lines, fen: model.fen, play: model.play, short: layout.short)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+            commentCard(lines: layout.short ? 1 : 3)
+            if !(layout.short && linesShown) {
+                MoveListView(game: tree, path: model.path, go: model.go) { moveMenu($0) }
+                    .frame(maxHeight: .infinity)
+            }
+        }
     }
     /// A stored game asks before its edits are left behind; a scratch one has nothing to save to.
     private var guardsLeaving: Bool { model.unsaved && scratch == nil }
+    /// System toolbar items, no custom capsule (decision 13, F24): Flip Board and Engine
+    /// Lines at the top, Previous / Next Move in the bottom bar. The system puts them in the
+    /// side bar (O, SV, IL) or the navigation and bottom bars (IP, iPhone).
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
         if guardsLeaving {
             ToolbarItem(placement: .topBarLeading) { Button("Back", systemImage: "chevron.backward") { leaving = true }.accessibilityIdentifier("game-back") }
         }
-    }
-    /// Side margin for the board and the engine lines.
-    private static let margin: CGFloat = 16
-    /// Flip and engine lines, then large previous and next buttons; holding those
-    /// jumps to the start or the end.
-    private var controls: some View {
-        HStack(spacing: 4) {
-            Button(action: model.flip) { Image(systemName: "arrow.up.arrow.down").font(.title3).frame(width: 44, height: 44).contentShape(.rect) }
-                .buttonStyle(.plain).accessibilityLabel("Flip board").accessibilityIdentifier("game-flip-board")
-            Button { withAnimation(.snappy) { linesShown.toggle() } } label: {
-                Image(systemName: "list.bullet.indent").font(.title3).foregroundStyle(linesShown ? Color.white : Color.primary)
-                    .frame(width: 44, height: 44).background(linesShown ? Color.motifAccentStrong : Color.clear, in: .circle).contentShape(.circle)
-            }.buttonStyle(.plain).accessibilityLabel("Engine lines").accessibilityAddTraits(linesShown ? .isSelected : [])
-                .accessibilityIdentifier("game-engine-lines")
-            Divider().frame(height: 28).padding(.horizontal, 4)
-            stepper("Previous move", "chevron.left", hold: "Go to start", disabled: model.path.isEmpty, step: model.back) { model.go([]) }
-            stepper("Next move", "chevron.right", hold: "Go to end", disabled: model.following.isEmpty, step: model.next, jump: model.end)
+        if model.tree != nil {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Flip Board", systemImage: "arrow.up.arrow.down", action: model.flip).accessibilityIdentifier("game-flip-board")
+            }
+            ToolbarItem(placement: .topBarTrailing) { linesToggle }
+            ToolbarItemGroup(placement: .bottomBar) {
+                stepper("Previous Move", "chevron.left", hold: "Go to start", disabled: model.path.isEmpty, step: model.back) { model.go([]) }
+                stepper("Next Move", "chevron.right", hold: "Go to end", disabled: model.following.isEmpty, step: model.next, jump: model.end)
+            }
         }
-        .padding(.horizontal, 6).frame(height: 56)
-        .glassEffect(.regular, in: .capsule)
-        .padding(.horizontal, Self.margin).padding(.bottom, 8)
     }
-    /// A tap steps one move; a long press jumps all the way. Gestures rather than a
-    /// `Button`, so the long press doesn't also count as a tap.
-    private func stepper(_ label: String, _ image: String, hold: String, disabled: Bool, step: @escaping () -> Void, jump: @escaping () -> Void) -> some View {
-        Image(systemName: image).font(.title2.weight(.semibold))
-            .foregroundStyle(disabled ? Color(.tertiaryLabel) : Color.primary)
-            .frame(maxWidth: .infinity, minHeight: 48)
-            .background(Color(.tertiarySystemFill), in: .capsule).contentShape(.capsule)
-            .onTapGesture { if !disabled { step() } }
-            .onLongPressGesture(minimumDuration: 0.4) { if !disabled { jump() } }
+    /// Filled while the lines show; VoiceOver reads it as selected.
+    @ViewBuilder private var linesToggle: some View {
+        let button = Button("Engine Lines", systemImage: "list.bullet.indent") { withAnimation(.snappy) { linesShown.toggle() } }
+            .accessibilityAddTraits(linesShown ? .isSelected : []).accessibilityIdentifier("game-engine-lines")
+        if linesShown { button.buttonStyle(.borderedProminent).tint(.motifAccentStrong) } else { button }
+    }
+    /// A tap steps one move; holding jumps all the way. The tap that ends a hold finds
+    /// nothing further to step to, so it changes nothing.
+    private func stepper(_ title: String, _ image: String, hold: String, disabled: Bool, step: @escaping () -> Void, jump: @escaping () -> Void) -> some View {
+        Button(title, systemImage: image, action: step)
             .disabled(disabled)
-            .accessibilityElement().accessibilityLabel(label).accessibilityAddTraits(.isButton)
-            .accessibilityAction { if !disabled { step() } }
+            .simultaneousGesture(LongPressGesture(minimumDuration: 0.4).onEnded { _ in if !disabled { jump() } })
             .accessibilityAction(named: hold) { if !disabled { jump() } }
-            .accessibilityIdentifier("game-" + label.lowercased().replacingOccurrences(of: " ", with: "-"))
+            .accessibilityIdentifier("game-" + title.lowercased().replacingOccurrences(of: " ", with: "-"))
     }
     @ViewBuilder private var leaveActions: some View {
         if model.online { Button("Save") { Task { if await model.save() { dismiss() } } } }
@@ -178,46 +203,56 @@ struct GameContentView: View {
         }
         .navigationTitle(gameTitle(readHeaders(game.pgn))).navigationBarTitleDisplayMode(.inline)
     }
-    /// Only a position with a comment shows the card; the list scrolls beneath it.
-    @ViewBuilder private var commentCard: some View {
+    /// Only a position with a comment shows the card; a tap opens the comment sheet.
+    @ViewBuilder private func commentCard(lines: Int) -> some View {
         if !model.comment.isEmpty {
             Button { panel = .comment } label: {
-                Text(model.comment).font(.subheadline).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 14).padding(.vertical, 12)
+                Text(model.comment).font(.subheadline).lineLimit(lines).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 14).padding(.vertical, 12)
             }.buttonStyle(.plain)
-                .glassEffect(.regular, in: .rect(cornerRadius: 14)).padding(.horizontal, 16).padding(.top, 8)
+                .glassEffect(.regular, in: .rect(cornerRadius: 14))
                 .accessibilityIdentifier("game-comment")
         }
     }
-    /// Alternatives to the current move, main line first; capped at three
-    /// until opened, and the cap always keeps the current move in view.
-    @ViewBuilder private func alternatives(_ tree: ParsedGame) -> some View {
+    /// Alternatives to the current move, main line first, as 44 pt chips in the column, never
+    /// over the board (F8, F9); capped at three until opened, and the cap always keeps the
+    /// current move in view. `row`: one horizontally scrolling row (a short column).
+    @ViewBuilder private func alternatives(_ tree: ParsedGame, row: Bool) -> some View {
         let parent = Array(model.path.dropLast())
         let siblings: [MoveNode] = model.path.isEmpty ? [] : parent.isEmpty ? tree.moves : nodeAt(tree, parent)?.children ?? []
-        if siblings.count > 1, !alternativesHidden, let current = model.path.last {
+        if siblings.count > 1, let current = model.path.last {
             let number = moveNumber(fenAt(tree, parent), true) ?? "", cap = 3
             let shown: [Int] = alternativesOpen || siblings.count <= cap ? Array(siblings.indices) : current < cap ? Array(0..<cap) : Array(0..<cap - 1) + [current]
-            VStack(alignment: .trailing, spacing: 6) {
-                ForEach(shown, id: \.self) { index in
-                    let selected = index == current
-                    Button { model.go(parent + [index]) } label: {
-                        HStack(spacing: 6) { if selected { Image(systemName: "checkmark").font(.caption.bold()).accessibilityHidden(true) }; Text(number + " " + siblings[index].san) }
-                            .font(.subheadline.weight(selected ? .semibold : .regular)).foregroundStyle(selected ? Color.white : Color.primary)
-                            .padding(.horizontal, 14).frame(minHeight: 36)
-                    }.buttonStyle(.plain)
-                        .glassEffect(selected ? .regular.tint(.motifAccentStrong).interactive() : .regular.interactive(), in: .capsule)
-                        .accessibilityAddTraits(selected ? .isSelected : []).accessibilityIdentifier("alternative-\(index)")
-                }
+            let chips = ForEach(shown, id: \.self) { index in
+                let selected = index == current
+                Button { model.go(parent + [index]) } label: {
+                    HStack(spacing: 6) { if selected { Image(systemName: "checkmark").font(.caption.bold()).accessibilityHidden(true) }; Text(number + " " + siblings[index].san) }
+                        .font(.subheadline.weight(selected ? .semibold : .regular)).foregroundStyle(selected ? Color.white : Color.primary)
+                        .padding(.horizontal, 14).frame(minHeight: 44)
+                }.buttonStyle(.plain)
+                    .glassEffect(selected ? .regular.tint(.motifAccentStrong).interactive() : .regular.interactive(), in: .capsule)
+                    .accessibilityAddTraits(selected ? .isSelected : []).accessibilityIdentifier("alternative-\(index)")
+            }
+            let toggle = Group {
                 if siblings.count > cap {
                     Button { withAnimation(.snappy) { alternativesOpen.toggle() } } label: {
-                        HStack(spacing: 4) { Text(alternativesOpen ? "Show less" : "+\(siblings.count - cap) more"); Image(systemName: alternativesOpen ? "chevron.down" : "chevron.up").accessibilityHidden(true) }
-                            .font(.footnote.weight(.semibold)).foregroundStyle(Color.motifAccentStrong).padding(.horizontal, 12).frame(minHeight: 32)
+                        HStack(spacing: 4) { Text(alternativesOpen ? "Show less" : "+\(siblings.count - cap) more"); Image(systemName: alternativesOpen ? "chevron.up" : "chevron.down").accessibilityHidden(true) }
+                            .font(.footnote.weight(.semibold)).foregroundStyle(Color.motifAccentStrong).padding(.horizontal, 12).frame(minHeight: 44)
                     }.buttonStyle(.plain).glassEffect(.regular.interactive(), in: .capsule).accessibilityIdentifier("alternatives-toggle")
                 }
-            }.padding(.trailing, 16).padding(.bottom, 8).transition(.opacity)
+            }
+            Group {
+                if row {
+                    ScrollView(.horizontal) { HStack(spacing: 8) { chips; toggle } }.scrollIndicators(.hidden)
+                } else {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Alternatives").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                        FlowLayout(spacing: 8) { chips; toggle }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }.transition(.opacity)
                 .accessibilityElement(children: .contain).accessibilityLabel("Alternatives to this move")
         }
     }
-    private func hideAlternatives() { withAnimation(.easeOut(duration: 0.2)) { alternativesHidden = true; alternativesOpen = false } }
     @ViewBuilder private var gameMenu: some View {
         if let tree = model.tree {
             if scratch == nil {

@@ -1085,6 +1085,12 @@ and anything deferred to a later slice or a follow-up PR.
   (`checkmark.circle` / `circle`, per the plan rather than the canvas's drawn glyphs) sits beside Done in
   `.topBarTrailing`; Move, Copy, Export (`ShareLink`) and Delete are one `.bottomBar` group, so the flexible
   spacer before Delete is gone. The collection title is inline as the detail column; empty states use `readableWidth()`.
+- **D05:** `BoardLayout` reserves the eval bar's 20 pt on two panes whether it shows or not (IL 504 pt either way) and
+  keeps 279 pt for the column (263 pt plus its 16 pt inset); compact boards aren't snapped (O 328 / 350 pt), so SV draws
+  317 pt where the canvas has 316. The container is read with `onGeometryChange`; tests assume the side-bar poses spend
+  54 pt on the inline title, a device check. The eval bar is 14 pt. Hold-to-jump on Previous / Next is a
+  `simultaneousGesture` on the toolbar buttons, plus VoiceOver actions; whether it survives in the side bar is a device check.
+  The promotion row has a Cancel button (`picker-cancel`) the canvas doesn't draw. UI tests find the four toolbar items by title.
 
 ## 9. Implementation slices
 

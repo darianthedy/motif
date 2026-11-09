@@ -7,9 +7,12 @@ struct EngineLinesView: View {
     /// The position the lines start from.
     let fen: String
     let play: (Uci) -> Void
+    /// A short column (O, SV, IP) packs the rows, as the canvas draws them, so the three
+    /// lines fit where they replace the move list.
+    var short = false
 
     static let count = 3
-    private static let rowHeight: CGFloat = 40
+    private var rowHeight: CGFloat { short ? 28 : 40 }
 
     var body: some View {
         let rows = lines.compactMap { line in Self.text(line, from: fen).map { (line, $0) } }
@@ -32,7 +35,7 @@ struct EngineLinesView: View {
                         Text("\(Text(text.first).fontWeight(.semibold)) \(Text(text.rest).foregroundStyle(.secondary))")
                             .font(.subheadline).monospacedDigit().lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                    }.padding(.horizontal, 12).frame(height: Self.rowHeight).contentShape(.rect)
+                    }.padding(.horizontal, 12).frame(height: rowHeight).contentShape(.rect)
                 }.buttonStyle(.plain)
                     .accessibilityLabel("Line \(index + 1), \(Self.spoken(line.score)): \(text.first) \(text.rest)")
                     .accessibilityHint("Plays \(text.first)")
@@ -41,7 +44,7 @@ struct EngineLinesView: View {
         }
         .padding(.vertical, 4)
         // Room for every line, so the move list doesn't jump while the lines come in.
-        .frame(maxWidth: .infinity, minHeight: 22 + 8 + Self.rowHeight * CGFloat(Self.count), alignment: .top)
+        .frame(maxWidth: .infinity, minHeight: 22 + 8 + rowHeight * CGFloat(Self.count), alignment: .top)
         .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 16))
         .accessibilityElement(children: .contain).accessibilityLabel("Engine lines")
         .accessibilityIdentifier("engine-lines")

@@ -3,8 +3,6 @@ struct MoveListView<MoveMenu: View>: View {
     let game: ParsedGame
     let path: MovePath
     let go: (MovePath) -> Void
-    /// Called when the reader drags the list, not when it follows the moves.
-    let scrolled: () -> Void
     @ViewBuilder let menu: (Cell) -> MoveMenu
     @State private var folded: [String: Bool] = [:]
     var body: some View {
@@ -24,9 +22,9 @@ struct MoveListView<MoveMenu: View>: View {
                         }
                     }
                     if game.moves.isEmpty { Text("No moves yet. Play one on the board.").font(.footnote).foregroundStyle(.secondary).padding() }
-                }.padding(.horizontal, 16).padding(.vertical, 8)
+                // The Analysis view's column holds the side margins (`BoardLayout`).
+                }.padding(.vertical, 8)
             }.accessibilityIdentifier("game-move-list")
-                .onScrollPhaseChange { _, phase in if phase == .interacting { scrolled() } }
                 .onChange(of: path) { _, next in withAnimation { proxy.scrollTo(moveID(next), anchor: .center) } }
         }
     }

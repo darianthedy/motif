@@ -93,7 +93,7 @@ import XCTest
         "add-games": "Add Games", "account": "Account", "result-analyze": "Analyze",
         "session-skip": "Skip", "session-flag": "Flag", "session-stop": "End Session", "reset-progress": "Reset Puzzle Progress…",
         "new-game-collection": "New Collection", "import-puzzles": "Import Puzzles", "puzzle-next-move": "Next move",
-        "game-next-move": "Next move", "puzzle-detail-comment": "Comment", "puzzle-import-paste": "Paste From Clipboard",
+        "game-next-move": "Next Move", "puzzle-detail-comment": "Comment", "puzzle-import-paste": "Paste From Clipboard",
         "game-import-paste": "Paste From Clipboard", "load-sign-out": "Sign Out", "sign-in": "Sign In",
     ]
     /// The ⋯ menus, which are the system overflow button on iOS 27.1 (`overflow(_:)`).

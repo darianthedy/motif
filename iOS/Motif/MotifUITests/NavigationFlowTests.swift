@@ -55,7 +55,7 @@ import XCTest
     /// iPhone: the split view collapses to one stack, and Back from a collection clears the
     /// selection, so tapping the same row opens it again.
     func testBackFromACollectionClearsTheSelectionOnCompactWidth() throws {
-        try XCTSkipIf(pose == "IL", "The open display shows both columns")
+        try XCTSkipIf(twoColumns, "The open display and the iPad in landscape show both columns")
         launch(); let collection = row("collection-sample-back-rank"); wait(collection); collection.tap()
         let browse = button("browse-puzzles"); wait(browse)
         let back = app.navigationBars.buttons.matching(NSPredicate(format: "label == 'Puzzles' OR label == 'Back'")).firstMatch

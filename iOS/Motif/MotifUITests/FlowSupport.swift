@@ -2,9 +2,12 @@ import XCTest
 
 @MainActor class FlowTestCase: XCTestCase {
     let app = XCUIApplication()
-    /// The destination ios-ci runs on (`iphone`, `IL`; empty elsewhere), from `MOTIF_POSE`, for UI tests that
-    /// only hold in one pose: `try XCTSkipIf(pose == "IL", "…")`.
+    /// The destination ios-ci runs on (`iphone`, `IL`, `ipad`; empty elsewhere), from `MOTIF_POSE`, for UI tests
+    /// that only hold in one pose: `try XCTSkipIf(pose == "IL", "…")`.
     var pose: String { ProcessInfo.processInfo.environment["MOTIF_POSE"] ?? "" }
+    /// Destinations whose window is regular width with both split view columns (IL, iPad in landscape), for
+    /// tests of the compact, one-stack layout: `try XCTSkipIf(twoColumns, "…")`.
+    var twoColumns: Bool { pose == "IL" || pose == "ipad" }
     /// A loaded CI simulator can stall for a minute reaping the previous test's app, and `launch()` then fails
     /// with "Failed to terminate com.dthedy.Motif:<pid>" before this test has done anything. That one issue is
     /// the simulator's, so it buys a second launch; the app must still come up in the foreground.
@@ -12,6 +15,8 @@ import XCTest
         app.launchArguments = ["-MotifMemoryBackend", "YES", "-MotifSeedSamples", seeded ? "YES" : "NO"] + extra
         if let route { app.launchArguments += ["-MotifRoute", route] }
         if offline { app.launchArguments += ["-MotifOffline", "YES"] }
+        // ios-ci's iPad destination runs in landscape (§9 D11); simctl can't turn a simulator, so the test does.
+        if pose == "ipad", XCUIDevice.shared.orientation != .landscapeLeft { XCUIDevice.shared.orientation = .landscapeLeft }
         continueAfterFailure = true
         for _ in 0..<2 {
             let stalled = Flag()

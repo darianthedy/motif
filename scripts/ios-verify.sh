@@ -8,7 +8,7 @@
 #
 # MOTIF_SIM (a device name or UDID) picks the simulator, and MOTIF_RUNTIME an iOS
 # major version to prefer (see ios-simulator.sh); the default is the first
-# available iPhone. MOTIF_POSE (iphone, IL…) reaches the tests as MOTIF_POSE, for
+# available iPhone. MOTIF_POSE (iphone, IL, ipad…) reaches the tests as MOTIF_POSE, for
 # UI tests that only hold in one pose. ios-ci sets all three per destination.
 #
 # Written for macOS's bash 3.2: no associative arrays, no GNU-only flags.

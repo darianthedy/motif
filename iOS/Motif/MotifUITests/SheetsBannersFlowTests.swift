@@ -44,6 +44,8 @@ import XCTest
     /// error are in view without scrolling.
     func testStackedNewGameKeepsTheFenFieldAndErrorInView() throws {
         try XCTSkipIf(pose == "IL", "IL puts the preview beside the form")
+        // The iPad's sheet width is the system's sizing; decision 21 puts it beside, a device spot check (§9 D11).
+        try XCTSkipIf(pose == "ipad", "The iPad sheet puts the preview beside the form")
         launch("game-new"); wait(button("game-new-board"))
         app.buttons["From a FEN"].tap()
         let field = any("game-start-fen"), preview = any("game-new-preview")

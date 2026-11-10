@@ -1,9 +1,10 @@
 name: iOS CI
 
 # The PR check for the native app: builds it with Xcode 27.1 and runs MotifTests +
-# MotifUITests against the in-memory dev backend (no secrets, no signing), on two
-# destinations: an iPhone 17 (`iphone`) and the iPhone Duo simulator open and wide
-# (`IL`, posed with duoctl). See "Motif - iOS iPhone Duo Plan.md" §9. Also runs the web suite, whose fixture check fails when a TS model
+# MotifUITests against the in-memory dev backend (no secrets, no signing), on three
+# destinations: an iPhone 17 (`iphone`), the iPhone Duo simulator open and wide
+# (`IL`, posed with duoctl) and an 11-inch iPad in landscape (`ipad`; the UI tests
+# turn it with XCUIDevice). See "Motif - iOS iPhone Duo Plan.md" §9. Also runs the web suite, whose fixture check fails when a TS model
 # change has left the committed iOS parity fixtures stale.
 
 on:
@@ -52,6 +53,12 @@ jobs:
           - pose: IL
             sim: Motif Duo Capture
             runtime: ""
+          # An 11-inch iPad (834 × 1194 class, §3 PD), matched by name prefix so the
+          # chip suffix of the image's model ("(M5)" …) doesn't matter. FlowTestCase
+          # turns it to landscape before each launch (MOTIF_POSE=ipad).
+          - pose: ipad
+            sim: iPad Pro 11-inch
+            runtime: ""
     steps:
       - uses: actions/checkout@v7
 
@@ -77,7 +84,7 @@ jobs:
         run: scripts/fetch-nnue.sh
 
       - name: Pose the iPhone Duo
-        if: matrix.pose != 'iphone'
+        if: matrix.pose == 'IL'
         run: |
           brew install skarol/tap/duoctl
           scripts/ios-duo-capture.sh pose ${{ matrix.pose }}

@@ -1123,6 +1123,11 @@ and anything deferred to a later slice or a follow-up PR.
   VoiceOver reads board, column, then bar items via `.contain` containers and `accessibilitySortPriority`. The `var` frames are
   captured as `<state>-AX5` / `<state>-RT` on O, IL and the iPhone (`testSystemVariants`); RT is a fixture (`reduce-transparency`)
   since tests can't switch the setting, so the captured system bars keep their glass. Bar items moving to overflow at AX5 is a device check.
+- **D11:** universal (`TARGETED_DEVICE_FAMILY = "1,2"` on every target), `UISupportedInterfaceOrientations~ipad` with all four, the
+  iPhone key still portrait only. `ios-ci`'s `ipad` destination is the first simulator named `iPad Pro 11-inch…` (`ios-simulator.sh`
+  matches a name prefix), turned to landscape by `FlowTestCase.launch` with `XCUIDevice` since simctl can't rotate; `IPadFlowTests` checks
+  sidebar + detail and the Analysis board. Compact-only UI tests skip on `twoColumns` (IL, iPad); the New Game sheet's width on iPad and
+  Stage Manager's compact windows (O layout) are device spot checks.
 
 ## 9. Implementation slices
 

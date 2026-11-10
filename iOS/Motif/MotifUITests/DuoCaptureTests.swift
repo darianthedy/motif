@@ -1,14 +1,18 @@
 import XCTest
 
-/// iPhone Duo Phase 2: every state in the plan's §4 inventory, captured as one
-/// screenshot named for its cell (`S15c`, `S17a-S04`). Skipped unless the runner
-/// sets `MOTIF_CAPTURE=1` (`TEST_RUNNER_MOTIF_CAPTURE=1` through xcodebuild), so the
-/// PR check doesn't pay for it. `scripts/ios-duo-capture.sh` sets the pose, runs this,
-/// and exports the screenshots.
+/// The iPhone Duo screenshot tests (plan D09): every state in the plan's §4 inventory,
+/// captured as one screenshot named for its cell (`S15c`, `S17a-S04`, `S04a-sidebar`),
+/// which `ios-duo-capture.yml` pairs with the rendered mockup frame. Skipped unless the
+/// runner sets `MOTIF_CAPTURE=1` (`TEST_RUNNER_MOTIF_CAPTURE=1` through xcodebuild), so
+/// the PR check doesn't pay for it. `scripts/ios-duo-capture.sh` sets the pose (O, IL,
+/// IP, FB, FT, or `iphone` for an iPhone 17), runs this, and exports the screenshots.
 ///
 /// `MOTIF_CAPTURE_ONLY` narrows a run: comma-separated id prefixes (`S08,S15`), and
-/// `primary` for every screen's first state. Each state launches fresh; a state that
-/// can't be reached records a failure and is still captured, so the grid shows it.
+/// `primary` for every screen's first state. The workflow passes each pose's drawn cells
+/// (`design/iphone-duo/cells.mjs only`). `MOTIF_POSE` is the pose: on regular width the
+/// homes select their first collection, as the canvases draw the detail column. Each state
+/// launches fresh; a state that can't be reached records a failure and is still captured,
+/// so the sheet shows it.
 @MainActor final class DuoCaptureTests: FlowTestCase {
     private var environment: [String: String] { ProcessInfo.processInfo.environment }
     override func setUp() async throws {
@@ -16,6 +20,8 @@ import XCTest
         try XCTSkipUnless(environment["MOTIF_CAPTURE"] == "1", "Set MOTIF_CAPTURE=1 to capture the iPhone Duo states")
         XCUIDevice.shared.appearance = .light
     }
+    /// The open display's poses, where the homes are two columns (sidebar and detail).
+    private var regular: Bool { ["IL", "IP", "FB", "FT"].contains(pose) }
     private func wanted(_ id: String) -> Bool {
         guard let only = environment["MOTIF_CAPTURE_ONLY"], !only.isEmpty else { return true }
         let state = id.split(separator: "-").first.map(String.init) ?? id
@@ -29,11 +35,14 @@ import XCTest
     private func shot(_ id: String, _ route: String? = nil, fixture: String = "", seeded: Bool = true, offline: Bool = false,
                       settle: TimeInterval = 1.2, _ reach: () -> Void = {}) {
         guard wanted(id) else { return }
+        // The homes' canvases draw the first collection selected in the detail column on regular width.
+        let home = id.hasPrefix("S04") || id.hasPrefix("S11") || id.hasSuffix("-S04")
+        let fixtures = ["capture", fixture, home && regular ? "select" : ""].filter { !$0.isEmpty }.joined(separator: ",")
         XCTContext.runActivity(named: id) { _ in
             for attempt in 1...2 {
                 missing = nil
                 // `capture` always sets a fixture, so the Analysis view's toggles reset each launch.
-                launch(route, seeded: seeded, offline: offline, extra: ["-MotifFixture", fixture.isEmpty ? "capture" : "capture," + fixture])
+                launch(route, seeded: seeded, offline: offline, extra: ["-MotifFixture", fixtures])
                 continueAfterFailure = true
                 reach()
                 if missing == nil || attempt == 2 { break }
@@ -54,19 +63,23 @@ import XCTest
         handle.seekToEndOfFile(); handle.write(Data(line.utf8)); try? handle.close()
     }
     /// XCUIScreen only sees the cover screen, so with `MOTIF_CAPTURE_DIR` set the host script
-    /// takes the shot with duoctl, which captures whichever screen is showing: this asks
-    /// through `<dir>/request` and waits for `<dir>/<id>.png`.
+    /// takes the shot with duoctl (or simctl on the iPhone), which captures whichever screen is
+    /// showing: this asks once through `<dir>/request` and waits for `<dir>/<id>.png`.
+    /// One request per state, and a late shot is abandoned: a second request, or a shot that
+    /// landed after the suite moved on, put the next state's screen under this id (§8.4: S01b
+    /// and S01d on IL).
     private func save(_ id: String) {
         if let dir = environment["MOTIF_CAPTURE_DIR"], !dir.isEmpty {
-            let files = FileManager.default, shot = dir + "/" + id + ".png"
+            let files = FileManager.default, shot = dir + "/" + id + ".png", request = dir + "/request"
             try? files.removeItem(atPath: shot)
-            for _ in 0..<2 {
-                try? id.write(toFile: dir + "/request", atomically: true, encoding: .utf8)
-                let deadline = Date().addingTimeInterval(30)
-                while !files.fileExists(atPath: shot), Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
-                if files.fileExists(atPath: shot) { return }
-            }
+            try? id.write(toFile: request, atomically: true, encoding: .utf8)
+            let deadline = Date().addingTimeInterval(90)
+            while !files.fileExists(atPath: shot), Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
+            if files.fileExists(atPath: shot) { return }
+            try? files.removeItem(atPath: request)
+            files.createFile(atPath: dir + "/abandoned-" + id, contents: nil)
             XCTFail("The host didn't capture \(id)")
+            note("unreached.txt", "\(id)\tthe host didn't capture it\n")
         }
         let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         image.name = id; image.lifetime = .keepAlways; add(image)
@@ -88,7 +101,7 @@ import XCTest
     private static let titles = [
         "account-close": "Close", "game-select-done": "Done", "game-bulk-move": "Move", "game-bulk-delete": "Delete",
         "save-game-confirm": "Save Game", "game-new-board": "Create Game", "puzzle-import-add": "Add 2 Puzzles",
-        "game-import-add": "Add 2 Games", "game-back": "Back", "game-save-as-game": "Save as Game…",
+        "game-import-add": "Add 2 Games", "game-back": "Back", "game-bulk-export": "Export", "game-save-as-game": "Save as Game…",
         "game-export-pgn": "Export PGN…", "game-select": "Select Games", "game-select-all": "Select All",
         "add-games": "Add Games", "account": "Account", "result-analyze": "Analyze",
         "session-skip": "Skip", "session-flag": "Flag", "session-stop": "End Session", "reset-progress": "Reset Puzzle Progress…",
@@ -113,7 +126,25 @@ import XCTest
         guard present(matches.firstMatch) else { return }
         (matches.allElementsBoundByIndex.first(where: \.isHittable) ?? matches.firstMatch).tap()
     }
-    private func type(into element: XCUIElement, _ text: String) { if present(element) { element.tap(); element.typeText(text) } }
+    /// Taps again while the tap left no keyboard focus (S02b on IP typed into nothing), as `type(_:into:)` does.
+    private func type(into element: XCUIElement, _ text: String) {
+        guard present(element) else { return }
+        let inside = element.descendants(matching: .any).matching(NSPredicate(format: "hasKeyboardFocus == true")).firstMatch
+        for _ in 0..<3 {
+            element.tap()
+            if matches(element, "hasKeyboardFocus == true", timeout: 5) || inside.exists { element.typeText(text); return }
+        }
+        missing = "keyboard focus in \(element)"
+    }
+    /// Waits for a system picker's content (Files, the share sheet) without failing the state:
+    /// their content loads late (§8.4: S05k, S12q), and their elements differ between releases.
+    private func loaded(_ labels: [String], identifiers: [String] = []) {
+        guard missing == nil else { return }
+        let content = app.descendants(matching: .any).matching(NSPredicate(format: "label IN %@ OR identifier IN %@", labels, identifiers)).firstMatch
+        _ = content.waitForExistence(timeout: 15)
+    }
+    private func filesPicker() { loaded(["Recents", "Browse", "Shared"]) }
+    private func shareSheet() { loaded(["Save to Files", "AirDrop"], identifiers: ["ActivityListView", "UIActivityContentView"]) }
     /// On compact width the search field hides until the list is pulled down.
     private func search(_ text: String) {
         let field = app.searchFields.firstMatch
@@ -173,7 +204,8 @@ import XCTest
         shot("S03g", "account", fixture: "prod-account", ready)
         shot("S03h", "account", fixture: "seed=progress,prod-account") { tapButton("reset-progress"); wait(button("reset-confirm")) }
         shot("S03i", "account") { ready(); app.swipeUp() }
-        shot("S03j", "account", fixture: "seed=progress,prod-account", settle: 0.3) { tapButton("reset-progress"); item("Reset Progress"); wait(any("toast")) }
+        // The reset's toast, pinned by the `notice` fixture rather than a real reset (§8.4).
+        shot("S03j", "account", fixture: "seed=progress,prod-account,notice=Progress reset. Every puzzle is unseen again.") { ready(); wait(any("toast")) }
         shot("S03k", "account", fixture: "error,prod-account") { wait(any("error-banner")) }
     }
     func testS04PuzzlesHome() {
@@ -188,6 +220,8 @@ import XCTest
         shot("S04h") { swipeRow(row) }
         shot("S04i") { pressRow(row); item("Rename…"); wait(app.alerts.firstMatch) }
         shot("S04j") { swipeRow(row); item("Delete"); wait(app.buttons["Delete Collection"]) }
+        // Decision 16: on IP the detail takes the width; the sidebar button slides the home list over it.
+        if pose == "IP" { shot("S04a-sidebar", fixture: "seed=progress,sidebar") { wait(button("resume-random")) } }
     }
     func testS05ImportPuzzles() {
         let ready = { self.wait(self.app.textViews["puzzle-import-text"]) }
@@ -201,7 +235,8 @@ import XCTest
         shot("S05h", "import", fixture: "import=new,hang-writes") { tapButton("puzzle-import-add") }
         shot("S05i", "import", fixture: "import=new", offline: true, ready)
         shot("S05j", "import") { ready(); tapIf(app.textViews["puzzle-import-text"]) }
-        shot("S05k", "import", settle: 2.5) { ready(); item("Choose File…") }
+        shot("S05k", "import", settle: 2.5) { ready(); item("Choose File…"); filesPicker() }
+        shot("S05l", "collection") { tapButton("collection-actions"); item("Import Into Collection…"); ready() }
     }
     func testS06Collection() {
         let ready = { self.wait(self.button("solve-ordered")) }
@@ -217,9 +252,9 @@ import XCTest
         let row = "puzzle-sample-back-rank-0"
         shot("S07a", "puzzle-list") { wait(any(row)) }
         shot("S07b", "puzzle-list") { search("back") }
+        // Redefined in §8.4: a scope applied with a query. The scopes show once search is active (D03).
         shot("S07c", "puzzle-list", fixture: "seed=progress") {
-            // Wide screens show the scope bar only once the keyboard is down.
-            search(""); if !app.buttons["Solved"].waitForExistence(timeout: 3) { app.typeText("\n") }; item("Solved")
+            search("back"); if missing == nil, !app.buttons["Review"].waitForExistence(timeout: 3) { app.typeText("\n") }; item("Review")
         }
         shot("S07d", "puzzle-list-empty") { wait(app.staticTexts["No Flagged Puzzles"]) }
         shot("S07e", "puzzle-list") { search("zzz") }
@@ -258,9 +293,8 @@ import XCTest
         shot("S09l", solve, fixture: "seed=solve") {
             tapButton("session-skip"); Thread.sleep(forTimeInterval: 0.8); tapButton("session-skip"); move("a1", "a8"); wait(app.staticTexts["result-verdict"])
         }
-        shot("S09m", solve, fixture: "seed=solve") {
-            for _ in 0..<3 { tapButton("session-skip"); Thread.sleep(forTimeInterval: 0.8) }; wait(app.staticTexts["Session Complete"])
-        }
+        // A finished run with its results recorded (two solved, one missed), not three skips (§8.4).
+        shot("S09m", "resume:sample-solve", fixture: "seed=complete") { wait(app.staticTexts["Session Complete"]) }
         shot("S09n", "session:all") { tapButton("session-flag") }
         shot("S09o", "session:all", offline: true) { wait(square("a1")) }
     }
@@ -287,6 +321,7 @@ import XCTest
         shot("S11g", "games") { pressRow(row); item("Rename…"); wait(app.alerts.firstMatch) }
         shot("S11h", "games") { swipeRow(row); item("Delete"); wait(app.buttons["Delete Collection"]) }
         shot("S11i", "games", offline: true) { wait(any(row)) }
+        if pose == "IP" { shot("S11a-sidebar", "games", fixture: "seed=games,sidebar") { wait(any(row)) } }
     }
     func testS12GameCollection() {
         let games = "seed=games", ready = { self.wait(self.any("game-row-sample-game")) }
@@ -308,7 +343,8 @@ import XCTest
         shot("S12n", "game-collection", fixture: "seed=collections", offline: true) { wait(app.staticTexts["No Games"]) }
         shot("S12o", "game-collection", fixture: games, offline: true, ready)
         shot("S12p", "game-select", fixture: games, offline: true) { wait(button("game-bulk-move")) }
-        shot("S12q", "game-collection", fixture: games, settle: 2.5) { tapButton("game-collection-actions"); item("Export as PGN") }
+        // The canvas draws the share sheet from the bulk bar's Export, with a selection.
+        shot("S12q", "game-select", fixture: games, settle: 2.5) { wait(button("game-bulk-move")); tapButton("game-bulk-export"); shareSheet() }
     }
     func testS13ImportPGN() {
         let ready = { self.wait(self.app.textViews["game-import-text"]) }
@@ -320,7 +356,7 @@ import XCTest
         shot("S13f", "game-add", fixture: "import=pgn,hang-writes") { tapButton("game-import-add") }
         shot("S13g", "game-add", fixture: "import=pgn", offline: true, ready)
         shot("S13h", "game-add") { ready(); tapIf(app.textViews["game-import-text"]) }
-        shot("S13i", "game-add", settle: 2.5) { ready(); item("Choose Files…") }
+        shot("S13i", "game-add", settle: 2.5) { ready(); item("Choose Files…"); filesPicker() }
     }
     func testS14NewGame() {
         let ready = { self.wait(self.button("game-new-board")) }
@@ -366,7 +402,11 @@ import XCTest
         shot("S16d", "game-comment") { comment(); tapIf(app.textViews["game-comment-text"]) }
         shot("S16e", "game-details") { wait(app.navigationBars["Details"]) }
         shot("S16f", "game-details") { wait(app.navigationBars["Details"]); tapIf(any("game-header-White")) }
-        shot("S16g", "game:sample", settle: 2.5) { tapButton("game-actions"); tapButton("game-export-pgn") }
+        shot("S16g", "game:sample", settle: 2.5) { tapButton("game-actions"); tapButton("game-export-pgn"); shareSheet() }
+        // The game note: the comment sheet on the game itself (⋯ → Edit Game Note), §8.4.
+        shot("S16h", "game:sample-game", fixture: "seed=games") {
+            wait(square("e2")); tapButton("game-actions"); item("Edit Game Note"); wait(app.textViews["game-comment-text"])
+        }
     }
     /// The banners on three hosts: a list, the session and the Analysis view.
     func testS17Banners() {

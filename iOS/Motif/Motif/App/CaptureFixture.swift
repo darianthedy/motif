@@ -5,12 +5,14 @@ import Foundation
 /// state in the plan's §4 inventory can be opened on a fresh launch. Debug builds
 /// only, on the memory backend: `-MotifFixture seed=games,engine,pending=2`.
 ///
-/// - `seed=empty|collections|progress|games|solve`: the library to start from (see `CaptureSeed`).
+/// - `seed=empty|collections|progress|games|solve|complete`: the library to start from (see `CaptureSeed`).
 /// - `hang-user`, `hang-load`, `fail-load`: the account never answers, or the library load hangs or fails.
 /// - `hang-signin`, `fail-signin`, `fail-signout`, `hang-writes`, `fail-writes`.
 /// - `offline-first`: signed in, offline, with nothing cached.
 /// - `prod-account`: hide the dev-account footers.
-/// - `pending=N`, `status=syncing|error`, `error`, `notice`: store and banner state after opening.
+/// - `pending=N`, `status=syncing|error`, `error`, `notice[=text]`: store and banner state after opening.
+/// - `select`: the first collection of each tab is selected (the detail column on regular width).
+///   `sidebar`: both split views show their sidebar (S04a·IP, S11a·IP with the sidebar shown).
 /// - `engine`: the scripted engine on every game route. `lines`, `eval-off`: the Analysis view toggles.
 /// - `problem`: the Analysis view shows a move problem. `slow-reply`: the opponent takes 10 s to reply.
 /// - `import=<name>`: prefills an import sheet with one of `CaptureSeed.importTexts`.
@@ -53,7 +55,13 @@ struct CaptureFixture: Sendable {
         default: break
         }
         if has("error") { app.error = "That didn't save: The server didn’t answer." }
-        if has("notice") { app.pinNotice("PGN copied.") }
+        if let notice = values["notice"] { app.pinNotice(notice.isEmpty ? "PGN copied." : notice) }
+        // Only with nothing routed, so a launch route keeps the selection it opens.
+        if has("select"), app.launchRoute == nil || app.launchRoute == "games", let library = store.library {
+            if let first = library.collections.first { app.openPuzzles([.collection(first.id)]) }
+            if let first = library.gameCollections.first { app.openGames([.collection(first.id)]) }
+        }
+        if has("sidebar") { app.puzzlesColumns.visibility = .all; app.gamesColumns.visibility = .all }
     }
 }
 
@@ -109,6 +117,8 @@ enum CaptureSeed {
             games(&library)
         case "solve":
             solve(&library)
+        case "complete":
+            solve(&library); complete(&library)
         default: break
         }
     }
@@ -183,6 +193,17 @@ enum CaptureSeed {
         library.collections.append(Collection(id: id, name: "Session states", createdAt: Int64(library.collections.count)))
         library.puzzles += content.enumerated().map { n, content in
             Puzzle(content: content, id: id + "-\(n)", collectionId: id, position: n, addedAt: 0)
+        }
+    }
+    /// The session states' collection played to the end (S09m, route `resume:sample-solve`): two
+    /// solved, and the last missed twice (its retry), so the run has nothing left to serve.
+    private static func complete(_ library: inout Library) {
+        let ids = library.puzzles.filter { $0.collectionId == "sample-solve" }.sorted { $0.position < $1.position }.map(\.id)
+        guard ids.count == 3 else { return }
+        library.runs.append(Run(id: "seed-complete", scope: "sample-solve", mode: .ordered, queue: ids, startedAt: 10))
+        let played: [(String, AttemptResult)] = [(ids[0], .solved), (ids[1], .solved), (ids[2], .failed), (ids[2], .failed)]
+        library.attempts += played.enumerated().map { n, item in
+            Attempt(id: "seed-complete-\(n)", puzzleId: item.0, runId: "seed-complete", result: item.1, mistakes: item.1 == .solved ? 0 : 2, hinted: false, playedAt: Int64(11 + n))
         }
     }
     /// `import=<name>` texts for the two import sheets.

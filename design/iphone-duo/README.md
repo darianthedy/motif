@@ -17,3 +17,9 @@ Render frames to PNG (Playwright from the main checkout):
 
     PLAYWRIGHT_FROM=<repo>/node_modules/ node render.mjs analysis.html out/ "s15:#S15a·O" "s15:row:S15c"
     PLAYWRIGHT_FROM=<repo>/node_modules/ node sheet.mjs out/sheet.png 600 out/*.png
+
+Pair captures with frames (D09, `ios-duo-capture.yml`): `cells.mjs` lists each pose's
+drawn cells and their frames; `pair.mjs` renders them and writes capture | mockup sheets.
+
+    node cells.mjs plan IP
+    PLAYWRIGHT_FROM=<repo>/node_modules/ node pair.mjs <captures dir> out/

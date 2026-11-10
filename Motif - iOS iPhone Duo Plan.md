@@ -1108,6 +1108,14 @@ and anything deferred to a later slice or a follow-up PR.
   stacked it sits under the picker, capped at 40 % of the visible sheet. Save as Game uses a measured `.height` detent (form content plus
   insets) rather than `.presentationSizing(.fitted)`. Sign-in collapses its header while a field has focus, on every iPhone. Whether the
   capsule sits above an IP / iPhone bottom bar, and the measured detent's height, are device checks.
+- **D09:** `ios-duo-capture.yml` is one 27.1 build and six capture jobs (O, IL, IP, FB, FT, `iphone`), each limited to its drawn
+  cells by `design/iphone-duo/cells.mjs` (it loads the canvases' `cellPlan` in a Node VM; the iPhone 17 pairs with the O frames);
+  a `sheets` job renders each cell's frame (`render.mjs`) and joins capture | mockup per canvas tab and pose (`pair.mjs`,
+  `sheet.mjs --pairs`). Capture fixes: one shot request per state, late shots abandoned and a warm-up shot (S01b / S01d), focus
+  retried before typing (S02b), `notice=<text>` (S03j), Files / share sheet content waited for (S05k, S12q from the bulk Export),
+  `seed=complete` + route `resume:<collection>` (S09m), S07c as a query plus the Review scope; new S05l, S16h, and
+  `S04a-sidebar` / `S11a-sidebar` on IP (`sidebar` fixture). Homes take a `select` fixture on regular poses (`MOTIF_POSE`), as the
+  canvases draw the first collection in the detail. A pose fails on any unreached state but S12h, or a drawn cell without a shot.
 
 ## 9. Implementation slices
 

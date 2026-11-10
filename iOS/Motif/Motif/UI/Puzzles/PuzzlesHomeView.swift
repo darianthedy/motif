@@ -109,6 +109,8 @@ struct PuzzlesHomeView: View {
             app.openPuzzles([.collection(puzzle.collectionId), .puzzles(puzzle.collectionId), .puzzle(puzzle.collectionId, puzzle.id)])
         }
         if route == "collection", let first = library.collections.first { app.openPuzzles([.collection(first.id)]) }
+        // `resume:<collection id>` reopens that collection's existing run (S09m: `seed=complete`'s finished run).
+        if route.hasPrefix("resume:") { app.session = SessionRoute(scope: String(route.dropFirst("resume:".count))) }
         if route.hasPrefix("session:") || route.hasPrefix("result:") {
             // `session:<collection id>` and `result:<collection id>` start in that collection.
             let named = String(route.drop { $0 != ":" }.dropFirst())

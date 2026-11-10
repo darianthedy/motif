@@ -10,6 +10,7 @@ struct ResultCard: View {
     /// Opens the puzzle's start position in the Analysis view.
     let analyze: () -> Void
     let continueAction: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
     private var solved: Bool { model.phase == .solved }
     var body: some View {
         VStack(spacing: 16) {
@@ -17,15 +18,18 @@ struct ResultCard: View {
                 details
                 ScrollView { details }.scrollBounceBehavior(.basedOnSize)
             }
-            HStack(spacing: 10) {
-                Button(action: analyze) { Label("Analyze", systemImage: "magnifyingglass").font(.headline) }
+            // Stacked at accessibility sizes, so neither title truncates beside the other (D10).
+            let stacked = typeSize.isAccessibilitySize
+            let buttons = stacked ? AnyLayout(VStackLayout(spacing: 10)) : AnyLayout(HStackLayout(spacing: 10))
+            buttons {
+                Button(action: analyze) { Label("Analyze", systemImage: "magnifyingglass").font(.headline).frame(maxWidth: stacked ? .infinity : nil) }
                     .buttonStyle(.glass).controlSize(.large).accessibilityIdentifier("result-analyze")
                 Button(action: continueAction) { Text("Continue").font(.headline).frame(maxWidth: .infinity) }
                     .buttonStyle(.glassProminent).controlSize(.large).accessibilityIdentifier("result-continue")
             }
         }
         .padding(20)
-        .glassEffect(.regular, in: .rect(cornerRadius: 28))
+        .motifGlass(in: .rect(cornerRadius: 28))
     }
     private var details: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -46,7 +50,7 @@ struct ResultCard: View {
         }
         ForEach(model.misses, id: \.ply) { miss in
             let text = ordinal(miss.ply) + "  " + miss.tried.joined(separator: " · ") + (miss.wanted.map { " → " + $0 } ?? "")
-            Text(text).font(.subheadline.monospacedDigit()).foregroundStyle(.secondary)
+            Text(text).font(.subheadline.monospacedDigit()).foregroundStyle(.motifSecondary)
         }
     }
     @ViewBuilder private var metadata: some View {
@@ -56,13 +60,13 @@ struct ResultCard: View {
         }
         if let comment = model.puzzle.comment, !comment.isEmpty { Text(comment).accessibilityIdentifier("puzzle-comment") }
         if !model.puzzle.tags.isEmpty {
-            Text(model.puzzle.tags.map(motifLabel).joined(separator: " · ")).font(.footnote).foregroundStyle(.secondary).accessibilityIdentifier("puzzle-tags")
+            Text(model.puzzle.tags.map(motifLabel).joined(separator: " · ")).font(.footnote).foregroundStyle(.motifSecondary).accessibilityIdentifier("puzzle-tags")
         }
     }
     private var solutions: some View {
         ForEach(Array(model.lines.enumerated()), id: \.offset) { n, line in
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                if model.lines.count > 1 { Text("\(n + 1)").foregroundStyle(.secondary) }
+                if model.lines.count > 1 { Text("\(n + 1)").foregroundStyle(.motifSecondary) }
                 Text(line.steps.map(\.san).joined(separator: "  ")).font(.system(.body, design: .monospaced))
                 if line.played {
                     Text("Your line").font(.caption.weight(.semibold)).foregroundStyle(Color.motifAccentStrong)

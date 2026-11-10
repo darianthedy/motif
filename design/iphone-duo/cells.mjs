@@ -7,7 +7,8 @@
 //
 // Poses are the capture run's: O, IL, IP, FB, FT, and `iphone` (an iPhone 17, paired with
 // the O frames: the same compact layout without the side bar). A cell that isn't drawn in a
-// pose isn't captured there; extra captures (`S04a-sidebar` on IP) pair with their own frame.
+// pose isn't captured there; extra captures (`S04a-sidebar` on IP) pair with their own frame,
+// and the `var` tab's AX5 and Reduce Transparency frames pair with `<state>-AX5` / `<state>-RT` on O and IL.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -39,7 +40,10 @@ function load(canvas) {
     const own = tabs.find(([, prefixes]) => prefixes.some((p) => id.startsWith(p)));
     return (own || tabs.find(([, prefixes]) => host && prefixes.includes(host)) || [])[0];
   };
-  return { canvas, ids, plan, tabOf };
+  // The `var` tab's system-variant frames (`S15a·O·AX5`, `S09i·IL·RT`), captured as `<state>-AX5` / `<state>-RT` (D10).
+  const variants = () => [...vm.runInContext('renderVariants()', context).matchAll(/id="((S\d\d\w+)·(\w+)·(AX5|RT))"/g)]
+    .map(([, frame, state, col, variant]) => ({ frame, state, col, variant }));
+  return { canvas, ids, plan, tabOf, variants };
 }
 
 let loaded;
@@ -57,6 +61,9 @@ export function cells(pose) {
     }
     for (const [id, state, at, frame] of EXTRA) {
       if (at === col && c.ids.includes(state)) out.push({ id, canvas: c.canvas, tab: c.tabOf(state), frame });
+    }
+    for (const v of c.variants()) {
+      if (v.col === col) out.push({ id: `${v.state}-${v.variant}`, canvas: c.canvas, tab: 'var', frame: v.frame });
     }
   }
   return out;

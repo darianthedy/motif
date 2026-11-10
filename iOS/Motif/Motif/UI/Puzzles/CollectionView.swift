@@ -70,7 +70,7 @@ struct CollectionView: View {
             RowStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Session in Progress").font(.headline)
-                    Text("\(remaining) left").font(.subheadline).foregroundStyle(.secondary)
+                    Text("\(remaining) left").font(.subheadline).foregroundStyle(.motifSecondary)
                 }.frame(maxWidth: .infinity, alignment: .leading)
                 Button("Resume", systemImage: "play.fill") { app.session = SessionRoute(scope: collectionId) }
                     .buttonStyle(.glassProminent).buttonBorderShape(.capsule).accessibilityIdentifier("resume-session")
@@ -88,7 +88,7 @@ private struct StatsCard: View {
             RowStack {
                 figure(stats.solved, "Solved", Color.motifAccentStrong)
                 figure(stats.failed, "To Review", .orange)
-                figure(stats.unseen, "New", .secondary)
+                figure(stats.unseen, "New", .motifSecondaryText)
             }
             GeometryReader { geometry in
                 HStack(spacing: 2) {
@@ -106,7 +106,7 @@ private struct StatsCard: View {
     private func figure(_ count: Int, _ label: String, _ color: Color) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("\(count)").font(.title2.weight(.semibold).monospacedDigit()).foregroundStyle(color)
-            Text(label).font(.footnote).foregroundStyle(.secondary)
+            Text(label).font(.footnote).foregroundStyle(.motifSecondary)
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
     @ViewBuilder private func segment(_ count: Int, _ color: Color, _ width: CGFloat) -> some View {

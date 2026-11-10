@@ -116,7 +116,7 @@ private struct PuzzleRow: View {
             RowStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("#" + item.number).font(.body.weight(.medium).monospacedDigit())
-                    Text(subtitle).font(.footnote).foregroundStyle(.secondary).rowLineLimit()
+                    Text(subtitle).font(.footnote).foregroundStyle(.motifSecondary).rowLineLimit()
                 }.frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 8) {
                     if item.puzzle.flagged == true {
@@ -137,7 +137,7 @@ private struct PuzzleRow: View {
     }
     private var status: some View {
         let (symbol, color): (String, Color) = switch item.status {
-        case .unseen: ("circle", .secondary)
+        case .unseen: ("circle", .motifSecondaryText)
         case .failed: ("arrow.counterclockwise.circle.fill", .orange)
         case .solved: ("checkmark.circle.fill", .motifAccentStrong)
         }

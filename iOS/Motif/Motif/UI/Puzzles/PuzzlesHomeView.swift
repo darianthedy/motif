@@ -55,7 +55,7 @@ struct PuzzlesHomeView: View {
             if let run = runIn(library, SCOPE_ALL), resumable(library, SCOPE_ALL) {
                 Button { app.session = SessionRoute(scope: SCOPE_ALL) } label: {
                     PracticeRow(title: "Resume Random Session", systemImage: "play.fill", tile: .motifAccentStrong) {
-                        Text("\(progressOf(library, run).remaining) left").foregroundStyle(.secondary)
+                        Text("\(progressOf(library, run).remaining) left").foregroundStyle(.motifSecondary)
                     }
                 }.accessibilityIdentifier("resume-random")
             }
@@ -131,7 +131,7 @@ private struct PracticeRow<Trailing: View>: View {
     var body: some View {
         HStack(spacing: 12) {
             IconTile(systemImage: systemImage, color: tile.opacity(enabled ? 1 : 0.4))
-            Text(title).foregroundStyle(enabled ? Color.primary : Color.secondary).layoutPriority(1)
+            Text(title).foregroundStyle(enabled ? Color.primary : Color.motifSecondaryText).layoutPriority(1)
             Spacer()
             trailing
         }
@@ -153,7 +153,7 @@ private struct CollectionRow: View {
                     }
                 }
                 Text("\(countLabel(stats.total, "puzzle")) · \(stats.solved) solved\(stats.failed > 0 ? " · \(stats.failed) to review" : "")")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.footnote).foregroundStyle(.motifSecondary)
             }
         }
         .padding(.vertical, 2)
@@ -169,7 +169,7 @@ private struct ProgressRing: View {
         ZStack {
             Circle().stroke(Color.motifAccent.opacity(0.2), lineWidth: 4)
             Circle().trim(from: 0, to: fraction).stroke(Color.motifAccent, style: StrokeStyle(lineWidth: 4, lineCap: .round)).rotationEffect(.degrees(-90))
-            Text("\(Int((fraction * 100).rounded()))%").font(.system(size: size / 4, weight: .semibold).monospacedDigit()).foregroundStyle(.secondary)
+            Text("\(Int((fraction * 100).rounded()))%").font(.system(size: size / 4, weight: .semibold).monospacedDigit()).foregroundStyle(.motifSecondary)
         }
         .frame(width: size, height: size)
         .accessibilityLabel("\(Int((fraction * 100).rounded())) percent solved")

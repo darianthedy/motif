@@ -23,7 +23,7 @@ struct SaveAsGameSheet: View {
                         Text("New Collection").tag("")
                         ForEach(collections, id: \.id) { Text($0.name).tag($0.id) }
                     }.pickerStyle(.menu).accessibilityIdentifier("save-game-collection")
-                    if collectionId.isEmpty { TextField("Collection name", text: $name).accessibilityIdentifier("save-game-collection-name") }
+                    if collectionId.isEmpty { TextField("Collection name", text: $name, prompt: motifPrompt("Collection name")).accessibilityIdentifier("save-game-collection-name") }
                 } header: { Text("Add to") } footer: {
                     if !app.store.online { Text("You’re offline. Saving needs a connection.") }
                 }

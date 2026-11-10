@@ -12,10 +12,10 @@ struct SignInView: View {
     var body: some View {
         Form {
             Section {
-                TextField("Email", text: $email).textContentType(.emailAddress).keyboardType(.emailAddress)
+                TextField("Email", text: $email, prompt: motifPrompt("Email")).textContentType(.emailAddress).keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never).autocorrectionDisabled().accessibilityIdentifier("auth-email")
                     .focused($focus, equals: .email).submitLabel(.next).onSubmit { focus = .password }
-                SecureField("Password", text: $password).textContentType(.password).accessibilityIdentifier("auth-password")
+                SecureField("Password", text: $password, prompt: motifPrompt("Password")).textContentType(.password).accessibilityIdentifier("auth-password")
                     .focused($focus, equals: .password).submitLabel(.go).onSubmit { if !disabled { submit(false) } }
             } header: {
                 header
@@ -60,7 +60,7 @@ struct SignInView: View {
             Text("Motif").font(typing ? .title2.bold() : .largeTitle.bold()).foregroundStyle(.primary)
             if !typing {
                 Text("Your chess puzzles and games, the same on every device.")
-                    .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    .font(.subheadline).foregroundStyle(.motifSecondary).multilineTextAlignment(.center)
                     .transition(.opacity)
             }
             OfflinePill()

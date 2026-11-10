@@ -211,7 +211,7 @@ private struct GameRow: View {
         RowStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(gameTitle(headers)).font(.body.weight(.medium)).lineLimit(typeSize.isAccessibilitySize ? nil : 2)
-                if !details.isEmpty { Text(details).font(.footnote).foregroundStyle(.secondary).rowLineLimit() }
+                if !details.isEmpty { Text(details).font(.footnote).foregroundStyle(.motifSecondary).rowLineLimit() }
             }.frame(maxWidth: .infinity, alignment: .leading)
             if let result = ResultChip(headers["Result"]) { result }
         }
@@ -230,7 +230,7 @@ private struct ResultChip: View {
         }
     }
     var body: some View {
-        Text(text).font(.caption.weight(.semibold).monospacedDigit()).foregroundStyle(.secondary)
+        Text(text).font(.caption.weight(.semibold).monospacedDigit()).foregroundStyle(.motifSecondary)
             .padding(.horizontal, 8).padding(.vertical, 3).background(.fill.tertiary, in: .capsule)
             .accessibilityLabel(spoken)
     }
@@ -271,9 +271,9 @@ private struct GameDestinationSheet: View {
                             HStack(spacing: 12) {
                                 IconTile(systemImage: "checkerboard.rectangle", color: .motifAccentStrong.opacity(current ? 0.4 : 1))
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(collection.name).foregroundStyle(current ? Color.secondary : Color.primary)
+                                    Text(collection.name).foregroundStyle(current ? Color.motifSecondaryText : Color.primary)
                                     Text(current ? "Current collection" : countLabel(library.map { gamesIn($0, collection.id).count } ?? 0, "game"))
-                                        .font(.footnote).foregroundStyle(.secondary)
+                                        .font(.footnote).foregroundStyle(.motifSecondary)
                                 }
                                 Spacer()
                                 if target == collection.id { Image(systemName: "checkmark").fontWeight(.semibold).foregroundStyle(.tint).accessibilityHidden(true) }

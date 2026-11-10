@@ -20,7 +20,7 @@ struct PieceRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                Text(title).font(.caption.weight(.semibold)).foregroundStyle(.motifSecondary).textCase(.uppercase)
                 Spacer()
                 Button("Cancel", role: .cancel, action: cancel).font(.subheadline)
                     .frame(minHeight: 44).accessibilityIdentifier("picker-cancel")

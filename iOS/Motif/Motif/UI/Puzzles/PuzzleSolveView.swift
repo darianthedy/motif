@@ -17,19 +17,21 @@ struct SolvePrompt: View {
     let side: Side
     let guidance: String
     var warning = false
+    @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         HStack(spacing: 10) {
             Circle().fill(side == .white ? Color.white : Color.black)
                 .overlay(Circle().stroke(.secondary, lineWidth: 1)).frame(width: 18, height: 18)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
-                Text(side == .white ? "White to move" : "Black to move").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Text(side == .white ? "White to move" : "Black to move").font(.caption.weight(.semibold)).foregroundStyle(.motifSecondary)
                 Text(guidance).font(.subheadline.weight(.medium)).foregroundStyle(warning ? Color.orange : .primary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
-        .glassEffect(.regular, in: .capsule)
+        // A capsule's ends would clip the wrapped lines at accessibility sizes.
+        .motifGlass(in: typeSize.isAccessibilitySize ? AnyShape(.rect(cornerRadius: 22)) : AnyShape(.capsule))
         .accessibilityElement(children: .contain)
     }
 }

@@ -35,7 +35,7 @@ struct GameDetailsSheet: View {
         ForEach(keys, id: \.self) { key in
             let label = gameDetailFields.first { $0.0 == key }?.1 ?? key, rating = key.hasSuffix("Elo")
             LabeledContent(rating ? "Rating" : label) {
-                TextField(key == "Date" ? "YYYY.MM.DD" : rating ? "Unrated" : "Unknown", text: Binding(get: { values[key] ?? "" }, set: { values[key] = $0 }))
+                TextField(label, text: Binding(get: { values[key] ?? "" }, set: { values[key] = $0 }), prompt: motifPrompt(key == "Date" ? "YYYY.MM.DD" : rating ? "Unrated" : "Unknown"))
                     .multilineTextAlignment(.trailing).keyboardType(rating ? .numberPad : .default).accessibilityLabel(label).accessibilityIdentifier("game-header-" + key)
             }
         }

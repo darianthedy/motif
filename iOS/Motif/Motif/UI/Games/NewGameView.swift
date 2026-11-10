@@ -28,7 +28,7 @@ struct NewGameView: View {
                         // At the top, where it explains the disabled ✓ before anything else (F19).
                         Section {
                             Label("You’re offline. Adding games needs a connection.", systemImage: "wifi.slash")
-                                .foregroundStyle(.secondary).accessibilityIdentifier("game-new-offline")
+                                .foregroundStyle(.motifSecondary).accessibilityIdentifier("game-new-offline")
                         }
                     }
                     Section {
@@ -49,7 +49,7 @@ struct NewGameView: View {
                     }
                     if fromFen {
                         Section {
-                            TextField("FEN", text: $fen, axis: .vertical).font(.system(.footnote, design: .monospaced))
+                            TextField("FEN", text: $fen, prompt: motifPrompt("FEN"), axis: .vertical).font(.system(.footnote, design: .monospaced))
                                 .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.asciiCapable)
                                 .accessibilityIdentifier("game-start-fen")
                         } header: { Text("Starting Position") } footer: {

@@ -16,6 +16,8 @@ import Foundation
 /// - `engine`: the scripted engine on every game route. `lines`, `eval-off`: the Analysis view toggles.
 /// - `problem`: the Analysis view shows a move problem. `slow-reply`: the opponent takes 10 s to reply.
 /// - `import=<name>`: prefills an import sheet with one of `CaptureSeed.importTexts`.
+/// - `reduce-transparency`: Motif's own glass takes its Reduce Transparency fallback (`motifGlass`);
+///   Dynamic Type comes from `-UIPreferredContentSizeCategoryName` instead (D10).
 struct CaptureFixture: Sendable {
     static let current = CaptureFixture(UserDefaults.standard.string(forKey: "MotifFixture") ?? "")
     private let values: [String: String]

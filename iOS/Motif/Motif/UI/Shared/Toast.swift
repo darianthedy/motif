@@ -13,7 +13,7 @@ struct Toast: View {
                 .padding(.horizontal, 16).padding(.vertical, 10)
         }
         .buttonStyle(.plain)
-        .glassEffect(.regular.interactive(), in: .capsule)
+        .motifGlass(interactive: true, in: .capsule)
         .frame(maxWidth: transientBannerWidth)
         .transition(.move(edge: .bottom).combined(with: .opacity))
         .accessibilityLabel(text)

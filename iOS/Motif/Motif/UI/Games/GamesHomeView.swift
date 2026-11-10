@@ -92,7 +92,7 @@ private struct GameCollectionRow: View {
             IconTile(systemImage: "checkerboard.rectangle", color: .motifAccentStrong)
             VStack(alignment: .leading, spacing: 3) {
                 Text(name).font(.body.weight(.medium))
-                Text(countLabel(count, "game")).font(.footnote).foregroundStyle(.secondary)
+                Text(countLabel(count, "game")).font(.footnote).foregroundStyle(.motifSecondary)
             }
         }
         .padding(.vertical, 2)

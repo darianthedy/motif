@@ -5,6 +5,10 @@ struct MoveListView<MoveMenu: View>: View {
     let go: (MovePath) -> Void
     @ViewBuilder let menu: (Cell) -> MoveMenu
     @State private var folded: [String: Bool] = [:]
+    /// The move number's column and the row height grow with Dynamic Type, so "12." never
+    /// truncates at AX5 (D10).
+    @ScaledMetric(relativeTo: .footnote) private var numberWidth: CGFloat = 30
+    @ScaledMetric(relativeTo: .subheadline) private var rowHeight: CGFloat = 34
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -13,15 +17,15 @@ struct MoveListView<MoveMenu: View>: View {
                         switch item {
                         case .row(let number, let white, let black):
                             HStack(spacing: 8) {
-                                Text(number.formatted(.number.precision(.fractionLength(0))) + ".").font(.footnote).monospacedDigit().foregroundStyle(.secondary).frame(width: 30, alignment: .trailing)
+                                Text(number.formatted(.number.precision(.fractionLength(0))) + ".").font(.footnote).monospacedDigit().foregroundStyle(.motifSecondary).frame(width: numberWidth, alignment: .trailing)
                                 if let white { moveButton(white, number: nil).frame(maxWidth: .infinity, alignment: .leading) } else { Text("…").frame(maxWidth: .infinity, alignment: .leading) }
                                 if let black { moveButton(black, number: nil).frame(maxWidth: .infinity, alignment: .leading) } else { Color.clear.frame(maxWidth: .infinity).frame(height: 1) }
-                            }.frame(minHeight: 34)
+                            }.frame(minHeight: rowHeight)
                         case .variations(let fen, let alternatives):
                             ForEach(alternatives, id: \.path) { cell in variation(cell, fen: fen, depth: 0) }
                         }
                     }
-                    if game.moves.isEmpty { Text("No moves yet. Play one on the board.").font(.footnote).foregroundStyle(.secondary).padding() }
+                    if game.moves.isEmpty { Text("No moves yet. Play one on the board.").font(.footnote).foregroundStyle(.motifSecondary).padding() }
                 // The Analysis view's column holds the side margins (`BoardLayout`).
                 }.padding(.vertical, 8)
             }.accessibilityIdentifier("game-move-list")
@@ -35,7 +39,7 @@ struct MoveListView<MoveMenu: View>: View {
             HStack(spacing: 4) {
                 Text(text).font(.subheadline.weight(selected ? .semibold : .regular)).monospacedDigit()
                 if !displayComment(cell.node.comment).isEmpty || !displayComment(cell.node.before).isEmpty {
-                    Image(systemName: "text.bubble.fill").font(.caption2).foregroundStyle(selected ? Color.white : Color.secondary).accessibilityLabel("Has a comment")
+                    Image(systemName: "text.bubble.fill").font(.caption2).foregroundStyle(selected ? Color.white : Color.motifSecondaryText).accessibilityLabel("Has a comment")
                 }
             }.foregroundStyle(selected ? Color.white : muted ? Color.primary.opacity(0.78) : Color.primary).padding(.horizontal, 10).padding(.vertical, 5)
                 .background(selected ? Color.motifAccentStrong : Color.clear, in: Capsule())
@@ -65,7 +69,7 @@ struct MoveListView<MoveMenu: View>: View {
         return AnyView(HStack(alignment: .firstTextBaseline, spacing: 0) {
             if length > 6 {
                 Button { withAnimation(.snappy) { folded[id] = open } } label: {
-                    Image(systemName: "chevron.down").font(.caption.weight(.semibold)).rotationEffect(.degrees(open ? 0 : -90)).foregroundStyle(.secondary).frame(width: 22, height: 28)
+                    Image(systemName: "chevron.down").font(.caption.weight(.semibold)).rotationEffect(.degrees(open ? 0 : -90)).foregroundStyle(.motifSecondary).frame(width: 22, height: 28)
                 }.buttonStyle(.plain).accessibilityLabel(open ? "Fold variation" : "Unfold variation")
             }
             VStack(alignment: .leading, spacing: 2) {

@@ -83,14 +83,19 @@ private struct SessionPuzzle: View {
                 .padding(.leading, layout.padding.leading).padding(.trailing, layout.padding.trailing).padding(.vertical, 6)
                 .accessibilityLabel("Session progress")
             stack {
-                board.frame(width: layout.board, height: layout.board)
-                column(layout)
+                board.frame(width: layout.board, height: layout.board).accessibilitySortPriority(2)
+                column(layout).accessibilitySortPriority(1)
             }
+            .accessibilityElement(children: .contain)
             .padding(layout.padding)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             // In the stack's own coordinates, so the board's top is the layout's.
             .motifDivision($division)
+            .accessibilitySortPriority(1)
         }
+        // VoiceOver: the board, then the prompt, picker or result beside or under it (on
+        // either page of a fold), then the progress bar, then the bar items (§6.14, D10).
+        .accessibilityElement(children: .contain)
         // Measured with the progress bar, as the canvas sizes the boards (IP 512 pt); the column gives up its 16 pt.
         .onGeometryChange(for: CGSize.self) { $0.size } action: { container = $0 }
         // Compact width: the card still rises from the bottom, sized to its content (F5).
@@ -214,7 +219,8 @@ private struct SessionComplete: View {
             .frame(width: layout.mode == .pages ? layout.boardSide.width : nil, height: layout.mode == .halves ? layout.boardSide.height : nil)
             .frame(maxHeight: layout.mode == .pages ? .infinity : nil)
             VStack(spacing: 24) {
-                HStack(spacing: 12) {
+                // Stacked at accessibility sizes, where two tiles leave no room for their labels.
+                RowStack(spacing: 12) {
                     tile(progress.solved, "Solved cleanly", .motifAccentStrong)
                     tile(progress.failed, "Missed", .orange)
                 }.padding(.horizontal)
@@ -233,7 +239,7 @@ private struct SessionComplete: View {
     private func tile(_ value: Int, _ label: String, _ color: Color) -> some View {
         VStack(spacing: 4) {
             Text("\(value)").font(.largeTitle.bold().monospacedDigit()).foregroundStyle(color)
-            Text(label).font(.subheadline).foregroundStyle(.secondary)
+            Text(label).font(.subheadline).foregroundStyle(.motifSecondary)
         }.frame(maxWidth: .infinity).padding(.vertical, 16)
             .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 16))
             .accessibilityElement(children: .combine)

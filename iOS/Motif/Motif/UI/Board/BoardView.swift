@@ -184,7 +184,7 @@ struct BoardSampleView: View {
                     if let move = BoardInteraction.promotion(fen, from, to, piece) { play(move) }
                 }, cancel: { pending = nil })
             }
-            Text("Tap or drag a piece").foregroundStyle(.secondary); Spacer()
+            Text("Tap or drag a piece").foregroundStyle(.motifSecondary); Spacer()
         }.padding().navigationTitle("Board")
     }
     private func play(_ move: Uci) { if let next = Board.applyUci(fen, move) { fen = next } }

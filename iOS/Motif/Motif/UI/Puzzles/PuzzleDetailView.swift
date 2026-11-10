@@ -66,6 +66,7 @@ private struct PuzzleDetailContent: View {
             // Display-only: the detail replays, it doesn't take moves.
             BoardView(fen: model.fen, orientation: solverSide(puzzle), interactive: false, highlight: model.highlight)
                 .allowsHitTesting(false).frame(width: layout.board, height: layout.board)
+                .accessibilitySortPriority(1)
             List {
                 if puzzle.addPiece == nil { solution }
                 info
@@ -75,6 +76,8 @@ private struct PuzzleDetailContent: View {
             .accessibilityIdentifier("puzzle-detail-list")
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        // VoiceOver: the board, then the solution and details, then the bar items (§6.14, D10).
+        .accessibilityElement(children: .contain)
         .padding(padding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onGeometryChange(for: CGSize.self) { $0.size } action: { container = $0 }
@@ -139,7 +142,7 @@ private struct PuzzleDetailContent: View {
                                 Text(chip).font(.subheadline.weight(selected ? .semibold : .regular).monospacedDigit())
                                     .foregroundStyle(selected ? Color.white : Color.primary).padding(.horizontal, 14).frame(minHeight: 44)
                             }.buttonStyle(.plain)
-                                .glassEffect(selected ? .regular.tint(.motifAccentStrong).interactive() : .regular.interactive(), in: .capsule)
+                                .motifGlass(tint: selected ? .motifAccentStrong : nil, interactive: true, in: .capsule)
                                 .accessibilityAddTraits(selected ? .isSelected : []).accessibilityIdentifier("puzzle-move-\(index)").id(index)
                         }
                     }.padding(.vertical, 4)
@@ -167,7 +170,7 @@ private struct PuzzleDetailContent: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Comment").foregroundStyle(Color.primary)
-                        if let comment = puzzle.comment, !comment.isEmpty { Text(comment).font(.subheadline).foregroundStyle(.secondary).lineLimit(3) }
+                        if let comment = puzzle.comment, !comment.isEmpty { Text(comment).font(.subheadline).foregroundStyle(.motifSecondary).lineLimit(3) }
                         else { Text("Add Comment").font(.subheadline).foregroundStyle(.tint) }
                     }
                     Spacer()

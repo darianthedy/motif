@@ -17,7 +17,7 @@ struct ImportPGNView: View {
                     // At the top, where it explains the disabled ✓ before anything else (F19).
                     Section {
                         Label("You’re offline. Adding games needs a connection.", systemImage: "wifi.slash")
-                            .foregroundStyle(.secondary).accessibilityIdentifier("game-import-offline")
+                            .foregroundStyle(.motifSecondary).accessibilityIdentifier("game-import-offline")
                     }
                 }
                 Section {
@@ -38,7 +38,7 @@ struct ImportPGNView: View {
                         }
                         ForEach(Array(read.errors.enumerated()), id: \.offset) { _, error in Text("Game \(error.game): \(error.message)").font(.footnote).foregroundStyle(.red) }
                         ForEach(Array(read.games.prefix(5).enumerated()), id: \.offset) { _, game in Text(gameTitle(game.headers)) }
-                        if read.games.count > 5 { Text("and \(countLabel(read.games.count - 5, "more game"))").foregroundStyle(.secondary) }
+                        if read.games.count > 5 { Text("and \(countLabel(read.games.count - 5, "more game"))").foregroundStyle(.motifSecondary) }
                     } header: { Text("Found") }
                 }
             }

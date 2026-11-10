@@ -32,17 +32,25 @@ import XCTest
     /// Launch on `route` with `fixture`, run `reach`, let the UI settle, and save the screen.
     /// A state whose `reach` loses an element relaunches once, and is still captured after a
     /// second miss: the miss goes in `<dir>/unreached.txt` so the grid can mark the cell.
-    private func shot(_ id: String, _ route: String? = nil, fixture: String = "", seeded: Bool = true, offline: Bool = false,
+    private func shot(_ state: String, _ route: String? = nil, fixture: String = "", seeded: Bool = true, offline: Bool = false,
                       settle: TimeInterval = 1.2, _ reach: () -> Void = {}) {
+        // In a system-variant pass only the variant's states run, saved as `<frame state>-AX5` / `-RT`.
+        let id: String
+        if let variant {
+            guard let frame = variant.states[state] else { return }
+            id = frame + "-" + variant.name
+        } else { id = state }
         guard wanted(id) else { return }
         // The homes' canvases draw the first collection selected in the detail column on regular width.
         let home = id.hasPrefix("S04") || id.hasPrefix("S11") || id.hasSuffix("-S04")
-        let fixtures = ["capture", fixture, home && regular ? "select" : ""].filter { !$0.isEmpty }.joined(separator: ",")
+        let fixtures = ["capture", fixture, home && regular ? "select" : "", variant?.name == "RT" ? "reduce-transparency" : ""]
+            .filter { !$0.isEmpty }.joined(separator: ",")
+        let textSize = variant?.name == "AX5" ? ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] : []
         XCTContext.runActivity(named: id) { _ in
             for attempt in 1...2 {
                 missing = nil
                 // `capture` always sets a fixture, so the Analysis view's toggles reset each launch.
-                launch(route, seeded: seeded, offline: offline, extra: ["-MotifFixture", fixtures])
+                launch(route, seeded: seeded, offline: offline, extra: ["-MotifFixture", fixtures] + textSize)
                 continueAfterFailure = true
                 reach()
                 if missing == nil || attempt == 2 { break }
@@ -84,6 +92,10 @@ import XCTest
         let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         image.name = id; image.lifetime = .keepAlways; add(image)
     }
+
+    /// A system-variant pass (`testSystemVariants`): "AX5" or "RT", and the states it captures,
+    /// keyed by the state whose `reach` runs, valued by the state the `var` frame is named for.
+    private var variant: (name: String, states: [String: String])?
 
     /// The first element a state's `reach` couldn't find. Once set, the remaining steps are
     /// skipped: XCTest stops the whole test when it taps an element that isn't there.
@@ -406,6 +418,27 @@ import XCTest
         // The game note: the comment sheet on the game itself (⋯ → Edit Game Note), §8.4.
         shot("S16h", "game:sample-game", fixture: "seed=games") {
             wait(square("e2")); tapButton("game-actions"); item("Edit Game Note"); wait(app.textViews["game-comment-text"])
+        }
+    }
+    /// The canvases' `var` tab (D10): each screen's primary state at Dynamic Type AX5 and with
+    /// Reduce Transparency, on O (and the iPhone 17, which pairs with O) and IL. Captured as
+    /// `<state>-AX5` / `<state>-RT` (`design/iphone-duo/cells.mjs`). AX5 is the launch argument;
+    /// Reduce Transparency is the `reduce-transparency` fixture, which switches Motif's own glass
+    /// (`motifGlass`) to its fallback: the system bars follow only the real setting.
+    func testSystemVariants() throws {
+        try XCTSkipUnless(["O", "IL", "iphone"].contains(pose), "The system-variant frames are drawn on O and IL")
+        let screens = ["S01b", "S02a", "S03a", "S04a", "S11a", "S06a", "S07a", "S12a", "S05a", "S13a", "S14a", "S16a", "S08a", "S10a"]
+        let ax5 = Dictionary(uniqueKeysWithValues: (screens + ["S09a", "S15a"]).map { ($0, $0) })
+        var rt = Dictionary(uniqueKeysWithValues: (screens + ["S09i"]).map { ($0, $0) })
+        // The Analysis RT frames draw S15c on O (lines on) and S15e on IL (comment on), named S15a.
+        rt[pose == "IL" ? "S15e" : "S15c"] = "S15a"
+        defer { variant = nil }
+        for pass in [("AX5", ax5), ("RT", rt)] {
+            variant = pass
+            testS01Launch(); testS02SignIn(); testS03Account(); testS04PuzzlesHome(); testS05ImportPuzzles()
+            testS06Collection(); testS07PuzzleList(); testS08PuzzleDetail(); testS09Session(); testS10PuzzleAnalysis()
+            testS11GamesHome(); testS12GameCollection(); testS13ImportPGN(); testS14NewGame(); testS15Analysis()
+            testS16AnalysisSheets()
         }
     }
     /// The banners on three hosts: a list, the session and the Analysis view.

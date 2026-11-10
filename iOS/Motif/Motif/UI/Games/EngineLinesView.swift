@@ -12,16 +12,20 @@ struct EngineLinesView: View {
     var short = false
 
     static let count = 3
-    private var rowHeight: CGFloat { short ? 28 : 40 }
+    /// Row and header heights grow with Dynamic Type, so nothing clips at AX5 (D10).
+    @ScaledMetric(relativeTo: .subheadline) private var tallRow: CGFloat = 40
+    @ScaledMetric(relativeTo: .subheadline) private var shortRow: CGFloat = 28
+    @ScaledMetric(relativeTo: .caption) private var headHeight: CGFloat = 22
+    private var rowHeight: CGFloat { short ? shortRow : tallRow }
 
     var body: some View {
         let rows = lines.compactMap { line in Self.text(line, from: fen).map { (line, $0) } }
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("Engine Lines").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                Text("Engine Lines").font(.caption.weight(.semibold)).foregroundStyle(.motifSecondary).textCase(.uppercase)
                 Spacer()
-                Text(lines.first.map { "Depth \($0.depth)" } ?? "Analysing…").font(.caption).monospacedDigit().foregroundStyle(.secondary)
-            }.padding(.horizontal, 12).frame(height: 22)
+                Text(lines.first.map { "Depth \($0.depth)" } ?? "Analysing…").font(.caption).monospacedDigit().foregroundStyle(.motifSecondary)
+            }.padding(.horizontal, 12).frame(minHeight: headHeight)
             ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                 let (line, text) = row
                 Button { if let move = line.moves.first.flatMap(Uci.parse) { play(move) } } label: {
@@ -32,10 +36,10 @@ struct EngineLinesView: View {
                             .frame(minWidth: 48, minHeight: 24)
                             .background(Self.whiteAhead(line.score) ? EvalBar.whitePart : EvalBar.blackPart, in: .rect(cornerRadius: 6))
                             .overlay { RoundedRectangle(cornerRadius: 6).strokeBorder(Color(.separator), lineWidth: 0.5) }
-                        Text("\(Text(text.first).fontWeight(.semibold)) \(Text(text.rest).foregroundStyle(.secondary))")
+                        Text("\(Text(text.first).fontWeight(.semibold)) \(Text(text.rest).foregroundStyle(.motifSecondary))")
                             .font(.subheadline).monospacedDigit().lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                    }.padding(.horizontal, 12).frame(height: rowHeight).contentShape(.rect)
+                    }.padding(.horizontal, 12).frame(minHeight: rowHeight).contentShape(.rect)
                 }.buttonStyle(.plain)
                     .accessibilityLabel("Line \(index + 1), \(Self.spoken(line.score)): \(text.first) \(text.rest)")
                     .accessibilityHint("Plays \(text.first)")
@@ -44,7 +48,7 @@ struct EngineLinesView: View {
         }
         .padding(.vertical, 4)
         // Room for every line, so the move list doesn't jump while the lines come in.
-        .frame(maxWidth: .infinity, minHeight: 22 + 8 + rowHeight * CGFloat(Self.count), alignment: .top)
+        .frame(maxWidth: .infinity, minHeight: headHeight + 8 + rowHeight * CGFloat(Self.count), alignment: .top)
         .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 16))
         .accessibilityElement(children: .contain).accessibilityLabel("Engine lines")
         .accessibilityIdentifier("engine-lines")

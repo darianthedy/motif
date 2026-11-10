@@ -99,10 +99,13 @@ struct GameContentView: View {
             let stack = layout.sideBySide
                 ? AnyLayout(HStackLayout(alignment: .top, spacing: layout.spacing))
                 : AnyLayout(VStackLayout(alignment: .center, spacing: layout.spacing))
+            // VoiceOver reads the board, then the column, then the bar items, whichever
+            // side or page each lands on (§6.14, D10).
             stack {
-                boardPane(layout)
-                column(tree, layout).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                boardPane(layout).accessibilitySortPriority(2)
+                column(tree, layout).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top).accessibilitySortPriority(1)
             }
+            .accessibilityElement(children: .contain)
             .padding(layout.padding)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .onGeometryChange(for: CGSize.self) { $0.size } action: { container = $0 }
@@ -126,27 +129,34 @@ struct GameContentView: View {
     /// Under the board or beside it, in the canvas's order. A short column (O, SV, IP)
     /// shows the engine lines instead of the moves, the alternatives as one row and the
     /// comment as one line (F7, F8).
+    /// VoiceOver: a pending promotion first, then the problem, the moves (or the lines that
+    /// replace them), and the alternatives and comment after them (§6.14).
     private func column(_ tree: ParsedGame, _ layout: BoardLayout) -> some View {
         VStack(spacing: layout.compact ? 8 : 10) {
-            if let problem = model.problem { Text(problem).font(.caption).foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading) }
+            if let problem = model.problem {
+                Text(problem).font(.caption).foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading).accessibilitySortPriority(3)
+            }
             if let promoting {
                 PieceRow(color: Board.turnOf(model.fen) ?? .white, choose: { piece in
                     let fen = model.fen
                     promotion = nil
                     if let move = BoardInteraction.promotion(fen, promoting.from, promoting.to, piece) { model.play(move) }
-                }, cancel: { promotion = nil })
+                }, cancel: { promotion = nil }).accessibilitySortPriority(4)
             }
             alternatives(tree, row: layout.short)
             if linesShown {
                 EngineLinesView(lines: analyzer.lines, fen: model.fen, play: model.play, short: layout.short)
                     .transition(.opacity.combined(with: .move(edge: .top)))
+                    .accessibilitySortPriority(1)
             }
             commentCard(lines: layout.short ? 1 : 3)
             if !(layout.short && linesShown) {
                 MoveListView(game: tree, path: model.path, go: model.go) { moveMenu($0) }
                     .frame(maxHeight: .infinity)
+                    .accessibilitySortPriority(2)
             }
         }
+        .accessibilityElement(children: .contain)
     }
     /// A stored game asks before its edits are left behind; a scratch one has nothing to save to.
     private var guardsLeaving: Bool { model.unsaved && scratch == nil }
@@ -213,7 +223,7 @@ struct GameContentView: View {
             Button { panel = .comment } label: {
                 Text(model.comment).font(.subheadline).lineLimit(lines).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 14).padding(.vertical, 12)
             }.buttonStyle(.plain)
-                .glassEffect(.regular, in: .rect(cornerRadius: 14))
+                .motifGlass(in: .rect(cornerRadius: 14))
                 .accessibilityIdentifier("game-comment")
         }
     }
@@ -233,7 +243,7 @@ struct GameContentView: View {
                         .font(.subheadline.weight(selected ? .semibold : .regular)).foregroundStyle(selected ? Color.white : Color.primary)
                         .padding(.horizontal, 14).frame(minHeight: 44)
                 }.buttonStyle(.plain)
-                    .glassEffect(selected ? .regular.tint(.motifAccentStrong).interactive() : .regular.interactive(), in: .capsule)
+                    .motifGlass(tint: selected ? .motifAccentStrong : nil, interactive: true, in: .capsule)
                     .accessibilityAddTraits(selected ? .isSelected : []).accessibilityIdentifier("alternative-\(index)")
             }
             let toggle = Group {
@@ -241,7 +251,7 @@ struct GameContentView: View {
                     Button { withAnimation(.snappy) { alternativesOpen.toggle() } } label: {
                         HStack(spacing: 4) { Text(alternativesOpen ? "Show less" : "+\(siblings.count - cap) more"); Image(systemName: alternativesOpen ? "chevron.up" : "chevron.down").accessibilityHidden(true) }
                             .font(.footnote.weight(.semibold)).foregroundStyle(Color.motifAccentStrong).padding(.horizontal, 12).frame(minHeight: 44)
-                    }.buttonStyle(.plain).glassEffect(.regular.interactive(), in: .capsule).accessibilityIdentifier("alternatives-toggle")
+                    }.buttonStyle(.plain).motifGlass(interactive: true, in: .capsule).accessibilityIdentifier("alternatives-toggle")
                 }
             }
             Group {
@@ -249,7 +259,7 @@ struct GameContentView: View {
                     ScrollView(.horizontal) { HStack(spacing: 8) { chips; toggle } }.scrollIndicators(.hidden)
                 } else {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Alternatives").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                        Text("Alternatives").font(.caption.weight(.semibold)).foregroundStyle(.motifSecondary).textCase(.uppercase)
                         FlowLayout(spacing: 8) { chips; toggle }
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }

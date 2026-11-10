@@ -10,9 +10,9 @@ struct OfflinePill: View {
         if !app.store.online {
             let label = "Offline" + (app.store.pending > 0 ? " · \(countLabel(app.store.pending, "result")) waiting" : "")
             Text("\(Image(systemName: "wifi.slash")) \(label)")
-                .font(.footnote.weight(.medium)).foregroundStyle(.secondary)
+                .font(.footnote.weight(.medium)).foregroundStyle(.motifSecondary)
                 .padding(.horizontal, 12).padding(.vertical, 6)
-                .glassEffect(.regular, in: .capsule)
+                .motifGlass(in: .capsule)
                 .padding(.vertical, 4)
                 .accessibilityIdentifier("offline-banner")
         }
@@ -29,11 +29,11 @@ struct ErrorBanner: View {
             Text(text).font(.footnote).frame(maxWidth: .infinity, alignment: .leading)
             if let dismiss {
                 Button("Dismiss", systemImage: "xmark", action: dismiss).labelStyle(.iconOnly).font(.footnote.weight(.semibold))
-                    .buttonStyle(.plain).foregroundStyle(.secondary).accessibilityIdentifier("error-dismiss")
+                    .buttonStyle(.plain).foregroundStyle(.motifSecondary).accessibilityIdentifier("error-dismiss")
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
-        .glassEffect(.regular.tint(.red.opacity(0.12)), in: .rect(cornerRadius: 22))
+        .motifGlass(tint: .red.opacity(0.12), in: .rect(cornerRadius: 22))
         .frame(maxWidth: transientBannerWidth)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("error-banner")

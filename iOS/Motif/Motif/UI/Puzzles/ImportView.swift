@@ -69,7 +69,7 @@ struct ImportView: View {
                     // At the top, where it explains the disabled ✓ before anything else (F19).
                     Section {
                         Label("You’re offline. Importing needs a connection.", systemImage: "wifi.slash")
-                            .foregroundStyle(.secondary).accessibilityIdentifier("puzzle-import-offline")
+                            .foregroundStyle(.motifSecondary).accessibilityIdentifier("puzzle-import-offline")
                     }
                 }
                 Section {
@@ -126,7 +126,7 @@ struct ImportView: View {
                             Text("New Collection").tag("")
                             ForEach(collectionsOf(app.store.library ?? Library()), id: \.id) { Text($0.name).tag($0.id) }
                         }.pickerStyle(.menu)
-                        if model.collectionId.isEmpty { TextField("Collection name", text: $model.name).accessibilityIdentifier("import-collection-name") }
+                        if model.collectionId.isEmpty { TextField("Collection name", text: $model.name, prompt: motifPrompt("Collection name")).accessibilityIdentifier("import-collection-name") }
                     }
                 } header: { Text("Add to") } footer: { Text(addFooter) }
             }

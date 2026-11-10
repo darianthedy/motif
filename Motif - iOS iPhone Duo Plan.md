@@ -1116,6 +1116,13 @@ and anything deferred to a later slice or a follow-up PR.
   `seed=complete` + route `resume:<collection>` (S09m), S07c as a query plus the Review scope; new S05l, S16h, and
   `S04a-sidebar` / `S11a-sidebar` on IP (`sidebar` fixture). Homes take a `select` fixture on regular poses (`MOTIF_POSE`), as the
   canvases draw the first collection in the detail. A pose fails on any unreached state but S12h, or a drawn cell without a shot.
+- **D10:** F35 measured: light `secondaryLabel` is ~3.5:1 on white, so secondary text and field placeholders use
+  `motifSecondaryText` (#636366 light, #AEAEB2 dark, stronger with Increase Contrast; ≥ 5.4:1 on white, grouped gray and RT cards).
+  Motif's own glass goes through `motifGlass` (`UI/Shared/Legibility.swift`): an opaque `tertiarySystemBackground` fill and hairline
+  under Reduce Transparency, a stronger edge under Increase Contrast; system bars and `.glass` buttons are left to the system.
+  VoiceOver reads board, column, then bar items via `.contain` containers and `accessibilitySortPriority`. The `var` frames are
+  captured as `<state>-AX5` / `<state>-RT` on O, IL and the iPhone (`testSystemVariants`); RT is a fixture (`reduce-transparency`)
+  since tests can't switch the setting, so the captured system bars keep their glass. Bar items moving to overflow at AX5 is a device check.
 
 ## 9. Implementation slices
 

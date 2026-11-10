@@ -35,7 +35,7 @@ struct AccountView: View {
                         AccountAvatar(email: email, size: 56)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(verbatim: email).font(.headline).lineLimit(1).truncationMode(.middle)
-                            Text("Signed in").font(.subheadline).foregroundStyle(.secondary)
+                            Text("Signed in").font(.subheadline).foregroundStyle(.motifSecondary)
                         }
                     }
                     .padding(.vertical, 4)
@@ -97,13 +97,13 @@ struct AccountView: View {
         let n = app.store.pending, waiting = "\(countLabel(n, "result")) waiting"
         Group {
             if !app.store.online {
-                Label(n > 0 ? "Offline · " + waiting : "Offline", systemImage: "wifi.slash").foregroundStyle(.secondary)
+                Label(n > 0 ? "Offline · " + waiting : "Offline", systemImage: "wifi.slash").foregroundStyle(.motifSecondary)
             } else {
                 switch app.store.status {
                 case .syncing:
                     Label { Text("Syncing…") } icon: { ProgressView() }
                 case .error(let message):
-                    Label { VStack(alignment: .leading, spacing: 2) { Text("Couldn't reach the server"); Text(message).font(.footnote).foregroundStyle(.secondary) } }
+                    Label { VStack(alignment: .leading, spacing: 2) { Text("Couldn't reach the server"); Text(message).font(.footnote).foregroundStyle(.motifSecondary) } }
                         icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red) }
                 case .idle:
                     if n > 0 { Label(waiting + " to upload", systemImage: "arrow.triangle.2.circlepath") }

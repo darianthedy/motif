@@ -23,7 +23,7 @@ import XCTest
         wait(overflow("game-actions")); wait(square("e2")); XCTAssertTrue(square("e2").label.contains("Pawn"))
     }
     func testStepPlayVariationCommentPromoteFlipAndExport() {
-        launch("game:sample"); wait(square("e2")); XCTAssertTrue(square("e2").label.contains("Pawn"))
+        launch("game:sample", extra: Self.analysisDefaults); wait(square("e2")); XCTAssertTrue(square("e2").label.contains("Pawn"))
         tap(button("game-next-move"), until: "label CONTAINS 'Pawn'", on: square("e4"))
         hold(button("game-previous-move"), until: "label CONTAINS 'empty'", on: square("e4")); move("c2", "c4"); wait(button("move-1"))
         overflow("game-actions").tap(); wait(button("game-edit-comment")); button("game-edit-comment").tap(); type("English idea", into: app.textViews["game-comment-text"])
@@ -69,7 +69,7 @@ import XCTest
         wait(app.staticTexts["No Games"]); expect(button("game-select-done", title: "Done"), "exists == false")
     }
     func testUnsavedChangesAskBeforeLeavingAndSaveFromTheMenu() {
-        launch("game:sample"); wait(square("e2")); move("c2", "c4"); wait(button("move-1"))
+        launch("game:sample", extra: Self.analysisDefaults); wait(square("e2")); move("c2", "c4"); wait(button("move-1"))
         button("game-back").tap(); let alert = app.alerts["Save changes to this game?"]; wait(alert); capture("game-unsaved-alert")
         alert.buttons["Cancel"].tap(); XCTAssertTrue(button("move-1").exists)
         overflow("game-actions").tap(); wait(button("game-save")); button("game-save").tap()

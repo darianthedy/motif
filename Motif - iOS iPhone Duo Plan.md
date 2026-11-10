@@ -1159,6 +1159,13 @@ and anything deferred to a later slice or a follow-up PR.
   device check. (2) The iPad puzzle list's "slide" was a large title: `PuzzleListView` inherited it in the detail
   column, and the title drew over the first rows, so swipes on them hit the title. It is inline on regular width, as
   the collection screen.
+- **Fix loop 4** (fourth run, red on the iPhone): the engine lines test read the right label (`Line 1, White better
+  by 0.60: 1. Na3`), but `expect` on an element resolves it again for every attribute, and one resolution of the
+  game screen took 4–5 s on the loaded simulator, so no check finished in 10 s. `expectButton` checks the label
+  inside the query, one snapshot per poll. The failure left Engine Lines on (the toggle persists), which on the
+  iPhone's short column replaces the move list, so the two GamesFlowTests that read it never found `move-1`; they
+  launch with the `defaults` fixture, which only resets the Analysis toggles. Every action after opening the
+  Game ⋯ menu still waits 60 s for "animations complete" (also on the green run before), a device check.
 
 ## 9. Implementation slices
 

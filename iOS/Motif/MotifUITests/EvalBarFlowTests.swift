@@ -39,8 +39,8 @@ import XCTest
         wait(lines)
         // The scripted engine's lines are the legal moves in square order: Na3, Nc3, Nf3.
         let best = button("engine-line-0"); wait(best)
-        expect(best, "label CONTAINS '1. Na3' AND label CONTAINS 'White better by 0.60'")
-        expect(button("engine-line-2"), "label CONTAINS '1. Nf3' AND label CONTAINS 'White better by 0.40'")
+        expectButton("engine-line-0", "label CONTAINS '1. Na3' AND label CONTAINS 'White better by 0.60'")
+        expectButton("engine-line-2", "label CONTAINS '1. Nf3' AND label CONTAINS 'White better by 0.40'")
         capture("engine-lines")
         best.tap(); expect(square("a3"), "label CONTAINS[c] 'knight'")
         button("game-engine-lines").tap(); expect(lines, "exists == false")

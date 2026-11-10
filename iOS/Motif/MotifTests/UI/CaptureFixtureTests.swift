@@ -19,5 +19,16 @@ final class CaptureFixtureTests: XCTestCase {
         XCTAssertEqual(CaptureFixture("notice")["notice"], "")
         XCTAssertTrue(CaptureFixture("seed=games,select,sidebar").has("sidebar"))
     }
+    /// `defaults` puts the Analysis toggles back after a test that left the lines on; no fixture keeps them.
+    func testDefaultsResetsTheAnalysisTogglesAndNoFixtureKeepsThem() throws {
+        let suite = "CaptureFixtureTests-" + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(false, forKey: "evalBarShown"); defaults.set(true, forKey: "engineLinesShown")
+        CaptureFixture("").resetPreferences(defaults)
+        XCTAssertFalse(defaults.bool(forKey: "evalBarShown")); XCTAssertTrue(defaults.bool(forKey: "engineLinesShown"))
+        CaptureFixture("defaults").resetPreferences(defaults)
+        XCTAssertTrue(defaults.bool(forKey: "evalBarShown")); XCTAssertFalse(defaults.bool(forKey: "engineLinesShown"))
+    }
 }
 #endif

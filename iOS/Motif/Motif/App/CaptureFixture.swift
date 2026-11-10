@@ -14,6 +14,8 @@ import Foundation
 /// - `select`: the first collection of each tab is selected (the detail column on regular width).
 ///   `sidebar`: both split views show their sidebar (S04a·IP, S11a·IP with the sidebar shown).
 /// - `engine`: the scripted engine on every game route. `lines`, `eval-off`: the Analysis view toggles.
+///   `defaults`: nothing else, so only the toggles reset (bar shown, lines hidden), for UI tests that
+///   read the move list after a test that left the lines on.
 /// - `problem`: the Analysis view shows a move problem. `slow-reply`: the opponent takes 10 s to reply.
 /// - `import=<name>`: prefills an import sheet with one of `CaptureSeed.importTexts`.
 /// - `reduce-transparency`: Motif's own glass takes its Reduce Transparency fallback (`motifGlass`);

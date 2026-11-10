@@ -106,6 +106,16 @@ import XCTest
     func expect(_ element: XCUIElement, _ format: String, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(matches(element, format, timeout: 10), "\(element) never matched \(format)\n\(app.debugDescription)", file: file, line: line)
     }
+    /// `expect` for a button whose label settles after it appears, checked inside the query: one remote
+    /// snapshot per poll. A predicate on the element itself resolves it again for each attribute, and on a
+    /// loaded simulator one resolution of the game screen took 4–5 s, so no check finished in 10 s.
+    func expectButton(_ id: String, _ format: String, file: StaticString = #filePath, line: UInt = #line) {
+        let match = app.buttons.matching(NSPredicate(format: "identifier == %@", id)).matching(NSPredicate(format: format)).firstMatch
+        XCTAssertTrue(match.waitForExistence(timeout: 20), "\(id) never matched \(format)\n\(app.debugDescription)", file: file, line: line)
+    }
+    /// Launch arguments that start the Analysis view's persisted toggles from their defaults (bar shown,
+    /// lines hidden), for tests that read the move list: on a short column the lines replace it.
+    static let analysisDefaults = ["-MotifFixture", "defaults"]
     func matches(_ element: XCUIElement, _ format: String, timeout: TimeInterval) -> Bool {
         XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: format), object: element)], timeout: timeout) == .completed
     }

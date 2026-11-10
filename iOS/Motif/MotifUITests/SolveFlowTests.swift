@@ -40,7 +40,11 @@ import XCTest
         XCTAssertFalse(button("game-save", title: "Save").exists)
         saveAsGame.tap(); wait(button("save-game-confirm")); capture("save-as-game")
         tap(button("save-game-confirm"), until: "exists == false")
-        app.navigationBars.buttons.element(boundBy: 0).tap(); wait(button("result-continue"))
+        // The system Back button: in the navigation bar on an iPhone, in the side bar on IL. Not the
+        // navigation bar's first button, which on regular width can be the sidebar button of the
+        // split view under the session cover.
+        let back = app.buttons.matching(identifier: "BackButton").allElementsBoundByIndex.first(where: \.isHittable)
+        XCTAssertNotNil(back, app.debugDescription); back?.tap(); wait(button("result-continue"))
         XCTAssertEqual(app.staticTexts["result-verdict"].label, "Solved")
     }
     func testStopResumeAndSkipKeepProgress() {

@@ -11,6 +11,8 @@ struct RootView: View {
             case .unknown: Color(.systemBackground)
             case .signedOut: SignInView()
             case .waiting: loading
+            // A debug launch route opens before the tabs are built, so its selection and path are their first state.
+            case .library where app.awaitingLaunchRoute: loading
             case .library:
                 #if DEBUG
                 if app.launchRoute == "board" { NavigationStack { BoardSampleView() } } else { tabs }
@@ -21,6 +23,7 @@ struct RootView: View {
         }
         .tint(.motifAccentStrong)
         .task { await app.open() }
+        .onChange(of: app.root, initial: true) { _, root in if root == .library { app.openLaunchRoute() } }
     }
     /// Two tabs, each one `NavigationSplitView` (Duo plan decisions 4, 12, 16): the home list is the
     /// sidebar, the selected collection roots the detail column's stack. On compact width it

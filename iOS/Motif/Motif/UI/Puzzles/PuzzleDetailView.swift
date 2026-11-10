@@ -80,7 +80,7 @@ private struct PuzzleDetailContent: View {
         .accessibilityElement(children: .contain)
         .padding(padding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .onGeometryChange(for: CGSize.self) { $0.size } action: { container = $0 }
+        .motifOfferedSize($container)
         .motifDivision($division)
         .background(Color(.systemGroupedBackground))
         .navigationTitle(title).navigationBarTitleDisplayMode(.inline)

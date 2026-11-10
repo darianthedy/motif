@@ -40,7 +40,7 @@ import SwiftUI
         app.puzzlesPath.removeLast(); XCTAssertEqual(app.puzzlesColumns.visibility, .all)
 
         app.openGames([.collection("g1"), .game("g1", "game")]); XCTAssertEqual(app.gamesColumns.visibility, .detailOnly)
-        app.openGames([]); XCTAssertEqual(app.gamesColumns.visibility, .automatic)
+        app.openGames([]); XCTAssertEqual(app.gamesColumns.visibility, .all)
     }
     func testCollapsingAndExpandingKeepsTheSelectionAndThePushedPuzzle() {
         let app = makeApp()
@@ -51,7 +51,32 @@ import SwiftUI
         app.puzzlesColumns.visibility = .detailOnly
         XCTAssertEqual(app.puzzlesCollection, "c1")
         XCTAssertEqual(app.puzzlesPath, [.puzzles("c1"), .puzzle("c1", "p1")])
-        app.puzzlesPath.removeLast(); XCTAssertEqual(app.puzzlesColumns.visibility, .automatic)
+        app.puzzlesPath.removeLast(); XCTAssertEqual(app.puzzlesColumns.visibility, .all)
+    }
+    /// Decision 16: with nothing selected the sidebar shows. `.automatic` left it hidden on IL and
+    /// the iPad, at launch and after a sheet or an alert.
+    func testTheSidebarShowsUntilABoardHidesIt() {
+        let app = makeApp()
+        XCTAssertEqual(app.puzzlesColumns.visibility, .all); XCTAssertEqual(app.gamesColumns.visibility, .all)
+    }
+    /// A launch route opens before the tabs exist, with its selection and its path in one go,
+    /// and only once the library is in.
+    func testALaunchRouteOpensItsSelectionAndPathOnceTheLibraryIsIn() async throws {
+        let storage = testStorage()
+        let store = LibraryStore(account: TestAccount(nil, MemoryBackend()), cache: Cache(storage: storage), outbox: Outbox(storage: storage),
+                                 defaults: UserDefaults(suiteName: "nav-" + newID())!)
+        let app = AppState(store: store, route: "game-eval")
+        XCTAssertTrue(app.awaitingLaunchRoute)
+        app.openLaunchRoute(); XCTAssertTrue(app.awaitingLaunchRoute, "Nothing to open before the library loads")
+        await app.store.open(); try await app.store.signIn("u", "p")
+        let collection = GameCollection(id: "g1", name: "Games", createdAt: 1)
+        _ = await app.edit { try await $0.createGameCollections([collection]) }
+        _ = await app.edit { try await $0.addGames([NewGame(id: "game", collectionId: "g1", position: 0, pgn: "1. e4 e5 *", orientation: .white)]) }
+        XCTAssertEqual(app.store.library?.games.map(\.id), ["game"])
+        app.openLaunchRoute()
+        XCTAssertFalse(app.awaitingLaunchRoute)
+        XCTAssertEqual(app.gamesCollection, "g1"); XCTAssertEqual(app.gamesPath, [.game("g1", "game")])
+        XCTAssertEqual(app.gamesColumns.visibility, .detailOnly)
     }
     func testSignOutClearsBothTabs() async throws {
         let app = makeApp()

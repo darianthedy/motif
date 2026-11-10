@@ -1128,6 +1128,16 @@ and anything deferred to a later slice or a follow-up PR.
   matches a name prefix), turned to landscape by `FlowTestCase.launch` with `XCUIDevice` since simctl can't rotate; `IPadFlowTests` checks
   sidebar + detail and the Analysis board. Compact-only UI tests skip on `twoColumns` (IL, iPad); the New Game sheet's width on iPad and
   Stage Manager's compact windows (O layout) are device spot checks.
+- **Fix loop 1** (first `ios-ci` run, red on all three destinations): (1) a launch route selected the collection
+  after the split view existed, which resets the detail column's stack, so every route with a pushed path (`game:…`,
+  `puzzle-list`, `puzzle-detail`) landed on the collection; `AppState.openLaunchRoute()` now opens routes once the
+  library is in, and `RootView` builds the tabs after it. (2) `.automatic` column visibility left the sidebar hidden
+  on IL and the iPad, at launch and after a sheet, alert or the session cover; `TabColumns` starts at `.all` (decision
+  16), a board still sets `.detailOnly` and popping restores. Whether `.all` overlays or tiles on IP is a device check.
+  (3) The board screens measured their own content for `BoardLayout`, a feedback loop: the iPad session board grew to
+  840 pt and the five-piece row (312 pt) in the 263 pt column hung the missing-piece session on IL and the iPad. They now
+  read the offered space (`motifOfferedSize`), the session leaves its progress bar out of a side-by-side board's height,
+  and `PieceRow` buttons shrink to 44 pt. (4) The New Game note and FEN error are one accessibility element each.
 
 ## 9. Implementation slices
 

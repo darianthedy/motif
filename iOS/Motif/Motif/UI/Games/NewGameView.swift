@@ -28,7 +28,9 @@ struct NewGameView: View {
                         // At the top, where it explains the disabled ✓ before anything else (F19).
                         Section {
                             Label("You’re offline. Adding games needs a connection.", systemImage: "wifi.slash")
-                                .foregroundStyle(.motifSecondary).accessibilityIdentifier("game-new-offline")
+                                .foregroundStyle(.motifSecondary)
+                                // One element, so the identifier names the note rather than its text and icon apart.
+                                .accessibilityElement(children: .combine).accessibilityIdentifier("game-new-offline")
                         }
                     }
                     Section {
@@ -55,7 +57,7 @@ struct NewGameView: View {
                         } header: { Text("Starting Position") } footer: {
                             if !check.ok {
                                 Label(check.error ?? "Invalid FEN", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
-                                    .accessibilityIdentifier("game-fen-error")
+                                    .accessibilityElement(children: .combine).accessibilityIdentifier("game-fen-error")
                             } else { sideToMove }
                         }
                     } else if !beside {

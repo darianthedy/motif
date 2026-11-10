@@ -33,6 +33,12 @@ final class AppState {
     /// The Account sheet, opened from the avatar button on either home screen.
     var showingAccount = false
     var launchRoute: String?
+    /// Whether `openLaunchRoute()` has run. `RootView` builds the tabs only after it, so a route's
+    /// selection and pushed path are the split view's initial state: selecting a collection in an
+    /// existing split view resets the detail column's stack, which dropped the path (§8.7, fix loop).
+    private(set) var launchRouteOpened = false
+    /// A debug launch route that still waits for the library.
+    var awaitingLaunchRoute: Bool { launchRoute != nil && !launchRouteOpened }
     @ObservationIgnored private let connectivity = Connectivity()
     @ObservationIgnored private let debug: Bool
     @ObservationIgnored private var noticeTimer: Task<Void, Never>?
@@ -124,6 +130,39 @@ final class AppState {
         }
     }
     func dismissNotice() { noticeTimer?.cancel(); notice = nil }
+    /// Opens the debug launch route (`-MotifRoute`) once the library is in, before the tabs exist.
+    /// It lived in the home views' `.task`, but the sidebar isn't always on screen to run it.
+    func openLaunchRoute() {
+        guard !launchRouteOpened, store.library != nil else { return }
+        launchRouteOpened = true
+        #if DEBUG
+        guard let route = launchRoute, let library = store.library else { return }
+        // Puzzles.
+        if route == "import" { importingPuzzles = true }
+        if ["puzzle-list", "puzzle-list-empty"].contains(route), let first = library.collections.first { openPuzzles([.collection(first.id), .puzzles(first.id)]) }
+        if route == "puzzle-detail", let first = library.collections.first, let puzzle = puzzlesIn(library, first.id).first { openPuzzles([.collection(first.id), .puzzles(first.id), .puzzle(first.id, puzzle.id)]) }
+        // `puzzle-detail:<puzzle id>` opens that puzzle instead.
+        if route.hasPrefix("puzzle-detail:"), let puzzle = library.puzzles.first(where: { $0.id == route.dropFirst("puzzle-detail:".count) }) {
+            openPuzzles([.collection(puzzle.collectionId), .puzzles(puzzle.collectionId), .puzzle(puzzle.collectionId, puzzle.id)])
+        }
+        if route == "collection", let first = library.collections.first { openPuzzles([.collection(first.id)]) }
+        // `resume:<collection id>` reopens that collection's existing run (S09m: `seed=complete`'s finished run).
+        if route.hasPrefix("resume:") { session = SessionRoute(scope: String(route.dropFirst("resume:".count))) }
+        if route.hasPrefix("session:") || route.hasPrefix("result:") {
+            // `session:<collection id>` and `result:<collection id>` start in that collection.
+            let named = String(route.drop { $0 != ":" }.dropFirst())
+            let scope = route == "session:missing" ? "sample-missing-piece" : library.collections.contains { $0.id == named } ? named : SCOPE_ALL
+            let puzzles = scope == SCOPE_ALL ? allPuzzles(library) : puzzlesIn(library, scope)
+            Task { await begin(scope, .ordered, puzzles.map(\.id)) }
+        }
+        // Games. The collection's own routes (`game-add`, `game-new`, `game-select`) open in `GameCollectionView`.
+        if let first = library.gameCollections.first, ["game-collection", "game-add", "game-new", "game-select"].contains(route) { openGames([.collection(first.id)]) }
+        if route.hasPrefix("game:") || ["game-details", "game-comment", "game-variation", "game-unreadable", "game-eval"].contains(route),
+           let game = library.games.first(where: { "game:" + $0.id == route }) ?? library.games.first {
+            openGames([.collection(game.collectionId), .game(game.collectionId, game.id)])
+        }
+        #endif
+    }
     #if DEBUG
     /// A toast that stays up for a screenshot.
     func pinNotice(_ text: String) { noticeTimer?.cancel(); notice = text }
@@ -133,7 +172,10 @@ final class AppState {
 /// One tab's split view column visibility. A pushed board screen (puzzle detail, the Analysis
 /// view) hides the sidebar (`.detailOnly`); popping it restores what was shown before.
 struct TabColumns: Equatable {
-    var visibility = NavigationSplitViewVisibility.automatic
+    /// The sidebar shows until a board hides it (decision 16: with nothing selected the sidebar
+    /// shows). Not `.automatic`: on IL and the iPad that resolved to detail only at launch and
+    /// after a sheet or alert, leaving the home list (and its toolbar) off screen.
+    var visibility = NavigationSplitViewVisibility.all
     /// What `visibility` was when a board was pushed; nil while no board is shown.
     private(set) var beforeBoard: NavigationSplitViewVisibility?
     mutating func follow(board: Bool) {

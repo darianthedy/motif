@@ -108,7 +108,7 @@ struct GameContentView: View {
             .accessibilityElement(children: .contain)
             .padding(layout.padding)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .onGeometryChange(for: CGSize.self) { $0.size } action: { container = $0 }
+            .motifOfferedSize($container)
             .motifDivision($division)
             .navigationTitle(scratch?.title ?? gameTitle(tree.headers)).navigationSubtitle(scratch?.subtitle ?? gameSubtitle(tree.headers)).navigationBarTitleDisplayMode(.inline)
         } else { unreadable }

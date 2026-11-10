@@ -54,6 +54,8 @@ private struct SessionPuzzle: View {
     @State private var container: CGSize = .zero
     /// The fold's active division, read under the progress bar where the board sits (D07).
     @State private var division: CGRect?
+    /// The progress bar with its padding, which the board beside the column leaves out of its height.
+    @State private var progressHeight: CGFloat = 0
     init(puzzle: Puzzle, run: Run, progress: RunProgress) {
         self.puzzle = puzzle; self.run = run; self.progress = progress
         #if DEBUG
@@ -74,13 +76,14 @@ private struct SessionPuzzle: View {
         // between two panes and a stack, so `SolveModel` and a pending pick survive a fold.
         // On a fold the board takes the leading page or the top half, and the column (prompt,
         // pickers, result card) the other side; Skip is a bar item the system keeps off it (D07).
-        let layout = BoardLayout(container: container, compact: sizeClass == .compact, evalBar: false, division: division)
+        let layout = boardLayout
         let stack = layout.sideBySide
             ? AnyLayout(HStackLayout(alignment: .top, spacing: layout.spacing))
             : AnyLayout(VStackLayout(alignment: .center, spacing: layout.spacing))
         VStack(spacing: 0) {
             ProgressView(value: progress.progress).tint(.motifAccent)
                 .padding(.leading, layout.padding.leading).padding(.trailing, layout.padding.trailing).padding(.vertical, 6)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { progressHeight = $0 }
                 .accessibilityLabel("Session progress")
             stack {
                 board.frame(width: layout.board, height: layout.board).accessibilitySortPriority(2)
@@ -96,8 +99,8 @@ private struct SessionPuzzle: View {
         // VoiceOver: the board, then the prompt, picker or result beside or under it (on
         // either page of a fold), then the progress bar, then the bar items (§6.14, D10).
         .accessibilityElement(children: .contain)
-        // Measured with the progress bar, as the canvas sizes the boards (IP 512 pt); the column gives up its 16 pt.
-        .onGeometryChange(for: CGSize.self) { $0.size } action: { container = $0 }
+        // Measured with the progress bar, as the canvas sizes the boards (IP 512 pt); see `boardLayout`.
+        .motifOfferedSize($container)
         // Compact width: the card still rises from the bottom, sized to its content (F5).
         .overlay(alignment: .bottom) {
             if model.done && layout.compact {
@@ -138,6 +141,16 @@ private struct SessionPuzzle: View {
                 }
                 #endif
             }
+    }
+    /// Stacked, the container includes the progress bar, as the canvas sizes the boards (IP 512 pt), and
+    /// the column under the board gives up its 16 pt. Beside the column (IL, the iPad, a book fold) the
+    /// board's height has nothing to give, so the progress bar comes off the container's height first.
+    private var boardLayout: BoardLayout {
+        let compact = sizeClass == .compact
+        let full = BoardLayout(container: container, compact: compact, evalBar: false, division: division)
+        guard full.sideBySide else { return full }
+        let below = CGSize(width: container.width, height: max(0, container.height - progressHeight))
+        return BoardLayout(container: below, compact: compact, evalBar: false, division: division)
     }
     @ViewBuilder private var board: some View {
         if puzzle.addPiece != nil { MissingPieceSolveView(model: model, pending: $pending) }

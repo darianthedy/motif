@@ -9,7 +9,7 @@ struct GamesHomeView: View {
     @State private var deleting: GameCollection?
     var body: some View {
         @Bindable var app = app
-        // One container for both states so the launch route and alerts stay attached when the first collection lands.
+        // One container for both states so the alerts stay attached when the first collection lands.
         ZStack {
             if let library = app.store.library, !library.gameCollections.isEmpty {
                 // The split view's sidebar: the selection is the collection in the detail column.
@@ -48,13 +48,6 @@ struct GamesHomeView: View {
                 if !chosen.isEmpty { Task { _ = await app.edit { try await $0.renameGameCollection(collection.id, chosen) } } }
             }
             Button("Cancel", role: .cancel) {}
-        }
-        .task {
-            #if DEBUG
-            if let route = app.launchRoute, let first = app.store.library?.gameCollections.first, ["game-collection", "game-add", "game-new", "game-select"].contains(route) { app.openGames([.collection(first.id)]) }
-            if let route = app.launchRoute, route.hasPrefix("game:") || ["game-details", "game-comment", "game-variation", "game-unreadable", "game-eval"].contains(route), let library = app.store.library,
-               let game = library.games.first(where: { "game:" + $0.id == route }) ?? library.games.first { app.openGames([.collection(game.collectionId), .game(game.collectionId, game.id)]) }
-            #endif
         }
     }
     private var subtitle: String {

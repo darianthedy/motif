@@ -8,9 +8,9 @@ struct PuzzlesHomeView: View {
     @State private var deleting: Collection?
     var body: some View {
         @Bindable var app = app
-        // One container for both states so the launch route isn't re-attached (and re-run)
-        // when the first import lands. The import sheet and the session cover hang off
-        // `RootView`, since this sidebar can leave the screen (a pushed board, the overlay).
+        // One container for both states, so the list keeps its identity when the first import
+        // lands. The import sheet, the session cover and the launch route (`AppState.openLaunchRoute`)
+        // hang off `RootView`, since this sidebar can leave the screen (a pushed board, the overlay).
         ZStack {
             if let library = app.store.library, !library.collections.isEmpty {
                 // The split view's sidebar: the selection is the collection in the detail column.
@@ -43,7 +43,6 @@ struct PuzzlesHomeView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
-        .task { await openLaunchRoute() }
     }
     private var subtitle: String {
         guard let library = app.store.library, !library.collections.isEmpty else { return "" }
@@ -97,28 +96,6 @@ struct PuzzlesHomeView: View {
                 }
             }
         }
-    }
-    private func openLaunchRoute() async {
-        #if DEBUG
-        guard let route = app.launchRoute, let library = app.store.library else { return }
-        if route == "import" { app.importingPuzzles = true }
-        if ["puzzle-list", "puzzle-list-empty"].contains(route), let first = library.collections.first { app.openPuzzles([.collection(first.id), .puzzles(first.id)]) }
-        if route == "puzzle-detail", let first = library.collections.first, let puzzle = puzzlesIn(library, first.id).first { app.openPuzzles([.collection(first.id), .puzzles(first.id), .puzzle(first.id, puzzle.id)]) }
-        // `puzzle-detail:<puzzle id>` opens that puzzle instead.
-        if route.hasPrefix("puzzle-detail:"), let puzzle = library.puzzles.first(where: { $0.id == route.dropFirst("puzzle-detail:".count) }) {
-            app.openPuzzles([.collection(puzzle.collectionId), .puzzles(puzzle.collectionId), .puzzle(puzzle.collectionId, puzzle.id)])
-        }
-        if route == "collection", let first = library.collections.first { app.openPuzzles([.collection(first.id)]) }
-        // `resume:<collection id>` reopens that collection's existing run (S09m: `seed=complete`'s finished run).
-        if route.hasPrefix("resume:") { app.session = SessionRoute(scope: String(route.dropFirst("resume:".count))) }
-        if route.hasPrefix("session:") || route.hasPrefix("result:") {
-            // `session:<collection id>` and `result:<collection id>` start in that collection.
-            let named = String(route.drop { $0 != ":" }.dropFirst())
-            let scope = route == "session:missing" ? "sample-missing-piece" : library.collections.contains { $0.id == named } ? named : SCOPE_ALL
-            let puzzles = scope == SCOPE_ALL ? allPuzzles(library) : puzzlesIn(library, scope)
-            await app.begin(scope, .ordered, puzzles.map(\.id))
-        }
-        #endif
     }
 }
 /// A Settings-style row: coloured icon tile, title, trailing detail.

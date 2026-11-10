@@ -82,7 +82,9 @@ struct PuzzlesHomeView: View {
                     CollectionRow(name: collection.name, stats: stats, inProgress: resumable(library, collection.id))
                 }
                 .accessibilityIdentifier("collection-" + collection.id)
-                .swipeActions {
+                // No full swipe: Delete asks first, so a swipe reveals the actions rather than jumping to the dialog
+                // (the 300 pt sidebar on IL turned XCTest's swipe into a full one).
+                .swipeActions(allowsFullSwipe: false) {
                     Button("Delete", systemImage: "trash") { deleting = collection }.tint(.red).disabled(!app.store.online)
                 }
                 .contextMenu {

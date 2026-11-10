@@ -55,21 +55,28 @@ private struct LibraryStatus: ViewModifier {
 /// Transient messages (server errors, dismissible errors, the toast): glass capsules ≤ 480 pt,
 /// centred at the bottom of the content via `.safeAreaInset(edge: .bottom)`, so they take
 /// content space above the tab bar or the bottom bar and never sit over a board (decision 22,
-/// F24–F26). Install once per window-sized container (the tab's split view, a session, a
-/// sheet) so a two-column split shows one capsule, not one per column.
+/// F24–F26). Install it inside a navigation stack, on the screens themselves: around a split
+/// view the inset never reached the columns' content, so the capsule sat on the bottom bar's
+/// ‹ › and over the board (ios-ci, fix loop 2). In a tab's split view the detail column's
+/// screens carry it, and the sidebar only while the split is collapsed (`shown`), so a
+/// two-column split shows one capsule, not one per column.
 private struct LibraryMessages: ViewModifier {
     @Environment(AppState.self) private var app
     /// Off where the screen already shows the sync error itself (launch, Account's sync row).
     let serverStatus: Bool
+    /// False hides the capsule without changing the view's identity (the sidebar beside a detail column).
+    let shown: Bool
     func body(content: Content) -> some View {
         content
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 8) {
-                    if serverStatus, app.store.online, case .error(let message) = app.store.status {
-                        ErrorBanner(text: "Couldn't reach the server: " + message)
+                    if shown {
+                        if serverStatus, app.store.online, case .error(let message) = app.store.status {
+                            ErrorBanner(text: "Couldn't reach the server: " + message)
+                        }
+                        if let error = app.error { ErrorBanner(text: error) { app.error = nil } }
+                        if let notice = app.notice { Toast(text: notice) { app.dismissNotice() } }
                     }
-                    if let error = app.error { ErrorBanner(text: error) { app.error = nil } }
-                    if let notice = app.notice { Toast(text: notice) { app.dismissNotice() } }
                 }
                 .padding(.horizontal)
                 .padding(.bottom, hasMessage ? 8 : 0)
@@ -79,6 +86,7 @@ private struct LibraryMessages: ViewModifier {
             .animation(.snappy, value: app.error)
     }
     private var hasMessage: Bool {
+        guard shown else { return false }
         if app.notice != nil || app.error != nil { return true }
         if serverStatus, app.store.online, case .error = app.store.status { return true }
         return false
@@ -87,6 +95,9 @@ private struct LibraryMessages: ViewModifier {
 extension View {
     /// The offline pill under this screen's title. Use on each column and navigation destination.
     func libraryStatus() -> some View { modifier(LibraryStatus()) }
-    /// The bottom capsule for errors and toasts. Use once around a window-sized container.
-    func libraryMessages(serverStatus: Bool = true) -> some View { modifier(LibraryMessages(serverStatus: serverStatus)) }
+    /// The bottom capsule for errors and toasts, on a screen inside its navigation stack.
+    /// `shown: false` keeps it off (the sidebar beside a detail column that shows it).
+    func libraryMessages(serverStatus: Bool = true, shown: Bool = true) -> some View {
+        modifier(LibraryMessages(serverStatus: serverStatus, shown: shown))
+    }
 }

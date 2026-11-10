@@ -15,7 +15,10 @@ import XCTest
         let board = boardFrame()
         let window = app.windows.firstMatch.frame
         var bars = app.tabBars.allElementsBoundByIndex.filter { $0.isHittable }.map { $0.frame }
+        // Since iOS 27 the bars' container is a `Toolbar` element too, as large as the window (or the
+        // column); it holds the content, so it isn't a bar. The bars' items are checked below.
         bars += app.toolbars.allElementsBoundByIndex.filter { $0.isHittable }.map { $0.frame }
+            .filter { !($0.width > window.width / 2 && $0.height > window.height / 2) }
         bars += ["game-previous-move", "game-next-move"].map { button($0) }.filter { $0.isHittable }.map { $0.frame }
         for (name, element) in [("toast", toast), ("error-banner", error)] {
             let frame = element.frame

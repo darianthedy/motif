@@ -1138,6 +1138,19 @@ and anything deferred to a later slice or a follow-up PR.
   840 pt and the five-piece row (312 pt) in the 263 pt column hung the missing-piece session on IL and the iPad. They now
   read the offered space (`motifOfferedSize`), the session leaves its progress bar out of a side-by-side board's height,
   and `PieceRow` buttons shrink to 44 pt. (4) The New Game note and FEN error are one accessibility element each.
+- **Fix loop 2** (second run, red on all three destinations): (1) on iOS 27.1 every item of the system overflow menu
+  (`motifOverflowMenu`) loses its identifier, not only those in a `Section`; `FlowTestCase.menuTitles` finds Save, the
+  comment item and the evaluation toggle by title. (2) Hold-to-jump never fired anywhere: a plain toolbar `Button` is hosted
+  as a bar item, which doesn't hand the hold to `simultaneousGesture`. Previous / Next Move use `HoldToJumpStyle`, a
+  `PrimitiveButtonStyle` whose tap and long-press gestures see the touch in the bottom bar and the side bar. (3)
+  `libraryMessages()` around a split view never inset the columns' content: on the iPhone the toast sat on the bottom bar's
+  ‹ ›, on IL and the iPad the error capsule lay over the board's bottom rows. It now sits on the screens inside each
+  navigation stack (the detail column's root and destinations; the sidebar only while collapsed; the session's screens),
+  so it takes content space above the bars and the board shrinks for it. The toast test no longer counts the
+  window-sized `Toolbar` container that iOS 27 reports as a bar. (4) Delete swipe actions don't full-swipe: in the 300 pt
+  sidebar XCTest's swipe was a full one, which skipped the revealed buttons straight to the dialog. (5) On the iPad the
+  puzzle list slides up ~70 pt after it appears (the search field settling into the navigation bar), so taps and swipes
+  right after it appeared hit the next row; the tests `settle` the row first. Whether the slide shows on a device is a check.
 
 ## 9. Implementation slices
 

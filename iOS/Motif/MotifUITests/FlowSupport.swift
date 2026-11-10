@@ -34,8 +34,18 @@ import XCTest
     }
     func button(_ id: String) -> XCUIElement {
         if let title = Self.toolbarTitles[id] { return button(id, title: title) }
+        if let titles = Self.menuTitles[id] {
+            return app.buttons.matching(NSPredicate(format: "identifier == %@ OR label IN %@", id, titles)).firstMatch
+        }
         return app.buttons[id]
     }
+    /// Items of a ⋯ menu (`motifOverflowMenu`), which on iOS 27.1 is the system overflow menu: there
+    /// every item loses its identifier, in a `Section` or not, so its title (any it can have) finds it.
+    static let menuTitles = [
+        "game-save": ["Save"],
+        "game-edit-comment": ["Add Comment", "Edit Comment", "Add Game Note", "Edit Game Note"],
+        "game-toggle-evaluation": ["Hide Evaluation", "Show Evaluation"],
+    ]
     /// Toolbar items that lose their identifier in the side bar (§8.3), found by title there too.
     static let toolbarTitles = [
         "game-flip-board": "Flip Board", "game-engine-lines": "Engine Lines",
@@ -109,6 +119,19 @@ import XCTest
     func place(_ name: String) { tap(square(name), until: "isSelected == true") }
     func drag(_ from: String, _ to: String) { XCTAssertTrue(square(from).waitForExistence(timeout: 10)); square(from).press(forDuration: 0.1, thenDragTo: square(to)) }
     func wait(_ element: XCUIElement) { XCTAssertTrue(element.waitForExistence(timeout: 15), app.debugDescription) }
+    /// Waits for `element`, then until its frame holds still for a second. On the iPad the puzzle list
+    /// slides up about 70 pt after it appears (its search field settling into the navigation bar), so a
+    /// tap or swipe right after `wait` landed on the next row or on nothing.
+    func settle(_ element: XCUIElement) {
+        wait(element)
+        var last = element.frame, still = 0
+        for _ in 0..<30 where still < 3 {
+            _ = XCTWaiter.wait(for: [XCTestExpectation(description: "settle")], timeout: 0.35)
+            let now = element.frame
+            still = now == last ? still + 1 : 0
+            last = now
+        }
+    }
     func dismissKeyboard() { if button("keyboard-done").waitForExistence(timeout: 3) { button("keyboard-done").tap() } }
     func labelButton(_ text: String) -> XCUIElement { app.buttons.matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch }
     func capture(_ name: String) { let image = XCTAttachment(screenshot: app.screenshot()); image.name = name; image.lifetime = .keepAlways; add(image) }

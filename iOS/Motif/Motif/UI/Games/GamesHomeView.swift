@@ -61,7 +61,7 @@ struct GamesHomeView: View {
                 GameCollectionRow(name: collection.name, count: gamesIn(library, collection.id).count)
             }
             .accessibilityIdentifier("game-collection-" + collection.id)
-            .swipeActions {
+            .swipeActions(allowsFullSwipe: false) {
                 Button("Delete", systemImage: "trash") { deleting = collection }.tint(.red).disabled(!app.store.online)
                 Button("Rename", systemImage: "pencil") { name = collection.name; renaming = collection }.disabled(!app.store.online)
             }

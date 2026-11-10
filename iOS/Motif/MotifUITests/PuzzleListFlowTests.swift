@@ -2,7 +2,7 @@ import XCTest
 
 @MainActor final class PuzzleListFlowTests: FlowTestCase {
     func testSwipeFlagsAndDeletesAPuzzle() {
-        launch("puzzle-list"); let first = button("puzzle-sample-back-rank-0"); wait(first); capture("puzzle-list")
+        launch("puzzle-list"); let first = button("puzzle-sample-back-rank-0"); settle(first); capture("puzzle-list")
         first.swipeLeft(); let flag = app.buttons["Flag"]; wait(flag); flag.tap()
         expect(first, "label CONTAINS 'Flagged'")
 
@@ -17,7 +17,7 @@ import XCTest
     /// Scopes on presentation (F23, Duo plan decision 19): with search active and nothing typed,
     /// the scope bar is there, and picking Flagged filters the list.
     func testScopeFiltersTheListWithAnEmptyQuery() {
-        launch("puzzle-list"); let flagged = button("puzzle-sample-back-rank-0"); wait(flagged)
+        launch("puzzle-list"); let flagged = button("puzzle-sample-back-rank-0"); settle(flagged)
         flagged.swipeLeft(); let flag = app.buttons["Flag"]; wait(flag); flag.tap()
         expect(flagged, "label CONTAINS 'Flagged'")
         let other = button("puzzle-sample-back-rank-1"); wait(other)
@@ -58,8 +58,8 @@ import XCTest
         list.swipeUp(); XCTAssertEqual(boardFrame().minY, board.minY, accuracy: 1, "The list scrolls; the board stays")
     }
     func testPuzzleDetailReplaysSwitchesLinesFlagsCommentsCopiesAndDeletes() {
-        launch("puzzle-list"); let row = button("puzzle-sample-back-rank-2"); wait(row); row.tap()
-        let first = button("puzzle-move-0"); wait(first); XCTAssertTrue(first.label.contains("Rb8"))
+        launch("puzzle-list"); let row = button("puzzle-sample-back-rank-2"); settle(row)
+        let first = button("puzzle-move-0"); tap(row, until: "exists == true", on: first); XCTAssertTrue(first.label.contains("Rb8"))
         tap(button("puzzle-next-move"), until: "isSelected == true", on: first)
         tap(button("puzzle-go-to-start"), until: "isSelected == false", on: first)
         tap(app.buttons["Line 2"], until: "label CONTAINS 'Ra1'", on: first)

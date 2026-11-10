@@ -62,7 +62,7 @@ struct PuzzleListView: View {
                     ForEach(items) { item in
                         NavigationLink(value: PuzzleRoute.puzzle(collectionId, item.puzzle.id)) { PuzzleRow(item: item) }
                             .accessibilityIdentifier("puzzle-" + item.puzzle.id)
-                            .swipeActions {
+                            .swipeActions(allowsFullSwipe: false) {
                                 Button("Delete", systemImage: "trash") { deleting = item.puzzle }.tint(.red).disabled(!app.store.online)
                                 Button(item.puzzle.flagged == true ? "Unflag" : "Flag", systemImage: item.puzzle.flagged == true ? "flag.slash" : "flag") {
                                     Task { _ = await app.edit { try await $0.setFlagged(item.puzzle.id, item.puzzle.flagged != true) } }

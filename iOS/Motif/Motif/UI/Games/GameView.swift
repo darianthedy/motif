@@ -185,11 +185,14 @@ struct GameContentView: View {
         if linesShown { button.buttonStyle(.borderedProminent).tint(.motifAccentStrong) } else { button }
     }
     /// A tap steps one move; holding jumps all the way. The tap that ends a hold finds
-    /// nothing further to step to, so it changes nothing.
+    /// nothing further to step to, so it changes nothing. The hold is the button's style
+    /// (`HoldToJumpStyle`), not a gesture on the button: the system hosts a plain toolbar
+    /// button as a bar item, which never handed the hold to `simultaneousGesture` (ios-ci,
+    /// bottom bar and side bar alike).
     private func stepper(_ title: String, _ image: String, hold: String, disabled: Bool, step: @escaping () -> Void, jump: @escaping () -> Void) -> some View {
         Button(title, systemImage: image, action: step)
+            .buttonStyle(HoldToJumpStyle(jump: jump))
             .disabled(disabled)
-            .simultaneousGesture(LongPressGesture(minimumDuration: 0.4).onEnded { _ in if !disabled { jump() } })
             .accessibilityAction(named: hold) { if !disabled { jump() } }
             .accessibilityIdentifier("game-" + title.lowercased().replacingOccurrences(of: " ", with: "-"))
     }
@@ -298,4 +301,25 @@ struct GameContentView: View {
         }
     }
     private func commentAction(_ game: Bool, _ empty: Bool) -> String { (empty ? "Add " : "Edit ") + (game ? "Game Note" : "Comment") }
+}
+/// A toolbar button that runs its action on a tap and `jump` on a hold. A button with its own
+/// style is hosted in the bar as a view, so these gestures see the touch wherever the system
+/// puts the item (bottom bar, side bar).
+private struct HoldToJumpStyle: PrimitiveButtonStyle {
+    let jump: () -> Void
+    func makeBody(configuration: Configuration) -> some View { HoldToJumpButton(configuration: configuration, jump: jump) }
+}
+private struct HoldToJumpButton: View {
+    let configuration: PrimitiveButtonStyleConfiguration
+    let jump: () -> Void
+    @Environment(\.isEnabled) private var enabled
+    var body: some View {
+        configuration.label
+            .labelStyle(.iconOnly)
+            .foregroundStyle(enabled ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
+            .frame(minWidth: 36, minHeight: 36)
+            .contentShape(.rect)
+            .onTapGesture { if enabled { configuration.trigger() } }
+            .onLongPressGesture(minimumDuration: 0.4) { if enabled { jump() } }
+    }
 }

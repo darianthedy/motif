@@ -2,6 +2,8 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(AppState.self) private var app
+    /// The window's: compact collapses each split view to one stack, where the sidebar is a screen of its own.
+    @Environment(\.horizontalSizeClass) private var sizeClass
     var body: some View {
         @Bindable var app = app
         // Not a Group: a Group hands `.task` to each branch, so every root change
@@ -50,7 +52,7 @@ struct RootView: View {
     private var puzzlesSplit: some View {
         @Bindable var app = app
         return NavigationSplitView(columnVisibility: $app.puzzlesColumns.visibility) {
-            PuzzlesHomeView().libraryStatus()
+            PuzzlesHomeView().libraryStatus().libraryMessages(shown: sizeClass == .compact)
                 .navigationSplitViewColumnWidth(min: 300, ideal: Self.sidebarWidth, max: 360)
         } detail: {
             NavigationStack(path: $app.puzzlesPath) {
@@ -61,7 +63,7 @@ struct RootView: View {
                         NoSelection(empty: app.store.library?.collections.isEmpty != false, systemImage: "puzzlepiece")
                     }
                 }
-                .libraryStatus()
+                .libraryStatus().libraryMessages()
                 .navigationDestination(for: PuzzleRoute.self) { route in
                     Group {
                         switch route {
@@ -69,18 +71,16 @@ struct RootView: View {
                         case .puzzles(let id): PuzzleListView(collectionId: id)
                         case .puzzle(_, let id): PuzzleDetailView(puzzleId: id)
                         }
-                    }.libraryStatus()
+                    }.libraryStatus().libraryMessages()
                 }
             }
         }
         .navigationSplitViewStyle(.automatic)
-        // One capsule for both columns, centred in the content above the tab bar (decision 22, F26).
-        .libraryMessages()
     }
     private var gamesSplit: some View {
         @Bindable var app = app
         return NavigationSplitView(columnVisibility: $app.gamesColumns.visibility) {
-            GamesHomeView().libraryStatus()
+            GamesHomeView().libraryStatus().libraryMessages(shown: sizeClass == .compact)
                 .navigationSplitViewColumnWidth(min: 300, ideal: Self.sidebarWidth, max: 360)
         } detail: {
             NavigationStack(path: $app.gamesPath) {
@@ -91,20 +91,18 @@ struct RootView: View {
                         NoSelection(empty: app.store.library?.gameCollections.isEmpty != false, systemImage: "checkerboard.rectangle")
                     }
                 }
-                .libraryStatus()
+                .libraryStatus().libraryMessages()
                 .navigationDestination(for: GamesRoute.self) { route in
                     Group {
                         switch route {
                         case .collection(let id): GameCollectionView(collectionId: id)
                         case .game(_, let id): GameView(gameId: id)
                         }
-                    }.libraryStatus()
+                    }.libraryStatus().libraryMessages()
                 }
             }
         }
         .navigationSplitViewStyle(.automatic)
-        // One capsule for both columns, centred in the content above the tab bar (decision 22, F26).
-        .libraryMessages()
     }
     /// The sidebar column on the open display (`shellGeom` in the Duo canvases: 340 pt on IL).
     private static let sidebarWidth: CGFloat = 340

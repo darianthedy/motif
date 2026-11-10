@@ -50,6 +50,7 @@ func motifLabel(_ tag: String) -> String {
 struct PuzzleListView: View {
     @Environment(AppState.self) private var app
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let collectionId: String
     @State private var model = PuzzleListModel()
     @State private var deleting: Puzzle?
@@ -80,6 +81,9 @@ struct PuzzleListView: View {
             } else { Color.clear.onAppear { dismiss() } }
         }
         .navigationTitle("All Puzzles")
+        // Inline in the detail column, as the collection screen (§6.5): a large title there drew over
+        // the first rows on the iPad (ios-ci, fix loop 3), so swipes on them landed on the title.
+        .navigationBarTitleDisplayMode(sizeClass == .regular ? .inline : .automatic)
         .searchable(text: $model.query, prompt: "Number or motif")
         // The scope bar shows as soon as search is presented, so a scope can be picked (or left)
         // before typing anything (F23, Duo plan decision 19). iOS 16.4+, no gate needed.

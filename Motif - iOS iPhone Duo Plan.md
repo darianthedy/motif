@@ -1151,6 +1151,14 @@ and anything deferred to a later slice or a follow-up PR.
   sidebar XCTest's swipe was a full one, which skipped the revealed buttons straight to the dialog. (5) On the iPad the
   puzzle list slides up ~70 pt after it appears (the search field settling into the navigation bar), so taps and swipes
   right after it appeared hit the next row; the tests `settle` the row first. Whether the slide shows on a device is a check.
+- **Fix loop 3** (third run, red on IL and the iPad): (1) `HoldToJumpStyle` made Previous / Next Move custom views,
+  which the side bar doesn't take: on IL they sat in a bottom bar over the content, outside the side bar and under the
+  toast. They are plain toolbar buttons again, and the hold is read from the touch that triggered the action: a
+  `TouchClock` recognizer on the window (never cancelling, delaying or blocking a touch) times each touch, and a
+  release after 0.4 s jumps instead of stepping. Whether a device's bar items still fire on release after a hold is a
+  device check. (2) The iPad puzzle list's "slide" was a large title: `PuzzleListView` inherited it in the detail
+  column, and the title drew over the first rows, so swipes on them hit the title. It is inline on regular width, as
+  the collection screen.
 
 ## 9. Implementation slices
 

@@ -1,4 +1,6 @@
 import SwiftUI
+import UIKit
+import UIKit.UIGestureRecognizerSubclass
 
 struct GameView: View {
     @Environment(AppState.self) private var app
@@ -74,7 +76,7 @@ struct GameContentView: View {
     /// Split from `body` so each half type-checks in reasonable time.
     private var screen: some View {
         content
-            .navigationBarBackButtonHidden(guardsLeaving).toolbar { toolbar }
+            .navigationBarBackButtonHidden(guardsLeaving).toolbar { toolbar }.background(TouchClockInstaller())
             // The game menu (F16); its items set flags the sheet and dialogs below read (F15).
             .motifOverflowMenu("Game actions", identifier: "game-actions") { gameMenu }
             .sheet(item: $panel) { presented in
@@ -184,14 +186,13 @@ struct GameContentView: View {
             .accessibilityAddTraits(linesShown ? .isSelected : []).accessibilityIdentifier("game-engine-lines")
         if linesShown { button.buttonStyle(.borderedProminent).tint(.motifAccentStrong) } else { button }
     }
-    /// A tap steps one move; holding jumps all the way. The tap that ends a hold finds
-    /// nothing further to step to, so it changes nothing. The hold is the button's style
-    /// (`HoldToJumpStyle`), not a gesture on the button: the system hosts a plain toolbar
-    /// button as a bar item, which never handed the hold to `simultaneousGesture` (ios-ci,
-    /// bottom bar and side bar alike).
+    /// A tap steps one move; holding jumps all the way. They stay plain toolbar buttons, so the
+    /// system keeps them in the side bar (O, SV, IL): a button with its own style is a custom view,
+    /// which the side bar leaves in a bottom bar over the content (ios-ci, fix loop 3). A bar item
+    /// hands no gesture to SwiftUI, so the hold is read from the touch that triggered the action
+    /// (`TouchClock`): held 0.4 s or longer, the release jumps instead of stepping.
     private func stepper(_ title: String, _ image: String, hold: String, disabled: Bool, step: @escaping () -> Void, jump: @escaping () -> Void) -> some View {
-        Button(title, systemImage: image, action: step)
-            .buttonStyle(HoldToJumpStyle(jump: jump))
+        Button(title, systemImage: image) { if TouchClock.held(atLeast: 0.4) { jump() } else { step() } }
             .disabled(disabled)
             .accessibilityAction(named: hold) { if !disabled { jump() } }
             .accessibilityIdentifier("game-" + title.lowercased().replacingOccurrences(of: " ", with: "-"))
@@ -302,24 +303,52 @@ struct GameContentView: View {
     }
     private func commentAction(_ game: Bool, _ empty: Bool) -> String { (empty ? "Add " : "Edit ") + (game ? "Game Note" : "Comment") }
 }
-/// A toolbar button that runs its action on a tap and `jump` on a hold. A button with its own
-/// style is hosted in the bar as a view, so these gestures see the touch wherever the system
-/// puts the item (bottom bar, side bar).
-private struct HoldToJumpStyle: PrimitiveButtonStyle {
-    let jump: () -> Void
-    func makeBody(configuration: Configuration) -> some View { HoldToJumpButton(configuration: configuration, jump: jump) }
+/// How long the window's latest touch was held, for toolbar buttons that act differently on a
+/// hold. A system bar item takes no SwiftUI gesture, but its action runs as its touch ends, so
+/// the action asks here. A recognizer on the window watches every touch without taking any.
+@MainActor enum TouchClock {
+    fileprivate static var began: TimeInterval?
+    fileprivate static var ended: TimeInterval?
+    /// Whether the touch that just ended (or is still down) lasted `seconds` or more. A touch that
+    /// ended a while ago didn't trigger this action (VoiceOver, keyboard), so it doesn't count.
+    static func held(atLeast seconds: TimeInterval) -> Bool {
+        guard let began else { return false }
+        let now = ProcessInfo.processInfo.systemUptime, end = ended ?? now
+        return now - end < 0.5 && end - began >= seconds
+    }
 }
-private struct HoldToJumpButton: View {
-    let configuration: PrimitiveButtonStyleConfiguration
-    let jump: () -> Void
-    @Environment(\.isEnabled) private var enabled
-    var body: some View {
-        configuration.label
-            .labelStyle(.iconOnly)
-            .foregroundStyle(enabled ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
-            .frame(minWidth: 36, minHeight: 36)
-            .contentShape(.rect)
-            .onTapGesture { if enabled { configuration.trigger() } }
-            .onLongPressGesture(minimumDuration: 0.4) { if enabled { jump() } }
+private final class TouchClockRecognizer: UIGestureRecognizer, UIGestureRecognizerDelegate {
+    /// Watches without taking: no cancelled or delayed touches, and never blocks another recognizer.
+    static func make() -> TouchClockRecognizer {
+        let recognizer = TouchClockRecognizer(target: nil, action: nil)
+        recognizer.cancelsTouchesInView = false; recognizer.delaysTouchesBegan = false; recognizer.delaysTouchesEnded = false
+        recognizer.delegate = recognizer
+        return recognizer
+    }
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        guard let touch = touches.first else { return }
+        TouchClock.began = touch.timestamp; TouchClock.ended = nil
+    }
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) {
+        if let touch = touches.first { TouchClock.ended = touch.timestamp }
+        state = .failed
+    }
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) {
+        TouchClock.began = nil; TouchClock.ended = nil
+        state = .failed
+    }
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+}
+/// Puts one `TouchClockRecognizer` on the window this view is in.
+private struct TouchClockInstaller: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView { Probe() }
+    func updateUIView(_ uiView: UIView, context: Context) {}
+    private final class Probe: UIView {
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            isUserInteractionEnabled = false
+            guard let window, !(window.gestureRecognizers ?? []).contains(where: { $0 is TouchClockRecognizer }) else { return }
+            window.addGestureRecognizer(TouchClockRecognizer.make())
+        }
     }
 }

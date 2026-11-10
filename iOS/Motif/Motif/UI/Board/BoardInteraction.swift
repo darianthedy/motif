@@ -45,11 +45,16 @@ struct BoardInteraction {
         pending = nil
         switch held {
         case .promotion(let from, let to):
-            guard let promotion = PromotionPiece(rawValue: piece.rawValue), let move = try? makeMove(from, to, promotion), Board.isLegal(fen, move) else { return nil }
-            return .move(move)
+            return Self.promotion(fen, from, to, piece).map(BoardOutput.move)
         case .placement(let square):
             guard let color = placing, Board.pieceAt(fen, square) == nil else { return nil }
             return .placement(Placement(color: color, type: piece, square: square))
         }
+    }
+    /// The promotion move from `from` to `to` as `piece`, when it is legal here. Shared with
+    /// the promotion row that screens put in their layout (decision 17).
+    static func promotion(_ fen: String, _ from: String, _ to: String, _ piece: PieceType) -> Uci? {
+        guard let promotion = PromotionPiece(rawValue: piece.rawValue), let move = try? makeMove(from, to, promotion), Board.isLegal(fen, move) else { return nil }
+        return move
     }
 }

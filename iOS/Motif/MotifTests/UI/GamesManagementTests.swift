@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import Motif
 
@@ -21,6 +22,22 @@ import XCTest
         model.query = "missing"; XCTAssertEqual(model.shown([alpha, beta]), [])
         model.query = ""; model.toggleAll([alpha, beta]); XCTAssertEqual(model.selected, ["a", "b"]); XCTAssertTrue(model.allSelected([alpha, beta]))
         model.toggleAll([alpha]); XCTAssertEqual(model.selected, ["b"]); XCTAssertFalse(model.allSelected([alpha, beta]))
+    }
+    /// D04: edit mode and the selection live in the model the view keeps in `@State`, so a size change
+    /// that moves the bars (side bar ↔ bottom capsule) keeps both; only leaving edit mode drops the selection.
+    func testEditModeAndSelectionSurviveASizeChangeAndSelectAllIsATitledItem() {
+        let model = GameCollectionModel()
+        let games = ["a", "b"].enumerated().map { Game(id: $1, collectionId: "c", position: $0, pgn: "1. e4 *", orientation: .white, addedAt: 0) }
+        XCTAssertFalse(model.editing); XCTAssertEqual(model.editMode, .inactive)
+        model.editMode = .active; XCTAssertTrue(model.editing)
+        XCTAssertEqual(model.selectAllItem(games).title, "Select All"); XCTAssertEqual(model.selectAllItem(games).systemImage, "checkmark.circle")
+        model.toggleAll(games); XCTAssertEqual(model.selected, ["a", "b"])
+        XCTAssertEqual(model.selectAllItem(games).title, "Deselect All"); XCTAssertEqual(model.selectAllItem(games).systemImage, "circle")
+        // A size change only re-reads the model (nothing in it depends on the width or size class), and
+        // the list writes the same edit mode back as it rebuilds: that keeps edit mode and the selection.
+        model.editMode = .active; XCTAssertTrue(model.editing); XCTAssertEqual(model.selected, ["a", "b"])
+        model.editing = true; XCTAssertEqual(model.selected, ["a", "b"], "Re-entering edit mode keeps the selection")
+        model.editing = false; XCTAssertEqual(model.selected, [], "Done drops the selection")
     }
     func testDragReorderRenumbersOnlyMovedGames() {
         let model = GameCollectionModel()

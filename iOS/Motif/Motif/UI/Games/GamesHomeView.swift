@@ -8,14 +8,17 @@ struct GamesHomeView: View {
     @State private var renaming: GameCollection?
     @State private var deleting: GameCollection?
     var body: some View {
-        // One container for both states so the launch route and alerts stay attached when the first collection lands.
+        @Bindable var app = app
+        // One container for both states so the alerts stay attached when the first collection lands.
         ZStack {
             if let library = app.store.library, !library.gameCollections.isEmpty {
-                List { collections(library) }
+                // The split view's sidebar: the selection is the collection in the detail column.
+                List(selection: $app.gamesSelection) { collections(library) }
             } else {
                 EmptyState(title: "No Games Yet", systemImage: "checkerboard.rectangle",
                            description: "Make a collection, then add games as PGN or play them in on the board.",
                            action: .init(title: "New Collection", identifier: "new-game-collection-empty", disabled: !app.store.online) { startCreating() })
+                    .readableWidth()
             }
         }
         .navigationTitle("Games")
@@ -34,7 +37,7 @@ struct GamesHomeView: View {
                 let chosen = name.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !chosen.isEmpty else { return }
                 let collection = GameCollection(id: newID(), name: chosen, createdAt: epochMilliseconds())
-                Task { if await app.edit({ try await $0.createGameCollections([collection]) }) { app.gamesPath.append(.collection(collection.id)) } }
+                Task { if await app.edit({ try await $0.createGameCollections([collection]) }) { app.openGames([.collection(collection.id)]) } }
             }
             Button("Cancel", role: .cancel) {}
         } message: { Text("Games can be imported as PGN or played in on the board.") }
@@ -46,17 +49,6 @@ struct GamesHomeView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
-        .confirmationDialog("Delete this collection and its games?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
-                            titleVisibility: .visible, presenting: deleting) { collection in
-            Button("Delete Collection", role: .destructive) { Task { _ = await app.edit { try await $0.deleteGameCollection(collection.id) } } }
-        }
-        .task {
-            #if DEBUG
-            if let route = app.launchRoute, let first = app.store.library?.gameCollections.first, ["game-collection", "game-add", "game-new", "game-select"].contains(route) { app.gamesPath = [.collection(first.id)] }
-            if let route = app.launchRoute, route.hasPrefix("game:") || ["game-details", "game-comment", "game-variation", "game-unreadable", "game-eval"].contains(route), let library = app.store.library,
-               let game = library.games.first(where: { "game:" + $0.id == route }) ?? library.games.first { app.gamesPath = [.collection(game.collectionId), .game(game.collectionId, game.id)] }
-            #endif
-        }
     }
     private var subtitle: String {
         guard let library = app.store.library, !library.gameCollections.isEmpty else { return "" }
@@ -65,17 +57,22 @@ struct GamesHomeView: View {
     private func startCreating() { name = ""; create = true }
     private func collections(_ library: Library) -> some View {
         ForEach(gameCollectionsOf(library), id: \.id) { collection in
-            NavigationLink(value: GamesRoute.collection(collection.id)) {
+            NavigationLink(value: collection.id) {
                 GameCollectionRow(name: collection.name, count: gamesIn(library, collection.id).count)
             }
             .accessibilityIdentifier("game-collection-" + collection.id)
-            .swipeActions {
+            .swipeActions(allowsFullSwipe: false) {
                 Button("Delete", systemImage: "trash") { deleting = collection }.tint(.red).disabled(!app.store.online)
                 Button("Rename", systemImage: "pencil") { name = collection.name; renaming = collection }.disabled(!app.store.online)
             }
             .contextMenu {
                 Button("Rename…", systemImage: "pencil") { name = collection.name; renaming = collection }.disabled(!app.store.online)
                 Button("Delete", systemImage: "trash", role: .destructive) { deleting = collection }.disabled(!app.store.online)
+            }
+            // On the row that asked, so on regular width it anchors there (F15).
+            .confirmationDialog("Delete this collection and its games?", isPresented: Binding(get: { deleting?.id == collection.id }, set: { if !$0 { deleting = nil } }),
+                                titleVisibility: .visible) {
+                Button("Delete Collection", role: .destructive) { Task { _ = await app.edit { try await $0.deleteGameCollection(collection.id) } } }
             }
         }
     }
@@ -88,7 +85,7 @@ private struct GameCollectionRow: View {
             IconTile(systemImage: "checkerboard.rectangle", color: .motifAccentStrong)
             VStack(alignment: .leading, spacing: 3) {
                 Text(name).font(.body.weight(.medium))
-                Text(countLabel(count, "game")).font(.footnote).foregroundStyle(.secondary)
+                Text(countLabel(count, "game")).font(.footnote).foregroundStyle(.motifSecondary)
             }
         }
         .padding(.vertical, 2)

@@ -1,25 +1,24 @@
 #!/usr/bin/env python3
-"""iPhone Duo Phase 2: the screenshot coverage grid for the plan's §8.
+"""iPhone Duo screenshot tests (D09): the screenshot coverage grid for the plan's §8.
 
     scripts/duo-capture-grid.py <captures dir> [device dir]
 
-<captures dir> holds the downloaded `capture-sdk<N>-<pose>` artifacts (each with a
-`sdk<N>-<pose>/` folder of `<cell>.png`, `unreached.txt`, `pose-before.json`).
-[device dir] holds the device shots named `<config>-<cell>.png` (SVL, SVR).
-Prints a markdown table: one row per state, one column per build and configuration.
-✓ captured · ✗ captured but the state wasn't reached · = O compatibility mode, same as O 26
-· – not captured by design.
+<captures dir> holds the downloaded `capture-<pose>` artifacts (each with a `<pose>/`
+folder of `<cell>.png`, `unreached.txt`, `pose-before.json`), for the poses O, IL, IP,
+FB, FT and iphone. [device dir] holds the device shots named `<config>-<cell>.png` (SVL, SVR).
+Prints a markdown table: one row per state, one column per pose.
+✓ captured · ✗ captured but the state wasn't reached · – not captured (not drawn in that pose).
 """
 import json, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SUITE = os.path.join(HERE, "..", "iOS", "Motif", "MotifUITests", "DuoCaptureTests.swift")
-POSES = ["O", "IL", "IP", "FB", "FT"]
+POSES = ["O", "IL", "IP", "FB", "FT", "iphone"]
 
 
 def states():
     text = open(SUITE).read()
-    ids = re.findall(r'shot\("(S\d\d[a-z])"', text)
+    ids = re.findall(r'shot\("(S\d\d[a-z](?:-sidebar)?)"', text)
     # S17 is drawn on three hosts: shot("S17a-" + host, ...)
     banners = re.findall(r'shot\("(S17[a-z])-" \+ host', text)
     hosts = re.findall(r'\("(S\d\d)", (?:nil|"[^"]*"), \{', text)
@@ -27,8 +26,8 @@ def states():
     return ids
 
 
-def captured(root, sdk, pose):
-    folder = os.path.join(root, f"capture-sdk{sdk}-{pose}", f"sdk{sdk}-{pose}")
+def captured(root, pose):
+    folder = os.path.join(root, f"capture-{pose}", pose)
     if not os.path.isdir(folder):
         return None
     shots = {f[:-4] for f in os.listdir(folder) if f.endswith(".png")}
@@ -45,13 +44,13 @@ def main():
     root = sys.argv[1]
     device = sys.argv[2] if len(sys.argv) > 2 else None
     ids = states()
-    columns = [(sdk, pose) for sdk in ("27", "26") for pose in POSES]
-    data = {column: captured(root, *column) for column in columns}
+    columns = POSES
+    data = {column: captured(root, column) for column in columns}
     sv = set()
     if device and os.path.isdir(device):
         sv = {f[4:-4] for f in os.listdir(device) if re.match(r"SV[LR]-", f)}
 
-    header = ["State"] + [f"{pose} {sdk}" for sdk, pose in columns] + ["SV device"]
+    header = ["State"] + columns + ["SV device"]
     print("| " + " | ".join(header) + " |")
     print("|" + "---|" * len(header))
     totals = {column: [0, 0] for column in columns}
@@ -65,9 +64,7 @@ def main():
             if state not in shots:
                 row.append("–")
             elif state in missed:
-                # Compatibility mode letterboxes the iPhone-sized window, where XCTest taps
-                # don't land; that window is the closed screen's, so the cell equals O 26.
-                row.append("= O" if column[0] == "26" and column[1] != "O" else "✗"); totals[column][1] += 1
+                row.append("✗"); totals[column][1] += 1
             else:
                 row.append("✓"); totals[column][0] += 1
         cell = state.split("-")[0]
@@ -77,8 +74,7 @@ def main():
     for column in columns:
         found = data[column]
         pose = found[2] if found else {}
-        sdk, name = column
-        print(f"- **{name} {sdk}**: {totals[column][0]} reached, {totals[column][1]} not reached; "
+        print(f"- **{column}**: {totals[column][0]} reached, {totals[column][1]} not reached; "
               f"pose {pose.get('hingeAngle', '?')}°, {pose.get('activeScreen', '?')} screen, "
               f"{pose.get('orientation', '?')}, {pose.get('sizePoints', '?')} pt")
     print(f"- **SV device**: {len(sv)} cells, both halves")

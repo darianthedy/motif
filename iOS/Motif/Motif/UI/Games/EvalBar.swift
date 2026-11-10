@@ -10,8 +10,8 @@ struct EvalBar: View {
     /// The last result shown, so the fill holds still until the next position's first result.
     @State private var last: Evaluation?
 
-    static let width: CGFloat = 16
-    static let gap: CGFloat = 6
+    /// The board layout reserves this beside the board (`BoardLayout.evalBarWidth`).
+    static let width: CGFloat = BoardLayout.evalBarWidth
     /// Depth from which the label is shown at full strength.
     static let firmDepth = 12
     static let whitePart = Color(red: 0xF4 / 255, green: 0xF4 / 255, blue: 0xF4 / 255)

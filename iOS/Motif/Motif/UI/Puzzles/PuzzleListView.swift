@@ -50,6 +50,7 @@ func motifLabel(_ tag: String) -> String {
 struct PuzzleListView: View {
     @Environment(AppState.self) private var app
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let collectionId: String
     @State private var model = PuzzleListModel()
     @State private var deleting: Puzzle?
@@ -62,11 +63,16 @@ struct PuzzleListView: View {
                     ForEach(items) { item in
                         NavigationLink(value: PuzzleRoute.puzzle(collectionId, item.puzzle.id)) { PuzzleRow(item: item) }
                             .accessibilityIdentifier("puzzle-" + item.puzzle.id)
-                            .swipeActions {
+                            .swipeActions(allowsFullSwipe: false) {
                                 Button("Delete", systemImage: "trash") { deleting = item.puzzle }.tint(.red).disabled(!app.store.online)
                                 Button(item.puzzle.flagged == true ? "Unflag" : "Flag", systemImage: item.puzzle.flagged == true ? "flag.slash" : "flag") {
                                     Task { _ = await app.edit { try await $0.setFlagged(item.puzzle.id, item.puzzle.flagged != true) } }
                                 }.tint(.orange).disabled(!app.store.online)
+                            }
+                            // On the row that asked, so on regular width it anchors there (F15).
+                            .confirmationDialog("Delete this puzzle from the library?", isPresented: Binding(get: { deleting?.id == item.puzzle.id }, set: { if !$0 { deleting = nil } }),
+                                                titleVisibility: .visible) {
+                                Button("Delete Puzzle", role: .destructive) { Task { _ = await app.edit { try await $0.deletePuzzle(item.puzzle.id) } } }
                             }
                     }
                 }
@@ -75,26 +81,33 @@ struct PuzzleListView: View {
             } else { Color.clear.onAppear { dismiss() } }
         }
         .navigationTitle("All Puzzles")
+        // Inline in the detail column, as the collection screen (§6.5): a large title there drew over
+        // the first rows on the iPad (ios-ci, fix loop 3), so swipes on them landed on the title.
+        .navigationBarTitleDisplayMode(sizeClass == .regular ? .inline : .automatic)
         .searchable(text: $model.query, prompt: "Number or motif")
-        .searchScopes($model.scope) { ForEach(PuzzleScope.allCases, id: \.self) { Text($0.title).tag($0) } }
+        // The scope bar shows as soon as search is presented, so a scope can be picked (or left)
+        // before typing anything (F23, Duo plan decision 19). iOS 16.4+, no gate needed.
+        .searchScopes($model.scope, activation: .onSearchPresentation) {
+            ForEach(PuzzleScope.allCases, id: \.self) { Text($0.title).tag($0) }
+        }
         .task {
             #if DEBUG
             // The samples have no flagged puzzles, so this scope shows the empty state.
             if app.launchRoute == "puzzle-list-empty" { model.scope = .flagged }
             #endif
         }
-        .confirmationDialog("Delete this puzzle from the library?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
-                            titleVisibility: .visible, presenting: deleting) { puzzle in
-            Button("Delete Puzzle", role: .destructive) { Task { _ = await app.edit { try await $0.deletePuzzle(puzzle.id) } } }
-        }
     }
+    /// Capped at the readable width, so the descriptions wrap there (F13).
     @ViewBuilder private func empty(_ noPuzzles: Bool) -> some View {
-        if noPuzzles { EmptyState(title: "No Puzzles", systemImage: "puzzlepiece") }
-        else if !model.query.trimmingCharacters(in: .whitespaces).isEmpty { ContentUnavailableView.search(text: model.query) }
-        else {
-            let label = model.scope == .review ? "Puzzles to Review" : "\(model.scope.title) Puzzles"
-            EmptyState(title: "No \(label)", systemImage: model.scope == .flagged ? "flag" : "line.3.horizontal.decrease.circle")
+        Group {
+            if noPuzzles { EmptyState(title: "No Puzzles", systemImage: "puzzlepiece") }
+            else if !model.query.trimmingCharacters(in: .whitespaces).isEmpty { ContentUnavailableView.search(text: model.query) }
+            else {
+                let label = model.scope == .review ? "Puzzles to Review" : "\(model.scope.title) Puzzles"
+                EmptyState(title: "No \(label)", systemImage: model.scope == .flagged ? "flag" : "line.3.horizontal.decrease.circle")
+            }
         }
+        .readableWidth()
     }
 }
 private struct PuzzleRow: View {
@@ -107,7 +120,7 @@ private struct PuzzleRow: View {
             RowStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("#" + item.number).font(.body.weight(.medium).monospacedDigit())
-                    Text(subtitle).font(.footnote).foregroundStyle(.secondary).rowLineLimit()
+                    Text(subtitle).font(.footnote).foregroundStyle(.motifSecondary).rowLineLimit()
                 }.frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 8) {
                     if item.puzzle.flagged == true {
@@ -128,7 +141,7 @@ private struct PuzzleRow: View {
     }
     private var status: some View {
         let (symbol, color): (String, Color) = switch item.status {
-        case .unseen: ("circle", .secondary)
+        case .unseen: ("circle", .motifSecondaryText)
         case .failed: ("arrow.counterclockwise.circle.fill", .orange)
         case .solved: ("checkmark.circle.fill", .motifAccentStrong)
         }

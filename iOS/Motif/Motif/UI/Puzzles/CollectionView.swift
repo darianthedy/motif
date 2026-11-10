@@ -2,6 +2,7 @@ import SwiftUI
 struct CollectionView: View {
     @Environment(AppState.self) private var app
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let collectionId: String
     @State private var rename = false
     @State private var name = ""
@@ -16,6 +17,7 @@ struct CollectionView: View {
                         EmptyState(title: "No Puzzles", systemImage: "puzzlepiece",
                                    description: "Import puzzles into this collection to start solving.",
                                    action: .init(title: "Import Puzzles", identifier: "import-into-collection-empty", disabled: !app.store.online) { importing = true })
+                            .readableWidth()
                     } else {
                         List {
                             Section { StatsCard(stats: statsFor(puzzles.map(\.id), puzzleRecords(library.attempts))) }
@@ -39,15 +41,14 @@ struct CollectionView: View {
                     }
                 }
                 .navigationTitle(collection.name)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Menu("More", systemImage: "ellipsis") {
-                            Button("Rename…", systemImage: "pencil") { name = collection.name; rename = true }
-                            Button("Import Into Collection…", systemImage: "square.and.arrow.down") { importing = true }
-                            Divider()
-                            Button("Delete Collection", systemImage: "trash", role: .destructive) { deletion = true }
-                        }.disabled(!app.store.online).accessibilityIdentifier("collection-actions")
-                    }
+                // Large when pushed from the home list; inline as the detail column beside it (§6.5).
+                .navigationBarTitleDisplayMode(sizeClass == .regular ? .inline : .automatic)
+                // Each item sets a flag; the alert, dialog and sheet hang off the screen, not the menu (F15).
+                .motifOverflowMenu("More", identifier: "collection-actions") {
+                    Button("Rename…", systemImage: "pencil") { name = collection.name; rename = true }.disabled(!app.store.online)
+                    Button("Import Into Collection…", systemImage: "square.and.arrow.down") { importing = true }.disabled(!app.store.online)
+                    Divider()
+                    Button("Delete Collection", systemImage: "trash", role: .destructive) { deletion = true }.disabled(!app.store.online)
                 }
             } else { Color.clear.onAppear { dismiss() } }
         }
@@ -60,7 +61,7 @@ struct CollectionView: View {
                 Button("Cancel", role: .cancel) {}
             }
             .confirmationDialog("Delete this collection and its puzzles?", isPresented: $deletion, titleVisibility: .visible) {
-                Button("Delete Collection", role: .destructive) { Task { if await app.edit({ try await $0.deleteCollection(collectionId) }) { app.puzzlesPath = [] } } }
+                Button("Delete Collection", role: .destructive) { Task { if await app.edit({ try await $0.deleteCollection(collectionId) }) { app.openPuzzles([]) } } }
             }
             .sheet(isPresented: $importing) { ImportView(collectionId: collectionId).environment(app) }
     }
@@ -69,7 +70,7 @@ struct CollectionView: View {
             RowStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Session in Progress").font(.headline)
-                    Text("\(remaining) left").font(.subheadline).foregroundStyle(.secondary)
+                    Text("\(remaining) left").font(.subheadline).foregroundStyle(.motifSecondary)
                 }.frame(maxWidth: .infinity, alignment: .leading)
                 Button("Resume", systemImage: "play.fill") { app.session = SessionRoute(scope: collectionId) }
                     .buttonStyle(.glassProminent).buttonBorderShape(.capsule).accessibilityIdentifier("resume-session")
@@ -87,7 +88,7 @@ private struct StatsCard: View {
             RowStack {
                 figure(stats.solved, "Solved", Color.motifAccentStrong)
                 figure(stats.failed, "To Review", .orange)
-                figure(stats.unseen, "New", .secondary)
+                figure(stats.unseen, "New", .motifSecondaryText)
             }
             GeometryReader { geometry in
                 HStack(spacing: 2) {
@@ -105,7 +106,7 @@ private struct StatsCard: View {
     private func figure(_ count: Int, _ label: String, _ color: Color) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("\(count)").font(.title2.weight(.semibold).monospacedDigit()).foregroundStyle(color)
-            Text(label).font(.footnote).foregroundStyle(.secondary)
+            Text(label).font(.footnote).foregroundStyle(.motifSecondary)
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
     @ViewBuilder private func segment(_ count: Int, _ color: Color, _ width: CGFloat) -> some View {

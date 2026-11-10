@@ -26,7 +26,7 @@ import XCTest
         toggle("Hide Evaluation"); expect(bar, "exists == false")
         XCTAssertGreaterThanOrEqual(square("a1").frame.width, beside, "The hidden bar gives the board its width back")
 
-        launch("game-eval"); wait(square("e2")); wait(button("game-actions"))
+        launch("game-eval"); wait(square("e2")); wait(overflow("game-actions"))
         XCTAssertFalse(bar.waitForExistence(timeout: 3), "Hide Evaluation lasts across launches")
         toggle("Show Evaluation"); wait(bar); expect(bar, "value == 'White is better by 0.6, depth 22'")
     }
@@ -39,8 +39,8 @@ import XCTest
         wait(lines)
         // The scripted engine's lines are the legal moves in square order: Na3, Nc3, Nf3.
         let best = button("engine-line-0"); wait(best)
-        expect(best, "label CONTAINS '1. Na3' AND label CONTAINS 'White better by 0.60'")
-        expect(button("engine-line-2"), "label CONTAINS '1. Nf3' AND label CONTAINS 'White better by 0.40'")
+        expectButton("engine-line-0", "label CONTAINS '1. Na3' AND label CONTAINS 'White better by 0.60'")
+        expectButton("engine-line-2", "label CONTAINS '1. Nf3' AND label CONTAINS 'White better by 0.40'")
         capture("engine-lines")
         best.tap(); expect(square("a3"), "label CONTAINS[c] 'knight'")
         button("game-engine-lines").tap(); expect(lines, "exists == false")
@@ -54,7 +54,7 @@ import XCTest
     }
 
     private func toggle(_ label: String) {
-        button("game-actions").tap()
+        overflow("game-actions").tap()
         let item = button("game-toggle-evaluation"); wait(item)
         // The menu closes once the tap lands, so a dropped tap shows as the item still there.
         XCTAssertEqual(item.label, label); tap(item, until: "exists == false")

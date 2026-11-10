@@ -1,52 +1,35 @@
 name: iOS Duo Capture
 
-# iPhone Duo Phase 2: screenshot every state in every simulator pose, twice: the
-# app built with the iOS 26 SDK (compatibility mode) and with the 27.1 SDK (edge
-# to edge). Split View and pinned video have no simulator control, so the device
-# covers those. See "Motif - iOS iPhone Duo Plan.md" §8.
+# The iPhone Duo screenshot tests (plan D09): every drawn mockup cell, captured in
+# each simulator pose of the iPhone Duo and on an iPhone 17, then paired with its
+# rendered canvas frame in one contact sheet per canvas tab and pose. Split View
+# and pinned video have no simulator control, so those cells stay device-only.
+# Manual: the PR check (ios-ci) doesn't run this. See "Motif - iOS iPhone Duo Plan.md" §8–9.
 
 on:
   workflow_dispatch:
     inputs:
       only:
-        description: "Narrow every pose to these states (e.g. S15,S09a or primary); empty for all"
+        description: "Narrow every pose to these states (e.g. S15,S09a or primary); empty for every drawn cell"
         type: string
         default: ""
 
 jobs:
-  # The app under the iOS 26 SDK, as it ships today.
-  build-26:
-    runs-on: macos-26
-    timeout-minutes: 30
+  # Each pose's drawn cells, read from the canvases (design/iphone-duo/cells.mjs).
+  cells:
+    runs-on: ubuntu-latest
+    outputs:
+      only: ${{ steps.cells.outputs.only }}
     steps:
       - uses: actions/checkout@v7
-      - uses: maxim-lobanov/setup-xcode@v1
+      - uses: actions/setup-node@v7
         with:
-          xcode-version: latest-stable
-      - name: Net names
-        id: nets
-        run: echo "key=nnue-$(scripts/fetch-nnue.sh --names | tr ' ' '_')" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
-        with:
-          path: iOS/Motif/Motif/Engine/Nets
-          key: ${{ steps.nets.outputs.key }}
-      - run: scripts/fetch-nnue.sh
-      - name: Build for the simulator
-        run: |
-          xcodebuild build -project iOS/Motif/Motif.xcodeproj -scheme Motif -configuration Debug \
-            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/DerivedData \
-            CODE_SIGNING_ALLOWED=NO -quiet
-          xcodebuild -version > build/xcode.txt
-          tar -C build/DerivedData/Build/Products/Debug-iphonesimulator -czf build/Motif-26.tgz Motif.app
-      - uses: actions/upload-artifact@v4
-        with:
-          name: app-26
-          path: |
-            build/Motif-26.tgz
-            build/xcode.txt
+          node-version: 24
+      - id: cells
+        run: echo "only=$(node design/iphone-duo/cells.mjs only)" >> "$GITHUB_OUTPUT"
 
   # The app and the capture suite under the iOS 27.1 SDK.
-  build-27:
+  build:
     runs-on: xcode-27
     timeout-minutes: 40
     steps:
@@ -63,51 +46,42 @@ jobs:
           key: ${{ steps.nets.outputs.key }}
       - run: scripts/fetch-nnue.sh
       - run: scripts/ios-duo-capture.sh build
-      - run: tar -C build/DerivedData/Build -czf build/products-27.tgz Products
+      - run: tar -C build/DerivedData/Build -czf build/products.tgz Products
       - uses: actions/upload-artifact@v4
         with:
-          name: products-27
-          path: build/products-27.tgz
+          name: products
+          path: build/products.tgz
 
-  # The iOS 26 build waits for a macos-26 runner, so the 27.1 poses don't wait for it.
-  capture-27:
-    needs: build-27
+  capture:
+    needs: [cells, build]
     runs-on: xcode-27
     timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
-        sdk: ["27"]
-        pose: [O, IL, IP, FB, FT]
+        pose: [O, IL, IP, FB, FT, iphone]
     steps:
       - uses: actions/checkout@v7
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: "27.1"
-      - run: brew install skarol/tap/duoctl
+      - if: matrix.pose != 'iphone'
+        run: brew install skarol/tap/duoctl
       - uses: actions/download-artifact@v4
         with:
-          name: products-27
+          name: products
           path: build
-      - uses: actions/download-artifact@v4
-        if: matrix.sdk == '26'
-        with:
-          name: app-26
-          path: build/app-26
       - name: Unpack
-        run: |
-          mkdir -p build/DerivedData/Build && tar -C build/DerivedData/Build -xzf build/products-27.tgz
-          if [ -f build/app-26/Motif-26.tgz ]; then tar -C build/app-26 -xzf build/app-26/Motif-26.tgz; fi
+        run: mkdir -p build/DerivedData/Build && tar -C build/DerivedData/Build -xzf build/products.tgz
       - name: Capture
         env:
-          # Compatibility mode letterboxes an iPhone-sized window on the inner display,
-          # so the iOS 26 build takes every state closed and wide, and primary states otherwise.
-          MOTIF_CAPTURE_ONLY: ${{ inputs.only != '' && inputs.only || (matrix.sdk == '26' && matrix.pose != 'O' && matrix.pose != 'IL') && 'primary' || '' }}
-        run: scripts/ios-duo-capture.sh capture ${{ matrix.pose }} sdk${{ matrix.sdk }}-${{ matrix.pose }} ${{ matrix.sdk == '26' && 'build/app-26/Motif.app' || '' }}
+          MOTIF_CAPTURE_ONLY: ${{ inputs.only != '' && inputs.only || fromJSON(needs.cells.outputs.only)[matrix.pose] }}
+        # Fails when a state wasn't reached (apart from S12h) or a drawn cell has no screenshot.
+        run: scripts/ios-duo-capture.sh capture ${{ matrix.pose }} ${{ matrix.pose }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: capture-sdk${{ matrix.sdk }}-${{ matrix.pose }}
+          name: capture-${{ matrix.pose }}
           path: |
             build/duo-capture/*/
             !build/duo-capture/*.xcresult
@@ -115,55 +89,33 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: xcresult-sdk${{ matrix.sdk }}-${{ matrix.pose }}
+          name: xcresult-${{ matrix.pose }}
           path: build/duo-capture/*.xcresult
           if-no-files-found: ignore
 
-  capture-26:
-    needs: [build-26, build-27]
-    runs-on: xcode-27
-    timeout-minutes: 150
-    strategy:
-      fail-fast: false
-      matrix:
-        sdk: ["26"]
-        pose: [O, IL, IP, FB, FT]
+  # Every capture beside its mockup frame (render.mjs), one sheet per canvas tab and pose (sheet.mjs).
+  sheets:
+    needs: capture
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: maxim-lobanov/setup-xcode@v1
+      - uses: actions/setup-node@v7
         with:
-          xcode-version: "27.1"
-      - run: brew install skarol/tap/duoctl
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
       - uses: actions/download-artifact@v4
         with:
-          name: products-27
-          path: build
-      - uses: actions/download-artifact@v4
-        if: matrix.sdk == '26'
-        with:
-          name: app-26
-          path: build/app-26
-      - name: Unpack
-        run: |
-          mkdir -p build/DerivedData/Build && tar -C build/DerivedData/Build -xzf build/products-27.tgz
-          if [ -f build/app-26/Motif-26.tgz ]; then tar -C build/app-26 -xzf build/app-26/Motif-26.tgz; fi
-      - name: Capture
-        env:
-          # Compatibility mode letterboxes an iPhone-sized window on the inner display,
-          # so the iOS 26 build takes every state closed and wide, and primary states otherwise.
-          MOTIF_CAPTURE_ONLY: ${{ inputs.only != '' && inputs.only || (matrix.sdk == '26' && matrix.pose != 'O' && matrix.pose != 'IL') && 'primary' || '' }}
-        run: scripts/ios-duo-capture.sh capture ${{ matrix.pose }} sdk${{ matrix.sdk }}-${{ matrix.pose }} ${{ matrix.sdk == '26' && 'build/app-26/Motif.app' || '' }}
+          pattern: capture-*
+          path: build/captures
+      - run: PLAYWRIGHT_FROM=$PWD/node_modules/ node design/iphone-duo/pair.mjs build/captures build/sheets
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: capture-sdk${{ matrix.sdk }}-${{ matrix.pose }}
+          name: contact-sheets
           path: |
-            build/duo-capture/*/
-            !build/duo-capture/*.xcresult
+            build/sheets/*/*.png
+            build/sheets/*/missing.txt
           if-no-files-found: warn
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: xcresult-sdk${{ matrix.sdk }}-${{ matrix.pose }}
-          path: build/duo-capture/*.xcresult
-          if-no-files-found: ignore

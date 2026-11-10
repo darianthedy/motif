@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// A transient success message: a glass capsule above the tab bar.
-/// `AppState.showNotice` announces it to VoiceOver and clears it after ~3 s.
+/// A transient success message: a glass capsule ≤ 480 pt at the bottom of the content,
+/// placed by `libraryMessages()` (decision 22). `AppState.showNotice` announces it to
+/// VoiceOver and clears it after ~3 s.
 struct Toast: View {
     let text: String
     let dismiss: () -> Void
@@ -12,8 +13,8 @@ struct Toast: View {
                 .padding(.horizontal, 16).padding(.vertical, 10)
         }
         .buttonStyle(.plain)
-        .glassEffect(.regular.interactive(), in: .capsule)
-        .padding(.horizontal)
+        .motifGlass(interactive: true, in: .capsule)
+        .frame(maxWidth: transientBannerWidth)
         .transition(.move(edge: .bottom).combined(with: .opacity))
         .accessibilityLabel(text)
         .accessibilityHint("Dismisses")

@@ -23,5 +23,7 @@ struct CommentSheet: View {
                     ToolbarItem(placement: .confirmationAction) { Button("Save", systemImage: "checkmark") { save(text); dismiss() }.disabled(!online).accessibilityIdentifier(saveIdentifier) }
                 }
         }.presentationDetents([.medium, .large])
+            // Solid, so the board doesn't show through the editor at the medium detent (F20).
+            .presentationBackground(Color(.systemGroupedBackground))
     }
 }

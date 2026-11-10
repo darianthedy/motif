@@ -11,6 +11,9 @@ struct BoardView: View {
     var coordinates = true
     var onMove: (Uci) -> Void = { _ in }
     var onPlace: (Placement) -> Void = { _ in }
+    /// A pending promotion or placement goes here, for the screen's `PieceRow` in its layout:
+    /// pickers are never drawn over the board (decision 17). Setting it to nil cancels it.
+    var pending: Binding<BoardPending?>?
     @State private var interaction: BoardInteraction
     @State private var dragging: String?
     @State private var dragPoint = CGPoint.zero
@@ -21,9 +24,11 @@ struct BoardView: View {
     @State private var dropped: (from: String, to: String)?
     init(fen: String, orientation: Side = .white, interactive: Bool = true, placing: Side? = nil,
          highlight: (from: String, to: String)? = nil, highlightColor: Color = .blue, shakeKey: Int = 0, coordinates: Bool = true,
-         onMove: @escaping (Uci) -> Void = { _ in }, onPlace: @escaping (Placement) -> Void = { _ in }) {
+         onMove: @escaping (Uci) -> Void = { _ in }, onPlace: @escaping (Placement) -> Void = { _ in },
+         pending: Binding<BoardPending?>? = nil) {
         self.fen = fen; self.orientation = orientation; self.interactive = interactive; self.placing = placing
         self.highlight = highlight; self.highlightColor = highlightColor; self.shakeKey = shakeKey; self.coordinates = coordinates; self.onMove = onMove; self.onPlace = onPlace
+        self.pending = pending
         _interaction = State(initialValue: BoardInteraction(fen: fen, interactive: interactive, placing: placing))
     }
     private static let whiteOrder = (1...8).reversed().flatMap { rank in "abcdefgh".map { "\($0)\(rank)" } }
@@ -61,12 +66,6 @@ struct BoardView: View {
                     PieceImage(type: piece.type, color: piece.color).frame(width: size * 1.12, height: size * 1.12)
                         .shadow(radius: 5).position(x: dragPoint.x, y: dragPoint.y - size * 0.25).allowsHitTesting(false)
                 }
-                if let pending = interaction.pending {
-                    Color.black.opacity(0.45).contentShape(Rectangle()).onTapGesture { interaction.cancel() }
-                    PiecePicker(title: pickerTitle(pending), choices: interaction.choices, color: placing ?? snapshot.turn ?? .white,
-                                choose: { emit(interaction.choose($0)) }, cancel: { interaction.cancel() })
-                        .frame(width: geometry.size.width, height: geometry.size.width)
-                }
             }.coordinateSpace(name: "motif-board")
         }.aspectRatio(1, contentMode: .fit)
             .sensoryFeedback(.selection, trigger: interaction.selected)
@@ -82,6 +81,13 @@ struct BoardView: View {
             }
             .onChange(of: interactive) { _, next in interaction.interactive = next; if !next { interaction.cancel(); dragging = nil } }
             .onChange(of: placing) { _, next in interaction.placing = next; interaction.cancel() }
+            .onChange(of: interaction.pending) { _, next in
+                guard let pending, pending.wrappedValue != next else { return }
+                pending.wrappedValue = next
+            }
+            .onChange(of: pending?.wrappedValue ?? nil) { _, next in
+                if next == nil, interaction.pending != nil { interaction.cancel() }
+            }
     }
     private func squareView(_ square: String, index: Int, size: CGFloat, piece: Board.Piece?, turn: Side?, target: Board.Target?) -> some View {
         let selected = interaction.selected == square || interaction.pending == .placement(square)
@@ -126,9 +132,6 @@ struct BoardView: View {
     }
     private static let lightSquare = Color(red: 0.94, green: 0.85, blue: 0.71)
     private static let darkSquare = Color(red: 0.71, green: 0.53, blue: 0.39)
-    private func pickerTitle(_ pending: BoardPending) -> String {
-        switch pending { case .promotion: "Promote to"; case .placement(let square): "Add on " + square }
-    }
     private func emit(_ output: BoardOutput?) {
         guard let output else { return }; moved += 1
         switch output { case .move(let move): onMove(move); case .placement(let placement): onPlace(placement) }
@@ -171,8 +174,19 @@ private struct SlidingPiece: View {
 #if DEBUG
 struct BoardSampleView: View {
     @State private var fen = Board.defaultPosition
+    @State private var pending: BoardPending?
     var body: some View {
-        VStack { BoardView(fen: fen, onMove: { if let next = Board.applyUci(fen, $0) { fen = next } }); Text("Tap or drag a piece").foregroundStyle(.secondary); Spacer() }.padding().navigationTitle("Board")
+        VStack {
+            BoardView(fen: fen, onMove: play, pending: $pending)
+            if case .promotion(let from, let to) = pending {
+                PieceRow(color: Board.turnOf(fen) ?? .white, choose: { piece in
+                    pending = nil
+                    if let move = BoardInteraction.promotion(fen, from, to, piece) { play(move) }
+                }, cancel: { pending = nil })
+            }
+            Text("Tap or drag a piece").foregroundStyle(.motifSecondary); Spacer()
+        }.padding().navigationTitle("Board")
     }
+    private func play(_ move: Uci) { if let next = Board.applyUci(fen, move) { fen = next } }
 }
 #endif

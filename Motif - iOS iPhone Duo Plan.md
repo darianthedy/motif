@@ -1053,7 +1053,119 @@ Each slice adds a line or two here: what it settled on the runner or the device
 (e.g. the split view style D02 chose at 669 pt, the iPhone 17 runtime D01 found),
 and anything deferred to a later slice or a follow-up PR.
 
-- *(none yet)*
+- **D01:** `ios-ci` runs on `xcode-27` with Xcode 27.1 as a two-job matrix, `iphone`
+  (`MOTIF_SIM="iPhone 17"`, `MOTIF_RUNTIME=26`: an iOS 26.x runtime when the image has
+  one, else 27.1; the "Build and test" log names the runtime used) and `IL` (a fresh
+  "Motif Duo Capture" posed by the new `ios-duo-capture.sh pose`). TestFlight builds on
+  27.1 by default; the `xcode_26` input falls back to `macos-26`. `SystemCompat.swift`
+  holds `motifToolbarVerticalBehaviorDisabled()`, unused so far. The first run found no
+  iOS 26.x runtime on the image: the iPhone 17 ran on iOS 27.2. On that runtime, menu items
+  inside a `Section` (Copy PGN, Export PGN…, Save as Game…) lose their identifiers, so UI
+  tests find them by title too (`FlowTestCase.button(_:title:)`), and a text field tap can
+  leave no keyboard focus, so `type(_:into:)` taps again until it has it.
+  `ios-simulator.sh` reads runtime versions from `simctl list runtimes`, since the Duo's
+  device wasn't found by its runtime identifier alone.
+- **D02:** each tab is `NavigationSplitView(columnVisibility:)` with
+  `.navigationSplitViewStyle(.automatic)`; the 669 pt (IP) overlay is a device check still owed,
+  so no `.prominentDetail` switch yet. `AppState` holds `puzzlesCollection` / `gamesCollection`,
+  the paths and `TabColumns` (a pushed board sets `.detailOnly`, popping restores);
+  `openPuzzles` / `openGames` split full routes. The ⋯ menus go through `motifOverflowMenu`
+  (`toolbarOverflowMenu`, which Apple's docs list from iOS 27.0, gated at 27.1); UI tests open it
+  with `overflow(_:)`, assuming the system button's label is "More". `visibilityPriority` (27.0)
+  is deferred: `ToolbarContentBuilder` can only gate it for customizable items. The session cover
+  and import sheet moved to `RootView`, since the sidebar can leave the screen. The vertical tab
+  bar's labels are a device check.
+- **D03:** the puzzle list uses `.searchScopes(_:activation: .onSearchPresentation)` (iOS 16.4, no
+  gate), so a scope can be picked with an empty query. `readableWidth()` (`UI/Shared/ReadableWidth.swift`)
+  caps empty states and the "No Collection Selected" placeholder at 672 pt; lists keep the system's width,
+  and the collection's title is inline as the detail column (regular width). Thumbnails stay 48 pt (36 pt
+  drawn) and the scope keeps the title "Review" ("To review" drawn); D04 can reuse `readableWidth()`.
+- **D04:** edit mode moved from the view's `@State EditMode` into `GameCollectionModel.editing` (with the
+  selection; leaving it clears the selection), bridged to the list as `editMode`. Select All / Deselect All
+  (`checkmark.circle` / `circle`, per the plan rather than the canvas's drawn glyphs) sits beside Done in
+  `.topBarTrailing`; Move, Copy, Export (`ShareLink`) and Delete are one `.bottomBar` group, so the flexible
+  spacer before Delete is gone. The collection title is inline as the detail column; empty states use `readableWidth()`.
+- **D05:** `BoardLayout` reserves the eval bar's 20 pt on two panes whether it shows or not (IL 504 pt either way) and
+  keeps 279 pt for the column (263 pt plus its 16 pt inset); compact boards aren't snapped (O 328 / 350 pt), so SV draws
+  317 pt where the canvas has 316. The container is read with `onGeometryChange`; tests assume the side-bar poses spend
+  54 pt on the inline title, a device check. The eval bar is 14 pt. Hold-to-jump on Previous / Next is a
+  `simultaneousGesture` on the toolbar buttons, plus VoiceOver actions; whether it survives in the side bar is a device check.
+  The promotion row has a Cancel button (`picker-cancel`) the canvas doesn't draw. UI tests find the four toolbar items by title.
+- **D06:** session and puzzle detail sit on `BoardLayout` without the eval bar; the session measures its container with the
+  progress bar, as the canvas does, so IP keeps 512 pt and the column gives up 16 pt. `PromotionRow` became `PieceRow` (promotion
+  and the missing piece, titled "Add on <square>" rather than the canvas's "Which piece is missing?"); `BoardView` hands every
+  pending pick to the screen, so `PiecePicker` and the overlay are gone. Puzzle detail's replay items are retitled "Go to Start",
+  "Previous Move", "Next Move", "Go to End" (identifiers unchanged) and UI tests find them, Skip and End Session by title.
+- **D07:** `motifDivision` (`SystemCompat.swift`) reads `reservedRegions(kind: .division)` (active only) through the same
+  `onGeometryChange` as the container, not a new `GeometryReader`; whether it fires on a bend with no size change is a device
+  check. `BoardLayout` adds `pages` / `halves` plus `padding` and `spacing` for the `AnyLayout` stacks; a division with < 100 pt
+  on one side (SV 13.5 pt, PP bent 9.8 pt) is an edge inset. The session reads the division under its progress bar; session
+  complete puts its heading on the board's side and the tiles and Done across the division.
+- **D08:** `libraryBanners()` split in two: `libraryStatus()` (the offline pill, trailing, in a top inset under each column's and
+  destination's title; not a toolbar item, which the side bar would move off the title) and `libraryMessages()` (errors and the toast,
+  capsules ≤ 480 pt in `.safeAreaInset(edge: .bottom)`) installed once per tab's split view, session cover, Account sheet and launch screen,
+  so IL shows one capsule. New Game reads its own size (`onGeometryChange`): ≥ 600 pt puts the preview beside the form (42 % of the width);
+  stacked it sits under the picker, capped at 40 % of the visible sheet. Save as Game uses a measured `.height` detent (form content plus
+  insets) rather than `.presentationSizing(.fitted)`. Sign-in collapses its header while a field has focus, on every iPhone. Whether the
+  capsule sits above an IP / iPhone bottom bar, and the measured detent's height, are device checks.
+- **D09:** `ios-duo-capture.yml` is one 27.1 build and six capture jobs (O, IL, IP, FB, FT, `iphone`), each limited to its drawn
+  cells by `design/iphone-duo/cells.mjs` (it loads the canvases' `cellPlan` in a Node VM; the iPhone 17 pairs with the O frames);
+  a `sheets` job renders each cell's frame (`render.mjs`) and joins capture | mockup per canvas tab and pose (`pair.mjs`,
+  `sheet.mjs --pairs`). Capture fixes: one shot request per state, late shots abandoned and a warm-up shot (S01b / S01d), focus
+  retried before typing (S02b), `notice=<text>` (S03j), Files / share sheet content waited for (S05k, S12q from the bulk Export),
+  `seed=complete` + route `resume:<collection>` (S09m), S07c as a query plus the Review scope; new S05l, S16h, and
+  `S04a-sidebar` / `S11a-sidebar` on IP (`sidebar` fixture). Homes take a `select` fixture on regular poses (`MOTIF_POSE`), as the
+  canvases draw the first collection in the detail. A pose fails on any unreached state but S12h, or a drawn cell without a shot.
+- **D10:** F35 measured: light `secondaryLabel` is ~3.5:1 on white, so secondary text and field placeholders use
+  `motifSecondaryText` (#636366 light, #AEAEB2 dark, stronger with Increase Contrast; ≥ 5.4:1 on white, grouped gray and RT cards).
+  Motif's own glass goes through `motifGlass` (`UI/Shared/Legibility.swift`): an opaque `tertiarySystemBackground` fill and hairline
+  under Reduce Transparency, a stronger edge under Increase Contrast; system bars and `.glass` buttons are left to the system.
+  VoiceOver reads board, column, then bar items via `.contain` containers and `accessibilitySortPriority`. The `var` frames are
+  captured as `<state>-AX5` / `<state>-RT` on O, IL and the iPhone (`testSystemVariants`); RT is a fixture (`reduce-transparency`)
+  since tests can't switch the setting, so the captured system bars keep their glass. Bar items moving to overflow at AX5 is a device check.
+- **D11:** universal (`TARGETED_DEVICE_FAMILY = "1,2"` on every target), `UISupportedInterfaceOrientations~ipad` with all four, the
+  iPhone key still portrait only. `ios-ci`'s `ipad` destination is the first simulator named `iPad Pro 11-inch…` (`ios-simulator.sh`
+  matches a name prefix), turned to landscape by `FlowTestCase.launch` with `XCUIDevice` since simctl can't rotate; `IPadFlowTests` checks
+  sidebar + detail and the Analysis board. Compact-only UI tests skip on `twoColumns` (IL, iPad); the New Game sheet's width on iPad and
+  Stage Manager's compact windows (O layout) are device spot checks.
+- **Fix loop 1** (first `ios-ci` run, red on all three destinations): (1) a launch route selected the collection
+  after the split view existed, which resets the detail column's stack, so every route with a pushed path (`game:…`,
+  `puzzle-list`, `puzzle-detail`) landed on the collection; `AppState.openLaunchRoute()` now opens routes once the
+  library is in, and `RootView` builds the tabs after it. (2) `.automatic` column visibility left the sidebar hidden
+  on IL and the iPad, at launch and after a sheet, alert or the session cover; `TabColumns` starts at `.all` (decision
+  16), a board still sets `.detailOnly` and popping restores. Whether `.all` overlays or tiles on IP is a device check.
+  (3) The board screens measured their own content for `BoardLayout`, a feedback loop: the iPad session board grew to
+  840 pt and the five-piece row (312 pt) in the 263 pt column hung the missing-piece session on IL and the iPad. They now
+  read the offered space (`motifOfferedSize`), the session leaves its progress bar out of a side-by-side board's height,
+  and `PieceRow` buttons shrink to 44 pt. (4) The New Game note and FEN error are one accessibility element each.
+- **Fix loop 2** (second run, red on all three destinations): (1) on iOS 27.1 every item of the system overflow menu
+  (`motifOverflowMenu`) loses its identifier, not only those in a `Section`; `FlowTestCase.menuTitles` finds Save, the
+  comment item and the evaluation toggle by title. (2) Hold-to-jump never fired anywhere: a plain toolbar `Button` is hosted
+  as a bar item, which doesn't hand the hold to `simultaneousGesture`. Previous / Next Move use `HoldToJumpStyle`, a
+  `PrimitiveButtonStyle` whose tap and long-press gestures see the touch in the bottom bar and the side bar. (3)
+  `libraryMessages()` around a split view never inset the columns' content: on the iPhone the toast sat on the bottom bar's
+  ‹ ›, on IL and the iPad the error capsule lay over the board's bottom rows. It now sits on the screens inside each
+  navigation stack (the detail column's root and destinations; the sidebar only while collapsed; the session's screens),
+  so it takes content space above the bars and the board shrinks for it. The toast test no longer counts the
+  window-sized `Toolbar` container that iOS 27 reports as a bar. (4) Delete swipe actions don't full-swipe: in the 300 pt
+  sidebar XCTest's swipe was a full one, which skipped the revealed buttons straight to the dialog. (5) On the iPad the
+  puzzle list slides up ~70 pt after it appears (the search field settling into the navigation bar), so taps and swipes
+  right after it appeared hit the next row; the tests `settle` the row first. Whether the slide shows on a device is a check.
+- **Fix loop 3** (third run, red on IL and the iPad): (1) `HoldToJumpStyle` made Previous / Next Move custom views,
+  which the side bar doesn't take: on IL they sat in a bottom bar over the content, outside the side bar and under the
+  toast. They are plain toolbar buttons again, and the hold is read from the touch that triggered the action: a
+  `TouchClock` recognizer on the window (never cancelling, delaying or blocking a touch) times each touch, and a
+  release after 0.4 s jumps instead of stepping. Whether a device's bar items still fire on release after a hold is a
+  device check. (2) The iPad puzzle list's "slide" was a large title: `PuzzleListView` inherited it in the detail
+  column, and the title drew over the first rows, so swipes on them hit the title. It is inline on regular width, as
+  the collection screen.
+- **Fix loop 4** (fourth run, red on the iPhone): the engine lines test read the right label (`Line 1, White better
+  by 0.60: 1. Na3`), but `expect` on an element resolves it again for every attribute, and one resolution of the
+  game screen took 4–5 s on the loaded simulator, so no check finished in 10 s. `expectButton` checks the label
+  inside the query, one snapshot per poll. The failure left Engine Lines on (the toggle persists), which on the
+  iPhone's short column replaces the move list, so the two GamesFlowTests that read it never found `move-1`; they
+  launch with the `defaults` fixture, which only resets the Analysis toggles. Every action after opening the
+  Game ⋯ menu still waits 60 s for "animations complete" (also on the green run before), a device check.
 
 ## 9. Implementation slices
 

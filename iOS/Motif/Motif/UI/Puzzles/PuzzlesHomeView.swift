@@ -8,11 +8,13 @@ struct PuzzlesHomeView: View {
     @State private var deleting: Collection?
     var body: some View {
         @Bindable var app = app
-        // One container for both states so the launch route, sheet and cover
-        // aren't re-attached (and re-run or dismissed) when the first import lands.
+        // One container for both states, so the list keeps its identity when the first import
+        // lands. The import sheet, the session cover and the launch route (`AppState.openLaunchRoute`)
+        // hang off `RootView`, since this sidebar can leave the screen (a pushed board, the overlay).
         ZStack {
             if let library = app.store.library, !library.collections.isEmpty {
-                List {
+                // The split view's sidebar: the selection is the collection in the detail column.
+                List(selection: $app.puzzlesSelection) {
                     if !library.puzzles.isEmpty { practice(library) }
                     collections(library)
                 }
@@ -20,6 +22,7 @@ struct PuzzlesHomeView: View {
                 EmptyState(title: "No Puzzles Yet", systemImage: "puzzlepiece",
                            description: "Import a JSON collection to start solving.",
                            action: .init(title: "Import Puzzles", identifier: "import-puzzles-empty", disabled: !app.store.online) { app.importingPuzzles = true })
+                    .readableWidth()
             }
         }
         .navigationTitle("Puzzles")
@@ -40,13 +43,6 @@ struct PuzzlesHomeView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
-        .confirmationDialog("Delete this collection and its puzzles?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
-                            titleVisibility: .visible, presenting: deleting) { collection in
-            Button("Delete Collection", role: .destructive) { Task { _ = await app.edit { try await $0.deleteCollection(collection.id) } } }
-        }
-        .sheet(isPresented: $app.importingPuzzles) { ImportView().environment(app) }
-        .fullScreenCover(item: $app.session) { SessionView(scope: $0.scope).environment(app) }
-        .task { await openLaunchRoute() }
     }
     private var subtitle: String {
         guard let library = app.store.library, !library.collections.isEmpty else { return "" }
@@ -58,7 +54,7 @@ struct PuzzlesHomeView: View {
             if let run = runIn(library, SCOPE_ALL), resumable(library, SCOPE_ALL) {
                 Button { app.session = SessionRoute(scope: SCOPE_ALL) } label: {
                     PracticeRow(title: "Resume Random Session", systemImage: "play.fill", tile: .motifAccentStrong) {
-                        Text("\(progressOf(library, run).remaining) left").foregroundStyle(.secondary)
+                        Text("\(progressOf(library, run).remaining) left").foregroundStyle(.motifSecondary)
                     }
                 }.accessibilityIdentifier("resume-random")
             }
@@ -82,39 +78,26 @@ struct PuzzlesHomeView: View {
         return Section("Collections") {
             ForEach(collectionsOf(library), id: \.id) { collection in
                 let stats = statsFor(puzzlesIn(library, collection.id).map(\.id), records)
-                NavigationLink(value: PuzzleRoute.collection(collection.id)) {
+                NavigationLink(value: collection.id) {
                     CollectionRow(name: collection.name, stats: stats, inProgress: resumable(library, collection.id))
                 }
                 .accessibilityIdentifier("collection-" + collection.id)
-                .swipeActions {
+                // No full swipe: Delete asks first, so a swipe reveals the actions rather than jumping to the dialog
+                // (the 300 pt sidebar on IL turned XCTest's swipe into a full one).
+                .swipeActions(allowsFullSwipe: false) {
                     Button("Delete", systemImage: "trash") { deleting = collection }.tint(.red).disabled(!app.store.online)
                 }
                 .contextMenu {
                     Button("Rename…", systemImage: "pencil") { name = collection.name; renaming = collection }.disabled(!app.store.online)
                     Button("Delete", systemImage: "trash", role: .destructive) { deleting = collection }.disabled(!app.store.online)
                 }
+                // On the row that asked, so on regular width it anchors there (F15).
+                .confirmationDialog("Delete this collection and its puzzles?", isPresented: Binding(get: { deleting?.id == collection.id }, set: { if !$0 { deleting = nil } }),
+                                    titleVisibility: .visible) {
+                    Button("Delete Collection", role: .destructive) { Task { _ = await app.edit { try await $0.deleteCollection(collection.id) } } }
+                }
             }
         }
-    }
-    private func openLaunchRoute() async {
-        #if DEBUG
-        guard let route = app.launchRoute, let library = app.store.library else { return }
-        if route == "import" { app.importingPuzzles = true }
-        if ["puzzle-list", "puzzle-list-empty"].contains(route), let first = library.collections.first { app.puzzlesPath = [.collection(first.id), .puzzles(first.id)] }
-        if route == "puzzle-detail", let first = library.collections.first, let puzzle = puzzlesIn(library, first.id).first { app.puzzlesPath = [.collection(first.id), .puzzles(first.id), .puzzle(first.id, puzzle.id)] }
-        // `puzzle-detail:<puzzle id>` opens that puzzle instead.
-        if route.hasPrefix("puzzle-detail:"), let puzzle = library.puzzles.first(where: { $0.id == route.dropFirst("puzzle-detail:".count) }) {
-            app.puzzlesPath = [.collection(puzzle.collectionId), .puzzles(puzzle.collectionId), .puzzle(puzzle.collectionId, puzzle.id)]
-        }
-        if route == "collection", let first = library.collections.first { app.puzzlesPath = [.collection(first.id)] }
-        if route.hasPrefix("session:") || route.hasPrefix("result:") {
-            // `session:<collection id>` and `result:<collection id>` start in that collection.
-            let named = String(route.drop { $0 != ":" }.dropFirst())
-            let scope = route == "session:missing" ? "sample-missing-piece" : library.collections.contains { $0.id == named } ? named : SCOPE_ALL
-            let puzzles = scope == SCOPE_ALL ? allPuzzles(library) : puzzlesIn(library, scope)
-            await app.begin(scope, .ordered, puzzles.map(\.id))
-        }
-        #endif
     }
 }
 /// A Settings-style row: coloured icon tile, title, trailing detail.
@@ -127,7 +110,7 @@ private struct PracticeRow<Trailing: View>: View {
     var body: some View {
         HStack(spacing: 12) {
             IconTile(systemImage: systemImage, color: tile.opacity(enabled ? 1 : 0.4))
-            Text(title).foregroundStyle(enabled ? Color.primary : Color.secondary).layoutPriority(1)
+            Text(title).foregroundStyle(enabled ? Color.primary : Color.motifSecondaryText).layoutPriority(1)
             Spacer()
             trailing
         }
@@ -149,7 +132,7 @@ private struct CollectionRow: View {
                     }
                 }
                 Text("\(countLabel(stats.total, "puzzle")) · \(stats.solved) solved\(stats.failed > 0 ? " · \(stats.failed) to review" : "")")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.footnote).foregroundStyle(.motifSecondary)
             }
         }
         .padding(.vertical, 2)
@@ -165,7 +148,7 @@ private struct ProgressRing: View {
         ZStack {
             Circle().stroke(Color.motifAccent.opacity(0.2), lineWidth: 4)
             Circle().trim(from: 0, to: fraction).stroke(Color.motifAccent, style: StrokeStyle(lineWidth: 4, lineCap: .round)).rotationEffect(.degrees(-90))
-            Text("\(Int((fraction * 100).rounded()))%").font(.system(size: size / 4, weight: .semibold).monospacedDigit()).foregroundStyle(.secondary)
+            Text("\(Int((fraction * 100).rounded()))%").font(.system(size: size / 4, weight: .semibold).monospacedDigit()).foregroundStyle(.motifSecondary)
         }
         .frame(width: size, height: size)
         .accessibilityLabel("\(Int((fraction * 100).rounded())) percent solved")

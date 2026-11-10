@@ -316,7 +316,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.MotifTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Motif.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Motif";
 			};
 			name = Release;
@@ -343,7 +343,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -366,7 +366,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.MotifTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Motif.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Motif";
 			};
 			name = Debug;
@@ -384,7 +384,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.MotifUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = Motif;
 			};
 			name = Release;
@@ -411,7 +411,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -428,7 +428,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.dthedy.MotifUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = Motif;
 			};
 			name = Debug;

@@ -4,6 +4,13 @@ import SwiftUI
 struct MotifApp: App {
     @State private var app = AppState.live()
     @Environment(\.scenePhase) private var phase
+    init() {
+        #if DEBUG
+        // The UI tests launch with this: on iOS 27.1 the toolbar overflow menu keeps the app from
+        // ever going idle, so each tap that opens or closes it waited out XCTest's 60 s idle timeout.
+        if UserDefaults.standard.bool(forKey: "MotifUITestNoAnimations") { UIView.setAnimationsEnabled(false) }
+        #endif
+    }
     var body: some Scene {
         WindowGroup { RootView().environment(app).environment(\.motifReduceTransparency, Self.forcesReduceTransparency) }
             .onChange(of: phase) { _, next in

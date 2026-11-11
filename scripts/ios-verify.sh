@@ -15,6 +15,8 @@
 # major version to prefer (see ios-simulator.sh); the default is the first
 # available iPhone. MOTIF_POSE (iphone, IL, ipad…) reaches the tests as MOTIF_POSE, for
 # UI tests that only hold in one pose. ios-ci sets all three per destination.
+# MOTIF_XCODEBUILD_FLAGS adds extra xcodebuild options or build settings, unquoted
+# (ios-ci turns on compilation caching and skips package re-resolution with it).
 #
 # Written for macOS's bash 3.2: no associative arrays, no GNU-only flags.
 
@@ -63,7 +65,7 @@ export TEST_RUNNER_MOTIF_POSE="${MOTIF_POSE:-}"
 set -- xcodebuild test -project "$PROJECT" -scheme "$SCHEME" \
   -destination "platform=iOS Simulator,id=$sim" \
   -derivedDataPath build/DerivedData \
-  $selection \
+  $selection ${MOTIF_XCODEBUILD_FLAGS:-} \
   CODE_SIGNING_ALLOWED=NO
 if command -v xcbeautify >/dev/null 2>&1; then
   "$@" 2>&1 | xcbeautify --renderer terminal

@@ -11,7 +11,14 @@ name: iOS CI
 #   quick — pull requests: the iphone leg only, all of MotifTests plus the UI smoke set
 #           (`ios-verify.sh --smoke`), for feedback in about ten minutes.
 #   full  — pushes to main, the nightly schedule, workflow_dispatch and PRs labelled
-#           `full-ui`: every test on all three legs.
+#           `full-ui`: every test on all three legs. (workflow_dispatch can ask for
+#           the quick one with its `smoke` input.)
+#
+# Build caching, since every job starts on a fresh Mac: the Swift packages are cached
+# on Package.resolved; the build products and Xcode's compilation cache (content
+# addressed, so it survives a fresh checkout) are saved by main's iphone leg and
+# restored by every leg and PR. Tracked files get their commit times as mtimes, so
+# the cached products of unchanged sources still count as up to date.
 
 on:
   pull_request:
@@ -29,6 +36,11 @@ on:
   schedule:
     - cron: "17 3 * * *" # nightly, 03:17 UTC, on main
   workflow_dispatch:
+    inputs:
+      smoke:
+        description: "Quick check only (iphone leg, smoke UI set), as on a PR"
+        type: boolean
+        default: false
 
 # A PR's newer run replaces its older one. Adding some other label to a PR gets a
 # group of its own, so it can't cancel the running check (its jobs are skipped).
@@ -48,7 +60,7 @@ jobs:
     steps:
       - id: plan
         env:
-          FULL: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ui') }}
+          FULL: ${{ (github.event_name == 'workflow_dispatch' && !inputs.smoke) || github.event_name == 'push' || github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ui') }}
         run: |
           # An iPhone 17 on an iOS 26.x runtime when the image has one, so the 26.1
           # fallbacks run; otherwise on the SDK's own runtime. The step log says which.
@@ -89,6 +101,11 @@ jobs:
         include: ${{ fromJSON(needs.plan.outputs.legs) }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # commit times for ios-restore-mtimes.sh
+
+      - name: Restore commit mtimes
+        run: scripts/ios-restore-mtimes.sh
 
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -111,6 +128,29 @@ jobs:
       - name: Fetch NNUE nets
         run: scripts/fetch-nnue.sh
 
+      # Package checkouts, keyed on the lock file.
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: build/DerivedData/SourcePackages
+          key: spm-${{ hashFiles('iOS/Motif/Motif.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+
+      # main's latest build, whatever this commit is; restore-keys takes the newest.
+      # The legs all build the same simulator binaries, so any leg can use it.
+      - name: Restore build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: &build-cache |
+            build/DerivedData/Build
+            build/DerivedData/ModuleCache.noindex
+            build/DerivedData/CompilationCache.noindex
+          key: dd-xcode27.1-${{ github.sha }}
+          restore-keys: dd-xcode27.1-
+
+      # A fresh VM gives every file a new inode; without this XCBuild rebuilds anyway.
+      - name: Let XCBuild ignore inode changes
+        run: defaults write com.apple.dt.XCBuild IgnoreFileSystemDeviceInodeChanges -bool YES
+
       - name: Pose the iPhone Duo
         if: matrix.pose == 'IL'
         run: |
@@ -126,7 +166,21 @@ jobs:
           MOTIF_RUNTIME: ${{ matrix.runtime }}
           MOTIF_POSE: ${{ matrix.pose }}
           SMOKE: ${{ needs.plan.outputs.full != 'true' && '--smoke' || '' }}
+          MOTIF_XCODEBUILD_FLAGS: -disableAutomaticPackageResolution COMPILATION_CACHE_ENABLE_CACHING=YES
         run: scripts/ios-verify.sh --ios $SMOKE
+
+      - name: Build cache size
+        if: ${{ !cancelled() }}
+        run: du -sh build/DerivedData/* 2>/dev/null || true
+
+      # Only main's builds seed the cache (a PR's cache would be visible to that PR
+      # alone), and one leg is enough. Saved even when a test failed: the build held.
+      - name: Save build cache
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && matrix.pose == 'iphone' }}
+        uses: actions/cache/save@v4
+        with:
+          path: *build-cache
+          key: dd-xcode27.1-${{ github.sha }}
 
       - name: Upload test results
         if: failure()

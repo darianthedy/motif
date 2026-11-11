@@ -22,6 +22,9 @@ import XCTest
     }
     /// The open display's poses, where the homes are two columns (sidebar and detail).
     private var regular: Bool { ["IL", "IP", "FB", "FT"].contains(pose) }
+    /// Open tall (decision 16): with a collection selected the detail shows alone and the
+    /// sidebar is off screen until its button slides it over.
+    private var tall: Bool { ["IP", "FT"].contains(pose) }
     private func wanted(_ id: String) -> Bool {
         guard let only = environment["MOTIF_CAPTURE_ONLY"], !only.isEmpty else { return true }
         let state = id.split(separator: "-").first.map(String.init) ?? id
@@ -222,7 +225,7 @@ import XCTest
     }
     func testS04PuzzlesHome() {
         let row = "collection-sample-back-rank"
-        shot("S04a", fixture: "seed=progress") { wait(button("resume-random")) }
+        shot("S04a", fixture: "seed=progress") { wait(button(tall ? "resume-session" : "resume-random")) }
         shot("S04b") { wait(any(row)) }
         shot("S04c", fixture: "seed=collections") { wait(any(row)) }
         shot("S04d", fixture: "seed=empty") { wait(app.staticTexts["No Puzzles Yet"]) }
@@ -324,7 +327,8 @@ import XCTest
     }
     func testS11GamesHome() {
         let row = "game-collection-sample-games"
-        shot("S11a", "games", fixture: "seed=games") { wait(any(row)) }
+        let gameRow = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'game-row-'")).firstMatch
+        shot("S11a", "games", fixture: "seed=games") { wait(tall ? gameRow : any(row)) }
         shot("S11b", "games", fixture: "seed=empty") { wait(app.staticTexts["No Games Yet"]) }
         shot("S11c", "games", fixture: "seed=empty", offline: true) { wait(app.staticTexts["No Games Yet"]) }
         shot("S11d", "games") { tapButton("new-game-collection"); wait(app.alerts.firstMatch) }

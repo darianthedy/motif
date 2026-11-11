@@ -56,7 +56,15 @@ import XCTest
     private func toggle(_ label: String) {
         overflow("game-actions").tap()
         let item = button("game-toggle-evaluation"); wait(item)
-        // The menu closes once the tap lands, so a dropped tap shows as the item still there.
-        XCTAssertEqual(item.label, label); tap(item, until: "exists == false")
+        // The menu closes once the tap lands, so a dropped tap shows as the item still there. A
+        // landed tap can take a while to close it (the slow menu animation, §8.7), so re-tap only
+        // while the item is still on screen: tapping an item that has gone fails the test.
+        XCTAssertEqual(item.label, label)
+        for _ in 0..<3 {
+            guard item.exists, item.isHittable else { break }
+            item.tap()
+            if matches(item, "exists == false", timeout: 20) { return }
+        }
+        XCTAssertFalse(item.exists, "The \(label) item never closed its menu")
     }
 }

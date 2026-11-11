@@ -38,10 +38,14 @@ actor DataEvents {
 struct LoggingBackend: Backend {
     let memory: MemoryBackend
     let events: DataEvents
-    init(_ initial: Library = testDataLibrary(), events: DataEvents = DataEvents()) {
-        memory = MemoryBackend(initial); self.events = events
+    let gate: LoadGate?
+    init(_ initial: Library = testDataLibrary(), events: DataEvents = DataEvents(), gate: LoadGate? = nil) {
+        memory = MemoryBackend(initial); self.events = events; self.gate = gate
     }
-    func load() async throws -> Library { await events.record("load"); return await memory.load() }
+    /// The gate holds a load after it has read the server, so a test can write meanwhile.
+    func load() async throws -> Library {
+        await events.record("load"); let library = await memory.load(); await gate?.pass(); return library
+    }
     func createCollections(_ c: [Collection]) async throws { try await memory.createCollections(c) }
     func renameCollection(_ id: String, _ name: String) async throws { try await memory.renameCollection(id, name) }
     func deleteCollection(_ id: String) async throws { try await memory.deleteCollection(id) }
@@ -74,4 +78,25 @@ actor TestAccount: Account {
     func signUp(_ email: String, _ password: String) { signIn(email, password) }
     func signOut() { user = nil }
     func backend(_ user: User) -> any Backend { held }
+}
+
+/// Holds the next `load()` once armed, after it has read the server copy and before it returns.
+actor LoadGate {
+    private var armed = false
+    private var held: CheckedContinuation<Void, Never>?
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+    func arm() { armed = true }
+    func pass() async {
+        guard armed else { return }
+        armed = false
+        await withCheckedContinuation { continuation in
+            held = continuation
+            waiting.forEach { $0.resume() }; waiting = []
+        }
+    }
+    func waitUntilHeld() async {
+        if held != nil { return }
+        await withCheckedContinuation { waiting.append($0) }
+    }
+    func release() { held?.resume(); held = nil }
 }

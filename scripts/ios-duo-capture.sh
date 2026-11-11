@@ -152,9 +152,12 @@ capture)
     while true; do
       if [ -f "$abs/request" ]; then
         id=$(cat "$abs/request"); rm -f "$abs/request"
-        for _ in 1 2 3; do
-          shoot "$abs/$id.tmp.png" >/dev/null 2>&1 && break
-          sleep 1
+        # A shot can hang (S01a, S01d, S05a waited out the suite's 90 s with no image), so
+        # each try is cut off at 25 s: three tries still land inside the suite's wait.
+        for try in 1 2 3; do
+          sim="${sim:-}" perl -e 'alarm shift; exec @ARGV' 25 bash -c "$(declare -f shoot); shoot \"\$1\"" _ "$abs/$id.tmp.png" >/dev/null 2>&1 && break
+          echo "shot $id: try $try failed or timed out" >&2
+          rm -f "$abs/$id.tmp.png"; sleep 1
         done
         if [ -f "$abs/abandoned-$id" ]; then rm -f "$abs/$id.tmp.png"
         elif [ -f "$abs/$id.tmp.png" ]; then mv "$abs/$id.tmp.png" "$abs/$id.png"; fi

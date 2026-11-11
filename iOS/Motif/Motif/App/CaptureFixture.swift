@@ -65,7 +65,10 @@ struct CaptureFixture: Sendable {
             if let first = library.collections.first { app.openPuzzles([.collection(first.id)]) }
             if let first = library.gameCollections.first { app.openGames([.collection(first.id)]) }
         }
-        if has("sidebar") { app.puzzlesColumns.visibility = .all; app.gamesColumns.visibility = .all }
+        if has("sidebar") {
+            app.puzzlesColumns.sidebarPinned = true; app.gamesColumns.sidebarPinned = true
+            app.puzzlesColumns.visibility = .all; app.gamesColumns.visibility = .all
+        }
     }
 }
 

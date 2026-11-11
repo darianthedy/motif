@@ -4,6 +4,8 @@ struct RootView: View {
     @Environment(AppState.self) private var app
     /// The window's: compact collapses each split view to one stack, where the sidebar is a screen of its own.
     @Environment(\.horizontalSizeClass) private var sizeClass
+    /// The window is taller than wide; with regular width that is the open-tall pose.
+    @State private var taller = false
     var body: some View {
         @Bindable var app = app
         // Not a Group: a Group hands `.task` to each branch, so every root change
@@ -38,6 +40,9 @@ struct RootView: View {
             Tab("Games", systemImage: "checkerboard.rectangle", value: .games) { gamesSplit }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
+        // Decision 16: open tall, a selected collection shows the detail alone (sidebar on demand).
+        .onGeometryChange(for: Bool.self) { $0.size.height > $0.size.width } action: { taller = $0 }
+        .onChange(of: sizeClass == .regular && taller, initial: true) { _, tall in app.setOpenTall(tall) }
         .sheet(isPresented: $app.showingAccount) { AccountView().environment(app) }
         .sheet(isPresented: $app.importingPuzzles) { ImportView().environment(app) }
         .fullScreenCover(item: $app.session) { SessionView(scope: $0.scope).environment(app) }

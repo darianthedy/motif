@@ -20,8 +20,9 @@ import XCTest
     }
     func testOfflineDisablesImportAndShowsThePill() {
         launch(offline: true); wait(button("import-puzzles"))
-        XCTAssertFalse(button("import-puzzles").isEnabled)
-        XCTAssertTrue(app.descendants(matching: .any)["offline-banner"].exists); capture("puzzles-offline")
+        // The store goes offline once it has opened, a moment after the toolbar shows: wait for it.
+        wait(app.descendants(matching: .any)["offline-banner"])
+        expect(button("import-puzzles"), "isEnabled == false"); capture("puzzles-offline")
     }
     func testImportSheetConfirmsFromTheToolbar() {
         launch("import"); let add = button("puzzle-import-add"); wait(add); XCTAssertFalse(add.isEnabled)

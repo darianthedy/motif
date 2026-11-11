@@ -3,7 +3,7 @@
 # Mac mode's definition of "builds": the web suite, then the iOS unit and UI tests on
 # an iPhone simulator. Exit 0 only when both pass. See "Motif - iOS Mac Mode.md".
 #
-#   scripts/ios-verify.sh            # npm test + xcodebuild build-for-testing, test-without-building
+#   scripts/ios-verify.sh            # npm test + xcodebuild build-for-testing, boot, test-without-building
 #   scripts/ios-verify.sh --ios      # skip npm test
 #   scripts/ios-verify.sh --smoke    # all MotifTests, only the UI smoke set (SMOKE_UI)
 #   scripts/ios-verify.sh --ios --smoke
@@ -54,12 +54,6 @@ scripts/fetch-nnue.sh
 # A UDID distinguishes simulators with the same name on different runtimes.
 sim=$(scripts/ios-simulator.sh)
 
-# Boot it while the app builds; booting a fresh simulator takes minutes on a CI runner.
-# `bootstatus -b` boots a shut-down device (or waits on one ios-ci has already started)
-# and returns once it's up.
-xcrun simctl bootstatus "$sim" -b >/dev/null 2>&1 &
-boot=$!
-
 # MOTIF_ONLY_TESTING (space- or comma-separated, e.g. "MotifUITests/GamesFlowTests") runs
 # just those tests, in place of the whole suite or the smoke set.
 selection=""
@@ -104,8 +98,11 @@ echo "== xcodebuild build-for-testing"
 xcb build/build.log xcodebuild build-for-testing "${common[@]}" -showBuildTimingSummary \
   ${MOTIF_XCODEBUILD_FLAGS:-} CODE_SIGNING_ALLOWED=NO
 
-echo "== waiting for '$sim' to boot"
-wait "$boot" || echo "== bootstatus exited $?; xcodebuild will boot it"
+# Booted on its own, after the build: booting alongside it starves a CI runner (ios-ci
+# tried, and every step got slower). `bootstatus -b` boots a shut-down device and returns
+# once it's up; on failure xcodebuild boots it as before.
+echo "== booting '$sim'"
+xcrun simctl bootstatus "$sim" -b >/dev/null 2>&1 || echo "== bootstatus failed; xcodebuild will boot it"
 
 echo "== xcodebuild test-without-building on '$sim'${MOTIF_POSE:+ (pose $MOTIF_POSE)}${selection:+ (smoke)}${retry:+ (up to $MOTIF_TEST_RETRIES attempts)}"
 set +e

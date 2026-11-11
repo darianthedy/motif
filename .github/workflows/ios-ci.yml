@@ -87,7 +87,7 @@ jobs:
           echo "### iOS CI: $([ "$FULL" = true ] && echo 'full suite, all legs' || echo 'quick (iphone, smoke UI set) — label the PR `full-ui` for everything')" >> "$GITHUB_STEP_SUMMARY"
 
   ios:
-    name: ios (${{ matrix.pose }}${{ needs.plan.outputs.full != 'true' && ', smoke' || '' }})
+    name: ios (${{ matrix.pose }}${{ inputs.only != '' && ', only' || needs.plan.outputs.full != 'true' && ', smoke' || '' }})
     needs: plan
     runs-on: xcode-27 # carries Xcode 27.1 and the iPhone Duo simulator (deployment target stays iOS 26.1)
     timeout-minutes: ${{ needs.plan.outputs.full == 'true' && 75 || 25 }}
@@ -114,15 +114,6 @@ jobs:
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: "27.1"
-
-      # A fresh simulator takes minutes to boot, so it starts now and boots alongside the
-      # cache restores and the build; ios-verify.sh waits for it before testing. The Duo
-      # is made fresh and booted by its pose step instead.
-      - name: Start booting the simulator
-        if: matrix.pose != 'IL'
-        run: |
-          sim=$(scripts/ios-simulator.sh)
-          nohup xcrun simctl boot "$sim" > /dev/null 2>&1 &
 
       # The Stockfish nets (~75 MB) change only with the pinned engine, so
       # they're cached on their names. ios-verify.sh runs the fetch too; this

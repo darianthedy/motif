@@ -1,29 +1,71 @@
 name: iOS CI
 
-# The PR check for the native app: builds it with Xcode 27.1 and runs MotifTests +
+# The check for the native app: builds it with Xcode 27.1 and runs MotifTests +
 # MotifUITests against the in-memory dev backend (no secrets, no signing), on three
 # destinations: an iPhone 17 (`iphone`), the iPhone Duo simulator open and wide
 # (`IL`, posed with duoctl) and an 11-inch iPad in landscape (`ipad`; the UI tests
 # turn it with XCUIDevice). See "Motif - iOS iPhone Duo Plan.md" §9. Also runs the web suite, whose fixture check fails when a TS model
 # change has left the committed iOS parity fixtures stale.
+#
+# Two depths, picked by the `plan` job:
+#   quick — pull requests: the iphone leg only, all of MotifTests plus the UI smoke set
+#           (`ios-verify.sh --smoke`), for feedback in about ten minutes.
+#   full  — pushes to main, the nightly schedule, workflow_dispatch and PRs labelled
+#           `full-ui`: every test on all three legs.
 
 on:
   pull_request:
-    paths:
+    types: [opened, synchronize, reopened, labeled]
+    paths: &ios-paths
       - "iOS/**"
       - "src/model/**"
       - "scripts/export-ios-fixtures.ts"
       - "scripts/ios-*.sh"
       - "scripts/fetch-nnue.sh"
       - ".github/workflows/ios-ci.yml"
+  push:
+    branches: [main]
+    paths: *ios-paths
+  schedule:
+    - cron: "17 3 * * *" # nightly, 03:17 UTC, on main
   workflow_dispatch:
 
+# A PR's newer run replaces its older one. Adding some other label to a PR gets a
+# group of its own, so it can't cancel the running check (its jobs are skipped).
+# main's runs (push, nightly) are never cancelled.
 concurrency:
-  group: ios-ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ios-ci-${{ github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'full-ui' && format('-{0}', github.run_id) || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  plan:
+    # A label event re-runs the check only when it's `full-ui` being added.
+    if: github.event.action != 'labeled' || github.event.label.name == 'full-ui'
+    runs-on: ubuntu-latest
+    outputs:
+      full: ${{ steps.plan.outputs.full }}
+      legs: ${{ steps.plan.outputs.legs }}
+    steps:
+      - id: plan
+        env:
+          FULL: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ui') }}
+        run: |
+          # An iPhone 17 on an iOS 26.x runtime when the image has one, so the 26.1
+          # fallbacks run; otherwise on the SDK's own runtime. The step log says which.
+          iphone='{"pose":"iphone","sim":"iPhone 17","runtime":"26"}'
+          # The capture script's own Duo, made fresh and posed open + landscape.
+          duo='{"pose":"IL","sim":"Motif Duo Capture","runtime":""}'
+          # An 11-inch iPad (834 × 1194 class, §3 PD), matched by name prefix so the
+          # chip suffix of the image's model ("(M5)" …) doesn't matter. FlowTestCase
+          # turns it to landscape before each launch (MOTIF_POSE=ipad).
+          ipad='{"pose":"ipad","sim":"iPad Pro 11-inch","runtime":""}'
+          if [ "$FULL" = true ]; then legs="[$iphone,$duo,$ipad]"; else legs="[$iphone]"; fi
+          echo "full=$FULL" >> "$GITHUB_OUTPUT"
+          echo "legs=$legs" >> "$GITHUB_OUTPUT"
+          echo "### iOS CI: $([ "$FULL" = true ] && echo 'full suite, all legs' || echo 'quick (iphone, smoke UI set) — label the PR `full-ui` for everything')" >> "$GITHUB_STEP_SUMMARY"
+
   web:
+    needs: plan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -37,28 +79,14 @@ jobs:
       - run: npm test
 
   ios:
-    name: ios (${{ matrix.pose }})
+    name: ios (${{ matrix.pose }}${{ needs.plan.outputs.full != 'true' && ', smoke' || '' }})
+    needs: plan
     runs-on: xcode-27 # carries Xcode 27.1 and the iPhone Duo simulator (deployment target stays iOS 26.1)
-    timeout-minutes: 60
+    timeout-minutes: ${{ needs.plan.outputs.full == 'true' && 75 || 25 }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # An iPhone 17 on an iOS 26.x runtime when the image has one, so the 26.1
-          # fallbacks run; otherwise on the SDK's own runtime. The step log says which.
-          - pose: iphone
-            sim: iPhone 17
-            runtime: "26"
-          # The capture script's own Duo, made fresh and posed open + landscape.
-          - pose: IL
-            sim: Motif Duo Capture
-            runtime: ""
-          # An 11-inch iPad (834 × 1194 class, §3 PD), matched by name prefix so the
-          # chip suffix of the image's model ("(M5)" …) doesn't matter. FlowTestCase
-          # turns it to landscape before each launch (MOTIF_POSE=ipad).
-          - pose: ipad
-            sim: iPad Pro 11-inch
-            runtime: ""
+        include: ${{ fromJSON(needs.plan.outputs.legs) }}
     steps:
       - uses: actions/checkout@v7
 
@@ -97,7 +125,8 @@ jobs:
           MOTIF_SIM: ${{ matrix.sim }}
           MOTIF_RUNTIME: ${{ matrix.runtime }}
           MOTIF_POSE: ${{ matrix.pose }}
-        run: scripts/ios-verify.sh --ios
+          SMOKE: ${{ needs.plan.outputs.full != 'true' && '--smoke' || '' }}
+        run: scripts/ios-verify.sh --ios $SMOKE
 
       - name: Upload test results
         if: failure()

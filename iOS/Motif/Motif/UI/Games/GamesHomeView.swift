@@ -3,7 +3,6 @@ import SwiftUI
 enum GamesRoute: Hashable { case collection(String), game(String, String) }
 struct GamesHomeView: View {
     @Environment(AppState.self) private var app
-    @State private var create = false
     @State private var name = ""
     @State private var renaming: GameCollection?
     @State private var deleting: GameCollection?
@@ -31,16 +30,6 @@ struct GamesHomeView: View {
             ToolbarSpacer(.fixed, placement: .topBarTrailing)
             ToolbarItem(placement: .topBarTrailing) { AccountButton() }
         }
-        .alert("New Collection", isPresented: $create) {
-            TextField("Name", text: $name).accessibilityIdentifier("game-collection-name")
-            Button("Create") {
-                let chosen = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !chosen.isEmpty else { return }
-                let collection = GameCollection(id: newID(), name: chosen, createdAt: epochMilliseconds())
-                Task { if await app.edit({ try await $0.createGameCollections([collection]) }) { app.openGames([.collection(collection.id)]) } }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: { Text("Games can be imported as PGN or played in on the board.") }
         .alert("Rename the collection", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } }), presenting: renaming) { collection in
             TextField("Name", text: $name)
             Button("Save") {
@@ -54,7 +43,7 @@ struct GamesHomeView: View {
         guard let library = app.store.library, !library.gameCollections.isEmpty else { return "" }
         return "\(countLabel(library.games.count, "game")) in \(countLabel(library.gameCollections.count, "collection"))"
     }
-    private func startCreating() { name = ""; create = true }
+    private func startCreating() { app.creatingGameCollection = true }
     private func collections(_ library: Library) -> some View {
         ForEach(gameCollectionsOf(library), id: \.id) { collection in
             NavigationLink(value: collection.id) {
@@ -90,5 +79,27 @@ private struct GameCollectionRow: View {
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// The New Collection alert for the Games tab. It sits on the split view, not in a column, so
+/// the sidebar's + and the detail column's empty state (open tall) both reach it.
+struct NewGameCollectionAlert: ViewModifier {
+    @Environment(AppState.self) private var app
+    @State private var name = ""
+    func body(content: Content) -> some View {
+        @Bindable var app = app
+        content
+            .alert("New Collection", isPresented: $app.creatingGameCollection) {
+                TextField("Name", text: $name).accessibilityIdentifier("game-collection-name")
+                Button("Create") {
+                    let chosen = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !chosen.isEmpty else { return }
+                    let collection = GameCollection(id: newID(), name: chosen, createdAt: epochMilliseconds())
+                    Task { if await app.edit({ try await $0.createGameCollections([collection]) }) { app.openGames([.collection(collection.id)]) } }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: { Text("Games can be imported as PGN or played in on the board.") }
+            .onChange(of: app.creatingGameCollection) { _, asked in if asked { name = "" } }
     }
 }

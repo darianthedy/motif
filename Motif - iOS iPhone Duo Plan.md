@@ -1188,6 +1188,15 @@ and anything deferred to a later slice or a follow-up PR.
     detail's Solve in Order rather than a sidebar row.
   - *S05a on FB and FT:* the host shot failed for over a minute on that state only. The suite now asks
     twice (130 s each) and each host try is cut off at 40 s.
+- **Third and fourth capture runs** ([42993332961](https://github.com/darianthedy/motif/actions/runs/42993332961),
+  [43014506475](https://github.com/darianthedy/motif/actions/runs/43014506475) after #61 turned animations off for
+  UI-test launches): O, IL, FB and the iPhone green. On IP the sidebar never showed when asked for at launch:
+  the slide-over sidebar open tall appears reliably only when the user (or an animated change) brings it in, so
+  S04d and S11b were blank and the two `-sidebar` frames showed the detail. Setting `.all` at launch is dropped.
+  Instead, open tall with an empty library, the detail column shows the home's empty state and its action (Import
+  Puzzles, New Collection), so nothing depends on the sidebar showing. The Games New Collection alert moved from
+  the sidebar to the split view so both buttons reach it. The `-sidebar` frames tap the split view's own sidebar
+  button, as a user does. Decision 16 is unchanged.
 
 ## 9. Implementation slices
 

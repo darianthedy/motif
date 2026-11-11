@@ -187,6 +187,11 @@ import XCTest
     private func menuItem(_ title: String) -> XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", title)).firstMatch
     }
+    /// The split view's own sidebar button, as a user opens the home list over the detail.
+    private func showSidebar() {
+        let toggle = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar' OR identifier CONTAINS[c] 'sidebar'")).firstMatch
+        tapIf(toggle)
+    }
     private func swipeRow(_ id: String) { let row = any(id); if present(row) { row.swipeLeft() } }
     private func pressRow(_ id: String) { let row = any(id); if present(row) { row.press(forDuration: 1.2) } }
     private func hold(_ element: XCUIElement, _ seconds: TimeInterval = 1.2) { if present(element) { element.press(forDuration: seconds) } }
@@ -240,7 +245,7 @@ import XCTest
         shot("S04i") { pressRow(row); item("Rename…"); wait(app.alerts.firstMatch) }
         shot("S04j") { swipeRow(row); item("Delete"); wait(app.buttons["Delete Collection"]) }
         // Decision 16: on IP the detail takes the width; the sidebar button slides the home list over it.
-        if pose == "IP" { shot("S04a-sidebar", fixture: "seed=progress,sidebar") { wait(button("resume-random")) } }
+        if pose == "IP" { shot("S04a-sidebar", fixture: "seed=progress") { showSidebar(); wait(button("resume-random")) } }
     }
     func testS05ImportPuzzles() {
         let ready = { self.wait(self.app.textViews["puzzle-import-text"]) }
@@ -341,7 +346,7 @@ import XCTest
         shot("S11g", "games") { pressRow(row); item("Rename…"); wait(app.alerts.firstMatch) }
         shot("S11h", "games") { swipeRow(row); item("Delete"); wait(app.buttons["Delete Collection"]) }
         shot("S11i", "games", offline: true) { wait(any(row)) }
-        if pose == "IP" { shot("S11a-sidebar", "games", fixture: "seed=games,sidebar") { wait(any(row)) } }
+        if pose == "IP" { shot("S11a-sidebar", "games", fixture: "seed=games") { showSidebar(); wait(any(row)) } }
     }
     func testS12GameCollection() {
         let games = "seed=games", ready = { self.wait(self.any("game-row-sample-game")) }

@@ -83,10 +83,14 @@ import XCTest
         if let dir = environment["MOTIF_CAPTURE_DIR"], !dir.isEmpty {
             let files = FileManager.default, shot = dir + "/" + id + ".png", request = dir + "/request"
             try? files.removeItem(atPath: shot)
-            try? id.write(toFile: request, atomically: true, encoding: .utf8)
-            let deadline = Date().addingTimeInterval(90)
-            while !files.fileExists(atPath: shot), Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
-            if files.fileExists(atPath: shot) { return }
+            // Two rounds: a shot can fail on the host for a while (S05a on FB and FT), and the
+            // state is still on screen, so a late shot from the first round is still right.
+            for _ in 1...2 {
+                try? id.write(toFile: request, atomically: true, encoding: .utf8)
+                let deadline = Date().addingTimeInterval(130)
+                while !files.fileExists(atPath: shot), Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
+                if files.fileExists(atPath: shot) { return }
+            }
             try? files.removeItem(atPath: request)
             files.createFile(atPath: dir + "/abandoned-" + id, contents: nil)
             XCTFail("The host didn't capture \(id)")
@@ -448,7 +452,8 @@ import XCTest
     /// The banners on three hosts: a list, the session and the Analysis view.
     func testS17Banners() {
         let hosts: [(String, String?, () -> Void)] = [
-            ("S04", nil, { self.wait(self.any("collection-sample-back-rank")) }),
+            // Open tall the selected collection shows alone (decision 16), so the detail is what loads.
+            ("S04", nil, { self.wait(self.tall ? self.button("solve-ordered") : self.any("collection-sample-back-rank")) }),
             ("S09", "session:all", { self.wait(self.square("a1")) }),
             ("S15", "game:sample", { self.wait(self.square("e2")) }),
         ]

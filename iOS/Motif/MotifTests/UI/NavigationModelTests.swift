@@ -70,6 +70,8 @@ import SwiftUI
         app.openGames([.collection("g1")]); XCTAssertEqual(app.gamesColumns.visibility, .all)
         app.setOpenTall(true); XCTAssertEqual(app.gamesColumns.visibility, .detailOnly)
         app.openGames([]); XCTAssertEqual(app.gamesColumns.visibility, .all)
+        app.gamesColumns.visibility = .detailOnly
+        XCTAssertEqual(app.gamesColumns.visibility, .all, "Open tall with nothing selected, the sidebar stays")
     }
     func testTheSidebarShowsUntilABoardHidesIt() {
         let app = makeApp()

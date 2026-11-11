@@ -181,7 +181,13 @@ struct TabColumns: Equatable {
     /// The sidebar shows until a board hides it (decision 16: with nothing selected the sidebar
     /// shows). Not `.automatic`: on IL and the iPad that resolved to detail only at launch and
     /// after a sheet or alert, leaving the home list (and its toolbar) off screen.
-    var visibility = NavigationSplitViewVisibility.all
+    var visibility = NavigationSplitViewVisibility.all {
+        // Open tall with nothing selected the detail is blank, so the sidebar stays: the
+        // split view hid it on its own at launch on IP (S04d, S11b in the second capture run).
+        didSet { if tall, !selected, beforeBoard == nil, visibility != .all { visibility = .all } }
+    }
+    /// Whether the tab has a collection selected, as last told to `settle`.
+    private(set) var selected = false
     /// What `visibility` was when a board was pushed; nil while no board is shown.
     private(set) var beforeBoard: NavigationSplitViewVisibility?
     mutating func follow(board: Bool) {
@@ -199,6 +205,7 @@ struct TabColumns: Equatable {
     /// with nothing selected, or two columns wide (IL, FB, iPad landscape), it shows.
     mutating func settle(tall: Bool? = nil, selected: Bool) {
         if let tall { self.tall = tall }
+        self.selected = selected
         #if DEBUG
         if sidebarPinned { return }
         #endif

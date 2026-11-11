@@ -152,10 +152,10 @@ capture)
     while true; do
       if [ -f "$abs/request" ]; then
         id=$(cat "$abs/request"); rm -f "$abs/request"
-        # A shot can hang (S01a, S01d, S05a waited out the suite's 90 s with no image), so
-        # each try is cut off at 25 s: three tries still land inside the suite's wait.
+        # A shot can hang or fail for a while (S01a, S01d, S05a), so each try is cut off at
+        # 40 s; the suite waits 130 s per request and asks twice before giving up.
         for try in 1 2 3; do
-          sim="${sim:-}" perl -e 'alarm shift; exec @ARGV' 25 bash -c "$(declare -f shoot); shoot \"\$1\"" _ "$abs/$id.tmp.png" >/dev/null 2>&1 && break
+          sim="${sim:-}" perl -e 'alarm shift; exec @ARGV' 40 bash -c "$(declare -f shoot); shoot \"\$1\"" _ "$abs/$id.tmp.png" >/dev/null 2>&1 && break
           echo "shot $id: try $try failed or timed out" >&2
           rm -f "$abs/$id.tmp.png"; sleep 1
         done

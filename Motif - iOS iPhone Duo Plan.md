@@ -1180,6 +1180,14 @@ and anything deferred to a later slice or a follow-up PR.
     columns otherwise; a board still hides the sidebar.
   - *Black frames* (S01a, S01d, S05a): `duoctl screenshot` hung past the suite's 90 s wait. Each host try
     is now cut off at 25 s.
+- **Second capture run** ([42959479207](https://github.com/darianthedy/motif/actions/runs/42959479207), `d576942`):
+  the iPhone is green and the offline session states are reached everywhere. Fixed in `duo-capture-followups-2`:
+  - *S04d, S11b on IP:* with nothing selected the split view hid the sidebar on its own at launch, leaving a
+    blank detail. Open tall with nothing selected, `TabColumns` now keeps the sidebar shown.
+  - *S17c-S04 on IP:* the selected collection shows alone there (decision 16), so the host waits for the
+    detail's Solve in Order rather than a sidebar row.
+  - *S05a on FB and FT:* the host shot failed for over a minute on that state only. The suite now asks
+    twice (130 s each) and each host try is cut off at 40 s.
 
 ## 9. Implementation slices
 

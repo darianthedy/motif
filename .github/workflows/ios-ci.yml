@@ -160,8 +160,7 @@ jobs:
           brew install skarol/tap/duoctl
           scripts/ios-duo-capture.sh pose ${{ matrix.pose }}
 
-      # The same script the Mac used for every slice: build-for-testing, then
-      # test-without-building, each with its own timings in the log.
+      # The same script the Mac used for every slice.
       - name: Build and test on a simulator
         env:
           MOTIF_TEST_RETRIES: 2

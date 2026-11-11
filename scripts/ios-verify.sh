@@ -3,7 +3,7 @@
 # Mac mode's definition of "builds": the web suite, then the iOS unit and UI tests on
 # an iPhone simulator. Exit 0 only when both pass. See "Motif - iOS Mac Mode.md".
 #
-#   scripts/ios-verify.sh            # npm test + xcodebuild build-for-testing, boot, test-without-building
+#   scripts/ios-verify.sh            # npm test + xcodebuild test
 #   scripts/ios-verify.sh --ios      # skip npm test
 #   scripts/ios-verify.sh --smoke    # all MotifTests, only the UI smoke set (SMOKE_UI)
 #   scripts/ios-verify.sh --ios --smoke
@@ -78,7 +78,7 @@ export TEST_RUNNER_MOTIF_POSE="${MOTIF_POSE:-}"
 mkdir -p build
 common=(-project "$PROJECT" -scheme "$SCHEME" -destination "platform=iOS Simulator,id=$sim" -derivedDataPath build/DerivedData)
 
-# Run an xcodebuild through xcbeautify (or a grep filter), teeing the filtered lines to $1.
+# Run xcodebuild through xcbeautify (or a grep filter), teeing the filtered lines to $1.
 # The filter must not decide the result, so the status is xcodebuild's own.
 xcb() {
   log=$1; shift
@@ -93,20 +93,11 @@ xcb() {
   return "$status"
 }
 
-# Built and tested in two steps, so the log shows how long each takes.
-echo "== xcodebuild build-for-testing"
-xcb build/build.log xcodebuild build-for-testing "${common[@]}" -showBuildTimingSummary \
-  ${MOTIF_XCODEBUILD_FLAGS:-} CODE_SIGNING_ALLOWED=NO
-
-# Booted on its own, after the build: booting alongside it starves a CI runner (ios-ci
-# tried, and every step got slower). `bootstatus -b` boots a shut-down device and returns
-# once it's up; on failure xcodebuild boots it as before.
-echo "== booting '$sim'"
-xcrun simctl bootstatus "$sim" -b >/dev/null 2>&1 || echo "== bootstatus failed; xcodebuild will boot it"
-
-echo "== xcodebuild test-without-building on '$sim'${MOTIF_POSE:+ (pose $MOTIF_POSE)}${selection:+ (smoke)}${retry:+ (up to $MOTIF_TEST_RETRIES attempts)}"
+# One `xcodebuild test`, as before: run as build-for-testing, a simulator boot and
+# test-without-building, ios-ci took 2-4 minutes longer to reach the first test.
+echo "== xcodebuild test on '$sim'${MOTIF_POSE:+ (pose $MOTIF_POSE)}${selection:+ (smoke)}${retry:+ (up to $MOTIF_TEST_RETRIES attempts)}"
 set +e
-xcb build/test.log xcodebuild test-without-building "${common[@]}" $selection $retry \
+xcb build/test.log xcodebuild test "${common[@]}" $selection $retry \
   ${MOTIF_XCODEBUILD_FLAGS:-} CODE_SIGNING_ALLOWED=NO
 status=$?
 set -e

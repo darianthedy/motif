@@ -22,6 +22,11 @@ final class LibraryStore {
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var backend: (any Backend)?
     @ObservationIgnored private var generation = 0
+    /// Bumped whenever play is added to the outbox or uploaded from it. A refresh whose
+    /// server copy and outbox read straddle such a change reloads, so a run started during
+    /// the first sync isn't dropped from both (it would vanish until the next refresh, and
+    /// for good while offline: the session closed as soon as it opened).
+    @ObservationIgnored private var outboxChanges = 0
 
     init(account: any Account, cache: Cache = Cache(), outbox: Outbox = Outbox(),
          defaults: UserDefaults = .standard, online: Bool = true) {
@@ -70,6 +75,7 @@ final class LibraryStore {
         guard let user, let backend, online else { return }
         let version = generation
         let result = try await outbox.flush(user.id, backend)
+        if result.uploaded.count > 0 { outboxChanges += 1 }
         guard version == generation else { return }
         base = base.map { overlay($0, result.uploaded) }
         outboxRecords = result.outbox
@@ -80,11 +86,16 @@ final class LibraryStore {
         status = .syncing
         do {
             try await flush()
-            let fresh = try await backend.load()
-            guard version == generation else { return }
+            var fresh: Library, pending: OutboxRecords, tries = 0
+            repeat {
+                let changes = outboxChanges; tries += 1
+                fresh = try await backend.load()
+                guard version == generation else { return }
+                pending = try await outbox.read(user.id)
+                guard version == generation else { return }
+                if changes == outboxChanges { break }
+            } while tries < 3
             try await cache.save(user.id, fresh)
-            let pending = try await outbox.read(user.id)
-            guard version == generation else { return }
             base = fresh; outboxRecords = pending; status = .idle
         } catch { if version == generation { status = .error(error.localizedDescription) } }
     }
@@ -103,7 +114,9 @@ final class LibraryStore {
         guard let user else { return }
         let version = generation
         outboxRecords.runs += added.runs; outboxRecords.attempts += added.attempts
+        outboxChanges += 1
         try await outbox.add(user.id, added)
+        outboxChanges += 1
         guard version == generation else { return }
         do { try await flush() }
         catch { status = .error(error.localizedDescription) }

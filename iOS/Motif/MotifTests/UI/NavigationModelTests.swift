@@ -55,6 +55,22 @@ import SwiftUI
     }
     /// Decision 16: with nothing selected the sidebar shows. `.automatic` left it hidden on IL and
     /// the iPad, at launch and after a sheet or an alert.
+    /// Decision 16, open tall (IP, FT, iPad portrait): a selected collection rests detail only,
+    /// nothing selected shows the sidebar, a board still hides it, and going wide shows it again.
+    func testOpenTallShowsTheDetailAloneOnceACollectionIsSelected() {
+        let app = makeApp()
+        app.setOpenTall(true)
+        XCTAssertEqual(app.puzzlesColumns.visibility, .all, "Nothing selected: the sidebar shows")
+        app.openPuzzles([.collection("c1")]); XCTAssertEqual(app.puzzlesColumns.visibility, .detailOnly)
+        app.puzzlesColumns.visibility = .all   // the sidebar button slides it over the detail
+        app.puzzlesSelection = "c2"; XCTAssertEqual(app.puzzlesColumns.visibility, .detailOnly, "Picking a collection closes the overlay")
+        app.puzzlesPath = [.puzzles("c2"), .puzzle("c2", "p1")]; XCTAssertEqual(app.puzzlesColumns.visibility, .detailOnly)
+        app.setOpenTall(false); app.puzzlesPath = []
+        XCTAssertEqual(app.puzzlesColumns.visibility, .all, "Wide again: two columns once the board is popped")
+        app.openGames([.collection("g1")]); XCTAssertEqual(app.gamesColumns.visibility, .all)
+        app.setOpenTall(true); XCTAssertEqual(app.gamesColumns.visibility, .detailOnly)
+        app.openGames([]); XCTAssertEqual(app.gamesColumns.visibility, .all)
+    }
     func testTheSidebarShowsUntilABoardHidesIt() {
         let app = makeApp()
         XCTAssertEqual(app.puzzlesColumns.visibility, .all); XCTAssertEqual(app.gamesColumns.visibility, .all)

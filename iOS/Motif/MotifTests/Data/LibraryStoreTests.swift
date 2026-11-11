@@ -44,6 +44,23 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertTrue(events[..<reset].contains("save")); XCTAssertTrue(events[..<reset].contains("attempts"))
         await store.refresh(); XCTAssertEqual(store.library?.attempts, [])
     }
+    /// A run started while a refresh is loading is uploaded by its own flush before the
+    /// refresh reads the outbox, so the stale server copy and the outbox both missed it. Going
+    /// offline then kept it lost: an offline session route closed as soon as it opened.
+    func testARunStartedDuringARefreshSurvivesIt() async throws {
+        let storage = testStorage(), gate = LoadGate(), backend = LoggingBackend(gate: gate)
+        let store = LibraryStore(account: TestAccount(User(id: "u", email: "e"), backend), cache: Cache(storage: storage),
+                                 outbox: Outbox(storage: storage), defaults: try defaults())
+        await store.open()
+        await gate.arm()
+        let refreshing = Task { await store.refresh() }
+        await gate.waitUntilHeld()
+        let run = testDataRun()
+        try await store.startRun(run)
+        await gate.release(); await refreshing.value
+        store.online = false
+        XCTAssertEqual(store.library?.runs.map(\.id), [run.id])
+    }
     func testOfflineNewDeviceDoesNotFlashAnEmptyLibrary() async throws {
         let store = LibraryStore(account: TestAccount(nil, MemoryBackend()), cache: Cache(storage: testStorage()),
                                  outbox: Outbox(storage: testStorage()), defaults: try defaults(), online: false)

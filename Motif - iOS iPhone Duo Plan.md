@@ -1166,6 +1166,20 @@ and anything deferred to a later slice or a follow-up PR.
   iPhone's short column replaces the move list, so the two GamesFlowTests that read it never found `move-1`; they
   launch with the `defaults` fixture, which only resets the Analysis toggles. Every action after opening the
   Game ⋯ menu still waits 60 s for "animations complete" (also on the green run before), a device check.
+- **First D09 capture run** ([42844093870](https://github.com/darianthedy/motif/actions/runs/42844093870),
+  `main` at `06b359b`, 2026-11-10): FB green; 10 states unreached across O, IL, IP, FT and the iPhone. Fixed
+  in `duo-capture-followups`:
+  - *Offline session routes* (S09o, S17a/b-S09, S10f): a real race. A run started while the launch refresh was
+    loading was uploaded by its own flush before the refresh read the outbox, so the stale server copy and
+    the outbox both missed it. Offline nothing refreshed again, and the session closed as it opened.
+    `LibraryStore.refresh` now reloads when the outbox changed during its load (a `LibraryStoreTests` case
+    holds the load to reproduce it).
+  - *Open tall* (decision 16): fix loop 1 had made the sidebar always shown, so on IP it overlaid the
+    selected collection, and S12i's Move tap only dismissed the overlay. `TabColumns.settle` now rests at
+    detail only when open tall (regular width, taller than wide) with a collection selected, and at both
+    columns otherwise; a board still hides the sidebar.
+  - *Black frames* (S01a, S01d, S05a): `duoctl screenshot` hung past the suite's 90 s wait. Each host try
+    is now cut off at 25 s.
 
 ## 9. Implementation slices
 

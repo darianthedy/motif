@@ -19,12 +19,12 @@ final class AppState {
     // All of it lives here rather than in the views, so folding (a size-class
     // change that collapses or expands the split view) never loses it.
     /// The puzzle collection shown in the Puzzles detail column; nil shows the home list alone.
-    var puzzlesCollection: String?
+    var puzzlesCollection: String? { didSet { if oldValue != puzzlesCollection { puzzlesColumns.settle(selected: puzzlesCollection != nil) } } }
     /// Pushed on top of `puzzlesCollection` (the puzzle list, a puzzle).
     var puzzlesPath: [PuzzleRoute] = [] { didSet { puzzlesColumns.follow(board: puzzlesPath.contains(where: \.isBoard)) } }
     var puzzlesColumns = TabColumns()
     /// The game collection shown in the Games detail column.
-    var gamesCollection: String?
+    var gamesCollection: String? { didSet { if oldValue != gamesCollection { gamesColumns.settle(selected: gamesCollection != nil) } } }
     /// Pushed on top of `gamesCollection` (a game's Analysis view).
     var gamesPath: [GamesRoute] = [] { didSet { gamesColumns.follow(board: gamesPath.contains(where: \.isBoard)) } }
     var gamesColumns = TabColumns()
@@ -90,6 +90,12 @@ final class AppState {
     /// Opens a full route, as callers and launch routes give it (`[.collection(id), .puzzles(id), .puzzle(…)]`):
     /// a leading `.collection` becomes the sidebar selection and the rest the detail path. A route
     /// without one is pushed on the current selection; an empty route clears both.
+    /// The window is open tall (regular width, taller than wide), or stopped being: decision 16.
+    func setOpenTall(_ tall: Bool) {
+        guard tall != puzzlesColumns.tall || tall != gamesColumns.tall else { return }
+        puzzlesColumns.settle(tall: tall, selected: puzzlesCollection != nil)
+        gamesColumns.settle(tall: tall, selected: gamesCollection != nil)
+    }
     func openPuzzles(_ route: [PuzzleRoute]) {
         if route.isEmpty { puzzlesCollection = nil; puzzlesPath = [] }
         else if case .collection(let id) = route[0] { puzzlesCollection = id; puzzlesPath = Array(route.dropFirst()) }
@@ -181,6 +187,23 @@ struct TabColumns: Equatable {
     mutating func follow(board: Bool) {
         if board, beforeBoard == nil { beforeBoard = visibility; visibility = .detailOnly }
         else if !board, let previous = beforeBoard { visibility = previous; beforeBoard = nil }
+    }
+    /// Open tall: regular width and taller than wide (IP, FT, an iPad in portrait).
+    private(set) var tall = false
+    #if DEBUG
+    /// The `sidebar` capture fixture: the sidebar stays shown whatever the pose (S04a-sidebar).
+    var sidebarPinned = false
+    #endif
+    /// Where the sidebar rests with no board pushed. Decision 16: open tall, a selected
+    /// collection shows the detail alone, and the sidebar slides over it from its button;
+    /// with nothing selected, or two columns wide (IL, FB, iPad landscape), it shows.
+    mutating func settle(tall: Bool? = nil, selected: Bool) {
+        if let tall { self.tall = tall }
+        #if DEBUG
+        if sidebarPinned { return }
+        #endif
+        let rest: NavigationSplitViewVisibility = self.tall && selected ? .detailOnly : .all
+        if beforeBoard != nil { beforeBoard = rest } else { visibility = rest }
     }
 }
 extension PuzzleRoute { var isBoard: Bool { if case .puzzle = self { return true }; return false } }

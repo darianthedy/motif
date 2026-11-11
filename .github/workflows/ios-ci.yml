@@ -4,15 +4,20 @@ name: iOS CI
 # MotifUITests against the in-memory dev backend (no secrets, no signing), on three
 # destinations: an iPhone 17 (`iphone`), the iPhone Duo simulator open and wide
 # (`IL`, posed with duoctl) and an 11-inch iPad in landscape (`ipad`; the UI tests
-# turn it with XCUIDevice). See "Motif - iOS iPhone Duo Plan.md" §9. Also runs the web suite, whose fixture check fails when a TS model
-# change has left the committed iOS parity fixtures stale.
+# turn it with XCUIDevice). See "Motif - iOS iPhone Duo Plan.md" §9. The web suite, whose
+# fixture check fails when a TS model change has left the committed iOS parity fixtures
+# stale, runs on every PR in web-ci.yml.
 #
 # Two depths, picked by the `plan` job:
 #   quick — pull requests: the iphone leg only, all of MotifTests plus the UI smoke set
 #           (`ios-verify.sh --smoke`), for feedback in about ten minutes.
 #   full  — the nightly schedule, workflow_dispatch and PRs labelled `full-ui`:
 #           every test on all three legs. Merges to main don't run the iOS check.
-#           (workflow_dispatch can ask for the quick one with its `smoke` input.)
+#           (workflow_dispatch can ask for the quick one with its `smoke` input, for
+#           named tests only with `only`, and keep the xcresult with `keep_results`.)
+#
+# A failing test gets a second attempt (MOTIF_TEST_RETRIES), so one flaky UI test doesn't
+# cost a re-run; a test that passed only on its retry shows as a warning on the run.
 #
 # Build caching, since every job starts on a fresh Mac: the Swift packages are cached
 # on Package.resolved; the build products and Xcode's compilation cache (content
@@ -36,6 +41,14 @@ on:
     inputs:
       smoke:
         description: "Quick check only (iphone leg, smoke UI set), as on a PR"
+        type: boolean
+        default: false
+      only:
+        description: "Run only these tests (comma-separated, e.g. MotifUITests/GamesFlowTests/testBulkDeleteFromTheToolbarItem)"
+        type: string
+        default: ""
+      keep_results:
+        description: "Upload the xcresult even when the tests pass"
         type: boolean
         default: false
 
@@ -73,20 +86,6 @@ jobs:
           echo "legs=$legs" >> "$GITHUB_OUTPUT"
           echo "### iOS CI: $([ "$FULL" = true ] && echo 'full suite, all legs' || echo 'quick (iphone, smoke UI set) — label the PR `full-ui` for everything')" >> "$GITHUB_STEP_SUMMARY"
 
-  web:
-    needs: plan
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-
-      - run: npm ci
-      - run: npm test
-
   ios:
     name: ios (${{ matrix.pose }}${{ needs.plan.outputs.full != 'true' && ', smoke' || '' }})
     needs: plan
@@ -96,6 +95,13 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(needs.plan.outputs.legs) }}
+    # MOTIF_SIM picks the device by name on the selected Xcode's runtimes (MOTIF_RUNTIME
+    # preferred), so a renamed runtime on the runner image doesn't break the check;
+    # MOTIF_POSE reaches the tests.
+    env:
+      MOTIF_SIM: ${{ matrix.sim }}
+      MOTIF_RUNTIME: ${{ matrix.runtime }}
+      MOTIF_POSE: ${{ matrix.pose }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -108,6 +114,15 @@ jobs:
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: "27.1"
+
+      # A fresh simulator takes minutes to boot, so it starts now and boots alongside the
+      # cache restores and the build; ios-verify.sh waits for it before testing. The Duo
+      # is made fresh and booted by its pose step instead.
+      - name: Start booting the simulator
+        if: matrix.pose != 'IL'
+        run: |
+          sim=$(scripts/ios-simulator.sh)
+          nohup xcrun simctl boot "$sim" > /dev/null 2>&1 &
 
       # The Stockfish nets (~75 MB) change only with the pinned engine, so
       # they're cached on their names. ios-verify.sh runs the fetch too; this
@@ -154,14 +169,12 @@ jobs:
           brew install skarol/tap/duoctl
           scripts/ios-duo-capture.sh pose ${{ matrix.pose }}
 
-      # The same script the Mac used for every slice. MOTIF_SIM picks the device by
-      # name on the selected Xcode's runtimes (MOTIF_RUNTIME preferred), so a renamed
-      # runtime on the runner image doesn't break the check; MOTIF_POSE reaches the tests.
+      # The same script the Mac used for every slice: build-for-testing, then
+      # test-without-building, each with its own timings in the log.
       - name: Build and test on a simulator
         env:
-          MOTIF_SIM: ${{ matrix.sim }}
-          MOTIF_RUNTIME: ${{ matrix.runtime }}
-          MOTIF_POSE: ${{ matrix.pose }}
+          MOTIF_TEST_RETRIES: 2
+          MOTIF_ONLY_TESTING: ${{ inputs.only }}
           SMOKE: ${{ needs.plan.outputs.full != 'true' && '--smoke' || '' }}
           MOTIF_XCODEBUILD_FLAGS: -disableAutomaticPackageResolution COMPILATION_CACHE_ENABLE_CACHING=YES
         run: scripts/ios-verify.sh --ios $SMOKE
@@ -180,7 +193,7 @@ jobs:
           key: dd-xcode27.1-${{ github.sha }}
 
       - name: Upload test results
-        if: failure()
+        if: failure() || (!cancelled() && inputs.keep_results)
         uses: actions/upload-artifact@v4
         with:
           name: Motif-xcresult-${{ matrix.pose }}

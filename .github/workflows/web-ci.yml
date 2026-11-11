@@ -1,0 +1,39 @@
+name: Web CI
+
+# The PR check for the web app: what the Pages deploy runs before it publishes (unit
+# tests and the browser e2e check), plus the type-check and build, so a PR finds out
+# before its merge does. Every PR runs it, iOS ones too: the unit suite's fixture check
+# fails when a TS model change has left the committed iOS parity fixtures stale.
+# A couple of minutes on Ubuntu; doc-only changes skip it.
+
+on:
+  pull_request:
+    paths-ignore:
+      - "**/*.md"
+  workflow_dispatch:
+
+concurrency:
+  group: web-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+
+      # Without VITE_NEON_BASE_URL the app builds with the dev stand-in for the database,
+      # which is all a check needs: tsc -b and the bundle either hold or they don't.
+      - run: npm run build
+
+      - run: npx playwright install --with-deps chromium
+      - run: npm run check:e2e

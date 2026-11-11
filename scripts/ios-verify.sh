@@ -3,7 +3,7 @@
 # Mac mode's definition of "builds": the web suite, then the iOS unit and UI tests on
 # an iPhone simulator. Exit 0 only when both pass. See "Motif - iOS Mac Mode.md".
 #
-#   scripts/ios-verify.sh            # npm test + xcodebuild test
+#   scripts/ios-verify.sh            # npm test + xcodebuild build-for-testing, test-without-building
 #   scripts/ios-verify.sh --ios      # skip npm test
 #   scripts/ios-verify.sh --smoke    # all MotifTests, only the UI smoke set (SMOKE_UI)
 #   scripts/ios-verify.sh --ios --smoke
@@ -15,6 +15,7 @@
 # major version to prefer (see ios-simulator.sh); the default is the first
 # available iPhone. MOTIF_POSE (iphone, IL, ipad…) reaches the tests as MOTIF_POSE, for
 # UI tests that only hold in one pose. ios-ci sets all three per destination.
+# MOTIF_TEST_RETRIES and MOTIF_ONLY_TESTING are described where they're read.
 # MOTIF_XCODEBUILD_FLAGS adds extra xcodebuild options or build settings, unquoted
 # (ios-ci turns on compilation caching and skips package re-resolution with it).
 #
@@ -53,28 +54,75 @@ scripts/fetch-nnue.sh
 # A UDID distinguishes simulators with the same name on different runtimes.
 sim=$(scripts/ios-simulator.sh)
 
+# Boot it while the app builds; booting a fresh simulator takes minutes on a CI runner.
+# `bootstatus -b` boots a shut-down device (or waits on one ios-ci has already started)
+# and returns once it's up.
+xcrun simctl bootstatus "$sim" -b >/dev/null 2>&1 &
+boot=$!
+
+# MOTIF_ONLY_TESTING (space- or comma-separated, e.g. "MotifUITests/GamesFlowTests") runs
+# just those tests, in place of the whole suite or the smoke set.
 selection=""
-if [ "$smoke" = 1 ]; then
+if [ -n "${MOTIF_ONLY_TESTING:-}" ]; then
+  for t in $(echo "$MOTIF_ONLY_TESTING" | tr ',' ' '); do selection="$selection -only-testing:$t"; done
+elif [ "$smoke" = 1 ]; then
   selection="-only-testing:MotifTests"
   for t in $SMOKE_UI; do selection="$selection -only-testing:MotifUITests/$t"; done
 fi
 
-echo "== xcodebuild test on '$sim'${MOTIF_POSE:+ (pose $MOTIF_POSE)}${selection:+ (smoke)}"
+# MOTIF_TEST_RETRIES=N runs a failing test up to N times in all, and passes when one
+# attempt does (ios-ci uses 2, so a flaky UI test doesn't cost a whole re-run).
+retry=""
+if [ "${MOTIF_TEST_RETRIES:-1}" -gt 1 ]; then
+  retry="-retry-tests-on-failure -test-iterations $MOTIF_TEST_RETRIES"
+fi
+
+# xcodebuild buffers its output into a pipe; unbuffered, the log's timestamps are real.
+export NSUnbufferedIO=YES
 # xcodebuild hands TEST_RUNNER_-prefixed variables to the test runner, unprefixed.
 export TEST_RUNNER_MOTIF_POSE="${MOTIF_POSE:-}"
-set -- xcodebuild test -project "$PROJECT" -scheme "$SCHEME" \
-  -destination "platform=iOS Simulator,id=$sim" \
-  -derivedDataPath build/DerivedData \
-  $selection ${MOTIF_XCODEBUILD_FLAGS:-} \
-  CODE_SIGNING_ALLOWED=NO
-if command -v xcbeautify >/dev/null 2>&1; then
-  "$@" 2>&1 | xcbeautify --renderer terminal
-else
-  # The filter must not decide the result (grep fails on no match), so take
-  # xcodebuild's own status from the pipeline.
+mkdir -p build
+common=(-project "$PROJECT" -scheme "$SCHEME" -destination "platform=iOS Simulator,id=$sim" -derivedDataPath build/DerivedData)
+
+# Run an xcodebuild through xcbeautify (or a grep filter), teeing the filtered lines to $1.
+# The filter must not decide the result, so the status is xcodebuild's own.
+xcb() {
+  log=$1; shift
   set +e
-  "$@" 2>&1 | grep --line-buffered -E 'error:|warning: .*Swift|Test Case .*(passed|failed)|Executed|\*\* (BUILD|TEST)'
+  if command -v xcbeautify >/dev/null 2>&1; then
+    "$@" 2>&1 | xcbeautify --renderer terminal | tee "$log"
+  else
+    "$@" 2>&1 | grep --line-buffered -E 'error:|warning: .*Swift|Test Case .*(passed|failed)|Executed|\*\* (BUILD|TEST)' | tee "$log"
+  fi
   status=${PIPESTATUS[0]}
   set -e
-  exit "$status"
+  return "$status"
+}
+
+# Built and tested in two steps, so the log shows how long each takes.
+echo "== xcodebuild build-for-testing"
+xcb build/build.log xcodebuild build-for-testing "${common[@]}" -showBuildTimingSummary \
+  ${MOTIF_XCODEBUILD_FLAGS:-} CODE_SIGNING_ALLOWED=NO
+
+echo "== waiting for '$sim' to boot"
+wait "$boot" || echo "== bootstatus exited $?; xcodebuild will boot it"
+
+echo "== xcodebuild test-without-building on '$sim'${MOTIF_POSE:+ (pose $MOTIF_POSE)}${selection:+ (smoke)}${retry:+ (up to $MOTIF_TEST_RETRIES attempts)}"
+set +e
+xcb build/test.log xcodebuild test-without-building "${common[@]}" $selection $retry \
+  ${MOTIF_XCODEBUILD_FLAGS:-} CODE_SIGNING_ALLOWED=NO
+status=$?
+set -e
+
+# A test that failed and then passed on a retry still deserves a look: flag it on the run.
+if [ "$status" = 0 ] && [ -n "$retry" ]; then
+  flaky=$(sed -E 's/\x1b\[[0-9;]*m//g' build/test.log | grep -E '^ *✖ ' | sed -E 's/^ *✖ //' | sort -u || true)
+  if [ -n "$flaky" ]; then
+    echo "== passed only on a retry:"
+    echo "$flaky" | while IFS= read -r t; do
+      echo "   $t"
+      if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::warning title=Flaky test (passed on retry)::$t"; fi
+    done
+  fi
 fi
+exit "$status"

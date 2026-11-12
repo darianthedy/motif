@@ -1197,6 +1197,26 @@ and anything deferred to a later slice or a follow-up PR.
   Puzzles, New Collection), so nothing depends on the sidebar showing. The Games New Collection alert moved from
   the sidebar to the split view so both buttons reach it. The `-sidebar` frames tap the split view's own sidebar
   button, as a user does. Decision 16 is unchanged.
+- **Fifth capture run** ([43174251433](https://github.com/darianthedy/motif/actions/runs/43174251433), `8d4a9ed`):
+  IL, IP, FB, FT and the iPhone green; O missed only S01a (the host shot). D09 is done apart from that flake.
+- **Diagnostics build** (for the device checks): `Motif/App/Diagnostics.swift`, compiled into Debug (so CI
+  compiles it) and into a TestFlight build run with the `diagnostics` input (`-DMOTIF_DIAGNOSTICS`). Only that
+  build records (or a Debug launch with `-MotifDiagnostics YES`); App Store builds don't contain it. Lines go to
+  the unified log (`com.dthedy.Motif`, category `duo`) and a 4 MB rotating file; Account → Export Diagnostics
+  shares it. No library content, only ids. What each check reads:
+  - *IP sidebar overlay or tiles* (D02): `columns` lines, and `puzzles.sidebar` / `puzzles.detail` frames
+    (overlapping = overlay).
+  - *Bend to FB / FT* (D07): `game.board`, `detail.board`, `session.board` with the division and `CROSSES` /
+    `clear`, per fold.
+  - *Continuity on fold* (§6.15): every `window` line carries the tab, selection, paths and session; board lines
+    carry the game path / unsaved flag and the puzzle and phase.
+  - *Hold-to-jump in the side bar* (D05): `stepper` lines with the touch length and step / jump.
+  - *Game ⋯ menu latency* (§8.7 fix loop 4): `menu … shown` against the `game` line its action caused.
+  - *Toast above bottom bars, fitted sheet heights* (D08): `toast`, `banner`, `sheet …` frames against the
+    `window` safe area.
+  - *AX5, Reduce Transparency, Increase Contrast* (D10): `traits` lines; which bar items overflow still needs a
+    screenshot, as do the vertical tab bar's labels.
+  Remove the file, its call sites and the workflow input once the checks are done.
 
 ## 9. Implementation slices
 

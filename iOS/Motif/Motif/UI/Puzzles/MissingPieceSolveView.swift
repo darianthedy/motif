@@ -10,5 +10,6 @@ struct MissingPieceSolveView: View {
                   highlightColor: model.placementHint != nil && !model.done ? .orange : .blue,
                   shakeKey: model.shakeKey, onPlace: model.submit, pending: $pending)
             .sensoryFeedback(.success, trigger: model.phase == .solved)
+            .diagProbe("session.board") { "puzzle \(model.puzzle.id) phase \(model.phase)" }
     }
 }

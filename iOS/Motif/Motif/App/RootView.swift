@@ -26,7 +26,7 @@ struct RootView: View {
             }
         }
         .tint(.motifAccentStrong)
-        .task { await app.open() }
+        .task { Diag.log("app", "launch"); await app.open() }
         .onChange(of: app.root, initial: true) { _, root in if root == .library { app.openLaunchRoute() } }
     }
     /// Two tabs, each one `NavigationSplitView` (Duo plan decisions 4, 12, 16): the home list is the
@@ -40,6 +40,9 @@ struct RootView: View {
             Tab("Games", systemImage: "checkerboard.rectangle", value: .games) { gamesSplit }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
+        // Diagnostics build only (plan §8.7): the window per fold/unfold, with what it holds.
+        .diagProbe("window", traits: true) { app.diagState }
+        .diagChange("columns", of: app.diagColumns) { $0 }
         // Decision 16: open tall, a selected collection shows the detail alone (sidebar on demand).
         .onGeometryChange(for: Bool.self) { $0.size.height > $0.size.width } action: { taller = $0 }
         .onChange(of: sizeClass == .regular && taller, initial: true) { _, tall in app.setOpenTall(tall) }
@@ -57,13 +60,13 @@ struct RootView: View {
     private var puzzlesSplit: some View {
         @Bindable var app = app
         return NavigationSplitView(columnVisibility: $app.puzzlesColumns.visibility) {
-            PuzzlesHomeView().libraryStatus().libraryMessages(shown: sizeClass == .compact)
+            PuzzlesHomeView().libraryStatus().libraryMessages(shown: sizeClass == .compact).diagProbe("puzzles.sidebar")
                 .navigationSplitViewColumnWidth(min: 300, ideal: Self.sidebarWidth, max: 360)
         } detail: {
             NavigationStack(path: $app.puzzlesPath) {
                 Group {
                     if let id = app.puzzlesCollection, app.store.library?.collections.contains(where: { $0.id == id }) == true {
-                        CollectionView(collectionId: id).id(id)
+                        CollectionView(collectionId: id).id(id).diagProbe("puzzles.detail")
                     } else {
                         NoSelection(empty: app.store.library?.collections.isEmpty != false, systemImage: "puzzlepiece",
                                     openTall: app.puzzlesColumns.tall) {
@@ -90,13 +93,13 @@ struct RootView: View {
     private var gamesSplit: some View {
         @Bindable var app = app
         return NavigationSplitView(columnVisibility: $app.gamesColumns.visibility) {
-            GamesHomeView().libraryStatus().libraryMessages(shown: sizeClass == .compact)
+            GamesHomeView().libraryStatus().libraryMessages(shown: sizeClass == .compact).diagProbe("games.sidebar")
                 .navigationSplitViewColumnWidth(min: 300, ideal: Self.sidebarWidth, max: 360)
         } detail: {
             NavigationStack(path: $app.gamesPath) {
                 Group {
                     if let id = app.gamesCollection, app.store.library?.gameCollections.contains(where: { $0.id == id }) == true {
-                        GameCollectionView(collectionId: id).id(id)
+                        GameCollectionView(collectionId: id).id(id).diagProbe("games.detail")
                     } else {
                         NoSelection(empty: app.store.library?.gameCollections.isEmpty != false, systemImage: "checkerboard.rectangle",
                                     openTall: app.gamesColumns.tall) {

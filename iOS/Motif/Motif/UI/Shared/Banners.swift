@@ -74,8 +74,8 @@ private struct LibraryMessages: ViewModifier {
                         if serverStatus, app.store.online, case .error(let message) = app.store.status {
                             ErrorBanner(text: "Couldn't reach the server: " + message)
                         }
-                        if let error = app.error { ErrorBanner(text: error) { app.error = nil } }
-                        if let notice = app.notice { Toast(text: notice) { app.dismissNotice() } }
+                        if let error = app.error { ErrorBanner(text: error) { app.error = nil }.diagProbe("banner") }
+                        if let notice = app.notice { Toast(text: notice) { app.dismissNotice() }.diagProbe("toast") }
                     }
                 }
                 .padding(.horizontal)

@@ -9,6 +9,7 @@ struct PuzzleSolveView: View {
                   highlight: model.marked, highlightColor: model.hint == nil ? .blue : .orange,
                   shakeKey: model.shakeKey, onMove: model.submit, pending: $pending)
             .sensoryFeedback(.success, trigger: model.phase == .solved)
+            .diagProbe("session.board") { "puzzle \(model.puzzle.id) phase \(model.phase)" }
     }
 }
 

@@ -51,6 +51,11 @@ struct GameContentView: View {
     var body: some View {
         screen
             .sensoryFeedback(.selection, trigger: model.path)
+            // Diagnostics build only: when a menu action lands, against the menu's "shown" line.
+            .diagChange("game", of: panel?.rawValue ?? "none") { "panel \($0)" }
+            .diagChange("game", of: deleteGame) { "delete game dialog \($0)" }
+            .diagChange("game", of: evalBarShown) { "evaluation shown \($0)" }
+            .diagChange("game", of: linesShown) { "engine lines shown \($0)" }
             .sensoryFeedback(.error, trigger: model.problem) { _, problem in problem != nil }
             .onChange(of: model.path) { alternativesOpen = false }
             .onChange(of: game) { _, next in model.receive(next) }
@@ -126,6 +131,7 @@ struct GameContentView: View {
             BoardView(fen: model.fen, orientation: model.orientation, interactive: true,
                       highlight: model.node.map { (moveFrom($0.uci), moveTo($0.uci)) }, onMove: model.play, pending: $promotion)
                 .frame(width: layout.board, height: layout.board)
+                .diagProbe("game.board") { "game \(game.id) path \(model.path) unsaved \(model.unsaved) mode \(layout.mode)" }
         }
     }
     /// Under the board or beside it, in the canvas's order. A short column (O, SV, IP)
@@ -192,7 +198,11 @@ struct GameContentView: View {
     /// hands no gesture to SwiftUI, so the hold is read from the touch that triggered the action
     /// (`TouchClock`): held 0.4 s or longer, the release jumps instead of stepping.
     private func stepper(_ title: String, _ image: String, hold: String, disabled: Bool, step: @escaping () -> Void, jump: @escaping () -> Void) -> some View {
-        Button(title, systemImage: image) { if TouchClock.held(atLeast: 0.4) { jump() } else { step() } }
+        Button(title, systemImage: image) {
+            let held = TouchClock.held(atLeast: 0.4)
+            Diag.log("stepper", "\(title) touch \(TouchClock.lastTouch.map { String(format: "%.2fs", $0) } ?? "none") → \(held ? "jump" : "step")")
+            if held { jump() } else { step() }
+        }
             .disabled(disabled)
             .accessibilityAction(named: hold) { if !disabled { jump() } }
             .accessibilityIdentifier("game-" + title.lowercased().replacingOccurrences(of: " ", with: "-"))
@@ -311,6 +321,11 @@ struct GameContentView: View {
     fileprivate static var ended: TimeInterval?
     /// Whether the touch that just ended (or is still down) lasted `seconds` or more. A touch that
     /// ended a while ago didn't trigger this action (VoiceOver, keyboard), so it doesn't count.
+    /// How long the touch that just ended (or is still down) has lasted, for diagnostics.
+    static var lastTouch: TimeInterval? {
+        guard let began else { return nil }
+        return (ended ?? ProcessInfo.processInfo.systemUptime) - began
+    }
     static func held(atLeast seconds: TimeInterval) -> Bool {
         guard let began else { return false }
         let now = ProcessInfo.processInfo.systemUptime, end = ended ?? now

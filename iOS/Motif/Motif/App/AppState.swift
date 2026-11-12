@@ -93,6 +93,12 @@ final class AppState {
     /// Opens a full route, as callers and launch routes give it (`[.collection(id), .puzzles(id), .puzzle(…)]`):
     /// a leading `.collection` becomes the sidebar selection and the rest the detail path. A route
     /// without one is pushed on the current selection; an empty route clears both.
+    /// For the diagnostics build's continuity checks (plan §8.7): what each tab and the session hold.
+    var diagState: String {
+        "tab \(tab) puzzles \(puzzlesCollection ?? "-") +\(puzzlesPath.count) games \(gamesCollection ?? "-") +\(gamesPath.count) "
+            + "session \(session?.scope ?? "-") account \(showingAccount) import \(importingPuzzles)"
+    }
+    var diagColumns: String { "puzzles \(puzzlesColumns.diag) games \(gamesColumns.diag)" }
     /// The window is open tall (regular width, taller than wide), or stopped being: decision 16.
     func setOpenTall(_ tall: Bool) {
         guard tall != puzzlesColumns.tall || tall != gamesColumns.tall else { return }
@@ -190,6 +196,10 @@ struct TabColumns: Equatable {
     mutating func follow(board: Bool) {
         if board, beforeBoard == nil { beforeBoard = visibility; visibility = .detailOnly }
         else if !board, let previous = beforeBoard { visibility = previous; beforeBoard = nil }
+    }
+    var diag: String {
+        let shown = visibility == .all ? "all" : visibility == .detailOnly ? "detailOnly" : visibility == .doubleColumn ? "doubleColumn" : "automatic"
+        return shown + (tall ? " tall" : "") + (beforeBoard != nil ? " board" : "")
     }
     /// Open tall: regular width and taller than wide (IP, FT, an iPad in portrait).
     private(set) var tall = false

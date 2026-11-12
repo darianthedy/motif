@@ -21,6 +21,10 @@ on:
         description: "Build with Xcode 26 on macos-26 (iOS 26 SDK, compatibility mode on the iPhone Duo) instead of Xcode 27.1"
         type: boolean
         default: false
+      diagnostics:
+        description: "Compile in the iPhone Duo diagnostics log (Account → Export Diagnostics); TestFlight only"
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -86,6 +90,7 @@ jobs:
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           NEON_BASE_URL: ${{ secrets.VITE_NEON_BASE_URL }}
           BUILD_NUMBER: ${{ github.run_number }}
+          DIAGNOSTICS: ${{ inputs.diagnostics }}
           # Set repo Variable MATCH_CREATE_CERTS=true for the FIRST run only, so
           # match creates + stores the App Store profile for this bundle ID
           # (setup_ci otherwise forces read-only on CI). Delete the variable

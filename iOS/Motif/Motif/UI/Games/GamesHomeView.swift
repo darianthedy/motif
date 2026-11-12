@@ -28,7 +28,7 @@ struct GamesHomeView: View {
                     .disabled(!app.store.online).accessibilityIdentifier("new-game-collection")
             }
             ToolbarSpacer(.fixed, placement: .topBarTrailing)
-            ToolbarItem(placement: .topBarTrailing) { AccountButton() }
+            ToolbarItem(placement: .topBarTrailing) { AccountButton() }.motifHighVisibilityPriority()
         }
         .alert("Rename the collection", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } }), presenting: renaming) { collection in
             TextField("Name", text: $name)

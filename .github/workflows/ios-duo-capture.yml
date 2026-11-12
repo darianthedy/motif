@@ -76,7 +76,7 @@ jobs:
       - name: Capture
         env:
           MOTIF_CAPTURE_ONLY: ${{ inputs.only != '' && inputs.only || fromJSON(needs.cells.outputs.only)[matrix.pose] }}
-        # Fails when a state wasn't reached (apart from S12h) or a drawn cell has no screenshot.
+        # Fails when a state wasn't reached (apart from S12h, and S05a on FB and FT) or a drawn cell has no screenshot.
         run: scripts/ios-duo-capture.sh capture ${{ matrix.pose }} ${{ matrix.pose }}
       - uses: actions/upload-artifact@v4
         if: always()

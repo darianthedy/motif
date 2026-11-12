@@ -100,7 +100,7 @@ private struct PuzzleDetailContent: View {
                     control("Previous Move", "chevron.left", disabled: model.ply == 0, action: model.back)
                     control("Next Move", "chevron.right", disabled: model.ply >= model.steps.count, action: model.next)
                     control("Go to End", "forward.end.fill", disabled: model.ply >= model.steps.count, action: model.end)
-                }
+                }.motifHighVisibilityPriority()
             }
         }
         // Copy FEN and Delete Puzzle (F16); Delete only sets the flag the dialog below reads (F15).

@@ -30,6 +30,9 @@ final class AppState {
     var gamesColumns = TabColumns()
     var session: SessionRoute?
     var importingPuzzles = false
+    /// The Games tab's New Collection alert, which hangs off the split view so the sidebar's +
+    /// and the detail column's empty state can both ask for it.
+    var creatingGameCollection = false
     /// The Account sheet, opened from the avatar button on either home screen.
     var showingAccount = false
     var launchRoute: String?
@@ -181,13 +184,7 @@ struct TabColumns: Equatable {
     /// The sidebar shows until a board hides it (decision 16: with nothing selected the sidebar
     /// shows). Not `.automatic`: on IL and the iPad that resolved to detail only at launch and
     /// after a sheet or alert, leaving the home list (and its toolbar) off screen.
-    var visibility = NavigationSplitViewVisibility.all {
-        // Open tall with nothing selected the detail is blank, so the sidebar stays: the
-        // split view hid it on its own at launch on IP (S04d, S11b in the second capture run).
-        didSet { if tall, !selected, beforeBoard == nil, visibility != .all { visibility = .all } }
-    }
-    /// Whether the tab has a collection selected, as last told to `settle`.
-    private(set) var selected = false
+    var visibility = NavigationSplitViewVisibility.all
     /// What `visibility` was when a board was pushed; nil while no board is shown.
     private(set) var beforeBoard: NavigationSplitViewVisibility?
     mutating func follow(board: Bool) {
@@ -196,19 +193,11 @@ struct TabColumns: Equatable {
     }
     /// Open tall: regular width and taller than wide (IP, FT, an iPad in portrait).
     private(set) var tall = false
-    #if DEBUG
-    /// The `sidebar` capture fixture: the sidebar stays shown whatever the pose (S04a-sidebar).
-    var sidebarPinned = false
-    #endif
     /// Where the sidebar rests with no board pushed. Decision 16: open tall, a selected
     /// collection shows the detail alone, and the sidebar slides over it from its button;
     /// with nothing selected, or two columns wide (IL, FB, iPad landscape), it shows.
     mutating func settle(tall: Bool? = nil, selected: Bool) {
         if let tall { self.tall = tall }
-        self.selected = selected
-        #if DEBUG
-        if sidebarPinned { return }
-        #endif
         let rest: NavigationSplitViewVisibility = self.tall && selected ? .detailOnly : .all
         if beforeBoard != nil { beforeBoard = rest } else { visibility = rest }
     }

@@ -65,7 +65,12 @@ struct RootView: View {
                     if let id = app.puzzlesCollection, app.store.library?.collections.contains(where: { $0.id == id }) == true {
                         CollectionView(collectionId: id).id(id)
                     } else {
-                        NoSelection(empty: app.store.library?.collections.isEmpty != false, systemImage: "puzzlepiece")
+                        NoSelection(empty: app.store.library?.collections.isEmpty != false, systemImage: "puzzlepiece",
+                                    openTall: app.puzzlesColumns.tall) {
+                            EmptyState(title: "No Puzzles Yet", systemImage: "puzzlepiece",
+                                       description: "Import a JSON collection to start solving.",
+                                       action: .init(title: "Import Puzzles", identifier: "import-puzzles-empty-detail", disabled: !app.store.online) { app.importingPuzzles = true })
+                        }
                     }
                 }
                 .libraryStatus().libraryMessages()
@@ -93,7 +98,12 @@ struct RootView: View {
                     if let id = app.gamesCollection, app.store.library?.gameCollections.contains(where: { $0.id == id }) == true {
                         GameCollectionView(collectionId: id).id(id)
                     } else {
-                        NoSelection(empty: app.store.library?.gameCollections.isEmpty != false, systemImage: "checkerboard.rectangle")
+                        NoSelection(empty: app.store.library?.gameCollections.isEmpty != false, systemImage: "checkerboard.rectangle",
+                                    openTall: app.gamesColumns.tall) {
+                            EmptyState(title: "No Games Yet", systemImage: "checkerboard.rectangle",
+                                       description: "Make a collection, then add games as PGN or play them in on the board.",
+                                       action: .init(title: "New Collection", identifier: "new-game-collection-empty-detail", disabled: !app.store.online) { app.creatingGameCollection = true })
+                        }
                     }
                 }
                 .libraryStatus().libraryMessages()
@@ -108,6 +118,7 @@ struct RootView: View {
             }
         }
         .navigationSplitViewStyle(.automatic)
+        .modifier(NewGameCollectionAlert())
     }
     /// The sidebar column on the open display (`shellGeom` in the Duo canvases: 340 pt on IL).
     private static let sidebarWidth: CGFloat = 340
@@ -140,13 +151,16 @@ struct RootView: View {
         .libraryMessages(serverStatus: false)
     }
 }
-/// The detail column before a collection is picked. With no collections at all the
-/// sidebar already holds the home's empty state, so this stays blank.
-private struct NoSelection: View {
+/// The detail column before a collection is picked. With no collections at all the sidebar
+/// holds the home's empty state, so beside it this stays blank. Open tall the sidebar may be
+/// off screen (the split view decides), so the detail repeats the empty state and its action.
+private struct NoSelection<Empty: View>: View {
     let empty: Bool
     let systemImage: String
+    let openTall: Bool
+    @ViewBuilder let emptyState: () -> Empty
     var body: some View {
-        if empty { Color.clear }
+        if empty { if openTall { emptyState().readableWidth() } else { Color.clear } }
         else {
             ContentUnavailableView("No Collection Selected", systemImage: systemImage,
                                    description: Text("Choose a collection in the sidebar."))

@@ -31,12 +31,12 @@ extension View {
                                                      @ViewBuilder items: () -> Items) -> some View {
         let content = items()
         if #available(iOS 27.1, *) {
-            toolbarOverflowMenu { if shown { content.onAppear { Diag.log("menu", "\(title) shown") } } }
+            toolbarOverflowMenu { if shown { content } }
         } else {
             toolbar {
                 if shown {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Menu(title, systemImage: "ellipsis") { content.onAppear { Diag.log("menu", "\(title) shown") } }.accessibilityIdentifier(identifier)
+                        Menu(title, systemImage: "ellipsis") { content }.accessibilityIdentifier(identifier)
                     }
                 }
             }

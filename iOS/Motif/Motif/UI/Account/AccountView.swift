@@ -68,7 +68,6 @@ struct AccountView: View {
                 } footer: {
                     if !app.store.online { Text("Signing out needs a connection.") }
                 }
-                DiagnosticsSection()
                 Section {
                     Text("Evaluation by Stockfish, licensed under GPL-3.0")
                     Link(destination: URL(string: "https://github.com/official-stockfish/Stockfish")!) { Label("Stockfish Source", systemImage: "chevron.left.forwardslash.chevron.right") }
@@ -79,7 +78,6 @@ struct AccountView: View {
                     Text(version).frame(maxWidth: .infinity).padding(.top, 8).accessibilityIdentifier("app-version")
                 }
             }
-            .diagProbe("sheet Account")
             .navigationTitle("Account")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

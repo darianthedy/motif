@@ -8,7 +8,7 @@ private struct SheetToolbar: ViewModifier {
     let cancel: () -> Void
     let confirm: () -> Void
     func body(content: Content) -> some View {
-        content.diagProbe("sheet \(confirmTitle)").toolbar {
+        content.toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel", systemImage: "xmark", role: .cancel, action: cancel)
             }

@@ -51,11 +51,6 @@ struct GameContentView: View {
     var body: some View {
         screen
             .sensoryFeedback(.selection, trigger: model.path)
-            // Diagnostics build only: when a menu action lands, against the menu's "shown" line.
-            .diagChange("game", of: panel?.rawValue ?? "none") { "panel \($0)" }
-            .diagChange("game", of: deleteGame) { "delete game dialog \($0)" }
-            .diagChange("game", of: evalBarShown) { "evaluation shown \($0)" }
-            .diagChange("game", of: linesShown) { "engine lines shown \($0)" }
             .sensoryFeedback(.error, trigger: model.problem) { _, problem in problem != nil }
             .onChange(of: model.path) { alternativesOpen = false }
             .onChange(of: game) { _, next in model.receive(next) }
@@ -127,11 +122,10 @@ struct GameContentView: View {
     /// The board with the evaluation bar on its leading side.
     private func boardPane(_ layout: BoardLayout) -> some View {
         HStack(spacing: layout.evalGap) {
-            if evalBarShown { EvalBar(evaluation: analyzer.evaluation, orientation: model.orientation).frame(height: layout.board) }
+            if evalBarShown { LiveEvalBar(analyzer: analyzer, orientation: model.orientation).frame(height: layout.board) }
             BoardView(fen: model.fen, orientation: model.orientation, interactive: true,
                       highlight: model.node.map { (moveFrom($0.uci), moveTo($0.uci)) }, onMove: model.play, pending: $promotion)
                 .frame(width: layout.board, height: layout.board)
-                .diagProbe("game.board") { "game \(game.id) path \(model.path) unsaved \(model.unsaved) mode \(layout.mode)" }
         }
     }
     /// Under the board or beside it, in the canvas's order. A short column (O, SV, IP)
@@ -153,7 +147,7 @@ struct GameContentView: View {
             }
             alternatives(tree, row: layout.short)
             if linesShown {
-                EngineLinesView(lines: analyzer.lines, fen: model.fen, play: model.play, short: layout.short)
+                LiveEngineLines(analyzer: analyzer, fen: model.fen, play: model.play, short: layout.short)
                     .transition(.opacity.combined(with: .move(edge: .top)))
                     .accessibilitySortPriority(1)
             }
@@ -198,11 +192,7 @@ struct GameContentView: View {
     /// hands no gesture to SwiftUI, so the hold is read from the touch that triggered the action
     /// (`TouchClock`): held 0.4 s or longer, the release jumps instead of stepping.
     private func stepper(_ title: String, _ image: String, hold: String, disabled: Bool, step: @escaping () -> Void, jump: @escaping () -> Void) -> some View {
-        Button(title, systemImage: image) {
-            let held = TouchClock.held(atLeast: 0.4)
-            Diag.log("stepper", "\(title) touch \(TouchClock.lastTouch.map { String(format: "%.2fs", $0) } ?? "none") → \(held ? "jump" : "step")")
-            if held { jump() } else { step() }
-        }
+        Button(title, systemImage: image) { if TouchClock.held(atLeast: 0.4) { jump() } else { step() } }
             .disabled(disabled)
             .accessibilityAction(named: hold) { if !disabled { jump() } }
             .accessibilityIdentifier("game-" + title.lowercased().replacingOccurrences(of: " ", with: "-"))
@@ -316,16 +306,27 @@ struct GameContentView: View {
 /// How long the window's latest touch was held, for toolbar buttons that act differently on a
 /// hold. A system bar item takes no SwiftUI gesture, but its action runs as its touch ends, so
 /// the action asks here. A recognizer on the window watches every touch without taking any.
+/// The evaluation bar and engine lines read the analyzer in their own bodies. The analyzer
+/// publishes up to every 100 ms while the engine thinks, and a read in `GameContentView`'s body
+/// re-evaluated the whole screen each time: the board, the move list, the toolbar and the open
+/// ⋯ menu's items. Read here, only these two views follow it.
+private struct LiveEvalBar: View {
+    let analyzer: Analyzer
+    let orientation: Side
+    var body: some View { EvalBar(evaluation: analyzer.evaluation, orientation: orientation) }
+}
+private struct LiveEngineLines: View {
+    let analyzer: Analyzer
+    let fen: String
+    let play: (Uci) -> Void
+    let short: Bool
+    var body: some View { EngineLinesView(lines: analyzer.lines, fen: fen, play: play, short: short) }
+}
 @MainActor enum TouchClock {
     fileprivate static var began: TimeInterval?
     fileprivate static var ended: TimeInterval?
     /// Whether the touch that just ended (or is still down) lasted `seconds` or more. A touch that
     /// ended a while ago didn't trigger this action (VoiceOver, keyboard), so it doesn't count.
-    /// How long the touch that just ended (or is still down) has lasted, for diagnostics.
-    static var lastTouch: TimeInterval? {
-        guard let began else { return nil }
-        return (ended ?? ProcessInfo.processInfo.systemUptime) - began
-    }
     static func held(atLeast seconds: TimeInterval) -> Bool {
         guard let began else { return false }
         let now = ProcessInfo.processInfo.systemUptime, end = ended ?? now

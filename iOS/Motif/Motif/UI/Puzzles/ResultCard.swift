@@ -18,18 +18,34 @@ struct ResultCard: View {
                 details
                 ScrollView { details }.scrollBounceBehavior(.basedOnSize)
             }
-            // Stacked at accessibility sizes, so neither title truncates beside the other (D10).
-            let stacked = typeSize.isAccessibilitySize
-            let buttons = stacked ? AnyLayout(VStackLayout(spacing: 10)) : AnyLayout(HStackLayout(spacing: 10))
-            buttons {
-                Button(action: analyze) { Label("Analyze", systemImage: "magnifyingglass").font(.headline).frame(maxWidth: stacked ? .infinity : nil) }
-                    .buttonStyle(.glass).controlSize(.large).accessibilityIdentifier("result-analyze")
-                Button(action: continueAction) { Text("Continue").font(.headline).frame(maxWidth: .infinity) }
-                    .buttonStyle(.glassProminent).controlSize(.large).accessibilityIdentifier("result-continue")
+            // Side by side only when both titles fit on one line; otherwise stacked, so neither
+            // wraps or truncates (D10). Always stacked at accessibility sizes.
+            if typeSize.isAccessibilitySize {
+                stackedButtons
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) { analyzeButton(fill: false); continueButton }
+                    stackedButtons
+                }
             }
         }
         .padding(20)
         .motifGlass(in: .rect(cornerRadius: 28))
+    }
+    private var stackedButtons: some View {
+        VStack(spacing: 10) { analyzeButton(fill: true); continueButton }
+    }
+    /// Titles keep their one-line width (`fixedSize`) so ViewThatFits can tell when the row overflows.
+    private func analyzeButton(fill: Bool) -> some View {
+        Button(action: analyze) {
+            Label("Analyze", systemImage: "magnifyingglass").font(.headline).lineLimit(1).fixedSize()
+                .frame(maxWidth: fill ? .infinity : nil)
+        }
+        .buttonStyle(.glass).controlSize(.large).accessibilityIdentifier("result-analyze")
+    }
+    private var continueButton: some View {
+        Button(action: continueAction) { Text("Continue").font(.headline).lineLimit(1).fixedSize().frame(maxWidth: .infinity) }
+            .buttonStyle(.glassProminent).controlSize(.large).accessibilityIdentifier("result-continue")
     }
     private var details: some View {
         VStack(alignment: .leading, spacing: 12) {

@@ -5,13 +5,16 @@ struct SessionView: View {
     @Environment(AppState.self) private var app
     @Environment(\.dismiss) private var dismiss
     let scope: String
+    /// The puzzle's measurements live here, not in `SessionPuzzle`: each puzzle is a fresh
+    /// view, and starting from zero drew its first frame at the wrong size, then again.
+    @State private var measured = SessionMeasurements()
     var body: some View {
         NavigationStack {
             Group {
                 if let library = app.store.library, let run = runIn(library, scope) {
                     let progress = progressOf(library, run)
                     if let puzzle = library.puzzles.first(where: { $0.id == progress.current }) {
-                        SessionPuzzle(puzzle: puzzle, run: run, progress: progress).id("\(puzzle.id):\(progress.played)")
+                        SessionPuzzle(puzzle: puzzle, run: run, progress: progress, measured: $measured).id("\(puzzle.id):\(progress.played)")
                             .navigationSubtitle("Puzzle \(number(progress)) of \(progress.queue.count)")
                     } else {
                         SessionComplete(progress: progress) { dismiss() }
@@ -37,6 +40,14 @@ struct SessionView: View {
         min(max(progress.queue.count - progress.remaining + 1, 1), max(progress.queue.count, 1))
     }
 }
+struct SessionMeasurements: Equatable {
+    /// The content's size inside the safe area and the bars, for `BoardLayout`.
+    var container: CGSize = .zero
+    /// The fold's active division, read under the progress bar where the board sits (D07).
+    var division: CGRect?
+    /// The progress bar with its padding, which the board beside the column leaves out of its height.
+    var progressHeight: CGFloat = 0
+}
 private struct SessionPuzzle: View {
     @Environment(AppState.self) private var app
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -48,14 +59,12 @@ private struct SessionPuzzle: View {
     @State private var analyzing = false
     /// A promotion or a tapped square waiting for its piece, answered by the row in the layout (decision 17).
     @State private var pending: BoardPending?
-    /// The content's size inside the safe area and the bars, for `BoardLayout`.
-    @State private var container: CGSize = .zero
-    /// The fold's active division, read under the progress bar where the board sits (D07).
-    @State private var division: CGRect?
-    /// The progress bar with its padding, which the board beside the column leaves out of its height.
-    @State private var progressHeight: CGFloat = 0
-    init(puzzle: Puzzle, run: Run, progress: RunProgress) {
-        self.puzzle = puzzle; self.run = run; self.progress = progress
+    @Binding var measured: SessionMeasurements
+    private var container: CGSize { measured.container }
+    private var division: CGRect? { measured.division }
+    private var progressHeight: CGFloat { measured.progressHeight }
+    init(puzzle: Puzzle, run: Run, progress: RunProgress, measured: Binding<SessionMeasurements>) {
+        self.puzzle = puzzle; self.run = run; self.progress = progress; _measured = measured
         #if DEBUG
         // `slow-reply` holds the opponent's reply long enough for a screenshot.
         if CaptureFixture.current.has("slow-reply") {
@@ -64,6 +73,11 @@ private struct SessionPuzzle: View {
         }
         #endif
         _model = State(initialValue: SolveModel(puzzle))
+    }
+    /// Each new puzzle reads the same sizes on appear; writing them back unchanged would
+    /// redraw the whole session around it.
+    private func changing<Value: Equatable>(_ path: WritableKeyPath<SessionMeasurements, Value>) -> Binding<Value> {
+        Binding(get: { measured[keyPath: path] }, set: { if measured[keyPath: path] != $0 { measured[keyPath: path] = $0 } })
     }
     private var flagged: Bool { puzzle.flagged == true }
     /// The result card's cap on compact width: 62 % of the content, scrolling past that (decision 15).
@@ -81,7 +95,7 @@ private struct SessionPuzzle: View {
         VStack(spacing: 0) {
             ProgressView(value: progress.progress).tint(.motifAccent)
                 .padding(.leading, layout.padding.leading).padding(.trailing, layout.padding.trailing).padding(.vertical, 6)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { progressHeight = $0 }
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { if measured.progressHeight != $0 { measured.progressHeight = $0 } }
                 .accessibilityLabel("Session progress")
             stack {
                 board.frame(width: layout.board, height: layout.board).accessibilitySortPriority(2)
@@ -91,23 +105,26 @@ private struct SessionPuzzle: View {
             .padding(layout.padding)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             // In the stack's own coordinates, so the board's top is the layout's.
-            .motifDivision($division)
+            .motifDivision(changing(\.division))
             .accessibilitySortPriority(1)
         }
         // VoiceOver: the board, then the prompt, picker or result beside or under it (on
         // either page of a fold), then the progress bar, then the bar items (§6.14, D10).
         .accessibilityElement(children: .contain)
         // Measured with the progress bar, as the canvas sizes the boards (IP 512 pt); see `boardLayout`.
-        .motifOfferedSize($container)
+        .motifOfferedSize(changing(\.container))
         // Compact width: the card still rises from the bottom, sized to its content (F5).
+        // Only the card animates: around the whole screen, the animation also eased the
+        // board and the bars into their places for the result.
         .overlay(alignment: .bottom) {
-            if model.done && layout.compact {
-                resultCard.padding(.horizontal, 8).padding(.bottom, 8)
-                    .frame(maxHeight: cardCap, alignment: .bottom)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
+            ZStack(alignment: .bottom) {
+                if model.done && layout.compact {
+                    resultCard.padding(.horizontal, 8).padding(.bottom, 8)
+                        .frame(maxHeight: cardCap, alignment: .bottom)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }.animation(.smooth, value: model.done)
         }
-        .animation(.smooth, value: model.done)
         // Pushed inside the session, so going back returns to this result; it carries its own capsule (F14).
         .navigationDestination(isPresented: $analyzing) { PuzzleAnalysisView(puzzle: puzzle).libraryStatus().libraryMessages() }
         .toolbar {
@@ -117,13 +134,12 @@ private struct SessionPuzzle: View {
                 }.tint(flagged ? .orange : nil).disabled(!app.store.online).accessibilityIdentifier("session-flag")
             }
             // Skip is a system bottom bar item, not an overlay (decision 14, F24, F25): the side
-            // bar on the Duo, the bottom bar on an iPhone.
-            if !model.done {
-                ToolbarItem(placement: .bottomBar) {
-                    Button("Skip", systemImage: "forward.fill") { pending = nil; model.cancel(); record(.skipped, 0, false) }
-                        .disabled(recording).accessibilityIdentifier("session-skip")
-                }.motifHighVisibilityPriority()
-            }
+            // bar on the Duo, the bottom bar on an iPhone. It stays (disabled) on the result, so
+            // the bar doesn't leave and resize the screen under the board as the puzzle ends.
+            ToolbarItem(placement: .bottomBar) {
+                Button("Skip", systemImage: "forward.fill") { pending = nil; model.cancel(); record(.skipped, 0, false) }
+                    .disabled(recording || model.done).accessibilityIdentifier("session-skip")
+            }.motifHighVisibilityPriority()
         }.onDisappear { model.cancel() }
             .task {
                 #if DEBUG
@@ -170,6 +186,7 @@ private struct SessionPuzzle: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
+        .animation(.smooth, value: model.done)
     }
     private var resultCard: some View {
         ResultCard(model: model, analyze: { analyzing = true }) { record(model.result, model.mistakes, model.hinted) }

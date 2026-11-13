@@ -9,12 +9,15 @@ enum SyncStatus: Equatable, Sendable { case idle, syncing, error(String) }
 final class LibraryStore {
     private(set) var user: User?
     private(set) var userKnown = false
-    private(set) var base: Library?
+    private(set) var base: Library? { didSet { reshow() } }
     private(set) var loaded = false
-    private(set) var outboxRecords = OutboxRecords()
+    private(set) var outboxRecords = OutboxRecords() { didSet { reshow() } }
     var online = true
     private(set) var status = SyncStatus.idle
-    var library: Library? { base.map { overlay($0, outboxRecords) } }
+    /// The server copy with play overlaid. Kept, not computed per read: the session reads it
+    /// on every render, and the overlay copies the library. Only a different result is written,
+    /// so an upload that changes nothing visible (the flush after each attempt) redraws nothing.
+    private(set) var library: Library?
     var pending: Int { outboxRecords.count }
     @ObservationIgnored private let account: any Account
     @ObservationIgnored private let cache: Cache
@@ -33,6 +36,10 @@ final class LibraryStore {
         self.account = account; self.cache = cache; self.outbox = outbox; self.defaults = defaults; self.online = online
         user = defaults.data(forKey: "motif:user").flatMap { try? JSONDecoder().decode(User.self, from: $0) }
         userKnown = user != nil
+    }
+    private func reshow() {
+        let shown = base.map { overlay($0, outboxRecords) }
+        if shown != library { library = shown }
     }
     private func remember(_ user: User?) {
         if let user { defaults.set(try? JSONEncoder().encode(user), forKey: "motif:user") }
@@ -113,7 +120,8 @@ final class LibraryStore {
     private func record(_ added: OutboxRecords) async throws {
         guard let user else { return }
         let version = generation
-        outboxRecords.runs += added.runs; outboxRecords.attempts += added.attempts
+        var next = outboxRecords; next.runs += added.runs; next.attempts += added.attempts
+        outboxRecords = next
         outboxChanges += 1
         try await outbox.add(user.id, added)
         outboxChanges += 1

@@ -16,7 +16,9 @@ struct BoardView: View {
     var pending: Binding<BoardPending?>?
     @State private var interaction: BoardInteraction
     @State private var dragging: String?
-    @State private var dragPoint = CGPoint.zero
+    /// Where the finger is, read only by the lifted piece: a drag frame redraws that piece,
+    /// not the 64 squares.
+    @State private var dragPoint = DragPoint()
     @State private var moved = 0
     /// The piece currently sliding to its square. A token per move restarts the slide.
     @State private var slide: Slide?
@@ -63,8 +65,7 @@ struct BoardView: View {
                     }.id(slide.token)
                 }
                 if let dragging, let piece = snapshot[dragging] {
-                    PieceImage(type: piece.type, color: piece.color).frame(width: size * 1.12, height: size * 1.12)
-                        .shadow(radius: 5).position(x: dragPoint.x, y: dragPoint.y - size * 0.25).allowsHitTesting(false)
+                    DraggedPiece(piece: piece, size: size, point: dragPoint)
                 }
             }.coordinateSpace(name: "motif-board")
         }.aspectRatio(1, contentMode: .fit)
@@ -119,7 +120,7 @@ struct BoardView: View {
                 .onChanged { value in
                     guard interactive, placing == nil, let piece, piece.color == turn, interaction.pending == nil else { return }
                     if dragging != square { dragging = square }
-                    dragPoint = value.location
+                    dragPoint.value = value.location
                 }
                 .onEnded { value in
                     guard dragging == square else { return }
@@ -139,6 +140,19 @@ struct BoardView: View {
 }
 
 private struct Slide { var from: String; var to: String; var token: Int }
+
+@Observable @MainActor private final class DragPoint { var value = CGPoint.zero }
+
+/// The lifted piece under the finger, slightly enlarged.
+private struct DraggedPiece: View {
+    let piece: Board.Piece
+    let size: CGFloat
+    let point: DragPoint
+    var body: some View {
+        PieceImage(type: piece.type, color: piece.color).frame(width: size * 1.12, height: size * 1.12)
+            .shadow(radius: 5).position(x: point.value.x, y: point.value.y - size * 0.25).allowsHitTesting(false)
+    }
+}
 
 private struct Snapshot {
     let cells: [Board.Piece?]
@@ -164,7 +178,7 @@ private struct SlidingPiece: View {
         PieceImage(type: piece.type, color: piece.color).padding(2).frame(width: size, height: size)
             .offset(x: point.x, y: point.y).allowsHitTesting(false)
             .onAppear {
-                withAnimation(.easeOut(duration: 0.18)) { arrived = true } completion: { finished() }
+                withAnimation(.easeOut(duration: Double(SLIDE_MS) / 1000)) { arrived = true } completion: { finished() }
             }
     }
 }

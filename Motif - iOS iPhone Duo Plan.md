@@ -1199,24 +1199,36 @@ and anything deferred to a later slice or a follow-up PR.
   button, as a user does. Decision 16 is unchanged.
 - **Fifth capture run** ([43174251433](https://github.com/darianthedy/motif/actions/runs/43174251433), `8d4a9ed`):
   IL, IP, FB, FT and the iPhone green; O missed only S01a (the host shot). D09 is done apart from that flake.
-- **Diagnostics build** (for the device checks): `Motif/App/Diagnostics.swift`, compiled into Debug (so CI
-  compiles it) and into a TestFlight build run with the `diagnostics` input (`-DMOTIF_DIAGNOSTICS`). Only that
-  build records (or a Debug launch with `-MotifDiagnostics YES`); App Store builds don't contain it. Lines go to
-  the unified log (`com.dthedy.Motif`, category `duo`) and a 4 MB rotating file; Account → Export Diagnostics
-  shares it. No library content, only ids. What each check reads:
-  - *IP sidebar overlay or tiles* (D02): `columns` lines, and `puzzles.sidebar` / `puzzles.detail` frames
-    (overlapping = overlay).
-  - *Bend to FB / FT* (D07): `game.board`, `detail.board`, `session.board` with the division and `CROSSES` /
-    `clear`, per fold.
-  - *Continuity on fold* (§6.15): every `window` line carries the tab, selection, paths and session; board lines
-    carry the game path / unsaved flag and the puzzle and phase.
-  - *Hold-to-jump in the side bar* (D05): `stepper` lines with the touch length and step / jump.
-  - *Game ⋯ menu latency* (§8.7 fix loop 4): `menu … shown` against the `game` line its action caused.
-  - *Toast above bottom bars, fitted sheet heights* (D08): `toast`, `banner`, `sheet …` frames against the
-    `window` safe area.
-  - *AX5, Reduce Transparency, Increase Contrast* (D10): `traits` lines; which bar items overflow still needs a
-    screenshot, as do the vertical tab bar's labels.
-  Remove the file, its call sites and the workflow input once the checks are done.
+- **Device checks (2026-11-13)**, on TestFlight build 36 (Xcode 27.1, iOS 27.2) with a temporary diagnostics
+  log: `Motif/App/Diagnostics.swift`, compiled in only with the TestFlight `diagnostics` input, writing layout,
+  fold, continuity and timing lines to a file exported from the Account sheet. Two logs (about 8 minutes of use
+  across O, IL, IP, FB, FT and Split View) and four screenshots. All checks pass:
+  - *IP sidebar (D02, decision 16):* it overlays. The detail stays 669 pt wide at x 0 with the 340 pt sidebar
+    over it; on IL they tile (340 + 527 pt). `.automatic` stays; no `.prominentDetail` switch. Open tall with
+    collections but none selected, the sidebar rests hidden and the detail reads "No Collection Selected" (one
+    tap on the sidebar button), not the sidebar decision 16 draws: accepted (user, 2026-11-13).
+  - *Folds (D07):* every board clears the division. FB: Analysis 392 pt and session / puzzle detail 416 pt on
+    the left page. FT: 352 pt above the division with about 13 pt to spare, larger than decision 10's 272 pt
+    (the canvas assumed a taller top bar); no layout change. Boards only touch the division for one ~15 ms
+    frame while the layout swaps mid-bend.
+  - *Split View:* the Analysis board is 331 pt (the canvas said 316) and clears the 13.5 pt inner-edge strip by
+    4.5 pt on the left half (F33 holds).
+  - *Continuity (§6.15):* a session survived FT → FB → IL; an open game, its 9-move path and unsaved edits
+    survived repeated closed / open folds.
+  - *Hold-to-jump (D05):* holds of 0.44–2.99 s jump and taps of 0.05–0.08 s step, in the side bar on IL and
+    closed.
+  - *Toast, sheets (D08):* the toast is ≤ 480 pt and clears the bottom bar on IP and the home indicator on IL.
+    The Account sheet is 450 pt closed; the comment sheet is 653 pt and centred on the inner display.
+  - *Vertical tab bar (F31):* symbols only, closed and open wide; titles show on IP's bottom tab bar. System
+    behaviour with titled `Tab`s, so nothing to change.
+  - *Game ⋯ menu:* no lag felt. The code did redraw too much: reading `analyzer.evaluation` / `.lines` in
+    `GameContentView`'s body re-evaluated the whole screen (board, move list, toolbar, the open menu's items)
+    on every engine update, up to every 100 ms, which is also the likely cause of XCTest never seeing the menu
+    go idle (#61). `LiveEvalBar` and `LiveEngineLines` now read the analyzer themselves.
+  - *Puzzle detail, closed:* the pinned board moved 3 pt for 140 ms while the large title collapsed. Cosmetic.
+  - *Skipped (user):* AX5, Reduce Transparency and Increase Contrast on the device.
+  The diagnostics log, its call sites and the TestFlight input are removed now the checks are done; they are
+  in the history of #63 if a later check needs them.
 - **Follow-ups (2026-11-12):**
   - *Stockfish smoke test:* the failures (2026-11-11) aren't a short wait, a deep search or the wrong line:
     passing runs take 1.7–2.7 s, and the five info strings are exactly what Stockfish 17 prints for

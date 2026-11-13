@@ -66,7 +66,6 @@ private struct PuzzleDetailContent: View {
             // Display-only: the detail replays, it doesn't take moves.
             BoardView(fen: model.fen, orientation: solverSide(puzzle), interactive: false, highlight: model.highlight)
                 .allowsHitTesting(false).frame(width: layout.board, height: layout.board)
-                .diagProbe("detail.board") { "puzzle \(puzzle.id) mode \(layout.mode)" }
                 .accessibilitySortPriority(1)
             List {
                 if puzzle.addPiece == nil { solution }

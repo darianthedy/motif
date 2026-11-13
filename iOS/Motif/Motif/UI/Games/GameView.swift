@@ -127,7 +127,7 @@ struct GameContentView: View {
     /// The board with the evaluation bar on its leading side.
     private func boardPane(_ layout: BoardLayout) -> some View {
         HStack(spacing: layout.evalGap) {
-            if evalBarShown { EvalBar(evaluation: analyzer.evaluation, orientation: model.orientation).frame(height: layout.board) }
+            if evalBarShown { LiveEvalBar(analyzer: analyzer, orientation: model.orientation).frame(height: layout.board) }
             BoardView(fen: model.fen, orientation: model.orientation, interactive: true,
                       highlight: model.node.map { (moveFrom($0.uci), moveTo($0.uci)) }, onMove: model.play, pending: $promotion)
                 .frame(width: layout.board, height: layout.board)
@@ -153,7 +153,7 @@ struct GameContentView: View {
             }
             alternatives(tree, row: layout.short)
             if linesShown {
-                EngineLinesView(lines: analyzer.lines, fen: model.fen, play: model.play, short: layout.short)
+                LiveEngineLines(analyzer: analyzer, fen: model.fen, play: model.play, short: layout.short)
                     .transition(.opacity.combined(with: .move(edge: .top)))
                     .accessibilitySortPriority(1)
             }
@@ -316,6 +316,22 @@ struct GameContentView: View {
 /// How long the window's latest touch was held, for toolbar buttons that act differently on a
 /// hold. A system bar item takes no SwiftUI gesture, but its action runs as its touch ends, so
 /// the action asks here. A recognizer on the window watches every touch without taking any.
+/// The evaluation bar and engine lines read the analyzer in their own bodies. The analyzer
+/// publishes up to every 100 ms while the engine thinks, and a read in `GameContentView`'s body
+/// re-evaluated the whole screen each time: the board, the move list, the toolbar and the open
+/// ⋯ menu's items. Read here, only these two views follow it.
+private struct LiveEvalBar: View {
+    let analyzer: Analyzer
+    let orientation: Side
+    var body: some View { EvalBar(evaluation: analyzer.evaluation, orientation: orientation) }
+}
+private struct LiveEngineLines: View {
+    let analyzer: Analyzer
+    let fen: String
+    let play: (Uci) -> Void
+    let short: Bool
+    var body: some View { EngineLinesView(lines: analyzer.lines, fen: fen, play: play, short: short) }
+}
 @MainActor enum TouchClock {
     fileprivate static var began: TimeInterval?
     fileprivate static var ended: TimeInterval?

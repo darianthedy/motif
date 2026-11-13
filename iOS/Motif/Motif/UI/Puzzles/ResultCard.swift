@@ -22,7 +22,11 @@ struct ResultCard: View {
             let stacked = typeSize.isAccessibilitySize
             let buttons = stacked ? AnyLayout(VStackLayout(spacing: 10)) : AnyLayout(HStackLayout(spacing: 10))
             buttons {
-                Button(action: analyze) { Label("Analyze", systemImage: "magnifyingglass").font(.headline).frame(maxWidth: stacked ? .infinity : nil) }
+                // Fixed width beside Continue: its greedy maxWidth otherwise squeezes "Analyze" into a hyphenated wrap.
+                Button(action: analyze) {
+                    Label("Analyze", systemImage: "magnifyingglass").font(.headline).lineLimit(1)
+                        .fixedSize(horizontal: !stacked, vertical: false).frame(maxWidth: stacked ? .infinity : nil)
+                }
                     .buttonStyle(.glass).controlSize(.large).accessibilityIdentifier("result-analyze")
                 Button(action: continueAction) { Text("Continue").font(.headline).frame(maxWidth: .infinity) }
                     .buttonStyle(.glassProminent).controlSize(.large).accessibilityIdentifier("result-continue")

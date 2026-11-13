@@ -437,7 +437,31 @@ enum Board {
 
     // MARK: FEN parity
 
+    /// Parsing validates with regexes and runs on every tap, drop, render and replay step,
+    /// usually for the same few positions; keep the latest ones.
+    private static let loaded = LoadCache()
     private static func load(_ fen: String) -> Position? {
+        if let hit = loaded[fen] { return hit }
+        let position = parse(fen)
+        loaded[fen] = .some(position)
+        return position
+    }
+    private final class LoadCache: @unchecked Sendable {
+        private let lock = NSLock()
+        private var entries: [String: Position?] = [:]
+        /// Positions in a session number in the tens; a full cache just starts over.
+        private let limit = 64
+        subscript(fen: String) -> Position?? {
+            get { lock.withLock { entries[fen] } }
+            set {
+                lock.withLock {
+                    if entries.count >= limit { entries.removeAll(keepingCapacity: true) }
+                    entries.updateValue(newValue ?? nil, forKey: fen)
+                }
+            }
+        }
+    }
+    private static func parse(_ fen: String) -> Position? {
         var fields = tokens(fen)
         if (2..<6).contains(fields.count) {
             fields += Array(["-", "-", "0", "1"].suffix(6 - fields.count))

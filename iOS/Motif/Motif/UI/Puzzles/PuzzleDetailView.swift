@@ -4,7 +4,16 @@ import SwiftUI
     var lineIndex = 0 { didSet { ply = 0 } }
     var ply = 0
     init(_ puzzle: Puzzle) { self.puzzle = puzzle }
-    var steps: [Board.ReplayStep] { Board.replayLine(puzzle.fen, puzzle.solutions.indices.contains(lineIndex) ? puzzle.solutions[lineIndex] : []) }
+    /// The shown line, replayed once per line rather than on every read: the board, the
+    /// highlight, the chips and the controls all read it on each render.
+    var steps: [Board.ReplayStep] {
+        let line = puzzle.solutions.indices.contains(lineIndex) ? puzzle.solutions[lineIndex] : []
+        if let replayed, replayed.fen == puzzle.fen, replayed.line == line { return replayed.steps }
+        let steps = Board.replayLine(puzzle.fen, line)
+        replayed = (puzzle.fen, line, steps)
+        return steps
+    }
+    @ObservationIgnored private var replayed: (fen: String, line: [Uci], steps: [Board.ReplayStep])?
     var fen: String {
         if let answer = puzzle.addPiece { return Board.withPiece(puzzle.fen, answer) ?? puzzle.fen }
         return ply > 0 && steps.indices.contains(ply - 1) ? steps[ply - 1].fen : puzzle.fen

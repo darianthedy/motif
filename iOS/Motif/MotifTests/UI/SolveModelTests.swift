@@ -9,7 +9,7 @@ import XCTest
     func testCleanSolveStopsOnCardAndExposesSolutionsOnlyAfterResolution() async throws {
         let puzzle = testPuzzle([["a1a8"]])
         let model = SolveModel(puzzle, sleep: { _ in })
-        XCTAssertTrue(model.lines.isEmpty); model.submit(try uci("a1a8")); XCTAssertEqual(model.phase, .replying)
+        XCTAssertTrue(model.lines.isEmpty); model.submit(try uci("a1a8")); XCTAssertEqual(model.phase, .solved, "A last move with no reply ends the attempt at once")
         await waitUntil { model.done }
         XCTAssertEqual(model.phase, .solved); XCTAssertEqual(model.lines.count, 1); XCTAssertTrue(model.lines[0].played)
         XCTAssertEqual(model.runner.accepted.count, 1)

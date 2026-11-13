@@ -122,7 +122,7 @@ private struct SessionPuzzle: View {
                 ToolbarItem(placement: .bottomBar) {
                     Button("Skip", systemImage: "forward.fill") { pending = nil; model.cancel(); record(.skipped, 0, false) }
                         .disabled(recording).accessibilityIdentifier("session-skip")
-                }
+                }.motifHighVisibilityPriority()
             }
         }.onDisappear { model.cancel() }
             .task {

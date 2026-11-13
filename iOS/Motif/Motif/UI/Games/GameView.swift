@@ -183,7 +183,7 @@ struct GameContentView: View {
             ToolbarItemGroup(placement: .bottomBar) {
                 stepper("Previous Move", "chevron.left", hold: "Go to start", disabled: model.path.isEmpty, step: model.back) { model.go([]) }
                 stepper("Next Move", "chevron.right", hold: "Go to end", disabled: model.following.isEmpty, step: model.next, jump: model.end)
-            }
+            }.motifHighVisibilityPriority()
         }
     }
     /// Filled while the lines show; VoiceOver reads it as selected.

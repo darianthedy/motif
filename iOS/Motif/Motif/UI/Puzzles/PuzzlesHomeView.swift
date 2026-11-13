@@ -33,7 +33,7 @@ struct PuzzlesHomeView: View {
                     .disabled(!app.store.online).accessibilityIdentifier("import-puzzles")
             }
             ToolbarSpacer(.fixed, placement: .topBarTrailing)
-            ToolbarItem(placement: .topBarTrailing) { AccountButton() }
+            ToolbarItem(placement: .topBarTrailing) { AccountButton() }.motifHighVisibilityPriority()
         }
         .alert("Rename the collection", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } }), presenting: renaming) { collection in
             TextField("Name", text: $name)

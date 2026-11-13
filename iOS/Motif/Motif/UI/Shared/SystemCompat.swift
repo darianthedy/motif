@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// The one home for iOS 27.1 APIs (`ToolbarOverflowMenu`, `toolbarVerticalBehavior`,
-/// `toolbarVerticalEdge`, `ReservedRegion` / `reservedRegions`, `ArrangementView`).
+/// `toolbarVerticalEdge`, `ReservedRegion` / `reservedRegions`, `ArrangementView`), and
+/// `visibilityPriority(_:)` from iOS 27.0, gated at 27.0.
 /// The deployment target stays 26.1, so each wrapper checks `#available(iOS 27.1, *)`
 /// and falls back to today's behaviour; views call the wrapper, never the API.
 /// See "Motif - iOS iPhone Duo Plan.md" §9.2 rule 4.
@@ -61,5 +62,19 @@ extension View {
     /// for effects, not layout (§1).
     func motifDivision(_ division: Binding<CGRect?>) -> some View {
         onGeometryChange(for: CGRect?.self) { $0.motifDivision } action: { division.wrappedValue = $0 }
+    }
+}
+extension ToolbarContent {
+    /// Keeps a frequent or status-bearing item (Previous / Next Move, Skip, Account) in the bar
+    /// longer than its neighbours when the bar runs out of room. `visibilityPriority(_:)` is
+    /// iOS 27.0. `ToolbarContentBuilder` can only gate an `if #available` for customizable items,
+    /// so the gate is here instead, in a plain function: an opaque result type may change its
+    /// underlying type under `if #available` (SE-0360). Before 27.0 the item is unchanged.
+    @MainActor func motifHighVisibilityPriority() -> some ToolbarContent {
+        if #available(iOS 27.0, *) {
+            return visibilityPriority(.high)
+        } else {
+            return self
+        }
     }
 }

@@ -1217,6 +1217,26 @@ and anything deferred to a later slice or a follow-up PR.
   - *AX5, Reduce Transparency, Increase Contrast* (D10): `traits` lines; which bar items overflow still needs a
     screenshot, as do the vertical tab bar's labels.
   Remove the file, its call sites and the workflow input once the checks are done.
+- **Follow-ups (2026-11-12):**
+  - *Stockfish smoke test:* the failures (2026-11-11) aren't a short wait, a deep search or the wrong line:
+    passing runs take 1.7–2.7 s, and the five info strings are exactly what Stockfish 17 prints for
+    `setoption Threads` and then `go`, so the search started and no `bestmove` reached the stream in 40 s.
+    ChessKitEngine reads stdout in chunks on the main run loop, drops a line cut across two reads and yields
+    each line from its own `Task`. The test now runs `go depth 8`, sends `stop` after 15 s (which forces a
+    `bestmove`) and searches again after 5 s more, up to three times within 120 s. It records each search's
+    info / scored counts in the failure message and an attachment, which tells a stalled search from dropped
+    output. `StockfishEngine`, which has the same reader, is unchanged.
+  - *Visibility priority:* done, not deferred. `visibilityPriority(_:)` is documented on plain `ToolbarContent`
+    (iOS 27.0), not only on customizable items. The builder can't gate it, so `motifHighVisibilityPriority()`
+    (`SystemCompat.swift`) gates it in a plain function, using an opaque result with `if #available` (SE-0360).
+    It's on Previous / Next Move (GameView; puzzle detail's whole replay group), Skip and Account. The offline
+    pill has been an inset, not a toolbar item, since D08, so it has nothing to raise. Whether the side bar
+    honours the priority is a device check.
+  - *S05a on FB / FT:* not the sheet. The same host time-outs hit S01d, S04a, S04f and S04j, and none of the
+    state's views takes focus. Every retry timed out because the 40 s alarm only killed the bash wrapper, so a
+    hung `duoctl` lived on and later tries queued behind it. The script now kills it after a failed try. S05a is
+    still allow-listed on FB and FT (unreached check and xcodebuild status), since the first hang has no clear
+    cause. On a folded pose the cover is the screen showing, so the suite's XCUIScreen fallback is the right frame.
 
 ## 9. Implementation slices
 

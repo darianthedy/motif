@@ -73,8 +73,12 @@ struct CollectionView: View {
                     Text("\(remaining) left").font(.subheadline).foregroundStyle(.motifSecondary)
                 }.frame(maxWidth: .infinity, alignment: .leading)
                 Button("Resume", systemImage: "play.fill") { app.session = SessionRoute(scope: collectionId) }
-                    .buttonStyle(.glassProminent).buttonBorderShape(.capsule).accessibilityIdentifier("resume-session")
-            }.padding(.vertical, 4)
+                    .labelStyle(.titleAndIcon).foregroundStyle(.white)
+                    .buttonStyle(.glassProminent).buttonBorderShape(.capsule).fixedSize()
+                    .accessibilityIdentifier("resume-session")
+            }
+            .padding(.vertical, 4)
+            .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
             Button("Discard Session", role: .destructive) { Task { _ = await app.edit { try await $0.deleteRun(run.id) } } }
                 .disabled(!app.store.online).accessibilityIdentifier("discard-session")
         }

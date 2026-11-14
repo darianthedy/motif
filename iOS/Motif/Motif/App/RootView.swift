@@ -16,7 +16,8 @@ struct RootView: View {
             case .signedOut: SignInView()
             case .waiting: loading
             // A debug launch route opens before the tabs are built, so its selection and path are their first state.
-            case .library where app.awaitingLaunchRoute: loading
+            // So does a debug launch that is still going offline (`AppState.goingOffline`).
+            case .library where app.awaitingLaunchRoute || app.goingOffline: loading
             case .library:
                 #if DEBUG
                 if app.launchRoute == "board" { NavigationStack { BoardSampleView() } } else { tabs }

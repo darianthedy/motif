@@ -42,6 +42,11 @@ final class AppState {
     private(set) var launchRouteOpened = false
     /// A debug launch route that still waits for the library.
     var awaitingLaunchRoute: Bool { launchRoute != nil && !launchRouteOpened }
+    /// A debug launch with `-MotifOffline` goes offline only once the library has loaded. Until then
+    /// the library stays behind the loading screen, so its screens are built offline. Built online
+    /// and flipped a moment later, the new navigation bar sometimes lost the change: Import stayed
+    /// enabled or the offline pill never appeared (ios-ci nightly, 2026-11-13).
+    private(set) var goingOffline = false
     @ObservationIgnored private let connectivity = Connectivity()
     @ObservationIgnored private let debug: Bool
     @ObservationIgnored private var noticeTimer: Task<Void, Never>?
@@ -52,6 +57,9 @@ final class AppState {
     }
     init(store: LibraryStore, usingDevAccount: Bool = true, debug: Bool = false, route: String? = nil) {
         self.store = store; self.usingDevAccount = usingDevAccount; self.debug = debug; launchRoute = route
+        #if DEBUG
+        goingOffline = debug && UserDefaults.standard.bool(forKey: "MotifOffline")
+        #endif
         if route == "account" { showingAccount = true }
         if route?.hasPrefix("game") == true { tab = .games }
     }
@@ -80,7 +88,7 @@ final class AppState {
         if !debug { connectivity.start(store) }
         await store.open()
         #if DEBUG
-        if debug && UserDefaults.standard.bool(forKey: "MotifOffline") { await store.setOnline(false) }
+        if goingOffline { await store.setOnline(false); goingOffline = false }
         if debug { await CaptureFixture.current.apply(to: self) }
         #endif
     }

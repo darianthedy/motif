@@ -15,7 +15,7 @@
 # major version to prefer (see ios-simulator.sh); the default is the first
 # available iPhone. MOTIF_POSE (iphone, IL, ipad…) reaches the tests as MOTIF_POSE, for
 # UI tests that only hold in one pose. ios-ci sets all three per destination.
-# MOTIF_TEST_RETRIES and MOTIF_ONLY_TESTING are described where they're read.
+# MOTIF_TEST_RETRIES, MOTIF_TEST_REPEAT and MOTIF_ONLY_TESTING are described where they're read.
 # MOTIF_XCODEBUILD_FLAGS adds extra xcodebuild options or build settings, unquoted
 # (ios-ci turns on compilation caching and skips package re-resolution with it).
 #
@@ -70,6 +70,12 @@ retry=""
 if [ "${MOTIF_TEST_RETRIES:-1}" -gt 1 ]; then
   retry="-retry-tests-on-failure -test-iterations $MOTIF_TEST_RETRIES"
 fi
+# MOTIF_TEST_REPEAT=N runs every selected test N times whatever each run gives, in place of
+# the retries, to measure a flaky test: pair it with MOTIF_ONLY_TESTING. Any failure fails.
+repeat=""
+if [ "${MOTIF_TEST_REPEAT:-1}" -gt 1 ]; then
+  repeat="-test-iterations $MOTIF_TEST_REPEAT"; retry=""
+fi
 
 # xcodebuild buffers its output into a pipe; unbuffered, the log's timestamps are real.
 export NSUnbufferedIO=YES
@@ -95,12 +101,16 @@ xcb() {
 
 # One `xcodebuild test`, as before: run as build-for-testing, a simulator boot and
 # test-without-building, ios-ci took 2-4 minutes longer to reach the first test.
-echo "== xcodebuild test on '$sim'${MOTIF_POSE:+ (pose $MOTIF_POSE)}${selection:+ (smoke)}${retry:+ (up to $MOTIF_TEST_RETRIES attempts)}"
-set +e
-xcb build/test.log xcodebuild test "${common[@]}" $selection $retry \
-  ${MOTIF_XCODEBUILD_FLAGS:-} CODE_SIGNING_ALLOWED=NO
-status=$?
-set -e
+echo "== xcodebuild test on '$sim'${MOTIF_POSE:+ (pose $MOTIF_POSE)}${selection:+ (smoke)}${retry:+ (up to $MOTIF_TEST_RETRIES attempts)}${repeat:+ ($MOTIF_TEST_REPEAT runs each)}"
+# `|| status=$?`, since xcb turns `set -e` back on: a failing run must still reach the summary below.
+status=0
+xcb build/test.log xcodebuild test "${common[@]}" $selection $retry $repeat \
+  ${MOTIF_XCODEBUILD_FLAGS:-} CODE_SIGNING_ALLOWED=NO || status=$?
+
+if [ -n "$repeat" ]; then
+  plain=$(sed -E 's/\x1b\[[0-9;]*m//g' build/test.log)
+  echo "== $MOTIF_TEST_REPEAT runs each: $(echo "$plain" | grep -cE '^ *✔ ' || true) passed, $(echo "$plain" | grep -cE '^ *✖ ' || true) failed"
+fi
 
 # A test that failed and then passed on a retry still deserves a look: flag it on the run.
 if [ "$status" = 0 ] && [ -n "$retry" ]; then

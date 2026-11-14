@@ -14,7 +14,8 @@ name: iOS CI
 #   full  — the nightly schedule, workflow_dispatch and PRs labelled `full-ui`:
 #           every test on all three legs. Merges to main don't run the iOS check.
 #           (workflow_dispatch can ask for the quick one with its `smoke` input, for
-#           named tests only with `only`, and keep the xcresult with `keep_results`.)
+#           named tests only with `only`, run them many times over with `repeat`,
+#           and keep the xcresult with `keep_results`.)
 #
 # A failing test gets a second attempt (MOTIF_TEST_RETRIES), so one flaky UI test doesn't
 # cost a re-run; a test that passed only on its retry shows as a warning on the run.
@@ -45,6 +46,10 @@ on:
         default: false
       only:
         description: "Run only these tests (comma-separated, e.g. MotifUITests/GamesFlowTests/testBulkDeleteFromTheToolbarItem)"
+        type: string
+        default: ""
+      repeat:
+        description: "Run each selected test this many times, with no retries (with `only`, to measure a flaky test)"
         type: string
         default: ""
       keep_results:
@@ -90,7 +95,7 @@ jobs:
     name: ios (${{ matrix.pose }}${{ inputs.only != '' && ', only' || needs.plan.outputs.full != 'true' && ', smoke' || '' }})
     needs: plan
     runs-on: xcode-27 # carries Xcode 27.1 and the iPhone Duo simulator (deployment target stays iOS 26.1)
-    timeout-minutes: ${{ needs.plan.outputs.full == 'true' && 75 || 25 }}
+    timeout-minutes: ${{ (needs.plan.outputs.full == 'true' || inputs.repeat != '') && 75 || 25 }}
     strategy:
       fail-fast: false
       matrix:
@@ -165,6 +170,7 @@ jobs:
         env:
           MOTIF_TEST_RETRIES: 2
           MOTIF_ONLY_TESTING: ${{ inputs.only }}
+          MOTIF_TEST_REPEAT: ${{ inputs.repeat }}
           SMOKE: ${{ needs.plan.outputs.full != 'true' && '--smoke' || '' }}
           MOTIF_XCODEBUILD_FLAGS: -disableAutomaticPackageResolution COMPILATION_CACHE_ENABLE_CACHING=YES
         run: scripts/ios-verify.sh --ios $SMOKE

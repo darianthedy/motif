@@ -11,6 +11,12 @@ import XCTest
     /// A loaded CI simulator can stall for a minute reaping the previous test's app, and `launch()` then fails
     /// with "Failed to terminate com.dthedy.Motif:<pid>" before this test has done anything. That one issue is
     /// the simulator's, so it buys a second launch; the app must still come up in the foreground.
+    /// The same goes for the other ways a loaded simulator drops a launch (ios-ci, 2026-11-13).
+    nonisolated static let simulatorLaunchIssues = [
+        "Failed to terminate com.dthedy.Motif",
+        "Failed to get background assertion for target app",
+        "does not have a process ID",
+    ]
     func launch(_ route: String? = nil, seeded: Bool = true, offline: Bool = false, extra: [String] = [], file: StaticString = #filePath, line: UInt = #line) {
         app.launchArguments = ["-MotifMemoryBackend", "YES", "-MotifSeedSamples", seeded ? "YES" : "NO",
                                "-MotifUITestNoAnimations", "YES"] + extra
@@ -24,7 +30,7 @@ import XCTest
             let options = XCTExpectedFailure.Options()
             options.isStrict = false
             options.issueMatcher = { @Sendable issue in
-                guard issue.compactDescription.contains("Failed to terminate com.dthedy.Motif") else { return false }
+                guard Self.simulatorLaunchIssues.contains(where: issue.compactDescription.contains) else { return false }
                 stalled.set(); return true
             }
             XCTExpectFailure("The simulator failed to reap the previous app", options: options) { app.launch() }

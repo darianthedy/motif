@@ -6,7 +6,8 @@ import XCTest
     /// that only hold in one pose: `try XCTSkipIf(pose == "IL", "…")`.
     var pose: String { ProcessInfo.processInfo.environment["MOTIF_POSE"] ?? "" }
     /// Destinations whose window is regular width with both split view columns (IL, iPad in landscape), for
-    /// tests of the compact, one-stack layout: `try XCTSkipIf(twoColumns, "…")`.
+    /// tests of the compact, one-stack layout: `try XCTSkipIf(twoColumns, "…")`. Unposed it is false even on a
+    /// Duo left open, so such tests also check the layout they get.
     var twoColumns: Bool { pose == "IL" || pose == "ipad" }
     /// A loaded CI simulator can stall for a minute reaping the previous test's app, and `launch()` then fails
     /// with "Failed to terminate com.dthedy.Motif:<pid>" before this test has done anything. That one issue is

@@ -53,7 +53,7 @@ struct PuzzlesHomeView: View {
         return Section("Practice") {
             if let run = runIn(library, SCOPE_ALL), resumable(library, SCOPE_ALL) {
                 Button { app.session = SessionRoute(scope: SCOPE_ALL) } label: {
-                    PracticeRow(title: "Resume Random Session", systemImage: "play.fill", tile: .motifAccentStrong) {
+                    PracticeRow(title: "Resume Session", systemImage: "play.fill", tile: .motifAccentStrong) {
                         Text("\(progressOf(library, run).remaining) left").foregroundStyle(.motifSecondary)
                     }
                 }.accessibilityIdentifier("resume-random")
@@ -110,9 +110,9 @@ private struct PracticeRow<Trailing: View>: View {
     var body: some View {
         HStack(spacing: 12) {
             IconTile(systemImage: systemImage, color: tile.opacity(enabled ? 1 : 0.4))
-            Text(title).foregroundStyle(enabled ? Color.primary : Color.motifSecondaryText).layoutPriority(1)
-            Spacer()
-            trailing
+            Text(title).foregroundStyle(enabled ? Color.primary : Color.motifSecondaryText).lineLimit(2)
+            Spacer(minLength: 8)
+            trailing.fixedSize()
         }
     }
 }

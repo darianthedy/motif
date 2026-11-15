@@ -456,7 +456,7 @@ function row(o) {
 function puzzlesList(st, w) {
   if (st.empty) return '';
   const practice = st.noPuzzles ? '' : section('Practice', [
-    st.noSession ? '' : row({ lead: tile('skip', 'var(--accent)'), title: 'Resume Random Session', trail: '<span class="lr-v">5 left</span>' }),
+    st.noSession ? '' : row({ lead: tile('skip', 'var(--accent)'), title: 'Resume Session', trail: '<span class="lr-v">5 left</span>' }),
     row({ lead: tile('sparkle', '#007aff'), title: 'Random From Everything' }),
     row({ lead: tile('flip', '#ff9500', st.noSession), title: 'Review Mistakes', cls: st.noSession ? 'dis' : '', trail: st.noSession ? '' : '<span class="badge">1</span>' }),
   ]);

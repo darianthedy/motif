@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Runs the quick iOS check (scripts/ios-verify.sh --ios --smoke: all of MotifTests plus
+# the UI smoke set, on an iPhone simulator) before a push whose commits touch the iOS
+# app. Replaces ios-ci's per-PR run: iOS builds run locally on the Mac Mini now, not on
+# GitHub's macOS runners. The full suite on all three legs is still ios-ci, nightly.
+#
+# Enable once per clone:   git config core.hooksPath .githooks
+# Skip one push:           git push --no-verify   (or SKIP_IOS_CHECK=1 git push)
+# Full suite instead:      IOS_CHECK_FULL=1 git push
+#
+# Note: the tests run against the working tree, so commit or stash unrelated
+# edits first if you want the result to reflect exactly what is being pushed.
+set -euo pipefail
+
+[ "${SKIP_IOS_CHECK:-0}" = "1" ] && exit 0
+
+zero=0000000000000000000000000000000000000000
+remote="$1"
+changed=""
+
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue # branch deletion
+  if [ "$remote_sha" = "$zero" ]; then
+    # New branch on the remote: compare with the remote's default branch.
+    base="$(git merge-base "$local_sha" "refs/remotes/$remote/main" 2>/dev/null || true)"
+    range="${base:+$base..}$local_sha"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+  changed+="$(git diff --name-only "$range" 2>/dev/null || git ls-tree -r --name-only "$local_sha")"$'\n'
+done
+
+# Same paths ios-ci used to run on for every PR, minus docs.
+if ! grep -E '^(iOS/|src/model/|scripts/export-ios-fixtures\.ts$|scripts/ios-[^/]*\.sh$|scripts/fetch-nnue\.sh$)' <<<"$changed" \
+    | grep -vE '\.md$' | grep -q .; then
+  exit 0
+fi
+
+root="$(git rev-parse --show-toplevel)"
+smoke="--smoke"
+[ "${IOS_CHECK_FULL:-0}" = "1" ] && smoke=""
+echo "pre-push: iOS changes detected — running scripts/ios-verify.sh --ios $smoke (skip with --no-verify)"
+if (cd "$root" && MOTIF_TEST_RETRIES="${MOTIF_TEST_RETRIES:-2}" scripts/ios-verify.sh --ios $smoke); then
+  echo "pre-push: iOS check passed"
+else
+  echo "pre-push: iOS check FAILED — push aborted" >&2
+  exit 1
+fi

@@ -8,8 +8,8 @@
 #   scripts/ios-verify.sh --smoke    # all MotifTests, only the UI smoke set (SMOKE_UI)
 #   scripts/ios-verify.sh --ios --smoke
 #
-# The flags combine in any order. Without --smoke every test runs, as before; ios-ci
-# uses --smoke for its quick PR leg and the full run everywhere else.
+# The flags combine in any order. Without --smoke every test runs, as before; the
+# pre-push hook (.githooks/pre-push) uses --ios --smoke, ios-ci's nightly the full run.
 #
 # MOTIF_SIM (a device name or UDID) picks the simulator, and MOTIF_RUNTIME an iOS
 # major version to prefer (see ios-simulator.sh); the default is the first

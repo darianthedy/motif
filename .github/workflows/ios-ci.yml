@@ -1,21 +1,19 @@
 name: iOS CI
 
-# The check for the native app: builds it with Xcode 27.1 and runs MotifTests +
+# The nightly gate for the native app: builds it with Xcode 27.1 and runs MotifTests +
 # MotifUITests against the in-memory dev backend (no secrets, no signing), on three
 # destinations: an iPhone 17 (`iphone`), the iPhone Duo simulator open and wide
 # (`IL`, posed with duoctl) and an 11-inch iPad in landscape (`ipad`; the UI tests
-# turn it with XCUIDevice). See "Motif - iOS iPhone Duo Plan.md" §9. The web suite, whose
-# fixture check fails when a TS model change has left the committed iOS parity fixtures
-# stale, runs on every PR in web-ci.yml.
+# turn it with XCUIDevice). See "Motif - iOS iPhone Duo Plan.md" §9.
 #
-# Two depths, picked by the `plan` job:
-#   quick — pull requests: the iphone leg only, all of MotifTests plus the UI smoke set
-#           (`ios-verify.sh --smoke`), for feedback in about ten minutes.
-#   full  — the nightly schedule, workflow_dispatch and PRs labelled `full-ui`:
-#           every test on all three legs. Merges to main don't run the iOS check.
-#           (workflow_dispatch can ask for the quick one with its `smoke` input, for
-#           named tests only with `only`, run them many times over with `repeat`,
-#           and keep the xcresult with `keep_results`.)
+# iOS builds run locally on the Mac Mini now (iOS/README-Mac.md): the per-PR check is
+# the pre-push hook (.githooks/pre-push → scripts/ios-verify.sh --ios --smoke) and
+# TestFlight is scripts/ios-release/testflight.sh. This is the one iOS workflow left:
+#   nightly on main, from the Actions tab, or by adding the `full-ui` label to a PR.
+# Every test on all three legs, unless workflow_dispatch asks for the quick one with
+# `smoke` (iphone leg, smoke UI set), named tests only with `only`, many runs with
+# `repeat`, or the xcresult kept with `keep_results`. The web suite runs on every PR
+# in web-ci.yml.
 #
 # A failing test gets a second attempt (MOTIF_TEST_RETRIES), so one flaky UI test doesn't
 # cost a re-run; a test that passed only on its retry shows as a warning on the run.
@@ -23,19 +21,12 @@ name: iOS CI
 # Build caching, since every job starts on a fresh Mac: the Swift packages are cached
 # on Package.resolved; the build products and Xcode's compilation cache (content
 # addressed, so it survives a fresh checkout) are saved by the nightly run's iphone
-# leg and restored by every leg and PR, so PRs build on at most a day-old cache. Tracked files get their commit times as mtimes, so
+# leg and restored by every leg and labelled PR, so those build on at most a day-old cache. Tracked files get their commit times as mtimes, so
 # the cached products of unchanged sources still count as up to date.
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
-    paths:
-      - "iOS/**"
-      - "src/model/**"
-      - "scripts/export-ios-fixtures.ts"
-      - "scripts/ios-*.sh"
-      - "scripts/fetch-nnue.sh"
-      - ".github/workflows/ios-ci.yml"
+    types: [labeled]
   schedule:
     - cron: "17 3 * * *" # nightly, 03:17 UTC, on main
   workflow_dispatch:
@@ -57,7 +48,7 @@ on:
         type: boolean
         default: false
 
-# A PR's newer run replaces its older one. Adding some other label to a PR gets a
+# Re-adding `full-ui` replaces a PR's older run. Adding some other label gets a
 # group of its own, so it can't cancel the running check (its jobs are skipped).
 # main's runs (nightly, dispatch) are never cancelled.
 concurrency:
@@ -66,8 +57,8 @@ concurrency:
 
 jobs:
   plan:
-    # A label event re-runs the check only when it's `full-ui` being added.
-    if: github.event.action != 'labeled' || github.event.label.name == 'full-ui'
+    # On a PR, only the `full-ui` label being added runs the check.
+    if: github.event_name != 'pull_request' || github.event.label.name == 'full-ui'
     runs-on: ubuntu-latest
     outputs:
       full: ${{ steps.plan.outputs.full }}
@@ -75,7 +66,7 @@ jobs:
     steps:
       - id: plan
         env:
-          FULL: ${{ (github.event_name == 'workflow_dispatch' && !inputs.smoke) || github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ui') }}
+          FULL: ${{ github.event_name != 'workflow_dispatch' || !inputs.smoke }}
         run: |
           # An iPhone 17 on an iOS 26.x runtime when the image has one, so the 26.1
           # fallbacks run; otherwise on the SDK's own runtime. The step log says which.
@@ -89,7 +80,7 @@ jobs:
           if [ "$FULL" = true ]; then legs="[$iphone,$duo,$ipad]"; else legs="[$iphone]"; fi
           echo "full=$FULL" >> "$GITHUB_OUTPUT"
           echo "legs=$legs" >> "$GITHUB_OUTPUT"
-          echo "### iOS CI: $([ "$FULL" = true ] && echo 'full suite, all legs' || echo 'quick (iphone, smoke UI set) — label the PR `full-ui` for everything')" >> "$GITHUB_STEP_SUMMARY"
+          echo "### iOS CI: $([ "$FULL" = true ] && echo 'full suite, all legs' || echo 'quick (iphone, smoke UI set)')" >> "$GITHUB_STEP_SUMMARY"
 
   ios:
     name: ios (${{ matrix.pose }}${{ inputs.only != '' && ', only' || needs.plan.outputs.full != 'true' && ', smoke' || '' }})

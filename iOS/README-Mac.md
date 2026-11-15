@@ -1,5 +1,20 @@
 # Motif on this Mac
 
+> **Default build path since 2026-11-14.** We work on a Mac Mini (Xcode 27.2, iOS 27.2
+> simulators incl. iPhone Duo). Build, test, screenshot and ship from here; GitHub
+> Actions (`ios-ci`, `ios-testflight`, `ios-duo-capture`) and other cloud builders are
+> not used.
+>
+> - Verify: `scripts/ios-verify.sh` (Duo: `MOTIF_SIM="iPhone Duo" scripts/ios-verify.sh`)
+> - Screenshots: `scripts/ios-screenshot.sh <name>`, Duo grid: `scripts/ios-duo-capture.sh`
+> - TestFlight: `scripts/fetch-nnue.sh && cd iOS/Motif && fastlane beta`. Signing is the
+>   shared setup for all apps on this Mac (`~/.config/ios-signing/README.md`); the
+>   Fastfile loads `~/.config/ios-signing/signing.env` and `NEON_BASE_URL` (from the
+>   repo's `.env` `VITE_NEON_BASE_URL`) itself. Profile: `ios-signing AppStore com.dthedy.Motif`.
+> - One-time: `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`
+>   (it still points at CommandLineTools) and `brew install fnm` (or run the scripts
+>   with the Homebrew `node`).
+
 P01–P12 implement the native client. Follow `Motif - iOS Build Prompts.md`
 in order and apply §4 of `Motif - iOS Mac Mode.md`. These prompts can be
 implemented directly in a coding session; the Claude-based driver is optional.

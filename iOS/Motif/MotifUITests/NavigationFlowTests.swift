@@ -58,6 +58,9 @@ import XCTest
         try XCTSkipIf(twoColumns, "The open display and the iPad in landscape show both columns")
         launch(); let collection = row("collection-sample-back-rank"); wait(collection); collection.tap()
         let browse = button("browse-puzzles"); wait(browse)
+        // Unposed (a local run), the simulator's own pose decides the layout: a Duo left open or
+        // half-open shows both columns, with no Back. ios-ci's poses keep asserting the one stack.
+        try XCTSkipIf(pose.isEmpty && collection.isHittable, "Both columns show on this simulator; set MOTIF_POSE")
         let back = app.navigationBars.buttons.matching(NSPredicate(format: "label == 'Puzzles' OR label == 'Back'")).firstMatch
         wait(back); back.tap()
         expect(browse, "exists == false"); wait(collection); collection.tap(); wait(browse)

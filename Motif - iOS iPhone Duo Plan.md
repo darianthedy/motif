@@ -361,7 +361,8 @@ public release.
 
 ## 8. Investigation phases
 
-**Phase 0 — Toolchain.** The Mac phase is over, and no Mac is needed for this:
+**Phase 0 — Toolchain.** *(2026-11-14: superseded — the Mac Mini has Xcode 27.2 and
+the iPhone Duo simulator locally; use it instead of the `xcode-27` runner.)* Originally:
 the `xcode-27` GitHub runner (image 20261026, macOS 27, preview) has Xcode 27.1
 as its default and an iPhone Duo simulator on the iOS 27.1 runtime. `macos-26`
 stops at Xcode 26.6. Add a manual workflow on `xcode-27` that pins 27.1, and
@@ -1315,8 +1316,9 @@ error.
   slices' **Device** checks happen together after it. Anything they turn up
   becomes a follow-up PR.
 
-There is no Mac-mode variant: the Duo simulator and the 27.1 SDK exist only on
-the `xcode-27` runner.
+*(2026-11-14)* The Duo simulator and an Xcode 27.2 SDK now exist locally on the Mac
+Mini, so the final "CI" run and fix loop run locally with `scripts/ios-verify.sh`
+(`MOTIF_SIM="iPhone Duo"`), not on the `xcode-27` runner.
 
 ### 9.2 Shared rules (inlined into every slice)
 
@@ -1355,8 +1357,9 @@ the `xcode-27` runner.
 > 7. **Never show tags, comments or motif while solving.**
 > 8. **Synchronized folders:** new files under `Motif/`, `MotifTests/`,
 >    `MotifUITests/` need no `project.pbxproj` edit.
-> 9. **No Mac, and no CI until the end.** CI is the only compiler, and it runs
->    once after D11 (§9.1). A slice is done when its "Done when" is written (the
+> 9. **Build locally on the Mac Mini; no GitHub Actions.** Compile and test with
+>    `scripts/ios-verify.sh` (`MOTIF_SIM="iPhone Duo"`) as you go; the full run
+>    still happens once after D11 (§9.1), locally. A slice is done when its "Done when" is written (the
 >    tests it names exist and should pass) and committed, with nothing from a
 >    later slice; "CI green" in a slice means green in that final run. Record
 >    anything the slice settles or defers in §8.7 of this plan, in one or two lines.

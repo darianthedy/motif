@@ -15,9 +15,9 @@
 2. Paste the prompt's **Run** line (only that line). It tells Claude what to read and
    build; the rest of the prompt is there for Claude to read in this file.
 3. Do prompts **in order**, **one per session**. Review → PR → green `ios-ci` → merge → next.
-4. After each prompt the PR check (`ios-ci.yml`: simulator build + `MotifTests`) is green.
-   There is no Mac and no local build: **CI is the compiler.** Push the branch, read the
-   check, fix, repeat.
+4. After each prompt `scripts/ios-verify.sh` (simulator build + `MotifTests`) is green
+   **locally on the Mac Mini** (since 2026-11-14 — no GitHub Actions; see `iOS/README-Mac.md`).
+   Where a prompt says "`ios-ci` green", read it as this local check.
 
 ### On a Mac
 `Motif - iOS Mac Mode.md` runs these same prompts locally — no GitHub, no CI — via

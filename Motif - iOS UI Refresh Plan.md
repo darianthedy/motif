@@ -314,7 +314,7 @@ Slices can also be split: run some on the Mac and the rest from WSL, as long as
 > 4. **Never show tags, comments or motif while solving.**
 > 5. **Synchronized folders:** new files under `Motif/`, `MotifTests/`,
 >    `MotifUITests/` need no `project.pbxproj` edit.
-> 6. **No Mac, so CI is the compiler.** Done = `ios-ci` green + the slice’s
+> 6. **Build locally on the Mac Mini (no GitHub Actions).** Done = `scripts/ios-verify.sh` green + the slice’s
 >    “Done when” + nothing from a later slice.
 
 ### U01 — Shared foundation

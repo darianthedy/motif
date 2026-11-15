@@ -185,7 +185,7 @@ Same driver as the UI refresh: **one fresh Claude session per slice**, branch
 > 5. **Synchronized folders:** new files under `Motif/`, `MotifTests/` and
 >    `MotifUITests/` need no `project.pbxproj` edit. The package reference
 >    (E01) does.
-> 6. **No Mac, so CI is the compiler.** Done = `ios-ci` green + the slice's
+> 6. **Build locally on the Mac Mini (no GitHub Actions).** Done = `scripts/ios-verify.sh` green + the slice's
 >    "Done when" + nothing from a later slice.
 
 ### E01 — Engine in the build

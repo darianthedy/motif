@@ -1,5 +1,9 @@
 # Building & installing the iOS app without a Mac
 
+> **2026-11-14: builds are now local on the Mac Mini** — see [`README-Mac.md`](README-Mac.md).
+> The GitHub Actions workflows below are retired; this page stays as the reference for
+> the App Store Connect key and match setup.
+
 The native app builds on a **GitHub-hosted macOS runner**, is signed with
 fastlane match, and is uploaded to **TestFlight**. You install it on your
 iPhone from the **TestFlight** app. Everything here is done from the browser.

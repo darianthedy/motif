@@ -1,5 +1,10 @@
 # Motif — iOS Mac Mode
 
+> **2026-11-14:** the Mac is no longer borrowed — we work on a Mac Mini permanently.
+> Building, testing and screenshots stay local as described here, but pushing to
+> GitHub is fine again and the "return to WSL / CI" steps no longer apply: TestFlight
+> uploads are also done locally (`bundle exec fastlane beta`, see `iOS/README-Mac.md`).
+
 > How to build the iOS app on a **borrowed Mac, locally only**: no pushes to
 > GitHub, no CI, no TestFlight. The Mac exists to turn P01–P12 of
 > `Motif - iOS Build Prompts.md` into a working app as fast as possible, with

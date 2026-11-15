@@ -47,9 +47,13 @@ When the TS and this document disagree, the TS wins and this document is wrong.
 
 ## 1. Prerequisites & constraints
 
-- **No Mac.** Development happens on WSL2. Nothing is built or run locally.
-  Every build runs on a GitHub-hosted macOS runner (§14). This is the same
-  setup as `~/projects/financial-management`, where it is proven end to end.
+- **Local builds on the Mac Mini (since 2026-11-14).** Development now happens on a
+  Mac Mini with Xcode 27.2; everything is built, tested and uploaded locally
+  (`iOS/README-Mac.md`). GitHub Actions macOS runners are **not** used any more —
+  read every "CI" / "ios-ci green" below as "`scripts/ios-verify.sh` green locally".
+  *History:* development used to be on WSL2 with every build on a GitHub-hosted
+  macOS runner (§14). This is the same
+  setup as `~/Documents/projects/financial-management`, where it is proven end to end.
 - **The repo is public**, so GitHub macOS minutes are free.
 - **Signing is shared with Financial Management**: Apple team `F73L2977Q8`, the
   `darianthedy/ios-certificates` match repo, the same App Store Connect API key.
@@ -578,6 +582,10 @@ name (`square-e4`).
 ---
 
 ## 14. Build & deployment
+
+> **2026-11-14:** the workflows below are retired; builds, tests and TestFlight
+> uploads run locally on the Mac Mini (`iOS/README-Mac.md`). fastlane (§14.2)
+> still applies — run `bundle exec fastlane test|beta` locally.
 
 ### 14.1 Workflows
 

@@ -1,17 +1,18 @@
 name: iOS CI
 
 # The nightly gate for the native app: builds it with Xcode 27.1 and runs MotifTests +
-# MotifUITests against the in-memory dev backend (no secrets, no signing), on three
-# destinations: an iPhone 17 (`iphone`), the iPhone Duo simulator open and wide
-# (`IL`, posed with duoctl) and an 11-inch iPad in landscape (`ipad`; the UI tests
-# turn it with XCUIDevice). See "Motif - iOS iPhone Duo Plan.md" §9.
+# MotifUITests against the in-memory dev backend (no secrets, no signing), on two
+# destinations: the iPhone Duo simulator open and wide (`IL`, posed with duoctl) and
+# an 11-inch iPad in landscape (`ipad`; the UI tests turn it with XCUIDevice). Every
+# simulator check runs on the Duo; the iPhone 17 leg was dropped. See
+# "Motif - iOS iPhone Duo Plan.md" §9.
 #
 # iOS builds run locally on the Mac Mini now (iOS/README-Mac.md): the per-PR check is
 # the pre-push hook (.githooks/pre-push → scripts/ios-verify.sh --ios --smoke) and
 # TestFlight is scripts/ios-release/testflight.sh. This is the one iOS workflow left:
 #   nightly on main, from the Actions tab, or by adding the `full-ui` label to a PR.
-# Every test on all three legs, unless workflow_dispatch asks for the quick one with
-# `smoke` (iphone leg, smoke UI set), named tests only with `only`, many runs with
+# Every test on both legs, unless workflow_dispatch asks for the quick one with
+# `smoke` (Duo leg, smoke UI set), named tests only with `only`, many runs with
 # `repeat`, or the xcresult kept with `keep_results`. The web suite runs on every PR
 # in web-ci.yml.
 #
@@ -20,7 +21,7 @@ name: iOS CI
 #
 # Build caching, since every job starts on a fresh Mac: the Swift packages are cached
 # on Package.resolved; the build products and Xcode's compilation cache (content
-# addressed, so it survives a fresh checkout) are saved by the nightly run's iphone
+# addressed, so it survives a fresh checkout) are saved by the nightly run's Duo (IL)
 # leg and restored by every leg and labelled PR, so those build on at most a day-old cache. Tracked files get their commit times as mtimes, so
 # the cached products of unchanged sources still count as up to date.
 
@@ -32,7 +33,7 @@ on:
   workflow_dispatch:
     inputs:
       smoke:
-        description: "Quick check only (iphone leg, smoke UI set), as on a PR"
+        description: "Quick check only (Duo leg, smoke UI set), as on a PR"
         type: boolean
         default: false
       only:
@@ -68,19 +69,17 @@ jobs:
         env:
           FULL: ${{ github.event_name != 'workflow_dispatch' || !inputs.smoke }}
         run: |
-          # An iPhone 17 on an iOS 26.x runtime when the image has one, so the 26.1
-          # fallbacks run; otherwise on the SDK's own runtime. The step log says which.
-          iphone='{"pose":"iphone","sim":"iPhone 17","runtime":"26"}'
-          # The capture script's own Duo, made fresh and posed open + landscape.
+          # The capture script's own Duo, made fresh and posed open + landscape. The
+          # smoke run uses it too, like the pre-push hook.
           duo='{"pose":"IL","sim":"Motif Duo Capture","runtime":""}'
           # An 11-inch iPad (834 × 1194 class, §3 PD), matched by name prefix so the
           # chip suffix of the image's model ("(M5)" …) doesn't matter. FlowTestCase
           # turns it to landscape before each launch (MOTIF_POSE=ipad).
           ipad='{"pose":"ipad","sim":"iPad Pro 11-inch","runtime":""}'
-          if [ "$FULL" = true ]; then legs="[$iphone,$duo,$ipad]"; else legs="[$iphone]"; fi
+          if [ "$FULL" = true ]; then legs="[$duo,$ipad]"; else legs="[$duo]"; fi
           echo "full=$FULL" >> "$GITHUB_OUTPUT"
           echo "legs=$legs" >> "$GITHUB_OUTPUT"
-          echo "### iOS CI: $([ "$FULL" = true ] && echo 'full suite, all legs' || echo 'quick (iphone, smoke UI set)')" >> "$GITHUB_STEP_SUMMARY"
+          echo "### iOS CI: $([ "$FULL" = true ] && echo 'full suite, all legs' || echo 'quick (iPhone Duo, smoke UI set)')" >> "$GITHUB_STEP_SUMMARY"
 
   ios:
     name: ios (${{ matrix.pose }}${{ inputs.only != '' && ', only' || needs.plan.outputs.full != 'true' && ', smoke' || '' }})
@@ -173,7 +172,7 @@ jobs:
       # Only main's builds (nightly, or a dispatch on main) seed the cache (a PR's cache would be visible to that PR
       # alone), and one leg is enough. Saved even when a test failed: the build held.
       - name: Save build cache
-        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && matrix.pose == 'iphone' }}
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && matrix.pose == 'IL' }}
         uses: actions/cache/save@v4
         with:
           path: *build-cache

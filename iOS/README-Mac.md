@@ -7,7 +7,7 @@
 > `full-ui` PR label). Don't add Codemagic or other cloud builders.
 >
 > - Verify: `scripts/ios-verify.sh` (Duo: `MOTIF_SIM="iPhone Duo" scripts/ios-verify.sh`)
-> - Pre-push hook: `.githooks/pre-push` runs `scripts/ios-verify.sh --ios --smoke` when a
+> - Pre-push hook: `.githooks/pre-push` runs `scripts/ios-verify.sh --ios --smoke` (on the iPhone Duo, posed IL) when a
 >   push touches `iOS/`, `src/model/` or the iOS scripts (not `.md`) and aborts the push
 >   on failure. Enable once per clone with `git config core.hooksPath .githooks`; skip
 >   with `git push --no-verify`, full suite with `IOS_CHECK_FULL=1 git push`.

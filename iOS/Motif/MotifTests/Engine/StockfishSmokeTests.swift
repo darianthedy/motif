@@ -1,13 +1,16 @@
-import ChessKitEngine
 import XCTest
 @testable import Motif
 
 /// The real engine in the simulator: both nets are bundled, Stockfish loads them and
 /// a short search streams scores and ends in a best move.
 final class StockfishSmokeTests: XCTestCase {
-    /// Never released: a stopped or deinitialized ChessKitEngine closes the pipe it
-    /// moved stdout onto, and the next write to stdout would raise SIGPIPE.
-    private static let engine = Stockfish.makeEngine()
+    /// The app's own engine: started once per process and never stopped (a stopped or
+    /// deinitialized ChessKitEngine closes the pipe it moved stdout onto). Each run
+    /// subscribes to its lines afresh, so a retry or a repeat (`-test-iterations`)
+    /// talks to the same running Stockfish. Starting a second ChessKitEngine, or
+    /// calling `start()` again, hands out a response stream that ended with the last
+    /// run's reader, and the run then waits out the deadline for a `readyok`.
+    private var engine: StockfishEngine { .shared }
 
     /// A depth-8 search from the start position takes well under a second, even on
     /// a 3-core runner; the budgets below are only there so the test always ends.
@@ -22,7 +25,7 @@ final class StockfishSmokeTests: XCTestCase {
     private static let deadline = Duration.seconds(120)
 
     private enum Event: Sendable {
-        case response(EngineResponse)
+        case line(String)
         case tick
     }
 
@@ -31,9 +34,10 @@ final class StockfishSmokeTests: XCTestCase {
         var infos = 0
         var scored = 0
         var stopped = false
+        var bestmove: String?
         var started: ContinuousClock.Instant
         var description: String {
-            "\(infos) info lines, \(scored) scored" + (stopped ? ", stopped" : "")
+            "\(infos) info lines, \(scored) scored" + (stopped ? ", stopped" : "") + (bestmove.map { ", bestmove \($0)" } ?? "")
         }
     }
 
@@ -48,21 +52,23 @@ final class StockfishSmokeTests: XCTestCase {
 
     /// ChessKitEngine reads Stockfish's stdout in chunks on the main run loop, splits
     /// each chunk on newlines without carrying a cut line into the next one, and yields
-    /// every line from its own `Task`, so a line can arrive out of order or not at all.
-    /// The CI failures (2026-11-11) had `go` reach Stockfish (it printed the go-time
-    /// info strings) and then no `bestmove` for 40 s. So a search that overruns is
-    /// stopped, which forces a `bestmove`, and if that never comes either the search
-    /// is run again. Each search's line counts go in the failure message, to tell a
+    /// every line from its own `Task`, so a line can arrive out of order, cut in two
+    /// or not at all. The CI failures (2026-11-11) had `go` reach Stockfish (it printed
+    /// the go-time info strings) and then no `bestmove` for 40 s. So a search that
+    /// overruns is stopped, which forces a `bestmove`, and if that never comes either
+    /// the search is run again. Stockfish reports each net it evaluates with ("NNUE
+    /// evaluation using …") on every `go`, and a cut line loses that report (2026-11-15:
+    /// "NNUE evaluation using" alone), so a search that ends without both reports is run
+    /// again too. Each search's line counts go in the failure message, to tell a
     /// stalled search (no info lines) from dropped output (info lines, no bestmove).
     func testSearchesStartPositionWithBundledNets() async throws {
-        let engine = Self.engine
-        await engine.start()
-        let stream = await engine.responseStream
-        let responses = try XCTUnwrap(stream)
+        let engine = self.engine
+        let nets = Stockfish.nets.map(\.lastPathComponent)
+        let lines = engine.lines
 
         let (events, sink) = AsyncStream.makeStream(of: Event.self)
         let pump = Task {
-            for await response in responses { sink.yield(.response(response)) }
+            for await line in lines { sink.yield(.line(line)) }
         }
         let ticker = Task {
             while !Task.isCancelled {
@@ -73,55 +79,64 @@ final class StockfishSmokeTests: XCTestCase {
 
         let clock = ContinuousClock()
         let deadline = clock.now + Self.deadline
-        var readies = 0
+        var ready = false
         var strings: [String] = []
         var searches: [Search] = []
-        var bestmove: String?
+        var reported: Set<String> = []
 
-        func search() async {
+        func search() {
             searches.append(Search(started: clock.now))
-            await engine.send(command: .position(.startpos))
-            await engine.send(command: .go(depth: Self.depth))
+            engine.send("position startpos")
+            engine.send("go depth \(Self.depth)")
         }
+
+        // StockfishEngine holds commands until ChessKitEngine's setup (the nets among
+        // it) is done; this readyok comes once Stockfish has handled all of it, and
+        // after any output a previous run left behind.
+        engine.send("isready")
 
         loop: for await event in events {
             switch event {
-            case .response(.readyok):
-                readies += 1
-                if readies == 1 {
-                    // ChessKitEngine has just sent its setup options (the nets among
-                    // them); a second handshake makes sure Stockfish has loaded them.
-                    await engine.send(command: .isready)
-                } else if readies == 2 {
-                    await search()
+            case .line("readyok"):
+                guard !ready else { break }
+                ready = true
+                search()
+            case .line(let line) where line.hasPrefix("info "):
+                if line.hasPrefix("info string ") {
+                    let string = String(line.dropFirst("info string ".count))
+                    strings.append(string)
+                    if string.contains("NNUE evaluation using") {
+                        reported.formUnion(nets.filter { string.contains($0) })
+                    }
                 }
-            case .response(.info(let info)):
-                if let string = info.string { strings.append(string) }
-                guard !searches.isEmpty else { break }
+                guard ready, !searches.isEmpty else { break }
                 searches[searches.count - 1].infos += 1
-                if info.depth != nil, info.score != nil { searches[searches.count - 1].scored += 1 }
-            case .response(.bestmove(let move, _)):
-                bestmove = move
-                break loop
-            case .response:
+                if line.hasPrefix("info depth "), line.contains(" score ") { searches[searches.count - 1].scored += 1 }
+            case .line(let line) where line.hasPrefix("bestmove "):
+                // A bestmove before our readyok is a previous run's.
+                guard ready, !searches.isEmpty, searches[searches.count - 1].bestmove == nil else { break }
+                searches[searches.count - 1].bestmove = String(line.split(separator: " ")[1])
+                if reported.count == nets.count || searches.count >= Self.searches { break loop }
+                search()
+            case .line:
                 break
             case .tick:
                 let now = clock.now
                 if now >= deadline { break loop }
-                guard let current = searches.last else { break }
+                guard let current = searches.last, current.bestmove == nil else { break }
                 if !current.stopped, now - current.started > Self.searchBudget {
                     searches[searches.count - 1].stopped = true
-                    await engine.send(command: .stop)
+                    engine.send("stop")
                 } else if current.stopped, now - current.started > Self.searchBudget + Self.stopBudget,
                           searches.count < Self.searches {
-                    await search()
+                    search()
                 }
             }
         }
         pump.cancel()
         ticker.cancel()
         sink.finish()
-        await engine.send(command: .stop)
+        if searches.last.map({ $0.bestmove == nil }) ?? false { engine.send("stop") }
 
         let report = "searches: \(searches); info strings: \(strings)"
         await MainActor.run {
@@ -132,13 +147,12 @@ final class StockfishSmokeTests: XCTestCase {
             }
         }
 
-        XCTAssertEqual(readies, 2, "the handshake didn't finish; \(report)")
-        let move = try XCTUnwrap(bestmove, "no bestmove; \(report)")
+        XCTAssertTrue(ready, "the handshake didn't finish; \(report)")
+        let move = try XCTUnwrap(searches.compactMap(\.bestmove).last, "no bestmove; \(report)")
         XCTAssertFalse(move.isEmpty || move == "(none)", report)
         XCTAssertGreaterThan(searches.map(\.scored).reduce(0, +), 0, "no info line carried a score; \(report)")
-        for net in Stockfish.nets.map(\.lastPathComponent) {
-            XCTAssertTrue(strings.contains { $0.contains("NNUE evaluation using") && $0.contains(net) },
-                          "Stockfish didn't report evaluating with \(net); \(report)")
+        for net in nets {
+            XCTAssertTrue(reported.contains(net), "Stockfish didn't report evaluating with \(net); \(report)")
         }
     }
 }

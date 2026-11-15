@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # Runs the quick iOS check (scripts/ios-verify.sh --ios --smoke: all of MotifTests plus
-# the UI smoke set, on an iPhone simulator) before a push whose commits touch the iOS
-# app. Replaces ios-ci's per-PR run: iOS builds run locally on the Mac Mini now, not on
-# GitHub's macOS runners. The full suite on all three legs is still ios-ci, nightly.
+# the UI smoke set) before a push whose commits touch the iOS app, on the iPhone Duo
+# simulator opened wide (IL): scripts/ios-duo-capture.sh poses a fresh
+# "Motif Duo Capture" with duoctl (brew install skarol/tap/duoctl). Replaces ios-ci's
+# per-PR run: iOS builds run locally on the Mac Mini now, not on GitHub's macOS runners.
+# The full suite (Duo IL + iPad) is still ios-ci, nightly.
 #
 # Enable once per clone:   git config core.hooksPath .githooks
 # Skip one push:           git push --no-verify   (or SKIP_IOS_CHECK=1 git push)
 # Full suite instead:      IOS_CHECK_FULL=1 git push
+# Another simulator:       MOTIF_SIM="iPhone 17" git push   (no posing; MOTIF_POSE as set)
 #
 # Note: the tests run against the working tree, so commit or stash unrelated
 # edits first if you want the result to reflect exactly what is being pushed.
@@ -40,6 +43,14 @@ root="$(git rev-parse --show-toplevel)"
 smoke="--smoke"
 [ "${IOS_CHECK_FULL:-0}" = "1" ] && smoke=""
 echo "pre-push: iOS changes detected — running scripts/ios-verify.sh --ios $smoke (skip with --no-verify)"
+if [ -z "${MOTIF_SIM:-}" ]; then
+  echo "pre-push: posing the iPhone Duo (IL)"
+  if ! (cd "$root" && scripts/ios-duo-capture.sh pose IL); then
+    echo "pre-push: couldn't pose the iPhone Duo simulator — push aborted" >&2
+    exit 1
+  fi
+  export MOTIF_SIM="Motif Duo Capture" MOTIF_POSE=IL
+fi
 if (cd "$root" && MOTIF_TEST_RETRIES="${MOTIF_TEST_RETRIES:-2}" scripts/ios-verify.sh --ios $smoke); then
   echo "pre-push: iOS check passed"
 else

@@ -13,8 +13,9 @@
 #
 # MOTIF_SIM (a device name or UDID) picks the simulator, and MOTIF_RUNTIME an iOS
 # major version to prefer (see ios-simulator.sh); the default is the first
-# available iPhone. MOTIF_POSE (iphone, IL, ipad…) reaches the tests as MOTIF_POSE, for
-# UI tests that only hold in one pose. ios-ci sets all three per destination.
+# available iPhone. MOTIF_POSE (IL, ipad…) reaches the tests as MOTIF_POSE, for
+# UI tests that only hold in one pose. ios-ci and the pre-push hook set all three
+# (the hook to the iPhone Duo, posed IL).
 # MOTIF_TEST_RETRIES, MOTIF_TEST_REPEAT and MOTIF_ONLY_TESTING are described where they're read.
 # MOTIF_XCODEBUILD_FLAGS adds extra xcodebuild options or build settings, unquoted
 # (ios-ci turns on compilation caching and skips package re-resolution with it).

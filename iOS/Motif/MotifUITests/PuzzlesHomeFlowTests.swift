@@ -8,7 +8,8 @@ import XCTest
         let rename = app.buttons["Rename…"]; wait(rename); rename.tap()
         let field = app.alerts.textFields.firstMatch; wait(field); field.tap()
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 60) + "Renamed set")
-        app.alerts.buttons["Save"].tap(); wait(labelButton("Renamed set"))
+        // With the keyboard's suggestion bar up, the first tap on Save can be swallowed: re-tap until the alert closes.
+        tap(app.alerts.buttons["Save"], until: "exists == false", on: app.alerts.firstMatch); wait(labelButton("Renamed set"))
 
         let doomed = button("collection-sample-missing-piece"); wait(doomed); doomed.swipeLeft()
         let delete = app.buttons["Delete"].firstMatch; wait(delete); delete.tap()

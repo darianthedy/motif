@@ -1,13 +1,20 @@
 # Motif on this Mac
 
 > **Default build path since 2026-11-14.** We work on a Mac Mini (Xcode 27.2, iOS 27.2
-> simulators incl. iPhone Duo). Build, test, screenshot and ship from here; GitHub
-> Actions (`ios-ci`, `ios-testflight`, `ios-duo-capture`) and other cloud builders are
-> not used.
+> simulators incl. iPhone Duo). Build, test, screenshot and ship from here. The
+> `ios-testflight` and `ios-duo-capture` workflows are deleted; the one iOS workflow
+> left is `ios-ci.yml`, the nightly full suite (also from the Actions tab or the
+> `full-ui` PR label). Don't add Codemagic or other cloud builders.
 >
 > - Verify: `scripts/ios-verify.sh` (Duo: `MOTIF_SIM="iPhone Duo" scripts/ios-verify.sh`)
+> - Pre-push hook: `.githooks/pre-push` runs `scripts/ios-verify.sh --ios --smoke` when a
+>   push touches `iOS/`, `src/model/` or the iOS scripts (not `.md`) and aborts the push
+>   on failure. Enable once per clone with `git config core.hooksPath .githooks`; skip
+>   with `git push --no-verify`, full suite with `IOS_CHECK_FULL=1 git push`.
 > - Screenshots: `scripts/ios-screenshot.sh <name>`, Duo grid: `scripts/ios-duo-capture.sh`
-> - TestFlight: `scripts/fetch-nnue.sh && cd iOS/Motif && fastlane beta`. Signing is the
+>   (contact sheets: `design/iphone-duo/pair.mjs`, see its README)
+> - TestFlight: `scripts/ios-release/testflight.sh` (= fetch nets, `bundle exec fastlane
+>   beta`, then restores the pbxproj signing edit). Signing is the
 >   shared setup for all apps on this Mac (`~/.config/ios-signing/README.md`); the
 >   Fastfile loads `~/.config/ios-signing/signing.env` and `NEON_BASE_URL` (from the
 >   repo's `.env` `VITE_NEON_BASE_URL`) itself. Profile: `ios-signing AppStore com.dthedy.Motif`.

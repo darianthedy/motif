@@ -49,8 +49,9 @@ When the TS and this document disagree, the TS wins and this document is wrong.
 
 - **Local builds on the Mac Mini (since 2026-11-14).** Development now happens on a
   Mac Mini with Xcode 27.2; everything is built, tested and uploaded locally
-  (`iOS/README-Mac.md`). GitHub Actions macOS runners are **not** used any more —
-  read every "CI" / "ios-ci green" below as "`scripts/ios-verify.sh` green locally".
+  (`iOS/README-Mac.md`). GitHub's macOS runners keep only the nightly full suite
+  (`ios-ci.yml`) — read every "CI" / "ios-ci green" below as "`scripts/ios-verify.sh`
+  green locally".
   *History:* development used to be on WSL2 with every build on a GitHub-hosted
   macOS runner (§14). This is the same
   setup as `~/Documents/projects/financial-management`, where it is proven end to end.

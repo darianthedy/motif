@@ -8,8 +8,8 @@
 #   scripts/ios-verify.sh --smoke    # all MotifTests, only the UI smoke set (SMOKE_UI)
 #   scripts/ios-verify.sh --ios --smoke
 #
-# The flags combine in any order. Without --smoke every test runs, as before; ios-ci
-# uses --smoke for its quick PR leg and the full run everywhere else.
+# The flags combine in any order. Without --smoke every test runs, as before; the
+# pre-push hook (.githooks/pre-push) uses --ios --smoke, ios-ci's nightly the full run.
 #
 # MOTIF_SIM (a device name or UDID) picks the simulator, and MOTIF_RUNTIME an iOS
 # major version to prefer (see ios-simulator.sh); the default is the first
@@ -104,7 +104,10 @@ xcb() {
 echo "== xcodebuild test on '$sim'${MOTIF_POSE:+ (pose $MOTIF_POSE)}${selection:+ (smoke)}${retry:+ (up to $MOTIF_TEST_RETRIES attempts)}${repeat:+ ($MOTIF_TEST_REPEAT runs each)}"
 # `|| status=$?`, since xcb turns `set -e` back on: a failing run must still reach the summary below.
 status=0
-xcb build/test.log xcodebuild test "${common[@]}" $selection $retry $repeat \
+# The simulator inherits the Mac's language, region and keyboards (this Mac adds
+# Bahasa Indonesia). Pin the tests to en/US so a local run matches GitHub's runners.
+locale=(-testLanguage en -testRegion US)
+xcb build/test.log xcodebuild test "${common[@]}" "${locale[@]}" $selection $retry $repeat \
   ${MOTIF_XCODEBUILD_FLAGS:-} CODE_SIGNING_ALLOWED=NO || status=$?
 
 if [ -n "$repeat" ]; then

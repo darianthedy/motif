@@ -202,16 +202,17 @@ struct GameCollectionView: View {
         }
     }
 }
-/// Title, "event · round · date · opening", and the result as a chip.
+/// Title, "event · round · date", the opening, and the result as a chip.
 private struct GameRow: View {
     let game: Game
     @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
-        let headers = readHeaders(game.pgn), details = gameDetails(headers)
+        let headers = readHeaders(game.pgn), details = gameDetails(headers), opening = gameOpening(headers)
         RowStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(gameTitle(headers)).font(.body.weight(.medium)).lineLimit(typeSize.isAccessibilitySize ? nil : 2)
                 if !details.isEmpty { Text(details).font(.footnote).foregroundStyle(.motifSecondary).rowLineLimit() }
+                if let opening { Text(opening).font(.footnote).foregroundStyle(.motifSecondary).rowLineLimit() }
             }.frame(maxWidth: .infinity, alignment: .leading)
             if let result = ResultChip(headers["Result"]) { result }
         }
@@ -235,17 +236,23 @@ private struct ResultChip: View {
             .accessibilityLabel(spoken)
     }
 }
-/// PGN's unknown values (?, ????.??.??, -) are left out; the event only shows when players gave the title.
-private func gameDetails(_ headers: PgnHeaders) -> String {
-    func known(_ name: String) -> String? {
-        guard let value = headers[name]?.trimmingCharacters(in: .whitespacesAndNewlines),
-              value.contains(where: { !"?.-".contains($0) }) else { return nil }
-        return value
-    }
+/// A header's value, or nil for PGN's unknown values (?, ????.??.??, -).
+private func knownHeader(_ headers: PgnHeaders, _ name: String) -> String? {
+    guard let value = headers[name]?.trimmingCharacters(in: .whitespacesAndNewlines),
+          value.contains(where: { !"?.-".contains($0) }) else { return nil }
+    return value
+}
+/// The opening's own row: its name, else the ECO code.
+func gameOpening(_ headers: PgnHeaders) -> String? {
+    knownHeader(headers, "Opening") ?? knownHeader(headers, "ECO")
+}
+/// Unknown values are left out; the event only shows when players gave the title.
+func gameDetails(_ headers: PgnHeaders) -> String {
+    func known(_ name: String) -> String? { knownHeader(headers, name) }
     let players = known("White") != nil || known("Black") != nil
     let date = (headers["Date"] ?? "").components(separatedBy: ".").prefix { !$0.isEmpty && $0.allSatisfy(\.isASCII) && $0.allSatisfy(\.isNumber) }
     return [players ? known("Event") : nil, known("Round").map { "Round " + $0 },
-            date.isEmpty ? nil : date.joined(separator: "."), known("Opening") ?? known("ECO")]
+            date.isEmpty ? nil : date.joined(separator: ".")]
         .compactMap { $0 }.joined(separator: " · ")
 }
 /// Move or copy the selection: pick another collection, then ✓.

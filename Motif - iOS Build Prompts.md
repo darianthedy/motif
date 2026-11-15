@@ -33,7 +33,7 @@ one session burns context and quality drops.
   When the plan and the TS disagree, the TS wins.
 - `README.md` → "The rules, as implemented" — the why behind the rules.
 - `db/0001_schema.sql`, `db/0002_games.sql` — table and column names.
-- `~/projects/financial-management/iOS/` — the proven no-Mac project shell, fastlane and
+- `~/Documents/projects/financial-management/iOS/` — the proven no-Mac project shell, fastlane and
   TestFlight pipeline to copy from.
 
 ---
@@ -80,7 +80,7 @@ one session burns context and quality drops.
 > and the TestFlight pipeline by adapting Financial Management's, with a placeholder app
 > and one passing test. Push the branch and get `ios-ci` green before finishing.
 
-**Read first:** Tech Plan §1, §2, §3, §14; in `~/projects/financial-management`:
+**Read first:** Tech Plan §1, §2, §3, §14; in `~/Documents/projects/financial-management`:
 `iOS/FinancialManagement/FinancialManagement.xcodeproj/project.pbxproj`, its shared scheme,
 `fastlane/*`, `Gemfile`, `.github/workflows/ios-testflight.yml`, `iOS/README-TestFlight.md`,
 `iOS/TestFlight-Setup-Progress.md` (the gotchas section especially).

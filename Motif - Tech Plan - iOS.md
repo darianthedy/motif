@@ -87,7 +87,7 @@ The project file is **hand-written once and then never edited for new files**:
 it uses Xcode 16+ synchronized folders (`PBXFileSystemSynchronizedRootGroup`),
 so any `.swift` file placed under `Motif/`, `MotifTests/` or `MotifUITests/` is
 compiled into the matching target automatically. Model it on
-`~/projects/financial-management/iOS/FinancialManagement/FinancialManagement.xcodeproj/project.pbxproj`
+`~/Documents/projects/financial-management/iOS/FinancialManagement/FinancialManagement.xcodeproj/project.pbxproj`
 (673 lines, three synchronized groups) — copy its structure, rename targets and
 identifiers, generate fresh 24-hex object IDs. **Commit the shared scheme**
 (`xcshareddata/xcschemes/Motif.xcscheme`) so CI can find it, with the test
@@ -605,7 +605,7 @@ first run.
 
 ### 14.2 fastlane
 
-Copy `~/projects/financial-management/iOS/FinancialManagement/fastlane/` and
+Copy `~/Documents/projects/financial-management/iOS/FinancialManagement/fastlane/` and
 `Gemfile`, with `XCODEPROJ = "Motif.xcodeproj"`, `SCHEME = "Motif"`,
 `APP_IDENTIFIER = "com.dthedy.Motif"`, `TEAM_ID = "F73L2977Q8"`. Keep every
 fix recorded in its `TestFlight-Setup-Progress.md` gotchas: `setup_ci` +

@@ -194,7 +194,7 @@ git bundle verify ~/motif-ios.bundle
 Copy `motif-ios.bundle` to WSL (USB stick, cloud drive, `scp`). Then in WSL:
 
 ```
-cd ~/projects/motif
+cd ~/Documents/projects/motif
 git fetch ~/motif-ios.bundle main-mac:ios-mac
 git log --oneline main..ios-mac        # review what came back
 ```

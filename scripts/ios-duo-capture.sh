@@ -55,16 +55,20 @@ pose_duo() {
   local pose="$1" want steps attempt command list words
   sim=$(duo fresh) || return 1
   export DUOCTL_UDID="$sim"
-  xcrun simctl boot "$sim" 2>/dev/null || true
-  xcrun simctl bootstatus "$sim" -b >/dev/null
-  xcrun simctl ui "$sim" appearance light
   # A display comes up a little after boot finishes; a boot that never shows one gets a reboot.
   ready() { for _ in $(seq 1 36); do duoctl state > /dev/null 2>&1 && return 0; sleep 5; done; return 1; }
-  if ! ready; then
-    echo "No active display after boot; rebooting the simulator" >&2
-    xcrun simctl shutdown "$sim"; xcrun simctl boot "$sim"; xcrun simctl bootstatus "$sim" -b >/dev/null
-    ready || { echo "No active display on the iPhone Duo simulator" >&2; return 1; }
-  fi
+  booted() { xcrun simctl list devices | grep -q "($sim) (Booted)"; }
+  bring_up() {
+    xcrun simctl boot "$sim" 2>/dev/null || true
+    xcrun simctl bootstatus "$sim" -b >/dev/null
+    xcrun simctl ui "$sim" appearance light
+    if ! ready; then
+      echo "No active display after boot; rebooting the simulator" >&2
+      xcrun simctl shutdown "$sim" 2>/dev/null; xcrun simctl boot "$sim"; xcrun simctl bootstatus "$sim" -b >/dev/null
+      ready || { echo "No active display on the iPhone Duo simulator" >&2; return 1; }
+    fi
+  }
+  bring_up || return 1
   duoctl state
 
   # duoctl can briefly find no active display while the screens switch, so each
@@ -86,6 +90,12 @@ sys.exit(0 if abs(s["hingeAngle"] - float(hinge)) < 15 and s["activeScreen"] == 
     *) echo "Unknown pose $pose" >&2; return 1 ;;
   esac
   for attempt in 1 2 3; do
+    # A slow runner can drop the simulator mid-pose (ios-ci 2026-11-16: booted after 9 min,
+    # gone by the first fold); retrying duoctl against it can't work, so boot it again first.
+    if ! booted; then
+      echo "The iPhone Duo simulator isn't booted any more; booting it again" >&2
+      bring_up || return 1
+    fi
     IFS='|' read -ra list <<< "$steps"
     for command in "${list[@]}"; do read -ra words <<< "$command"; step "${words[@]}"; done
     sleep 2

@@ -12,11 +12,16 @@ struct NewGameView: View {
     @State private var shown = Board.defaultPosition
     /// The sheet's own visible size (the keyboard's safe area excluded), read once for the layout.
     @State private var size = CGSize.zero
+    /// The sheet's size with the keyboard ignored, so bringing the keyboard up never switches the layout.
+    @State private var sheet = CGSize.zero
     /// Sheets at least this wide put the preview beside the form (decision 21: IL, iPad).
     static let besideWidth: CGFloat = 600
+    /// Beside needs a sheet no taller than it is wide too: on IP the sheet is as wide as on IL
+    /// (653 pt) but tall, and decision 21 stacks it there. Both are compact inside on iOS 27,
+    /// so the size class can't tell them apart.
+    private var beside: Bool { sheet.width >= Self.besideWidth && sheet.width >= sheet.height }
     var body: some View {
         let check = model.fenCheck
-        let beside = size.width >= Self.besideWidth
         // One `AnyLayout` (decision 21, F18), so the form, and the FEN draft and its focus with
         // it, keep their identity when a fold changes the sheet's width.
         let layout = beside ? AnyLayout(HStackLayout(alignment: .top, spacing: 0)) : AnyLayout(VStackLayout(spacing: 0))
@@ -67,6 +72,10 @@ struct NewGameView: View {
             }
             .background(Color(.systemGroupedBackground))
             .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
+            .background {
+                Color.clear.ignoresSafeArea(.keyboard)
+                    .onGeometryChange(for: CGSize.self) { $0.size } action: { sheet = $0 }
+            }
             .navigationTitle("New Game").navigationBarTitleDisplayMode(.inline)
             .sheetToolbar(confirm: "Create Game", disabled: !check.ok || !app.store.online || model.busy, identifier: "game-new-board",
                           onCancel: { dismiss() }) {
@@ -86,7 +95,7 @@ struct NewGameView: View {
     /// with the keyboard up (96 pt on the outer display).
     private var previewSide: CGFloat {
         guard size.width > 0, size.height > 0 else { return 0 }
-        if size.width >= Self.besideWidth { return max(0, min(size.height - 32, size.width * 0.42)) }
+        if beside { return max(0, min(size.height - 32, size.width * 0.42)) }
         return max(0, min(size.width - 32, size.height * 0.4))
     }
     private func preview(_ check: Board.FenValidation) -> some View {

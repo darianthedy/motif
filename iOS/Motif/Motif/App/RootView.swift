@@ -67,7 +67,7 @@ struct RootView: View {
                         CollectionView(collectionId: id).id(id)
                     } else {
                         NoSelection(empty: app.store.library?.collections.isEmpty != false, systemImage: "puzzlepiece",
-                                    openTall: app.puzzlesColumns.tall) {
+                                    openTall: app.puzzlesColumns.tall, showSidebar: { app.puzzlesColumns.showSidebar() }) {
                             EmptyState(title: "No Puzzles Yet", systemImage: "puzzlepiece",
                                        description: "Import a JSON collection to start solving.",
                                        action: .init(title: "Import Puzzles", identifier: "import-puzzles-empty-detail", disabled: !app.store.online) { app.importingPuzzles = true })
@@ -100,7 +100,7 @@ struct RootView: View {
                         GameCollectionView(collectionId: id).id(id)
                     } else {
                         NoSelection(empty: app.store.library?.gameCollections.isEmpty != false, systemImage: "checkerboard.rectangle",
-                                    openTall: app.gamesColumns.tall) {
+                                    openTall: app.gamesColumns.tall, showSidebar: { app.gamesColumns.showSidebar() }) {
                             EmptyState(title: "No Games Yet", systemImage: "checkerboard.rectangle",
                                        description: "Make a collection, then add games as PGN or play them in on the board.",
                                        action: .init(title: "New Collection", identifier: "new-game-collection-empty-detail", disabled: !app.store.online) { app.creatingGameCollection = true })
@@ -159,12 +159,22 @@ private struct NoSelection<Empty: View>: View {
     let empty: Bool
     let systemImage: String
     let openTall: Bool
+    let showSidebar: () -> Void
     @ViewBuilder let emptyState: () -> Empty
     var body: some View {
         if empty { if openTall { emptyState().readableWidth() } else { Color.clear } }
         else {
-            ContentUnavailableView("No Collection Selected", systemImage: systemImage,
-                                   description: Text("Choose a collection in the sidebar."))
+            // Open tall the sidebar can be off screen, so the empty state brings it back (review 2).
+            ContentUnavailableView {
+                Label("No Collection Selected", systemImage: systemImage)
+            } description: {
+                Text(openTall ? "Choose a collection to start." : "Choose a collection in the sidebar.")
+            } actions: {
+                if openTall {
+                    Button("Show Collections", action: showSidebar)
+                        .buttonStyle(.glassProminent).accessibilityIdentifier("show-collections")
+                }
+            }
                 .readableWidth()
                 .accessibilityIdentifier("no-collection-selected")
         }

@@ -6,7 +6,7 @@ Nothing in the app was changed; each finding below has a proposed fix awaiting a
 ## Findings, by severity
 
 1. [High — Practice row breaks in the sidebar](01-practice-row-sidebar.md) (inner wide, book)
-2. [High — Open tall with nothing selected hides the sidebar](02-open-tall-no-selection.md) (inner tall)
+2. [High — Open tall with nothing selected hides the sidebar](02-open-tall-no-selection.md) (inner tall) — fixed
 3. [Medium — Puzzle detail: replay bar covers the Comment row](03-puzzle-detail-bar-overlap.md) (inner tall)
 4. [Medium — Analysis: move list hidden despite free space](04-analysis-move-list-hidden.md) (inner tall, outer)
 5. [Low — Sidebar subtitle truncated](05-sidebar-subtitle-truncated.md) (inner wide)

@@ -209,6 +209,8 @@ struct TabColumns: Equatable {
         let rest: NavigationSplitViewVisibility = self.tall && selected ? .detailOnly : .all
         if beforeBoard != nil { beforeBoard = rest } else { visibility = rest }
     }
+    /// The tall empty state's Show Collections button: the same sidebar as its toolbar button.
+    mutating func showSidebar() { visibility = .all }
 }
 extension PuzzleRoute { var isBoard: Bool { if case .puzzle = self { return true }; return false } }
 extension GamesRoute { var isBoard: Bool { if case .game = self { return true }; return false } }

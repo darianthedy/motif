@@ -1,6 +1,7 @@
 # 2. Open tall with nothing selected hides the sidebar
 
 **Severity:** High
+**Status:** Fixed: the tall empty state's Show Collections button (option 2)
 **Where:** Inner display tall (IP): Puzzles and Games tabs
 **Code:** `iOS/Motif/Motif/App/RootView.swift:164-169`, `iOS/Motif/Motif/App/AppState.swift:207-210`
 

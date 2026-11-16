@@ -45,7 +45,8 @@ import XCTest
         } else { id = state }
         guard wanted(id) else { return }
         // The homes' canvases draw the first collection selected in the detail column on regular width.
-        let home = id.hasPrefix("S04") || id.hasPrefix("S11") || id.hasSuffix("-S04")
+        // `-unselected` states open with nothing selected instead (design review 2).
+        let home = (id.hasPrefix("S04") || id.hasPrefix("S11") || id.hasSuffix("-S04")) && !id.hasSuffix("-unselected")
         let fixtures = ["capture", fixture, home && regular ? "select" : "", variant?.name == "RT" ? "reduce-transparency" : ""]
             .filter { !$0.isEmpty }.joined(separator: ",")
         let textSize = variant?.name == "AX5" ? ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] : []
@@ -246,6 +247,8 @@ import XCTest
         shot("S04j") { swipeRow(row); item("Delete"); wait(app.buttons["Delete Collection"]) }
         // Decision 16: on IP the detail takes the width; the sidebar button slides the home list over it.
         if pose == "IP" { shot("S04a-sidebar", fixture: "seed=progress") { showSidebar(); wait(button("resume-random")) } }
+        // Open tall with nothing selected, the empty detail's Show Collections brings the sidebar back.
+        if pose == "IP" { shot("S04a-unselected", fixture: "seed=progress") { wait(button("show-collections")) } }
     }
     func testS05ImportPuzzles() {
         let ready = { self.wait(self.app.textViews["puzzle-import-text"]) }
@@ -347,6 +350,7 @@ import XCTest
         shot("S11h", "games") { swipeRow(row); item("Delete"); wait(app.buttons["Delete Collection"]) }
         shot("S11i", "games", offline: true) { wait(any(row)) }
         if pose == "IP" { shot("S11a-sidebar", "games", fixture: "seed=games") { showSidebar(); wait(any(row)) } }
+        if pose == "IP" { shot("S11a-unselected", "games", fixture: "seed=games") { wait(button("show-collections")) } }
     }
     func testS12GameCollection() {
         let games = "seed=games", ready = { self.wait(self.any("game-row-sample-game")) }

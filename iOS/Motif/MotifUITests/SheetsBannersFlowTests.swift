@@ -43,8 +43,8 @@ import XCTest
         XCTAssertGreaterThan(preview.frame.maxY, field.frame.minY, "Side by side, not stacked")
         XCTAssertEqual(preview.frame.width, preview.frame.height, accuracy: 1)
     }
-    /// Narrower sheets stack the preview, capped at 40 % of the sheet, so the FEN field and its
-    /// error are in view without scrolling.
+    /// Narrower sheets, and tall ones like IP's (653 pt wide like IL's), stack the preview,
+    /// capped at 40 % of the sheet, so the FEN field and its error are in view without scrolling.
     func testStackedNewGameKeepsTheFenFieldAndErrorInView() throws {
         try XCTSkipIf(pose == "IL", "IL puts the preview beside the form")
         // The iPad's sheet width is the system's sizing; decision 21 puts it beside, a device spot check (§9 D11).

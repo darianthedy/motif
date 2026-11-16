@@ -62,6 +62,7 @@ private struct LibraryStatus: ViewModifier {
 /// two-column split shows one capsule, not one per column.
 private struct LibraryMessages: ViewModifier {
     @Environment(AppState.self) private var app
+    @Environment(\.horizontalSizeClass) private var sizeClass
     /// Off where the screen already shows the sync error itself (launch, Account's sync row).
     let serverStatus: Bool
     /// False hides the capsule without changing the view's identity (the sidebar beside a detail column).
@@ -79,12 +80,15 @@ private struct LibraryMessages: ViewModifier {
                     }
                 }
                 .padding(.horizontal)
-                .padding(.bottom, hasMessage ? 8 : 0)
+                .padding(.bottom, hasMessage ? bottomGap : 0)
                 .frame(maxWidth: .infinity)
             }
             .animation(.snappy, value: app.notice)
             .animation(.snappy, value: app.error)
     }
+    /// At regular width the bottom bar's items can share the tab bar's row (IP: ‹ › at 72 pt from
+    /// the bottom), above the 58 pt the safe area keeps clear, so the capsule leaves 16 pt more.
+    private var bottomGap: CGFloat { sizeClass == .regular ? 24 : 8 }
     private var hasMessage: Bool {
         guard shown else { return false }
         if app.notice != nil || app.error != nil { return true }

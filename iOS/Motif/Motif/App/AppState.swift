@@ -77,8 +77,9 @@ final class AppState {
             let fixture = CaptureFixture.current
             fixture.resetPreferences()
             let account = ScreenshotAccount(seed: seeded, signedIn: seeded && route != "signin", unreadableGame: route == "game-unreadable", fixture: fixture)
-            let paths = StoragePaths(root: FileManager.default.temporaryDirectory.appendingPathComponent("Motif-debug-" + newID()))
-            let defaults = UserDefaults(suiteName: "Motif-debug-" + newID())!
+            // `store=<name>` keeps the cache, outbox and remembered user across launches.
+            let paths = StoragePaths(root: FileManager.default.temporaryDirectory.appendingPathComponent("Motif-debug-" + (fixture["store"] ?? newID())))
+            let defaults = UserDefaults(suiteName: "Motif-debug-" + (fixture["store"] ?? newID()))!
             // Signed in on an earlier launch, offline now, with nothing cached.
             let offlineFirst = fixture.has("offline-first")
             if offlineFirst { defaults.set(try? JSONEncoder().encode(ScreenshotAccount.sample), forKey: "motif:user") }

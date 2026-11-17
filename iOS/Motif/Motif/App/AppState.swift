@@ -2,7 +2,7 @@ import SwiftUI
 import Observation
 
 enum RootState: Equatable { case unknown, signedOut, waiting, library }
-enum AppTab: Hashable { case puzzles, games }
+enum AppTab: Hashable { case puzzles, scan, games }
 
 @Observable @MainActor
 final class AppState {
@@ -30,6 +30,11 @@ final class AppState {
     var gamesColumns = TabColumns()
     var session: SessionRoute?
     var importingPuzzles = false
+    /// The Scan tab is one `NavigationStack` (Scan plan §6): its home is the root, this is pushed on it.
+    var scanPath: [ScanRoute] = []
+    /// The open scan run, shown full screen as `session` is for puzzles.
+    var scanSession: ScanSessionRoute?
+    var importingScan = false
     /// The Games tab's New Collection alert, which hangs off the split view so the sidebar's +
     /// and the detail column's empty state can both ask for it.
     var creatingGameCollection = false
@@ -62,6 +67,7 @@ final class AppState {
         #endif
         if route == "account" { showingAccount = true }
         if route?.hasPrefix("game") == true { tab = .games }
+        if let route, route.hasPrefix("scan"), !route.hasPrefix("scan-board") { tab = .scan }
     }
     static func live() -> AppState {
         #if DEBUG
@@ -98,6 +104,16 @@ final class AppState {
         do { try await store.startRun(run); session = SessionRoute(scope: scope) }
         catch { self.error = error.localizedDescription }
     }
+    /// Starts a scan run over the pool (`SCOPE_ALL`, `.randomGlobal`) or the puzzles to review
+    /// (`SCOPE_REVIEW`, `.reviewMistakes`) and opens it. Through the outbox, so it works offline.
+    func beginScan(_ scope: RunScope, _ mode: SessionMode) async {
+        guard let library = store.library else { return }
+        let queue = scanQueue(library, mode)
+        guard !queue.isEmpty else { return }
+        let run = Run(id: newID(), scope: scope, mode: mode, queue: queue, startedAt: epochMilliseconds())
+        do { try await store.startScanRun(run); scanSession = ScanSessionRoute(scope: scope) }
+        catch { self.error = error.localizedDescription }
+    }
     /// Opens a full route, as callers and launch routes give it (`[.collection(id), .puzzles(id), .puzzle(…)]`):
     /// a leading `.collection` becomes the sidebar selection and the rest the detail path. A route
     /// without one is pushed on the current selection; an empty route clears both.
@@ -128,7 +144,7 @@ final class AppState {
         set { if newValue != gamesCollection { gamesPath = [] }; gamesCollection = newValue }
     }
     func signOut() async {
-        do { try await store.signOut(); tab = .puzzles; showingAccount = false; launchRoute = nil; openPuzzles([]); openGames([]); session = nil }
+        do { try await store.signOut(); tab = .puzzles; showingAccount = false; launchRoute = nil; openPuzzles([]); openGames([]); session = nil; scanPath = []; scanSession = nil }
         catch { self.error = error.localizedDescription }
     }
     @discardableResult
@@ -172,6 +188,15 @@ final class AppState {
             let puzzles = scope == SCOPE_ALL ? allPuzzles(library) : puzzlesIn(library, scope)
             Task { await begin(scope, .ordered, puzzles.map(\.id)) }
         }
+        // Scan: `scan` is the home, `scan-import` its import sheet, `scan-list` All Puzzles,
+        // `scan-detail` (or `scan-detail:<id>`) a puzzle, `scan-resume:<scope>` an open run.
+        if route == "scan-import" { importingScan = true }
+        if route == "scan-list" { scanPath = [.puzzles] }
+        if route == "scan-detail" || route.hasPrefix("scan-detail:") {
+            let named = route.hasPrefix("scan-detail:") ? String(route.dropFirst("scan-detail:".count)) : nil
+            if let puzzle = scanPool(library).first(where: { named == nil || $0.id == named }) { scanPath = [.puzzles, .puzzle(puzzle.id)] }
+        }
+        if route.hasPrefix("scan-resume:") { scanSession = ScanSessionRoute(scope: String(route.dropFirst("scan-resume:".count))) }
         // Games. The collection's own routes (`game-add`, `game-new`, `game-select`) open in `GameCollectionView`.
         if let first = library.gameCollections.first, ["game-collection", "game-add", "game-new", "game-select"].contains(route) { openGames([.collection(first.id)]) }
         if route.hasPrefix("game:") || ["game-details", "game-comment", "game-variation", "game-unreadable", "game-eval"].contains(route),
@@ -236,6 +261,12 @@ actor ScreenshotAccount: Account {
                     library.puzzles += group.puzzles.enumerated().map { n, content in
                         Puzzle(content: content, id: id + "-\(n)", collectionId: id, position: n, addedAt: 0)
                     }
+                }
+            }
+            if let url = Bundle.main.url(forResource: "sample-scan", withExtension: "json"),
+               let text = try? String(contentsOf: url, encoding: .utf8) {
+                library.scanPuzzles = ScanImport.read(text).puzzles.enumerated().map { n, content in
+                    ScanPuzzle(id: "sample-scan-\(n)", content: content, addedAt: Int64(n))
                 }
             }
             library.gameCollections = [GameCollection(id: "sample-games", name: "Study games", createdAt: 0)]

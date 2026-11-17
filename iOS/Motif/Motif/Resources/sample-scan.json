@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "scan": [
+    {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+        {"square": "e4", "kind": "attacked"}
+      ],
+      "moves": {
+        "d2d3": 0, "f3g5": 12, "d1e2": 24, "b1c3": 29, "d2d4": 32, "c4d5": 36, "c4b5": 43,
+        "e1g1": 43, "h2h3": 51, "c4b3": 101, "c2c3": 108, "c4d3": 118, "a2a3": 120,
+        "a2a4": 124, "b2b3": 151, "c4e2": 159, "c4f1": 174, "h2h4": 186, "b2b4": 187,
+        "g2g3": 188, "b1a3": 201, "h1g1": 221, "g2g4": 225, "e1f1": 231, "e1e2": 246,
+        "h1f1": 265, "f3g1": 277, "f3h4": 340, "f3e5": 504, "c4f7": 552, "c4a6": 724,
+        "f3d4": 753, "c4e6": 826
+      },
+      "bestLine": ["d2d3"],
+      "source": "sample",
+      "sourceId": "two-knights"
+    },
+    {
+      "fenBefore": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+      "lastMove": "b8c6",
+      "flagged": false,
+      "quickScan": [],
+      "moves": {
+        "f1b5": 0, "d2d4": 12, "b1c3": 18, "h2h3": 18, "f1c4": 19, "f1e2": 33, "g2g3": 33,
+        "f1d3": 37, "d2d3": 40, "a2a4": 41, "c2c3": 42, "a2a3": 47, "b2b3": 58, "h2h4": 66,
+        "d1e2": 69, "c2c4": 71, "b1a3": 104, "h1g1": 116, "f3g1": 122, "b2b4": 178,
+        "g2g4": 184, "e1e2": 191, "f3e5": 441, "f1a6": 690, "f3g5": 763, "f3d4": 768,
+        "f3h4": 794
+      },
+      "bestLine": ["f1b5"],
+      "source": "sample",
+      "sourceId": "quiet-development"
+    }
+  ]
+}

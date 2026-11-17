@@ -1,7 +1,7 @@
 import XCTest
 
-/// Scan plan S05: a session through one flagged and one quiet puzzle (the bundled sample's two),
-/// undo and skip, and a run played offline, quit, resumed and uploaded on reconnect.
+/// Scan plan S05 and S07: a session through one flagged puzzle with its full scan and one quiet
+/// puzzle (the bundled sample's two), undo and skip, and a run played offline, quit, resumed and uploaded on reconnect.
 @MainActor final class ScanSessionFlowTests: FlowTestCase {
     func testFlaggedAndQuietPuzzles() {
         launch("scan"); start()
@@ -57,11 +57,28 @@ import XCTest
 
     private func start() { let start = button("scan-start"); wait(start); start.tap() }
 
-    /// After 3…Nf6: the knight attacks e4. Flag, then d3, the best move.
+    /// After 3…Nf6: the knight attacks e4. Flag; the full scan's targets (e4 red, e5 and f7
+    /// orange, a dot on e7) and arrows (Nxe4 theirs, Ng5 yours); then d3, the best move.
     private func playFlagged() {
         tap("e4"); expect(square("e4"), "label ENDSWITH 'marked'"); capture("scan-quick-scan")
         button("scan-flag").tap()
         expectFeedback("Clean Scan"); capture("scan-quick-scan-feedback")
+        button("scan-continue").tap()
+        let next = button("scan-next"); wait(next)
+        tap(square("e4"), until: "label ENDSWITH 'loses material'")
+        for name in ["e5", "f7"] {
+            tap(square(name), until: "label ENDSWITH 'loses material'")
+            tap(square(name), until: "label ENDSWITH 'as often as defended'")
+        }
+        tap(square("e7"), until: "label ENDSWITH 'dot'"); capture("scan-targets")
+        next.tap(); expectFeedback("All Targets Found"); capture("scan-targets-feedback")
+        button("scan-continue").tap()
+        wait(next)
+        square("f6").press(forDuration: 0.1, thenDragTo: square("e4")); wait(button("scan-arrow-f6e4"))
+        tap(square("f3"), until: "isSelected == true")
+        tap(square("g5"), until: "isSelected == false", on: square("f3"))
+        wait(button("scan-arrow-f3g5")); capture("scan-arrows")
+        next.tap(); expectFeedback("All Arrows Found"); capture("scan-arrows-feedback")
         button("scan-continue").tap()
         wait(app.descendants(matching: .any)["scan-prompt"]); move("d2", "d3")
         expectFeedback("Passed"); capture("scan-move-feedback")

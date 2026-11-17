@@ -96,7 +96,9 @@ struct ScanSessionPuzzle: View {
     private var board: some View {
         BoardView(fen: model.fen, orientation: model.solver, interactive: model.boardInteractive,
                   highlight: model.highlight, onMove: { model.play($0) }, pending: $pending,
-                  mode: model.boardMode, annotations: model.annotations, onSquare: { model.toggle($0) })
+                  mode: model.boardMode, annotations: model.annotations, onSquare: { model.tap($0) },
+                  onSquares: { model.markTargets($0) }, onArrow: { model.drawArrow(from: $0, to: $1) },
+                  onArrowTap: { model.removeArrow(at: $0) })
     }
 
     /// The step's prompt, the promotion row, or the feedback. Scrolls only when the text is too
@@ -112,6 +114,12 @@ struct ScanSessionPuzzle: View {
                     if let move = BoardInteraction.promotion(fen, from, to, piece) { model.play(move) }
                 }, cancel: { pending = nil }).frame(maxWidth: 380)
             } else {
+                // The drawn arrows come first: on a short column (the iPhone Duo's cover screen) the
+                // prompt, already read, is what scrolls away, not the buttons that delete arrows.
+                if model.step == .arrows {
+                    ScanArrowList(arrows: model.current.arrows, fen: model.fen) { model.removeArrow(at: $0) }
+                        .frame(maxWidth: ResultCard.maxWidth, alignment: layout.sideBySide ? .leading : .center)
+                }
                 SolvePrompt(side: model.solver, guidance: model.prompt).accessibilityIdentifier("scan-prompt")
             }
         }
@@ -123,14 +131,18 @@ struct ScanSessionPuzzle: View {
         .animation(.smooth, value: model.feedback)
     }
 
-    /// Flag / No Flag while scanning, Continue on feedback. Neither call is prominent, so the
-    /// buttons never hint at the answer; stacked at accessibility text sizes. A hidden button
-    /// keeps the row's height between steps, so the board doesn't change size under them.
+    /// Flag / No Flag while scanning, Next on the targets and arrows, Continue on feedback.
+    /// Neither call is prominent, so the buttons never hint at the answer; stacked at
+    /// accessibility text sizes. A hidden button keeps the row's height between steps, so the
+    /// board doesn't change size under them.
     private var actions: some View {
         ZStack {
             continueButton.hidden().accessibilityHidden(true)
             if model.feedback != nil {
                 continueButton
+            } else if model.canMark, model.step != .quickScan {
+                Button { model.finishStep() } label: { Label("Next", systemImage: "checkmark").frame(maxWidth: .infinity) }
+                    .buttonStyle(.glassProminent).controlSize(.large).accessibilityIdentifier("scan-next")
             } else if model.canMark {
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 12) { calls }

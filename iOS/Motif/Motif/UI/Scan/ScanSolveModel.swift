@@ -3,8 +3,9 @@ import Observation
 
 /// One scan puzzle, step by step (Scan plan §5): the board, the marks, the step's time and the
 /// attempt being built. Grading is `ScanGrader`'s; this model only collects input and times it.
-/// v1 order: the last move plays, the quick scan ends with Flag or No Flag, feedback, the move,
-/// feedback. Nothing is saved until the view records `outcome`.
+/// The last move plays, the quick scan ends with Flag or No Flag, feedback; on a Flag with a full
+/// scan the targets, feedback, the arrows, feedback; then the move and its feedback. Nothing is
+/// saved until the view records `outcome`.
 @Observable @MainActor final class ScanSolveModel {
     let puzzle: ScanPuzzle
     /// The side to move after the opponent's last move.
@@ -12,8 +13,8 @@ import Observation
     private(set) var step = ScanStep.lastMove
     private(set) var fen: String
     private(set) var highlight: (from: String, to: String)?
-    /// The quick scan's marked squares.
-    private(set) var marks: Set<String> = []
+    /// What the step on screen has marked: squares, targets or arrows.
+    private(set) var current = ScanMarks()
     private(set) var flagCall: Bool?
     /// The graded step's feedback; nil while a step is being played.
     private(set) var feedback: ScanFeedback?
@@ -21,9 +22,11 @@ import Observation
     private(set) var stepStarted: Date?
     /// Set once the move is graded: what the view records.
     private(set) var outcome: ScanOutcome?
-    /// The step's marks in the order they changed, newest last: what Undo takes back.
-    private(set) var history: [String] = []
+    /// The step's marks before each change, newest last: what Undo goes back to.
+    private(set) var history: [ScanMarks] = []
     @ObservationIgnored private(set) var quickScanGrade: ScanMarkGrade?
+    @ObservationIgnored private(set) var targetsGrade: ScanMarkGrade?
+    @ObservationIgnored private(set) var arrowsGrade: ScanMarkGrade?
     @ObservationIgnored private var steps = ScanSteps()
     @ObservationIgnored private let clock: any AnalysisClock
     @ObservationIgnored private let now: () -> Date
@@ -42,10 +45,20 @@ import Observation
 
     // MARK: Reading
 
-    var canMark: Bool { step == .quickScan && feedback == nil }
+    /// The quick scan's marked squares.
+    var marks: Set<String> { current.squares }
+    /// A marking step (quick scan, targets, arrows) is open for input.
+    var canMark: Bool { [.quickScan, .targets, .arrows].contains(step) && feedback == nil }
     var canMove: Bool { step == .move }
     var canUndo: Bool { canMark && !history.isEmpty }
-    var boardMode: BoardMode { step == .quickScan ? .markSquares : .play }
+    var boardMode: BoardMode {
+        switch step {
+        case .quickScan: .markSquares
+        case .targets: .markTargets
+        case .arrows: .drawArrows
+        default: .play
+        }
+    }
     var boardInteractive: Bool { canMark || canMove }
     /// The opponent's last move in SAN ("Nf6").
     var lastMoveSan: String { Board.sanFor(puzzle.fenBefore, puzzle.lastMove) ?? puzzle.lastMove.text }
@@ -55,21 +68,44 @@ import Observation
         switch step {
         case .lastMove: "Watch their move."
         case .quickScan: "Tap what \(lastMoveSan) attacks, opens or leaves undefended. Then call it."
+        case .targets: "Tap a piece: once red (loses material), twice orange (attacked as often as defended). Tap a king-zone or fork square for a dot."
+        case .arrows: "Drag every check, capture and threat, both sides. Tap an arrow to delete it."
         case .move: flagCall == true ? "Play your move, with the scan in mind." : "Play your move."
         default: ""
         }
     }
 
-    /// Marks while scanning; after the call, rings for found, missed and extra squares; after a
-    /// failed move, an arrow for the best one.
+    /// Marks while a step is played; once it's graded, rings for found, missed and extra squares
+    /// (a missed target shows the answer's mark) and the missed arrows in outline; after a failed
+    /// move, an arrow for the best one.
     var annotations: BoardAnnotations {
-        var annotations = BoardAnnotations()
+        var annotations = current.annotations
         switch step {
         case .quickScan:
-            for square in marks { annotations.tints[square] = .quickScan }
             if let grade = quickScanGrade, feedback != nil {
                 for square in marks { annotations.rings[square] = grade.extra.contains(square) ? .extra : .correct }
                 for square in grade.missed { annotations.rings[square] = .missed }
+            }
+        case .targets:
+            guard let grade = targetsGrade, feedback != nil, let targets = puzzle.answer.targets else { break }
+            let missed = Set(grade.missed), extra = Set(grade.extra)
+            for square in current.targets.keys {
+                annotations.rings[square] = missed.contains(square) ? .missed : extra.contains(square) ? .extra : .correct
+            }
+            for square in grade.missed where current.targets[square] == nil {
+                annotations.rings[square] = .missed
+                if targets.red.contains(square) { annotations.tints[square] = .red }
+                else if targets.orange.contains(square) { annotations.tints[square] = .orange }
+                else { annotations.dots.insert(square) }
+            }
+        case .arrows:
+            guard let grade = arrowsGrade, feedback != nil, let answer = puzzle.answer.arrows else { break }
+            let expected = Set(answer.map(\.line)), missed = Set(grade.missed)
+            for index in annotations.arrows.indices where expected.contains(annotations.arrows[index].line) {
+                annotations.arrows[index].style = .correct
+            }
+            for arrow in answer where missed.contains(arrow.line) {
+                annotations.arrows.append(BoardArrow(from: arrow.from, to: arrow.to, side: arrow.side == .own ? .own : .theirs, style: .missed))
             }
         case .done:
             if let outcome, outcome.detail.failReason == .badMove, let best = ScanFeedback.bestMove(puzzle.answer) {
@@ -95,20 +131,48 @@ import Observation
         start(.quickScan)
     }
 
-    /// Marks or clears a square in the quick scan, undoable through the window's `UndoManager`.
-    func toggle(_ square: String) {
-        guard canMark else { return }
-        flip(square)
-        history.append(square)
-        register(square)
+    /// A tap on a square in the step on screen: a quick-scan mark, or the next target mark.
+    func tap(_ square: String) {
+        switch step {
+        case .quickScan: toggle(square)
+        case .targets: markTargets([square])
+        default: break
+        }
     }
 
-    /// The Undo button: through `UndoManager` when it holds the mark, so it and shake to undo
+    /// Marks or clears a square in the quick scan, undoable through the window's `UndoManager`.
+    func toggle(_ square: String) {
+        guard canMark, step == .quickScan else { return }
+        change("Mark") { $0.toggle(square) }
+    }
+
+    /// Target marks for each square in turn, as one tap each: a drag over several is one undo.
+    func markTargets(_ squares: [String]) {
+        guard canMark, step == .targets, !squares.isEmpty else { return }
+        change(squares.count == 1 ? "Mark" : "Marks") { marks in
+            for square in squares { marks.cycleTarget(square, piece: Board.pieceAt(fen, square) != nil) }
+        }
+    }
+
+    /// An arrow from a piece, either side's: own when the piece is the solver's. Drawing the same
+    /// arrow again takes it away.
+    func drawArrow(from: String, to: String) {
+        guard canMark, step == .arrows, let piece = Board.pieceAt(fen, from) else { return }
+        change("Arrow") { $0.drawArrow(from: from, to: to, side: piece.color == solver ? .own : .theirs) }
+    }
+
+    /// A tapped arrow, or one deleted from the list under the board.
+    func removeArrow(at index: Int) {
+        guard canMark, step == .arrows else { return }
+        change("Arrow") { $0.removeArrow(at: index) }
+    }
+
+    /// The Undo button: through `UndoManager` when it holds the change, so it and shake to undo
     /// share one stack, else straight from `history`.
     func undo() {
         guard canUndo else { return }
         if let undoManager, undoManager.canUndo { undoManager.undo() }
-        else if let square = history.popLast() { flip(square) }
+        else if let before = history.popLast() { current = before }
     }
 
     /// Flag or No Flag: grades the quick scan and the call, and shows feedback.
@@ -124,12 +188,38 @@ import Observation
                               answer: puzzle.answer, startFen: startFen, ms: ms)
     }
 
-    /// Continue after the quick scan's feedback. v1 goes to the move whatever the call; the
-    /// Flag branch's targets and arrows come with S07.
+    /// Next on the targets or the arrows: grades the step and shows its feedback.
+    func finishStep() {
+        guard canMark else { return }
+        let ms = elapsedMs()
+        switch step {
+        case .targets:
+            guard let grade = ScanGrader.gradeTargets(red: current.red, orange: current.orange, dots: current.dots,
+                                                      answer: puzzle.answer) else { return }
+            steps.targets = ScanMarkStep(ms: ms, limitMs: ScanTiming.limitMs(.targets), missed: grade.missed, extra: grade.extra)
+            targetsGrade = grade
+            endStep()
+            feedback = .targets(grade, marked: current.targets, answer: puzzle.answer, startFen: startFen, ms: ms)
+        case .arrows:
+            guard let grade = ScanGrader.gradeArrows(drawn: current.lines, answer: puzzle.answer) else { return }
+            steps.arrows = ScanMarkStep(ms: ms, limitMs: ScanTiming.limitMs(.arrows), missed: grade.missed, extra: grade.extra)
+            arrowsGrade = grade
+            endStep()
+            feedback = .arrows(grade, answer: puzzle.answer, startFen: startFen, ms: ms)
+        default: return
+        }
+    }
+
+    /// Continue after a step's feedback. No Flag goes to the move; Flag runs the full scan first
+    /// when the puzzle has one (format v2), else goes to the move as in v1.
     func proceed() {
-        guard step == .quickScan, feedback != nil else { return }
-        marks = []
-        start(.move)
+        guard feedback != nil else { return }
+        switch step {
+        case .quickScan: start(flagCall == true && puzzle.answer.hasFullScan ? .targets : .move)
+        case .targets: start(.arrows)
+        case .arrows: start(.move)
+        default: return
+        }
     }
 
     /// The solver's move: graded against the maker's scores, then the puzzle's result.
@@ -167,7 +257,7 @@ import Observation
     // MARK: Private
 
     private func start(_ next: ScanStep) {
-        step = next; feedback = nil; history = []
+        step = next; feedback = nil; history = []; current = ScanMarks()
         startedAt = clock.now; stepStarted = now()
     }
 
@@ -182,23 +272,33 @@ import Observation
         return Int(elapsed.components.seconds * 1000 + elapsed.components.attoseconds / 1_000_000_000_000_000)
     }
 
-    private func flip(_ square: String) {
-        if marks.contains(square) { marks.remove(square) } else { marks.insert(square) }
+    /// One undoable change to the step's marks; nothing is registered when nothing changed.
+    private func change(_ name: String, _ edit: (inout ScanMarks) -> Void) {
+        var next = current
+        edit(&next)
+        guard next != current else { return }
+        apply(next, name: name)
     }
 
-    private func register(_ square: String) {
+    private func apply(_ next: ScanMarks, name: String) {
+        let before = current
+        history.append(before)
+        current = next
         guard let undoManager else { return }
-        undoManager.registerUndo(withTarget: self) { model in model.revert(square) }
-        undoManager.setActionName("Mark")
+        undoManager.registerUndo(withTarget: self) { model in model.revert(to: before, from: next, name: name) }
+        undoManager.setActionName(name)
     }
 
-    /// An undone mark; registers its redo.
-    private func revert(_ square: String) {
-        guard canMark, history.last == square else { return }
+    /// An undone change; registers its redo. Only while the step it was made in is still open.
+    private func revert(to before: ScanMarks, from after: ScanMarks, name: String) {
+        guard canMark, current == after, history.last == before else { return }
         history.removeLast()
-        flip(square)
+        current = before
         guard let undoManager else { return }
-        undoManager.registerUndo(withTarget: self) { model in model.toggle(square) }
-        undoManager.setActionName("Mark")
+        undoManager.registerUndo(withTarget: self) { model in
+            guard model.canMark, model.current == before else { return }
+            model.apply(after, name: name)
+        }
+        undoManager.setActionName(name)
     }
 }

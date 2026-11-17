@@ -22,7 +22,7 @@ struct RootView: View {
                 #if DEBUG
                 if app.launchRoute == "board" { NavigationStack { BoardSampleView() } }
                 else if let route = app.launchRoute, route.hasPrefix("scan-board") {
-                    NavigationStack { ScanBoardSampleView(page: route == "scan-board:shapes" ? .shapes : .mark) }
+                    NavigationStack { ScanBoardSampleView(page: .init(route: route)) }
                 } else { tabs }
                 #else
                 tabs

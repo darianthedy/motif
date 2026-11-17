@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Mark shapes, dots, rings and arrows in one `Canvas` pass above the squares (Scan plan §4). It
-/// takes no touches: the squares under it stay the buttons. Every mark has a shape as well as
-/// a colour, so none relies on colour alone. Tint fills sit
+/// takes no touches: the squares under it stay the buttons, and `arrowHit` finds a tapped arrow.
+/// Every mark has a shape as well as a colour, so none relies on colour alone. Tint fills sit
 /// under the pieces, in `BoardView`'s squares (`SquareMark.fill`).
 struct BoardOverlay: View {
     let annotations: BoardAnnotations
@@ -24,6 +24,15 @@ struct BoardOverlay: View {
             for (square, ring) in annotations.rings {
                 guard let rect = Self.rect(square, orientation, size) else { continue }
                 drawRing(ring, in: rect, context: context)
+            }
+            // A mark's badge goes over the feedback ring, so a graded target still shows its colour's symbol.
+            for (square, mark) in annotations.tints {
+                guard let rect = Self.rect(square, orientation, size) else { continue }
+                switch mark {
+                case .quickScan: break
+                case .red: cornerBadge(.red, in: rect, context: context)
+                case .orange: cornerBadge(.orange, in: rect, context: context)
+                }
             }
             for arrow in annotations.arrows { drawArrow(arrow, context: context) }
         } symbols: {
@@ -69,11 +78,10 @@ struct BoardOverlay: View {
             path.closeSubpath()
             context.fill(path, with: .color(BoardPalette.markHighlight))
         case .red:
-            cornerBadge(.red, in: rect, context: context)
+            break
         case .orange:
             let width = size * 0.08
             context.stroke(Path(rect.insetBy(dx: width / 2, dy: width / 2)), with: .color(BoardPalette.markOrange), lineWidth: width)
-            cornerBadge(.orange, in: rect, context: context)
         }
     }
     private func drawRing(_ ring: RingStyle, in rect: CGRect, context: GraphicsContext) {
@@ -92,24 +100,40 @@ struct BoardOverlay: View {
         }
     }
     private func drawArrow(_ arrow: BoardArrow, context: GraphicsContext) {
-        guard arrow.from != arrow.to, let start = Self.center(arrow.from, orientation, size),
-              let end = Self.center(arrow.to, orientation, size) else { return }
-        let dx = end.x - start.x, dy = end.y - start.y, length = (dx * dx + dy * dy).squareRoot()
-        let ux = dx / length, uy = dy / length
-        let head = size * 0.42, shaft = size * 0.15
-        // The shaft stops at the head's base, so a dashed shaft doesn't show through the head.
-        let base = CGPoint(x: end.x - ux * head, y: end.y - uy * head)
-        var line = Path(); line.move(to: start); line.addLine(to: base)
-        let color = arrow.side == .own ? BoardPalette.arrowOwn : BoardPalette.arrowTheirs
-        let style = arrow.side == .own ? StrokeStyle(lineWidth: shaft, lineCap: .round)
-            : StrokeStyle(lineWidth: shaft, lineCap: .butt, dash: [shaft * 1.2, shaft * 0.9])
-        context.stroke(line, with: .color(color.opacity(0.85)), style: style)
-        var tip = Path()
-        tip.move(to: end)
-        tip.addLine(to: CGPoint(x: base.x - uy * head / 2, y: base.y + ux * head / 2))
-        tip.addLine(to: CGPoint(x: base.x + uy * head / 2, y: base.y - ux * head / 2))
-        tip.closeSubpath()
-        context.fill(tip, with: .color(color.opacity(0.85)))
+        guard let start = Self.center(arrow.from, orientation, size), let end = Self.center(arrow.to, orientation, size),
+              let shape = BoardArrowShape(from: start, to: end, size: size) else { return }
+        let color = (arrow.side == .own ? BoardPalette.arrowOwn : BoardPalette.arrowTheirs).opacity(0.85)
+        switch arrow.style {
+        case .drawn, .correct:
+            shape.fill(side: arrow.side, color: color, context: context)
+            if arrow.style == .correct, let badge = context.resolveSymbol(id: Symbol.correct) {
+                context.draw(badge, at: CGPoint(x: (start.x + shape.base.x) / 2, y: (start.y + shape.base.y) / 2))
+            }
+        case .missed:
+            // An outline, dashed for their side as the filled arrow's shaft is.
+            let width = max(2, size * 0.05)
+            context.stroke(shape.outline, with: .color(color),
+                           style: StrokeStyle(lineWidth: width, lineJoin: .round,
+                                              dash: arrow.side == .own ? [] : [size * 0.12, size * 0.08]))
+        }
+    }
+
+    /// The arrow a tap at `point` lands on, nearest first: within `tolerance` of its shaft (12 pt,
+    /// Scan plan §4), but not on the squares it joins, so their pieces stay tappable to start
+    /// another arrow. Nil when the tap is on no arrow.
+    static func arrowHit(_ point: CGPoint, arrows: [BoardArrow], orientation: Side, size: CGFloat,
+                         tolerance: CGFloat = 12) -> Int? {
+        var best: (index: Int, distance: CGFloat)?
+        for (index, arrow) in arrows.enumerated() {
+            guard let a = center(arrow.from, orientation, size), let b = center(arrow.to, orientation, size), a != b else { continue }
+            let dx = b.x - a.x, dy = b.y - a.y
+            let t = max(0, min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / (dx * dx + dy * dy)))
+            let distance = hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy))
+            let fromEnds = min(hypot(point.x - a.x, point.y - a.y), hypot(point.x - b.x, point.y - b.y))
+            guard distance <= tolerance + size * 0.075, fromEnds >= size * 0.35 else { continue }
+            if best.map({ distance < $0.distance }) ?? true { best = (index, distance) }
+        }
+        return best?.index
     }
 }
 

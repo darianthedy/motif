@@ -56,11 +56,26 @@ case "${1:-}" in
     ;;
 esac
 
+# In a git worktree, the main checkout usually has the nets already: link them
+# (a hard link, so Xcode bundles a real file) instead of downloading 75 MB again.
+main=""
+common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)
+if [ -n "$common" ] && [ "$(basename "$common")" = ".git" ]; then
+  main="$(dirname "$common")"
+  [ "$main" = "$(pwd -P)" ] && main=""
+fi
+
 mkdir -p "$DIR"
 for net in $NETS; do
   path="$DIR/$net"
   if intact "$net" "$path"; then
     echo "== $net present"
+    continue
+  fi
+  if [ -n "$main" ] && intact "$net" "$main/$DIR/$net"; then
+    rm -f "$path"
+    ln "$main/$DIR/$net" "$path" 2>/dev/null || cp "$main/$DIR/$net" "$path"
+    echo "== $net linked from the main checkout"
     continue
   fi
   echo "== fetching $net"

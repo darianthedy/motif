@@ -67,10 +67,7 @@ struct ImportView: View {
             Form {
                 if !app.store.online {
                     // At the top, where it explains the disabled ✓ before anything else (F19).
-                    Section {
-                        Label("You’re offline. Importing needs a connection.", systemImage: "wifi.slash")
-                            .foregroundStyle(.motifSecondary).accessibilityIdentifier("puzzle-import-offline")
-                    }
+                    OfflineNote(text: "You’re offline. Importing needs a connection.", identifier: "puzzle-import-offline")
                 }
                 Section {
                     Button("Choose File…", systemImage: "doc") { filePicker = true }

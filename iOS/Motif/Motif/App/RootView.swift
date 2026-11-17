@@ -41,6 +41,7 @@ struct RootView: View {
         @Bindable var app = app
         return TabView(selection: $app.tab) {
             Tab("Puzzles", systemImage: "puzzlepiece", value: .puzzles) { puzzlesSplit }
+            Tab("Scan", systemImage: "scope", value: .scan) { scanStack }
             Tab("Games", systemImage: "checkerboard.rectangle", value: .games) { gamesSplit }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
@@ -50,6 +51,8 @@ struct RootView: View {
         .sheet(isPresented: $app.showingAccount) { AccountView().environment(app) }
         .sheet(isPresented: $app.importingPuzzles) { ImportView().environment(app) }
         .fullScreenCover(item: $app.session) { SessionView(scope: $0.scope).environment(app) }
+        .sheet(isPresented: $app.importingScan) { ScanImportView().environment(app) }
+        .fullScreenCover(item: $app.scanSession) { ScanSessionView(scope: $0.scope).environment(app) }
         // A selected collection that is deleted (here or on another device) leaves the detail column.
         .onChange(of: app.store.library?.collections.map(\.id)) { _, ids in
             if let id = app.puzzlesCollection, let ids, !ids.contains(id) { app.openPuzzles([]) }
@@ -90,6 +93,21 @@ struct RootView: View {
             }
         }
         .navigationSplitViewStyle(.automatic)
+    }
+    /// Scan Training is one screen deep, so a stack rather than a split view (Scan plan §6).
+    private var scanStack: some View {
+        @Bindable var app = app
+        return NavigationStack(path: $app.scanPath) {
+            ScanHomeView().libraryStatus().libraryMessages()
+                .navigationDestination(for: ScanRoute.self) { route in
+                    Group {
+                        switch route {
+                        case .puzzles: ScanPuzzleListView()
+                        case .puzzle(let id): ScanPuzzleDetailView(puzzleId: id)
+                        }
+                    }.libraryStatus().libraryMessages()
+                }
+        }
     }
     private var gamesSplit: some View {
         @Bindable var app = app

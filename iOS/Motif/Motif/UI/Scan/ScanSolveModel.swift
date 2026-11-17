@@ -6,6 +6,8 @@ import Observation
 /// The last move plays, the quick scan ends with Flag or No Flag, feedback; on a Flag with a full
 /// scan the targets, feedback, the arrows, feedback; then the move, held ghosted for the final
 /// check after a full scan, and its feedback. Nothing is saved until the view records `outcome`.
+/// A step with a hard limit (`ScanLimits`) ends as it stands when the limit runs out: missing
+/// marks are soft misses, and a quick scan with no call or no move in time fails the puzzle.
 @Observable @MainActor final class ScanSolveModel {
     let puzzle: ScanPuzzle
     /// The side to move after the opponent's last move.
@@ -20,6 +22,10 @@ import Observation
     private(set) var feedback: ScanFeedback?
     /// When the running step started, for the elapsed-time display; nil between steps.
     private(set) var stepStarted: Date?
+    /// When the running step's hard limit runs out, for the countdown; nil while record-only.
+    private(set) var deadline: Date?
+    /// The hard limits in force for this puzzle, fixed when it starts.
+    let limits: ScanLimits
     /// The move under final check: shown ghosted until Play It or Take Back.
     private(set) var candidate: Uci?
     /// Set once the move is graded: what the view records.
@@ -39,9 +45,12 @@ import Observation
     @ObservationIgnored private let startFen: String
     /// Moves taken back at the final check, recorded with the move.
     @ObservationIgnored private var takeBacks = 0
+    /// Sleeps until the running step's limit, then ends it; cancelled when the step ends first.
+    @ObservationIgnored private var limitTask: Task<Void, Never>?
 
-    init(_ puzzle: ScanPuzzle, clock: any AnalysisClock = SystemClock(), now: @escaping () -> Date = Date.init) {
-        self.puzzle = puzzle; self.clock = clock; self.now = now
+    init(_ puzzle: ScanPuzzle, limits: ScanLimits = ScanLimits(), clock: any AnalysisClock = SystemClock(),
+         now: @escaping () -> Date = Date.init) {
+        self.puzzle = puzzle; self.limits = limits; self.clock = clock; self.now = now
         fen = puzzle.fenBefore
         startFen = puzzle.startFen ?? puzzle.fenBefore
         solver = Board.turnOf(startFen) ?? .white
@@ -76,12 +85,12 @@ import Observation
     /// The step's one line of guidance.
     var prompt: String {
         switch step {
-        case .lastMove: "Watch their move."
-        case .quickScan: "Tap what \(lastMoveSan) attacks, opens or leaves undefended. Then call it."
-        case .targets: "Tap a piece: once red (loses material), twice orange (attacked as often as defended). Tap a king-zone or fork square for a dot."
-        case .arrows: "Drag every check, capture and threat, both sides. Tap an arrow to delete it."
-        case .move: flagCall == true ? "Play your move, with the scan in mind." : "Play your move."
-        case .finalCheck: "Play \(candidateSan ?? "it"), or take it back."
+        case .lastMove: "Their move."
+        case .quickScan: "After \(lastMoveSan)?"
+        case .targets: "Red, orange, dots."
+        case .arrows: "Both sides."
+        case .move: "Your move."
+        case .finalCheck: "\(candidateSan ?? "This move")?"
         default: ""
         }
     }
@@ -191,44 +200,73 @@ import Observation
     }
 
     /// Flag or No Flag: grades the quick scan and the call, and shows feedback.
-    func call(_ flag: Bool) {
-        guard canMark else { return }
-        let ms = elapsedMs()
+    func call(_ flag: Bool) { endQuickScan(flag, timedOut: false) }
+
+    /// Next on the targets or the arrows: grades the step and shows its feedback.
+    func finishStep() { finishStep(timedOut: false) }
+
+    /// Ends the quick scan with a call, or with none when its limit ran out: then the puzzle
+    /// fails there and then, its feedback the result.
+    private func endQuickScan(_ flag: Bool?, timedOut: Bool) {
+        guard canMark, step == .quickScan else { return }
+        let ms = elapsedMs(timedOut: timedOut)
         let grade = ScanGrader.gradeQuickScan(tapped: marks, answer: puzzle.answer)
-        steps.quickScan = ScanMarkStep(ms: ms, limitMs: ScanTiming.limitMs(.quickScan), missed: grade.missed, extra: grade.extra)
+        steps.quickScan = ScanMarkStep(ms: ms, limitMs: limits.limitMs(.quickScan), missed: grade.missed, extra: grade.extra,
+                                       timedOut: timedOut ? true : nil)
         quickScanGrade = grade
         flagCall = flag
         endStep()
+        guard let flag else {
+            outcome = ScanGrader.result(of: steps, flagCall: false, answer: puzzle.answer)
+            feedback = .noCall(grade, answer: puzzle.answer, startFen: startFen, ms: ms)
+            return
+        }
         feedback = .quickScan(grade, flag: ScanGrader.gradeFlag(called: flag, answer: puzzle.answer),
                               answer: puzzle.answer, startFen: startFen, ms: ms)
+            .limited(limits.limitMs(.quickScan), timedOut: timedOut)
     }
 
-    /// Next on the targets or the arrows: grades the step and shows its feedback.
-    func finishStep() {
+    private func finishStep(timedOut: Bool) {
         guard canMark else { return }
-        let ms = elapsedMs()
+        let ms = elapsedMs(timedOut: timedOut), out: Bool? = timedOut ? true : nil
         switch step {
         case .targets:
             guard let grade = ScanGrader.gradeTargets(red: current.red, orange: current.orange, dots: current.dots,
                                                       answer: puzzle.answer) else { return }
-            steps.targets = ScanMarkStep(ms: ms, limitMs: ScanTiming.limitMs(.targets), missed: grade.missed, extra: grade.extra)
+            steps.targets = ScanMarkStep(ms: ms, limitMs: limits.limitMs(.targets), missed: grade.missed, extra: grade.extra, timedOut: out)
             targetsGrade = grade
             endStep()
             feedback = .targets(grade, marked: current.targets, answer: puzzle.answer, startFen: startFen, ms: ms)
+                .limited(limits.limitMs(.targets), timedOut: timedOut)
         case .arrows:
             guard let grade = ScanGrader.gradeArrows(drawn: current.lines, answer: puzzle.answer) else { return }
-            steps.arrows = ScanMarkStep(ms: ms, limitMs: ScanTiming.limitMs(.arrows), missed: grade.missed, extra: grade.extra)
+            steps.arrows = ScanMarkStep(ms: ms, limitMs: limits.limitMs(.arrows), missed: grade.missed, extra: grade.extra, timedOut: out)
             arrowsGrade = grade
             endStep()
             feedback = .arrows(grade, answer: puzzle.answer, startFen: startFen, ms: ms)
+                .limited(limits.limitMs(.arrows), timedOut: timedOut)
         default: return
+        }
+    }
+
+    /// The running step's limit ran out: it ends as it stands.
+    func timeUp() {
+        guard feedback == nil else { return }
+        switch step {
+        case .quickScan: endQuickScan(nil, timedOut: true)
+        case .targets, .arrows: finishStep(timedOut: true)
+        case .move, .finalCheck:
+            // A move held at the final check wasn't played: the board goes back to before it.
+            if candidate != nil { candidate = nil; fen = startFen; highlight = (moveFrom(puzzle.lastMove), moveTo(puzzle.lastMove)) }
+            grade(nil, next: fen)
+        default: break
         }
     }
 
     /// Continue after a step's feedback. No Flag goes to the move; Flag runs the full scan first
     /// when the puzzle has one (format v2), else goes to the move as in v1.
     func proceed() {
-        guard feedback != nil else { return }
+        guard feedback != nil, outcome == nil else { return }
         switch step {
         case .quickScan: start(flagCall == true && puzzle.answer.hasFullScan ? .targets : .move)
         case .targets: start(.arrows)
@@ -267,26 +305,32 @@ import Observation
         step = .move
     }
 
-    /// Grades the move against the maker's scores, then the puzzle's result.
-    private func grade(_ move: Uci, next: String) {
+    /// Grades the move against the maker's scores, then the puzzle's result. No move: the limit
+    /// ran out first.
+    private func grade(_ move: Uci?, next: String) {
         guard let flagCall else { return }
-        let ms = elapsedMs()
-        let grade = ScanGrader.gradeMove(move, answer: puzzle.answer)
-        steps.move = ScanMoveStep(ms: ms, limitMs: ScanTiming.limitMs(.move(flagCall: flagCall)), played: move, lossCp: grade.lossCp,
+        let ms = elapsedMs(timedOut: move == nil), timed = ScanTimedStep.move(flagCall: flagCall)
+        let grade = move.map { ScanGrader.gradeMove($0, answer: puzzle.answer) }
+        steps.move = ScanMoveStep(ms: ms, limitMs: limits.limitMs(timed), played: move, lossCp: grade?.lossCp,
                                   takeBacks: takeBacks > 0 ? takeBacks : nil)
         let outcome = ScanGrader.result(of: steps, flagCall: flagCall, answer: puzzle.answer)
         fen = next
-        highlight = (moveFrom(move), moveTo(move))
+        if let move { highlight = (moveFrom(move), moveTo(move)) }
         endStep()
         self.outcome = outcome
         step = .done
-        feedback = .move(move, grade: grade, outcome: outcome, answer: puzzle.answer,
-                         startFen: startFen, flagCall: flagCall, ms: ms)
+        if let move, let grade {
+            feedback = ScanFeedback.move(move, grade: grade, outcome: outcome, answer: puzzle.answer,
+                                         startFen: startFen, flagCall: flagCall, ms: ms)
+                .limited(limits.limitMs(timed), timedOut: false)
+        } else {
+            feedback = .noMove(outcome: outcome, answer: puzzle.answer, startFen: startFen, flagCall: flagCall, ms: ms)
+        }
     }
 
     /// The attempt to record once the result is shown.
     func attempt(runId: String, playedAt: Int64) -> ScanAttempt? {
-        guard let outcome, let flagCall else { return nil }
+        guard let outcome else { return nil }
         return ScanAttempt(puzzleId: puzzle.id, runId: runId, flagCall: flagCall, outcome: outcome, playedAt: playedAt)
     }
 
@@ -298,22 +342,49 @@ import Observation
     }
 
     /// Leaving the puzzle: nothing of it is kept (plan §2.2).
-    func cancel() { undoManager?.removeAllActions(withTarget: self) }
+    func cancel() {
+        limitTask?.cancel(); limitTask = nil
+        undoManager?.removeAllActions(withTarget: self)
+    }
 
     // MARK: Private
 
     private func start(_ next: ScanStep) {
         step = next; feedback = nil; history = []; current = ScanMarks()
         startedAt = clock.now; stepStarted = now()
+        deadline = nil
+        guard let timed = timedStep(next), let limit = limits.limitMs(timed), let started = stepStarted else { return }
+        deadline = started.addingTimeInterval(Double(limit) / 1000)
+        let until = startedAt + .milliseconds(limit), clock = clock
+        // The move's limit runs on through the final check and any take-backs, as its clock does.
+        limitTask = Task { [weak self] in
+            do { try await clock.sleep(until: until) } catch { return }
+            guard !Task.isCancelled else { return }
+            self?.timeUp()
+        }
     }
 
-    /// Undo never leaves a step, so its actions go when it ends.
+    /// The timed step a step is played under; nil for the last move and the result.
+    private func timedStep(_ step: ScanStep) -> ScanTimedStep? {
+        switch step {
+        case .quickScan: .quickScan
+        case .targets: .targets
+        case .arrows: .arrows
+        case .move, .finalCheck: flagCall.map { ScanTimedStep.move(flagCall: $0) }
+        default: nil
+        }
+    }
+
+    /// Undo never leaves a step, so its actions go when it ends; nor does the limit.
     private func endStep() {
-        stepStarted = nil; history = []
+        stepStarted = nil; deadline = nil; history = []
+        limitTask?.cancel(); limitTask = nil
         undoManager?.removeAllActions(withTarget: self)
     }
 
-    private func elapsedMs() -> Int {
+    /// The step's time. When the limit cut it off, the limit itself: the task wakes a little late.
+    private func elapsedMs(timedOut: Bool = false) -> Int {
+        if timedOut, let timed = timedStep(step), let limit = limits.limitMs(timed) { return limit }
         let elapsed = clock.now - startedAt
         return Int(elapsed.components.seconds * 1000 + elapsed.components.attoseconds / 1_000_000_000_000_000)
     }

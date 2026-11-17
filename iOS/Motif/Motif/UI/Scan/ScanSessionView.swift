@@ -8,13 +8,18 @@ struct ScanSessionView: View {
     let scope: String
     /// Kept across puzzles, as `SessionView` does, so each new puzzle starts at the right size.
     @State private var measured = SessionMeasurements()
+    @AppStorage(ScanTimeLimitsPreference.key) private var timeLimitsStored: Bool?
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
+    @Environment(\.accessibilitySwitchControlEnabled) private var switchControl
     var body: some View {
         NavigationStack {
             Group {
                 if let library = app.store.library, let run = scanRunIn(library, scope) {
                     let progress = scanProgressOf(library, run)
                     if let puzzle = library.scanPuzzles.first(where: { $0.id == progress.current }) {
-                        ScanSessionPuzzle(puzzle: puzzle, run: run, progress: progress, measured: $measured)
+                        // Fixed when the puzzle starts: a change to the switch applies from the next.
+                        ScanSessionPuzzle(puzzle: puzzle, run: run, progress: progress, limits: limits(library),
+                                          measured: $measured)
                             .id("\(puzzle.id):\(progress.played)")
                             .navigationSubtitle("Puzzle \(number(progress)) of \(progress.queue.count)")
                     } else {
@@ -32,6 +37,10 @@ struct ScanSessionView: View {
                 }
             }
         }
+    }
+    private func limits(_ library: Library) -> ScanLimits {
+        let enabled = ScanTimeLimitsPreference.enabled(stored: timeLimitsStored, voiceOver: voiceOver, switchControl: switchControl)
+        return ScanTiming.limits(library.scanAttempts, now: epochMilliseconds(), enabled: enabled)
     }
     /// Retries keep `remaining` up, so the count stays inside the queue.
     private func number(_ progress: RunProgress) -> Int {

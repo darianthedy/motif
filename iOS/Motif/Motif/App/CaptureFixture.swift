@@ -22,6 +22,8 @@ import Foundation
 ///   with the same name finds them (the memory backend still starts fresh). With `offline-first`
 ///   the relaunch opens offline from them. `online-after=<seconds>`: comes back online then, as a
 ///   reconnect does, which uploads the outbox.
+/// - `scan-limits`: 20 fast scan attempts from 30 days ago, so every v1 step's hard limit is on
+///   (Scan plan S09). Any fixture also resets the Scan tab's Time Limits switch to its default.
 /// - `reduce-transparency`: Motif's own glass takes its Reduce Transparency fallback (`motifGlass`);
 ///   Dynamic Type comes from `-UIPreferredContentSizeCategoryName` instead (D10).
 struct CaptureFixture: Sendable {
@@ -45,6 +47,7 @@ struct CaptureFixture: Sendable {
         guard !values.isEmpty else { return }
         defaults.set(!has("eval-off"), forKey: "evalBarShown")
         defaults.set(has("lines"), forKey: "engineLinesShown")
+        defaults.removeObject(forKey: ScanTimeLimitsPreference.key)
     }
     /// Applied once the store has opened.
     @MainActor func apply(to app: AppState) async {
@@ -56,6 +59,16 @@ struct CaptureFixture: Sendable {
                 try? await store.recordAttempt(Attempt(id: "pending-\(n)", puzzleId: puzzle.id, runId: nil, result: .solved, mistakes: 0, hinted: false, playedAt: epochMilliseconds()))
             }
             store.online = online
+        }
+        if has("scan-limits"), let puzzle = store.library?.scanPuzzles.first {
+            let past = epochMilliseconds() - 30 * 24 * 60 * 60 * 1000
+            for n in 0..<20 {
+                let flagCall = n.isMultiple(of: 2)
+                let steps = ScanSteps(quickScan: ScanMarkStep(ms: 2000), move: ScanMoveStep(ms: 2000))
+                try? await store.recordScanAttempt(ScanAttempt(id: "fast-\(n)", puzzleId: puzzle.id, runId: nil, result: .solved,
+                                                               flagCall: flagCall, detail: ScanAttemptDetail(steps: steps),
+                                                               playedAt: past + Int64(n)))
+            }
         }
         if let delay = values["online-after"].flatMap(Double.init) {
             Task { @MainActor in

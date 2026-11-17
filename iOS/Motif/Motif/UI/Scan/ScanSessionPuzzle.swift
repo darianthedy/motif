@@ -16,9 +16,10 @@ struct ScanSessionPuzzle: View {
     @State private var recording = false
     /// A promotion waiting for its piece, answered by the row in the column.
     @State private var pending: BoardPending?
-    init(puzzle: ScanPuzzle, run: Run, progress: RunProgress, measured: Binding<SessionMeasurements>) {
+    init(puzzle: ScanPuzzle, run: Run, progress: RunProgress, limits: ScanLimits = ScanLimits(),
+         measured: Binding<SessionMeasurements>) {
         self.puzzle = puzzle; self.run = run; self.progress = progress; _measured = measured
-        _model = State(initialValue: ScanSolveModel(puzzle))
+        _model = State(initialValue: ScanSolveModel(puzzle, limits: limits))
     }
     var body: some View {
         // As in `SessionPuzzle`: one view tree in every pose, the board pinned (no scroll view
@@ -51,7 +52,7 @@ struct ScanSessionPuzzle: View {
             // Stays (disabled) on the result, so the bar doesn't leave and resize the screen.
             ToolbarItem(placement: .bottomBar) {
                 Button("Skip", systemImage: "forward.fill") { skip() }
-                    .disabled(recording || model.step == .done).accessibilityIdentifier("scan-skip")
+                    .disabled(recording || model.outcome != nil).accessibilityIdentifier("scan-skip")
             }.motifHighVisibilityPriority()
         }
         .sensoryFeedback(trigger: model.feedback) { _, next in
@@ -64,8 +65,10 @@ struct ScanSessionPuzzle: View {
         }
         .onChange(of: model.feedback) { _, next in
             guard let next else { return }
-            AccessibilityNotification.Announcement("\(next.title). \(next.reason)").post()
+            AccessibilityNotification.Announcement([next.title, next.reason].filter { !$0.isEmpty }.joined(separator: ". ")).post()
         }
+        // A limit that runs out mid-promotion ends the move: the piece row goes with it.
+        .onChange(of: model.step) { pending = nil }
         .onAppear { model.attach(undoManager) }
         .onChange(of: undoManager) { _, next in model.attach(next) }
         .onDisappear { model.cancel() }
@@ -74,13 +77,17 @@ struct ScanSessionPuzzle: View {
 
     // MARK: Parts
 
-    /// The run's progress, and the step's elapsed time beside it (record-only timing: nothing
-    /// counts down, so the time draws itself and the model never ticks).
+    /// The run's progress, and the step's time beside it: elapsed while record-only, counting
+    /// down under a hard limit, with the limit's bar along the header's bottom edge (in its
+    /// padding, so the header is the same height with or without one and the board never
+    /// moves). Both draw themselves from the step's start and deadline: the model never ticks.
     private func header(_ layout: BoardLayout) -> some View {
         HStack(spacing: 12) {
             ProgressView(value: progress.progress).tint(.motifAccent).accessibilityLabel("Session progress")
             Group {
-                if let started = model.stepStarted {
+                if let started = model.stepStarted, let deadline = model.deadline, started < deadline {
+                    Text(timerInterval: started...deadline, countsDown: true).accessibilityLabel("Time left")
+                } else if let started = model.stepStarted {
                     Text(started, style: .timer).accessibilityLabel("Time on this step")
                 } else {
                     Text("0:00").hidden().accessibilityHidden(true)
@@ -90,6 +97,15 @@ struct ScanSessionPuzzle: View {
             .accessibilityIdentifier("scan-timer")
         }
         .padding(.leading, layout.padding.leading).padding(.trailing, layout.padding.trailing).padding(.vertical, 6)
+        .overlay(alignment: .bottom) {
+            if let started = model.stepStarted, let deadline = model.deadline, started < deadline {
+                ProgressView(timerInterval: started...deadline, countsDown: true) { EmptyView() } currentValueLabel: { EmptyView() }
+                    .tint(.orange)
+                    .accessibilityLabel("Time limit")
+                    .accessibilityIdentifier("scan-limit")
+                    .padding(.leading, layout.padding.leading).padding(.trailing, layout.padding.trailing)
+            }
+        }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { if measured.progressHeight != $0 { measured.progressHeight = $0 } }
     }
 

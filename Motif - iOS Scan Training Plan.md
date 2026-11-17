@@ -409,6 +409,15 @@ beside. Every `@Observable` class is `@MainActor`; model types are
   Cognitive`: "Minimize use of time-boxed interface elements";
   `swiftui-pro › accessibility`: respect the user's accessibility
   settings). Times are still recorded.
+  Built in S09: `ScanTiming.earned` replays the attempts (skips ignored), so
+  "stays on" needs no stored state and every device agrees. The limit is
+  the target itself. The switch is a device preference (`@AppStorage`,
+  unset = on unless VoiceOver or Switch Control is running; set by hand, it
+  wins). Limits are fixed when a puzzle starts. A quick scan that runs out
+  has no call and **fails the puzzle on any position** (confirmed
+  2026-11-17): it ends there, with `flag_call` null and fail reason
+  `noCall`. A step cut off is recorded with `timedOut: true` and `ms` = the
+  limit, and counts as over its target.
 - `UI/Scan/ScanStep.swift`:
 
 ```swift
@@ -509,8 +518,10 @@ layout automatically").
     and take-backs are recorded as `move.takeBacks`. No Flag and v1 puzzles
     play the move at once.
   - *Feedback:* inline, never an alert (`feedback.md`): the answer as marked
-    rings on the board, a `Label` with a pass/fail symbol and the one-line
-    reason ("Missed: Bxf7 hit the pawn on f7"), and **Continue**. VoiceOver
+    rings on the board, a `Label` with a pass/fail symbol, a terse reason
+    only when the title and rings don't already say it ("Ne4 attacked.",
+    "−0.3. Best: Kd7."), the time ("7.4 / 10 s"), and **Continue**. Prompts
+    are as short ("Your move."): the step title says where you are. VoiceOver
     reads the result with `AccessibilityNotification.Announcement`.
 - **Titles and labels** use title-style capitals for buttons ("Play It",
   "Take Back", "No Flag"), as the HIG does on iOS (`writing.md`).

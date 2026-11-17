@@ -99,10 +99,31 @@ final class ScanGraderTests: XCTestCase {
         XCTAssertEqual(ScanGrader.result(of: steps(moveMs: 10_001), flagCall: true, answer: answer()).detail.softMisses, [.moveSlow])
     }
 
-    func testTimingIsRecordOnly() {
+    func testTargetTimes() {
         XCTAssertEqual(ScanTimedStep.allCases.map(ScanTiming.targetMs), [10_000, 5_000, 20_000, 15_000, 10_000])
-        XCTAssertEqual(ScanTimedStep.allCases.compactMap(ScanTiming.limitMs), [])
+        XCTAssertEqual(ScanTimedStep.allCases.compactMap(ScanLimits().limitMs), [], "no limits by default")
         XCTAssertFalse(ScanTiming.isOverTarget(10_000, .quickScan)); XCTAssertTrue(ScanTiming.isOverTarget(10_001, .quickScan))
+    }
+
+    /// S09: a step the limit cut off is over its target, even at exactly the limit.
+    func testATimedOutStepIsSlow() {
+        var s = steps(quickMs: 10_000, played: nil, moveMs: 10_000)
+        s.targets = ScanMarkStep(ms: 20_000, limitMs: 20_000, timedOut: true)
+        let outcome = ScanGrader.result(of: s, flagCall: true, answer: answer())
+        XCTAssertEqual(outcome.detail.softMisses, [.targetsSlow, .moveSlow])
+        XCTAssertEqual(outcome.detail.failReason, .noMove)
+    }
+
+    /// S09: a quick scan that ran out had no call: it fails on a flagged and a quiet position alike.
+    func testAQuickScanThatRanOutFailsEveryPosition() {
+        var s = ScanSteps(quickScan: ScanMarkStep(ms: 10_000, limitMs: 10_000, timedOut: true))
+        for flagged in [true, false] {
+            let outcome = ScanGrader.result(of: s, flagCall: false, answer: answer(flagged: flagged))
+            XCTAssertEqual(outcome.result, .failed); XCTAssertEqual(outcome.detail.failReason, .noCall)
+            XCTAssertEqual(outcome.detail.softMisses, [.quickScanSlow])
+        }
+        s.quickScan?.missed = ["c6"]
+        XCTAssertEqual(ScanGrader.result(of: s, flagCall: false, answer: answer()).detail.softMisses, [.quickScanMissed, .quickScanSlow])
     }
 
     func testAttemptFromAnOutcomeAndASkip() {

@@ -18,96 +18,74 @@ struct ScanFeedback: Equatable, Sendable {
 
     var verdict: Verdict
     var title: String
+    /// What was missed, or what the move cost; empty when the title says it all.
     var reason: String
     /// A second line when the puzzle's result needs one beyond the step's reason.
     var note: String?
-    /// "7.4 s · target 10 s", or nil for a step without a target.
+    /// "7.4 / 10 s" ("… s limit" under a hard limit), or nil for a step without a target.
     var time: String?
 
-    /// The quick scan and flag call, graded together when Flag or No Flag ends the step.
+    /// The quick scan and flag call, graded together when Flag or No Flag ends the step. Short on
+    /// purpose: the step's title and the rings on the board already say where things stand.
     static func quickScan(_ grade: ScanMarkGrade, flag: ScanFlagGrade, answer: ScanAnswer,
                           startFen: String, ms: Int) -> ScanFeedback {
-        let slow = ScanTiming.isOverTarget(ms, .quickScan)
         let time = timeText(ms, .quickScan)
         if flag == .fail {
-            let reason = grade.missed.isEmpty ? "This position needed a Flag." : "Needed a Flag: " + missedText(grade.missed, answer, startFen)
-            return ScanFeedback(verdict: .fail, title: "Missed the Flag", reason: reason, time: time)
+            return ScanFeedback(verdict: .fail, title: "Missed the Flag", reason: missedText(grade.missed, answer, startFen), time: time)
         }
         if flag == .softMiss {
-            return ScanFeedback(verdict: .softMiss, title: "No Flag Needed", reason: "Nothing here needed a Flag: a quiet position.", time: time)
+            return ScanFeedback(verdict: .softMiss, title: "No Flag Needed", reason: "", time: time)
         }
         if !grade.missed.isEmpty {
             let title = grade.missed.count == 1 ? "Missed a Square" : "Missed \(grade.missed.count) Squares"
             return ScanFeedback(verdict: .softMiss, title: title, reason: missedText(grade.missed, answer, startFen), time: time)
         }
-        let found = answer.quickScan.isEmpty ? "Nothing the last move changed needed a look." : "Found everything the last move changed."
-        if slow { return ScanFeedback(verdict: .softMiss, title: "Right, but Slow", reason: found, time: time) }
-        return ScanFeedback(verdict: .pass, title: "Clean Scan", reason: found, time: time)
+        if ScanTiming.isOverTarget(ms, .quickScan) { return ScanFeedback(verdict: .softMiss, title: "Right, but Slow", reason: "", time: time) }
+        return ScanFeedback(verdict: .pass, title: "Clean Scan", reason: "", time: time)
     }
 
     /// The target step. Misses are soft (Scoring); extra marks are never counted against.
     static func targets(_ grade: ScanMarkGrade, marked: [String: ScanTargetMark], answer: ScanAnswer,
                         startFen: String, ms: Int) -> ScanFeedback {
         let time = timeText(ms, .targets)
-        if let first = grade.missed.first, let targets = answer.targets {
+        if !grade.missed.isEmpty, let targets = answer.targets {
             let title = grade.missed.count == 1 ? "Missed a Target" : "Missed \(grade.missed.count) Targets"
-            let name = squareName(first, startFen)
-            let reason: String
-            if targets.red.contains(first) {
-                reason = marked[first] == .orange ? "\(capitalized(name)) is red: it loses material." : "Missed \(name), which loses material."
-            } else if targets.orange.contains(first) {
-                reason = marked[first] == .red ? "\(capitalized(name)) is orange: attacked as often as defended, nothing lost yet."
-                    : "Missed \(name), attacked as often as defended."
-            } else if targets.kingZone.contains(first) {
-                reason = "Missed \(first), a square by the king."
-            } else {
-                reason = "Missed \(first), a fork square."
+            let items = grade.missed.map { square in
+                let what = targets.red.contains(square) ? "red" : targets.orange.contains(square) ? "orange"
+                    : targets.kingZone.contains(square) ? "king zone" : "fork"
+                return "\(squareName(square, startFen)) \(what)"
             }
-            return ScanFeedback(verdict: .softMiss, title: title, reason: reason + more(grade.missed), time: time)
+            return ScanFeedback(verdict: .softMiss, title: title, reason: list(items), time: time)
         }
-        let found = answer.targets?.allSquares.isEmpty ?? true ? "Nothing here needed a target." : "Found every target."
-        if ScanTiming.isOverTarget(ms, .targets) { return ScanFeedback(verdict: .softMiss, title: "Right, but Slow", reason: found, time: time) }
-        return ScanFeedback(verdict: .pass, title: "All Targets Found", reason: found, time: time)
+        if ScanTiming.isOverTarget(ms, .targets) { return ScanFeedback(verdict: .softMiss, title: "Right, but Slow", reason: "", time: time) }
+        return ScanFeedback(verdict: .pass, title: "All Targets Found", reason: "", time: time)
     }
 
     /// The arrow step. Misses are soft; extra arrows aren't graded.
     static func arrows(_ grade: ScanMarkGrade, answer: ScanAnswer, startFen: String, ms: Int) -> ScanFeedback {
         let time = timeText(ms, .arrows)
-        if let first = grade.missed.first, let arrow = answer.arrows?.first(where: { $0.line == first }) {
-            let title = grade.missed.count == 1 ? "Missed an Arrow" : "Missed \(grade.missed.count) Arrows"
-            let whose = arrow.side == .own ? "your" : "their"
-            let kind: String
-            switch arrow.kind {
-            case .check: kind = "check"
-            case .capture: kind = "capture"
-            case .threat: kind = "threat"
+        let missed = grade.missed.compactMap { line in answer.arrows?.first { $0.line == line } }
+        if !missed.isEmpty {
+            let title = missed.count == 1 ? "Missed an Arrow" : "Missed \(missed.count) Arrows"
+            let items = missed.map { arrow in
+                "\(squareName(arrow.from, startFen))–\(arrow.to) \(arrow.side == .own ? "your" : "their") \(arrow.kind.rawValue)"
             }
-            let piece = Board.pieceAt(startFen, arrow.from).map { "the \($0.type.name.lowercased())" } ?? "the piece"
-            let reason = "Missed \(whose) \(kind): \(piece) from \(arrow.from) to \(arrow.to)."
-            return ScanFeedback(verdict: .softMiss, title: title, reason: reason + more(grade.missed), time: time)
+            return ScanFeedback(verdict: .softMiss, title: title, reason: list(items), time: time)
         }
-        let found = answer.arrows?.isEmpty ?? true ? "No check, capture or threat here needed an arrow."
-            : "Found every check, capture and threat."
-        if ScanTiming.isOverTarget(ms, .arrows) { return ScanFeedback(verdict: .softMiss, title: "Right, but Slow", reason: found, time: time) }
-        return ScanFeedback(verdict: .pass, title: "All Arrows Found", reason: found, time: time)
+        if ScanTiming.isOverTarget(ms, .arrows) { return ScanFeedback(verdict: .softMiss, title: "Right, but Slow", reason: "", time: time) }
+        return ScanFeedback(verdict: .pass, title: "All Arrows Found", reason: "", time: time)
     }
 
     /// The move, and with it the puzzle's result: a missed Flag fails the puzzle whatever the move.
     static func move(_ move: Uci, grade: ScanMoveGrade, outcome: ScanOutcome, answer: ScanAnswer,
                      startFen: String, flagCall: Bool, ms: Int) -> ScanFeedback {
-        let san = Board.sanFor(startFen, move) ?? move.text
         let best = bestMove(answer).map { Board.sanFor(startFen, $0) ?? $0.text }
         let loss = grade.lossCp ?? 0
         let reason: String
-        if grade.passed {
-            if loss == 0 { reason = "\(san) is the best move." }
-            else if loss > ScanGrader.marginCp { reason = "\(san) keeps the forced mate." }
-            else { reason = "\(san) is within half a pawn of \(best ?? "the best move") (−\(pawns(loss)))." }
-        } else {
-            let lost = loss >= ScanAnswer.lostMateCp ? "\(san) throws away a forced mate." : "\(san) loses \(pawns(loss))."
-            reason = lost + (best.map { " Best was \($0)." } ?? "")
-        }
-        let note = outcome.detail.failReason == .missedFlag ? "Failed: No Flag on a flagged position." : nil
+        if loss == 0 { reason = "" }
+        else if grade.passed { reason = loss > ScanGrader.marginCp ? "Keeps the mate." : "−\(pawns(loss)). Best: \(best ?? "?")." }
+        else { reason = (loss >= ScanAnswer.lostMateCp ? "Throws away the mate." : "−\(pawns(loss)).") + (best.map { " Best: \($0)." } ?? "") }
+        let note = outcome.detail.failReason == .missedFlag ? "Missed the Flag." : nil
         let verdict: Verdict = outcome.result == .failed ? .fail : outcome.detail.softMisses.isEmpty ? .pass : .softMiss
         let title: String
         switch (outcome.result, grade.passed) {
@@ -119,45 +97,72 @@ struct ScanFeedback: Equatable, Sendable {
                             time: timeText(ms, .move(flagCall: flagCall)))
     }
 
+    /// The quick scan's limit ran out before a call: the puzzle fails on any position.
+    static func noCall(_ grade: ScanMarkGrade, answer: ScanAnswer, startFen: String, ms: Int) -> ScanFeedback {
+        ScanFeedback(verdict: .fail, title: "Time's Up", reason: answer.flagged ? "Needed a Flag." : "Quiet.",
+                     time: timeText(ms, .quickScan, limited: true))
+    }
+
+    /// The move step's limit ran out before a move was played: the puzzle fails (Scoring).
+    static func noMove(outcome: ScanOutcome, answer: ScanAnswer, startFen: String, flagCall: Bool, ms: Int) -> ScanFeedback {
+        let best = bestMove(answer).map { Board.sanFor(startFen, $0) ?? $0.text }
+        let note = outcome.detail.failReason == .missedFlag ? "Missed the Flag." : nil
+        return ScanFeedback(verdict: .fail, title: "Time's Up", reason: best.map { "Best: \($0)." } ?? "", note: note,
+                            time: timeText(ms, .move(flagCall: flagCall), limited: true))
+    }
+
+    /// The same feedback for a step played under a hard limit: the time line names the limit, and
+    /// when it ran out the title says so and a pass becomes a soft miss (over the target).
+    func limited(_ limitMs: Int?, timedOut: Bool) -> ScanFeedback {
+        guard let limitMs else { return self }
+        var copy = self
+        if let time, let slash = time.range(of: " / ") { copy.time = String(time[..<slash.lowerBound]) + " / \(limitMs / 1000) s limit" }
+        if timedOut {
+            copy.title = "Time's Up"
+            if verdict == .pass { copy.verdict = .softMiss }
+        }
+        return copy
+    }
+
     /// The best line's first move when the maker scored it best, else the first move scored 0.
     static func bestMove(_ answer: ScanAnswer) -> Uci? {
         if let first = answer.bestLine?.first, answer.moves[first.text] == 0 { return first }
         return answer.moves.filter { $0.value == 0 }.keys.sorted().first.flatMap(Uci.parse)
     }
 
-    /// "the knight on e4, now attacked", plus how many more.
+    /// "Ne4 attacked, c6 undefended"; empty for none.
     private static func missedText(_ missed: [String], _ answer: ScanAnswer, _ startFen: String) -> String {
-        guard let first = missed.first else { return "" }
-        let kind = answer.quickScan.first { $0.square == first }?.kind
-        let piece = Board.pieceAt(startFen, first).map { "the \($0.type.name.lowercased()) on \(first)" } ?? first
-        let why: String
-        switch kind {
-        case .attacked?: why = "now attacked"
-        case .opened?: why = "on a line the move opened"
-        case .undefended?: why = "no longer defended"
-        case nil: why = "changed by the last move"
-        }
-        let more = missed.count > 1 ? " (and \(missed.count - 1) more)" : ""
-        return "Missed \(piece), \(why)\(more)."
+        list(missed.map { square in
+            let why: String
+            switch answer.quickScan.first(where: { $0.square == square })?.kind {
+            case .attacked?: why = "attacked"
+            case .opened?: why = "opened"
+            case .undefended?: why = "undefended"
+            case nil: why = "changed"
+            }
+            return "\(squareName(square, startFen)) \(why)"
+        })
     }
 
-    /// "the knight on e4", or the bare square when it's empty.
+    /// The piece and its square as in SAN ("Ne4", "e4" for a pawn), or the bare square when empty.
     private static func squareName(_ square: String, _ fen: String) -> String {
-        Board.pieceAt(fen, square).map { "the \($0.type.name.lowercased()) on \(square)" } ?? square
+        guard let piece = Board.pieceAt(fen, square), piece.type != .pawn else { return square }
+        return piece.type.rawValue.uppercased() + square
     }
 
-    private static func capitalized(_ text: String) -> String { text.prefix(1).uppercased() + text.dropFirst() }
-
-    /// " (and 2 more)" after the first miss.
-    private static func more(_ missed: [String]) -> String {
-        missed.count > 1 ? " (and \(missed.count - 1) more)" : ""
+    /// "a, b, c." up to three, then "+2".
+    private static func list(_ items: [String]) -> String {
+        guard !items.isEmpty else { return "" }
+        let shown = items.prefix(3).joined(separator: ", ")
+        return shown + (items.count > 3 ? " +\(items.count - 3)" : "") + "."
     }
 
     static func pawns(_ cp: Int) -> String { String(format: "%.1f", Double(cp) / 100) }
 
     static func seconds(_ ms: Int) -> String { String(format: "%.1f s", Double(ms) / 1000) }
 
-    private static func timeText(_ ms: Int, _ step: ScanTimedStep) -> String {
-        "\(seconds(ms)) · target \(ScanTiming.targetMs(step) / 1000) s"
+    /// "7.4 / 10 s", or "10.0 / 10 s limit" under a hard limit.
+    private static func timeText(_ ms: Int, _ step: ScanTimedStep, limited: Bool = false) -> String {
+        "\(String(format: "%.1f", Double(ms) / 1000)) / \(ScanTiming.targetMs(step) / 1000) s" + (limited ? " limit" : "")
     }
 }

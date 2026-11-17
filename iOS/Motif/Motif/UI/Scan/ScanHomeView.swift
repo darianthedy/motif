@@ -1,10 +1,13 @@
 import SwiftUI
 
 /// The Scan tab's root (Scan plan §6): the pool's Solved / To review / New card, an open
-/// session or Start, Review Mistakes, All Puzzles; Import and Reset in the toolbar menu.
+/// session or Start, Review Mistakes, All Puzzles; Import, Time Limits and Reset in the toolbar menu.
 struct ScanHomeView: View {
     @Environment(AppState.self) private var app
     @State private var resetting = false
+    @AppStorage(ScanTimeLimitsPreference.key) private var timeLimitsStored: Bool?
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
+    @Environment(\.accessibilitySwitchControlEnabled) private var switchControl
     var body: some View {
         ZStack {
             if let library = app.store.library, !library.scanPuzzles.isEmpty {
@@ -27,6 +30,8 @@ struct ScanHomeView: View {
                 Menu("Scan Actions", systemImage: "ellipsis") {
                     Button("Import Scan Puzzles…", systemImage: "square.and.arrow.down") { app.importingScan = true }
                         .disabled(!app.store.online)
+                    Toggle("Time Limits", systemImage: "timer", isOn: timeLimits)
+                        .accessibilityIdentifier("scan-time-limits")
                     Divider()
                     Button("Reset Scan Progress…", systemImage: "arrow.counterclockwise", role: .destructive) { resetting = true }
                         .disabled(!app.store.online || app.store.library?.scanAttempts.isEmpty != false && app.store.library?.scanRuns.isEmpty != false)
@@ -42,6 +47,11 @@ struct ScanHomeView: View {
         } message: {
             Text("Every scan session and result is deleted. The puzzles and your Puzzles progress stay.")
         }
+    }
+    /// Shows the switch as it applies now; setting it stores the choice.
+    private var timeLimits: Binding<Bool> {
+        Binding(get: { ScanTimeLimitsPreference.enabled(stored: timeLimitsStored, voiceOver: voiceOver, switchControl: switchControl) },
+                set: { timeLimitsStored = $0 })
     }
     private func content(_ library: Library) -> some View {
         let review = scanReviewIds(library)

@@ -69,7 +69,7 @@ create table if not exists public.scan_attempts (
   puzzle_id  uuid        not null,
   run_id     uuid,
   result     text        not null check (result in ('solved', 'failed', 'skipped')),
-  flag_call  boolean,                  -- null for a skip
+  flag_call  boolean,                  -- null for a skip, or a quick scan that ran out (S09)
   -- Per step: ms taken, limit in force, missed and extra squares, the move.
   detail     jsonb       not null,
   played_at  timestamptz not null,

@@ -9,6 +9,9 @@ struct ScanHomeView: View {
         ZStack {
             if let library = app.store.library, !library.scanPuzzles.isEmpty {
                 content(library)
+                    // The tab has no sidebar, so on a wide display (iPad, the Duo's inner display)
+                    // the rows stop at the readable width rather than running edge to edge.
+                    .readableWidth()
             } else {
                 EmptyState(title: "No Scan Puzzles Yet", systemImage: "scope",
                            description: "Import a scan file, or have Caïssa send puzzles to your account.",
@@ -16,6 +19,7 @@ struct ScanHomeView: View {
                     .readableWidth()
             }
         }
+        .background(Color(.systemGroupedBackground))
         .navigationTitle("Scan")
         .navigationSubtitle(app.store.library.map { $0.scanPuzzles.isEmpty ? "" : countLabel($0.scanPuzzles.count, "puzzle") } ?? "")
         .toolbar {

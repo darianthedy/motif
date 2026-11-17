@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// The Scan tab's import sheet: reads `{"version": 1, "scan": [ ... ]}` with `ScanImport`, the
+/// The Scan tab's import sheet: reads `{"version": 2, "scan": [ ... ]}` with `ScanImport`, the
 /// same checks the loader uses, and upserts what passes into the pool.
 @Observable @MainActor final class ScanImportModel {
     var text = ""

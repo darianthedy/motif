@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "scan": [
     {
       "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
@@ -7,6 +7,11 @@
       "flagged": true,
       "quickScan": [
         {"square": "e4", "kind": "attacked"}
+      ],
+      "targets": {"red": ["e4"], "orange": ["e5", "f7"], "kingZone": ["e7"], "fork": []},
+      "arrows": [
+        {"from": "f6", "to": "e4", "side": "theirs", "kind": "capture"},
+        {"from": "f3", "to": "g5", "side": "own", "kind": "threat"}
       ],
       "moves": {
         "d2d3": 0, "f3g5": 12, "d1e2": 24, "b1c3": 29, "d2d4": 32, "c4d5": 36, "c4b5": 43,

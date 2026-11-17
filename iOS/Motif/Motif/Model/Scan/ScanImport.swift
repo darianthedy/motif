@@ -6,8 +6,11 @@ import CoreFoundation
 /// to the database, so both reject the same things for the same reasons.
 /// `scripts/validate-external.ts --scan` mirrors these checks and messages.
 enum ScanImport {
-    /// The newest format version this app understands.
-    static let version = 1
+    /// The newest format version this app understands. Version 2 adds the full
+    /// scan: a Flag puzzle must carry `targets` and `arrows`, and both are
+    /// checked against the position (`fullScanProblem`). Version 1 files still
+    /// import; their Flag puzzles skip the full scan.
+    static let version = 2
 
     struct Result: Equatable, Sendable {
         /// File order, each puzzle once: a puzzle listed twice keeps its first
@@ -17,7 +20,7 @@ enum ScanImport {
         var rejected: [ImportRejection] = []
     }
 
-    /// Reads `{"version": 1, "scan": [ ... ]}`.
+    /// Reads `{"version": 2, "scan": [ ... ]}`.
     static func read(_ text: String) -> Result {
         var result = Result()
         let parsed: Any
@@ -83,6 +86,7 @@ enum ScanImport {
         for arrow in answer.arrows ?? [] where Board.pieceAt(start, arrow.from) == nil {
             return "Arrow \(arrow.from)-\(arrow.to) does not start on a piece"
         }
+        if content.version >= 2, let problem = fullScanProblem(answer, start: start) { return problem }
 
         let legal = Board.legalUcis(start)
         guard !legal.isEmpty else { return "The solver has no legal move" }
@@ -128,6 +132,72 @@ enum ScanImport {
     /// The first four FEN fields and the move, so move counters don't matter.
     static func contentKey(fenBefore: String, lastMove: Uci) -> String {
         "\(normalizeFen(fenBefore))/\(lastMove.text)"
+    }
+
+    // MARK: The full scan (version 2)
+
+    /// What a version 2 puzzle's full scan must hold, so every target and arrow
+    /// the solver is graded against can be marked or drawn on the board. Version
+    /// 1 content isn't held to it: rows already stored keep loading.
+    private static func fullScanProblem(_ answer: ScanAnswer, start: String) -> String? {
+        if answer.flagged {
+            guard answer.targets != nil else { return #"Flag puzzle is missing "targets""# }
+            guard answer.arrows != nil else { return #"Flag puzzle is missing "arrows""# }
+        }
+        if let targets = answer.targets {
+            var seen = Set<String>()
+            for square in targets.allSquares where !seen.insert(square).inserted {
+                return "Target \(square) is listed twice"
+            }
+            // Requirements › Puzzle flow: "Empty squares only for king-zone and fork squares."
+            for square in targets.red + targets.orange where Board.pieceAt(start, square) == nil {
+                return "Red or orange target \(square) is not a piece"
+            }
+            for square in targets.kingZone + targets.fork where Board.pieceAt(start, square) != nil {
+                return "King-zone or fork square \(square) is not empty"
+            }
+        }
+        guard let arrows = answer.arrows, let solver = Board.turnOf(start) else { return nil }
+        var lines = Set<String>()
+        for arrow in arrows {
+            let name = "\(arrow.from)-\(arrow.to)"
+            guard lines.insert(arrow.line).inserted else { return "Arrow \(name) is listed twice" }
+            guard let piece = Board.pieceAt(start, arrow.from) else {
+                return "Arrow \(name) does not start on a piece"
+            }
+            // Arrows are coloured by side, so the side must be the piece's.
+            let side: ScanArrow.Side = piece.color == solver ? .own : .theirs
+            guard arrow.side == side else {
+                return "Arrow \(name) is \"\(arrow.side.rawValue)\" but starts on "
+                    + (side == .own ? "the solver's piece" : "the opponent's piece")
+            }
+            // One move deep, for either side: a legal move of that piece if its
+            // side were to move. Promotions count once whatever the piece.
+            let fen = withTurn(start, piece.color)
+            let sans = Board.legalUcis(fen)
+                .filter { moveFrom($0) == arrow.from && moveTo($0) == arrow.to }
+                .compactMap { Board.sanFor(fen, $0) }
+            guard !sans.isEmpty else { return "Arrow \(name) is not a legal move" }
+            switch arrow.kind {
+            case .capture where !sans.contains(where: { $0.contains("x") }):
+                return "Arrow \(name) is not a capture"
+            case .check where !sans.contains(where: { $0.hasSuffix("+") || $0.hasSuffix("#") }):
+                return "Arrow \(name) does not give check"
+            default:
+                break
+            }
+        }
+        return nil
+    }
+
+    /// The position with `side` to move. Handing the move over drops the en
+    /// passant square, which only the side to move could use.
+    private static func withTurn(_ fen: String, _ side: Side) -> String {
+        var fields = fen.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard fields.count >= 4, fields[1] != side.rawValue else { return fen }
+        fields[1] = side.rawValue
+        fields[3] = "-"
+        return fields.joined(separator: " ")
     }
 
     // MARK: Reading one entry

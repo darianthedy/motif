@@ -14,6 +14,11 @@ struct ScanAnswer: Equatable, Codable, Sendable {
     var moves: [String: Int]
     var bestLine: [Uci]?
 
+    /// Whether the Flag branch runs the full scan (targets, then arrows).
+    /// Version 2 requires both on a Flag puzzle; a version 1 Flag puzzle
+    /// without them goes straight to the move.
+    var hasFullScan: Bool { flagged && targets != nil && arrows != nil }
+
     /// A thrown-away forced mate, as the maker scores it.
     static let lostMateCp = 100_000
 

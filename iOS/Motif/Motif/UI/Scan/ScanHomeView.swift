@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The Scan tab's root (Scan plan §6): the pool's Solved / To review / New card, an open
-/// session or Start, Review Mistakes, All Puzzles; Import, Time Limits and Reset in the toolbar menu.
+/// session or Start, Review Mistakes, All Puzzles, Stats; Import, Time Limits and Reset in the toolbar menu.
 struct ScanHomeView: View {
     @Environment(AppState.self) private var app
     @State private var resetting = false
@@ -83,6 +83,9 @@ struct ScanHomeView: View {
                 NavigationLink(value: ScanRoute.puzzles) {
                     LabeledContent { Text("\(library.scanPuzzles.count)").monospacedDigit() } label: { Label("All Puzzles", systemImage: "square.grid.2x2") }
                 }.accessibilityIdentifier("scan-all-puzzles")
+                NavigationLink(value: ScanRoute.stats) {
+                    Label("Stats", systemImage: "chart.line.uptrend.xyaxis")
+                }.accessibilityIdentifier("scan-stats")
             }
         }
     }

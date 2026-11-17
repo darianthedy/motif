@@ -104,6 +104,7 @@ struct RootView: View {
                         switch route {
                         case .puzzles: ScanPuzzleListView()
                         case .puzzle(let id): ScanPuzzleDetailView(puzzleId: id)
+                        case .stats: ScanStatsView()
                         }
                     }.libraryStatus().libraryMessages()
                 }

@@ -190,9 +190,10 @@ final class AppState {
             Task { await begin(scope, .ordered, puzzles.map(\.id)) }
         }
         // Scan: `scan` is the home, `scan-import` its import sheet, `scan-list` All Puzzles,
-        // `scan-detail` (or `scan-detail:<id>`) a puzzle, `scan-resume:<scope>` an open run.
+        // `scan-detail` (or `scan-detail:<id>`) a puzzle, `scan-stats` Stats, `scan-resume:<scope>` an open run.
         if route == "scan-import" { importingScan = true }
         if route == "scan-list" { scanPath = [.puzzles] }
+        if route == "scan-stats" { scanPath = [.stats] }
         if route == "scan-detail" || route.hasPrefix("scan-detail:") {
             let named = route.hasPrefix("scan-detail:") ? String(route.dropFirst("scan-detail:".count)) : nil
             if let puzzle = scanPool(library).first(where: { named == nil || $0.id == named }) { scanPath = [.puzzles, .puzzle(puzzle.id)] }

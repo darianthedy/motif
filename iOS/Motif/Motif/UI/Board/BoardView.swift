@@ -137,7 +137,7 @@ struct BoardView: View {
             .accessibilityHint(mode == .markSquares && interactive ? "Marks or unmarks the square." : "")
             .highPriorityGesture(DragGesture(minimumDistance: 8, coordinateSpace: .named("motif-board"))
                 .onChanged { value in
-                    guard interactive, placing == nil, let piece, piece.color == turn, interaction.pending == nil else { return }
+                    guard mode == .play, interactive, placing == nil, let piece, piece.color == turn, interaction.pending == nil else { return }
                     if dragging != square { dragging = square }
                     dragPoint.value = value.location
                 }
@@ -148,7 +148,9 @@ struct BoardView: View {
                     let to = (0..<8).contains(x) && (0..<8).contains(y) ? ordered[y * 8 + x] : nil
                     if let to { dropped = (from: square, to: to) } else { dropped = nil }
                     emit(interaction.drop(square, to))
-                }, including: mode == .play && interactive && placing == nil ? .all : .none)
+                // In `.markSquares` the drag is still taken, and does nothing: left to the Button, a
+                // drag that ended on another square counted as a tap on the first (Scan plan §4).
+                }, including: interactive && placing == nil ? .all : .none)
     }
     /// `.play` goes through `BoardInteraction`; any other mode only calls back, so no piece moves.
     private func tapped(_ square: String) {

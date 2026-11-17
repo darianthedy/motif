@@ -8,11 +8,13 @@
  * a correct one will be marked wrong.
  *
  * Usage: npm run check:external -- <file.json>
+ *        npm run check:external -- --scan <file.json>   (a Scan Training file)
  */
 import { readFileSync } from 'node:fs';
 import { isCheckmate, matingPlacements, replayLine } from '../src/model/board';
 import { importJson } from '../src/model/import/json';
 import { placementText } from '../src/model/puzzle';
+import { readScan } from './scan-check';
 import type { PuzzleContent } from '../src/model/puzzle';
 
 /** What the importer cannot see, or null when there is nothing to say. */
@@ -37,12 +39,32 @@ function audit(puzzle: PuzzleContent): string | null {
   return final && isCheckmate(final) ? null : `${mateTag} but final position is not mate`;
 }
 
-const path = process.argv[2];
+const args = process.argv.slice(2);
+const scan = args.includes('--scan');
+const path = args.find((arg) => arg !== '--scan');
 if (!path) {
-  console.log('Usage: npm run check:external -- <file.json>');
+  console.log('Usage: npm run check:external -- [--scan] <file.json>');
   process.exit(2);
 }
 const text = readFileSync(path, 'utf8');
+
+/** A scan file: the app's checks (scripts/scan-check.ts), nothing to audit beyond them. */
+function checkScan(): never {
+  const result = readScan(text);
+  const total = result.puzzles.length + result.rejected.filter((r) => r.index >= 0).length;
+  const flags = result.puzzles.filter((p) => p.flagged).length;
+  console.log(`${total} scan puzzles`);
+  console.log(`${total - result.rejected.length} valid, ${result.rejected.length} problems`);
+  if (result.puzzles.length) {
+    console.log(`${flags} Flag, ${result.puzzles.length - flags} No flag`);
+  }
+  for (const reject of result.rejected.slice(0, 25)) {
+    console.log(`  ${reject.index < 0 ? 'file' : `#${reject.index}`}: ${reject.reason}`);
+  }
+  if (result.rejected.length > 25) console.log(`  …and ${result.rejected.length - 25} more`);
+  process.exit(result.rejected.length ? 1 : 0);
+}
+if (scan) checkScan();
 const result = importJson(text);
 
 // The importer reports rejections by their index across the whole file.

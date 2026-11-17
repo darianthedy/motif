@@ -1,8 +1,8 @@
 # Database
 
-The database is the source of truth. `0001_schema.sql` and `0002_games.sql`
-are the whole of it: six tables, row-level security, and grants. No triggers,
-no server code.
+The database is the source of truth. `0001_schema.sql`, `0002_games.sql` and
+`0003_scan.sql` are the whole of it: nine tables, row-level security, and
+grants. No triggers, no server code.
 
 ## Tables
 
@@ -32,6 +32,16 @@ no server code.
   an edit rewrites it. Also `position` (order in the collection) and
   `orientation` (`w` or `b`, the side at the bottom of the board). The id is
   set by the device. No dedupe key: the same game twice is two games.
+
+- `scan_puzzles` — Scan Training (iOS), one pool per account, no
+  collections: `fen_before`, `last_move`, the maker's `answer` (JSON),
+  format `version`, and `source`/`source_id` labels. Unique on
+  `(user_id, content_key)` (FEN without move counters + last move), the
+  conflict target for imports and for the maker's direct writes.
+- `scan_runs`, `scan_attempts` — as `runs` and `attempts`, for scan puzzles:
+  scope `all` or `review`, insert-only, ids from the device. An attempt adds
+  `flag_call` and a per-step `detail` (JSON) for stats. Resetting scan
+  progress deletes these and nothing else.
 
 Status, attempt and mistake counts, the review set and where a run has got to
 are all worked out from attempts on the device (`src/model/derive.ts`), never
@@ -77,10 +87,11 @@ Networking.
 
 ### 3. Apply the schema
 
-Paste `0001_schema.sql` into the Neon SQL Editor, then `0002_games.sql`. Doing
-it in the console rather than over a connection string means no credential has
-to be shared with anyone to set this up. Both files can be re-run safely, and a
-database that already has the first needs only the second.
+Paste `0001_schema.sql` into the Neon SQL Editor, then `0002_games.sql`, then
+`0003_scan.sql`. Doing it in the console rather than over a connection string
+means no credential has to be shared with anyone to set this up. Every file can
+be re-run safely, and a database that already has the earlier ones needs only
+the newer.
 
 **Replacing the old sync tables.** A database set up for an earlier version of
 the app has tables that clash with these. Drop them first. This deletes every

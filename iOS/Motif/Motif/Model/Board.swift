@@ -122,6 +122,15 @@ enum Board {
 
     static func isLegal(_ fen: String, _ move: Uci) -> Bool { applyUci(fen, move) != nil }
 
+    /// Every legal move of the side to move, promotions once per piece.
+    /// Empty when the FEN cannot load or the side to move has no move.
+    static func legalUcis(_ fen: String) -> [Uci] {
+        guard let position = movePosition(fen) else { return [] }
+        return legalMoves(position).map {
+            Uci.parse(squares[$0.from] + squares[$0.to] + ($0.promotion?.rawValue ?? ""))!
+        }
+    }
+
     /// Illegal moves are ordinary mis-drags; return nil, never throw.
     static func applyUci(_ fen: String, _ move: Uci) -> String? {
         guard let position = movePosition(fen), let legal = find(move, in: position) else { return nil }

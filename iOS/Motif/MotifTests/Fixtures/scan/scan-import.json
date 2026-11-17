@@ -1,0 +1,1445 @@
+{
+ "version": 1,
+ "cases": [
+  {
+   "name": "the sample file",
+   "file": {
+    "version": 1,
+    "scan": [
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "moves": {
+       "d2d3": 0,
+       "f3g5": 12,
+       "d1e2": 24,
+       "b1c3": 29,
+       "d2d4": 32,
+       "c4d5": 36,
+       "c4b5": 43,
+       "e1g1": 43,
+       "h2h3": 51,
+       "c4b3": 101,
+       "c2c3": 108,
+       "c4d3": 118,
+       "a2a3": 120,
+       "a2a4": 124,
+       "b2b3": 151,
+       "c4e2": 159,
+       "c4f1": 174,
+       "h2h4": 186,
+       "b2b4": 187,
+       "g2g3": 188,
+       "b1a3": 201,
+       "h1g1": 221,
+       "g2g4": 225,
+       "e1f1": 231,
+       "e1e2": 246,
+       "h1f1": 265,
+       "f3g1": 277,
+       "f3h4": 340,
+       "f3e5": 504,
+       "c4f7": 552,
+       "c4a6": 724,
+       "f3d4": 753,
+       "c4e6": 826
+      },
+      "bestLine": [
+       "d2d3"
+      ],
+      "source": "sample",
+      "sourceId": "two-knights"
+     },
+     {
+      "fenBefore": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+      "lastMove": "b8c6",
+      "flagged": false,
+      "quickScan": [],
+      "moves": {
+       "f1b5": 0,
+       "d2d4": 12,
+       "b1c3": 18,
+       "h2h3": 18,
+       "f1c4": 19,
+       "f1e2": 33,
+       "g2g3": 33,
+       "f1d3": 37,
+       "d2d3": 40,
+       "a2a4": 41,
+       "c2c3": 42,
+       "a2a3": 47,
+       "b2b3": 58,
+       "h2h4": 66,
+       "d1e2": 69,
+       "c2c4": 71,
+       "b1a3": 104,
+       "h1g1": 116,
+       "f3g1": 122,
+       "b2b4": 178,
+       "g2g4": 184,
+       "e1e2": 191,
+       "f3e5": 441,
+       "f1a6": 690,
+       "f3g5": 763,
+       "f3d4": 768,
+       "f3h4": 794
+      },
+      "bestLine": [
+       "f1b5"
+      ],
+      "source": "sample",
+      "sourceId": "quiet-development"
+     }
+    ]
+   },
+   "accepted": [
+    {
+     "key": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq -/g8f6",
+     "flagged": true
+    },
+    {
+     "key": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq -/b8c6",
+     "flagged": false
+    }
+   ],
+   "rejected": []
+  },
+  {
+   "name": "castling, en passant and promotion as the last move",
+   "file": {
+    "version": 1,
+    "scan": [
+     {
+      "fenBefore": "r3k2r/pppq1ppp/2np1n2/2b1p1B1/2B1P1b1/2NP1N2/PPPQ1PPP/R3K2R b KQkq - 0 9",
+      "lastMove": "e8g8",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a1b1": 0,
+       "a1c1": 110,
+       "a1d1": 120,
+       "a2a3": 130,
+       "a2a4": 140,
+       "b2b3": 150,
+       "b2b4": 160,
+       "c3a4": 170,
+       "c3b1": 180,
+       "c3b5": 190,
+       "c3d1": 200,
+       "c3d5": 210,
+       "c3e2": 220,
+       "c4a6": 230,
+       "c4b3": 240,
+       "c4b5": 250,
+       "c4d5": 260,
+       "c4e6": 270,
+       "c4f7": 280,
+       "d2c1": 290,
+       "d2d1": 300,
+       "d2e2": 310,
+       "d2e3": 320,
+       "d2f4": 330,
+       "d3d4": 340,
+       "e1c1": 350,
+       "e1d1": 360,
+       "e1e2": 370,
+       "e1f1": 380,
+       "e1g1": 390,
+       "f3d4": 400,
+       "f3e5": 410,
+       "f3g1": 420,
+       "f3h4": 430,
+       "g2g3": 440,
+       "g5e3": 450,
+       "g5f4": 460,
+       "g5f6": 470,
+       "g5h4": 480,
+       "g5h6": 490,
+       "h1f1": 500,
+       "h1g1": 510,
+       "h2h3": 520,
+       "h2h4": 530
+      }
+     },
+     {
+      "fenBefore": "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 40",
+      "lastMove": "e5d6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "e8d7": 0,
+       "e8d8": 110,
+       "e8f7": 120,
+       "e8f8": 130
+      }
+     },
+     {
+      "fenBefore": "4k3/1P6/8/8/8/8/8/4K3 w - - 0 50",
+      "lastMove": "b7b8q",
+      "flagged": false,
+      "quickScan": [],
+      "moves": {
+       "e8d7": 0,
+       "e8e7": 110,
+       "e8f7": 120
+      }
+     }
+    ]
+   },
+   "accepted": [
+    {
+     "key": "r3k2r/pppq1ppp/2np1n2/2b1p1B1/2B1P1b1/2NP1N2/PPPQ1PPP/R3K2R b KQkq -/e8g8",
+     "flagged": true
+    },
+    {
+     "key": "4k3/8/8/3pP3/8/8/8/4K3 w - d6/e5d6",
+     "flagged": true
+    },
+    {
+     "key": "4k3/1P6/8/8/8/8/8/4K3 w - -/b7b8q",
+     "flagged": false
+    }
+   ],
+   "rejected": []
+  },
+  {
+   "name": "a solver promotion scored once per piece",
+   "file": {
+    "version": 1,
+    "scan": [
+     {
+      "fenBefore": "8/1P6/8/8/8/8/6k1/4K3 b - - 0 50",
+      "lastMove": "g2g3",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "b7b8b": 0,
+       "b7b8n": 110,
+       "b7b8q": 120,
+       "b7b8r": 130,
+       "e1d1": 140,
+       "e1d2": 150,
+       "e1e2": 160,
+       "e1f1": 170
+      }
+     }
+    ]
+   },
+   "accepted": [
+    {
+     "key": "8/1P6/8/8/8/8/6k1/4K3 b - -/g2g3",
+     "flagged": true
+    }
+   ],
+   "rejected": []
+  },
+  {
+   "name": "targets, arrows and labels",
+   "file": {
+    "version": 1,
+    "scan": [
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      },
+      "targets": {
+       "red": [
+        "f7"
+       ],
+       "orange": [
+        "e5"
+       ],
+       "kingZone": [
+        "g7"
+       ],
+       "fork": []
+      },
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "own",
+        "kind": "threat"
+       },
+       {
+        "from": "f6",
+        "to": "e4",
+        "side": "theirs",
+        "kind": "capture"
+       }
+      ],
+      "bestLine": [
+       "f3g5",
+       "d7d5"
+      ],
+      "source": "lichess",
+      "sourceId": 123
+     }
+    ]
+   },
+   "accepted": [
+    {
+     "key": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq -/g8f6",
+     "flagged": true
+    }
+   ],
+   "rejected": []
+  },
+  {
+   "name": "a puzzle listed twice keeps its place with the last answer",
+   "file": {
+    "version": 1,
+    "scan": [
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      }
+     },
+     {
+      "fenBefore": "r3k2r/pppq1ppp/2np1n2/2b1p1B1/2B1P1b1/2NP1N2/PPPQ1PPP/R3K2R b KQkq - 0 9",
+      "lastMove": "e8g8",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a1b1": 0,
+       "a1c1": 110,
+       "a1d1": 120,
+       "a2a3": 130,
+       "a2a4": 140,
+       "b2b3": 150,
+       "b2b4": 160,
+       "c3a4": 170,
+       "c3b1": 180,
+       "c3b5": 190,
+       "c3d1": 200,
+       "c3d5": 210,
+       "c3e2": 220,
+       "c4a6": 230,
+       "c4b3": 240,
+       "c4b5": 250,
+       "c4d5": 260,
+       "c4e6": 270,
+       "c4f7": 280,
+       "d2c1": 290,
+       "d2d1": 300,
+       "d2e2": 310,
+       "d2e3": 320,
+       "d2f4": 330,
+       "d3d4": 340,
+       "e1c1": 350,
+       "e1d1": 360,
+       "e1e2": 370,
+       "e1f1": 380,
+       "e1g1": 390,
+       "f3d4": 400,
+       "f3e5": 410,
+       "f3g1": 420,
+       "f3h4": 430,
+       "g2g3": 440,
+       "g5e3": 450,
+       "g5f4": 460,
+       "g5f6": 470,
+       "g5h4": 480,
+       "g5h6": 490,
+       "h1f1": 500,
+       "h1g1": 510,
+       "h2h3": 520,
+       "h2h4": 530
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 0 1",
+      "lastMove": "g8f6",
+      "flagged": false,
+      "quickScan": [],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      }
+     }
+    ]
+   },
+   "accepted": [
+    {
+     "key": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq -/g8f6",
+     "flagged": false
+    },
+    {
+     "key": "r3k2r/pppq1ppp/2np1n2/2b1p1B1/2B1P1b1/2NP1N2/PPPQ1PPP/R3K2R b KQkq -/e8g8",
+     "flagged": true
+    }
+   ],
+   "rejected": []
+  },
+  {
+   "name": "every rejection reason, one per puzzle",
+   "file": {
+    "version": 1,
+    "scan": [
+     {
+      "fenBefore": "not a fen",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "e2e5",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "zz",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "quickScan": [],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": "yes",
+      "quickScan": [],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "i9",
+        "kind": "attacked"
+       }
+      ],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "hanging"
+       }
+      ],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      },
+      "targets": {
+       "red": [
+        "f9"
+       ]
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      },
+      "arrows": [
+       {
+        "from": "e3",
+        "to": "e5",
+        "side": "own",
+        "kind": "threat"
+       }
+      ]
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      },
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "mine",
+        "kind": "threat"
+       }
+      ]
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": []
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420,
+       "e2e5": 10
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a2a3": "best",
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a2a3": -5,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a2a3": 15,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      },
+      "bestLine": [
+       "f3g5",
+       "f3g5"
+      ]
+     },
+     {
+      "fenBefore": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+      "lastMove": "a1a8",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {}
+     },
+     "not an object"
+    ]
+   },
+   "accepted": [],
+   "rejected": [
+    {
+     "index": 0,
+     "reason": "Malformed FEN"
+    },
+    {
+     "index": 1,
+     "reason": "Last move e2e5 is illegal"
+    },
+    {
+     "index": 2,
+     "reason": "Last move zz is malformed"
+    },
+    {
+     "index": 3,
+     "reason": "Missing \"flagged\""
+    },
+    {
+     "index": 4,
+     "reason": "Missing \"flagged\""
+    },
+    {
+     "index": 5,
+     "reason": "Missing a \"quickScan\" array"
+    },
+    {
+     "index": 6,
+     "reason": "Square i9 is not on the board"
+    },
+    {
+     "index": 7,
+     "reason": "Unknown quick-scan kind for e4"
+    },
+    {
+     "index": 8,
+     "reason": "Square f9 is not on the board"
+    },
+    {
+     "index": 9,
+     "reason": "Arrow e3-e5 does not start on a piece"
+    },
+    {
+     "index": 10,
+     "reason": "Unknown arrow side for f3-g5"
+    },
+    {
+     "index": 11,
+     "reason": "Missing a \"moves\" object"
+    },
+    {
+     "index": 12,
+     "reason": "Moves are missing 1 legal move: h2h4"
+    },
+    {
+     "index": 13,
+     "reason": "Move e2e5 is illegal"
+    },
+    {
+     "index": 14,
+     "reason": "Move a2a3 has no whole-number score"
+    },
+    {
+     "index": 15,
+     "reason": "Move a2a3 has a negative score"
+    },
+    {
+     "index": 16,
+     "reason": "No move is scored 0 (the best)"
+    },
+    {
+     "index": 17,
+     "reason": "Best line move f3g5 is illegal at ply 2"
+    },
+    {
+     "index": 18,
+     "reason": "The solver has no legal move"
+    },
+    {
+     "index": 19,
+     "reason": "Not an object"
+    }
+   ]
+  },
+  {
+   "name": "a newer format version",
+   "file": {
+    "version": 2,
+    "scan": [
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      }
+     }
+    ]
+   },
+   "accepted": [],
+   "rejected": [
+    {
+     "index": -1,
+     "reason": "Format version 2 is newer than this app understands (1)"
+    }
+   ]
+  },
+  {
+   "name": "no version",
+   "file": {
+    "scan": [
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "a2a3": 0,
+       "a2a4": 110,
+       "b1a3": 120,
+       "b1c3": 130,
+       "b2b3": 140,
+       "b2b4": 150,
+       "c2c3": 160,
+       "c4a6": 170,
+       "c4b3": 180,
+       "c4b5": 190,
+       "c4d3": 200,
+       "c4d5": 210,
+       "c4e2": 220,
+       "c4e6": 230,
+       "c4f1": 240,
+       "c4f7": 250,
+       "d1e2": 260,
+       "d2d3": 270,
+       "d2d4": 280,
+       "e1e2": 290,
+       "e1f1": 300,
+       "e1g1": 310,
+       "f3d4": 320,
+       "f3e5": 330,
+       "f3g1": 340,
+       "f3g5": 350,
+       "f3h4": 360,
+       "g2g3": 370,
+       "g2g4": 380,
+       "h1f1": 390,
+       "h1g1": 400,
+       "h2h3": 410,
+       "h2h4": 420
+      }
+     }
+    ]
+   },
+   "accepted": [],
+   "rejected": [
+    {
+     "index": -1,
+     "reason": "Missing \"version\""
+    }
+   ]
+  },
+  {
+   "name": "a puzzle file",
+   "file": {
+    "collection": "Back rank",
+    "puzzles": []
+   },
+   "accepted": [],
+   "rejected": [
+    {
+     "index": -1,
+     "reason": "Missing a \"scan\" array"
+    }
+   ]
+  }
+ ]
+}

@@ -1,6 +1,7 @@
 import { PGlite } from '@electric-sql/pglite';
 import schema from '../../db/0001_schema.sql?raw';
 import gamesSchema from '../../db/0002_games.sql?raw';
+import scanSchema from '../../db/0003_scan.sql?raw';
 import type { Filter, Rest, Row } from '../data/backend';
 
 /**
@@ -39,6 +40,7 @@ export async function startDatabase(): Promise<PGlite> {
   `);
   await db.exec(schema);
   await db.exec(gamesSchema);
+  await db.exec(scanSchema);
   return db;
 }
 

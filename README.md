@@ -175,6 +175,64 @@ puzzles' tags, comment, rating and number instead of adding them again — the
 file wins over a comment edited in the app. Rejected rows come back with
 reasons rather than being silently dropped.
 
+### Scan Training puzzles (iOS)
+
+Scan puzzles train the check before moving: the opponent's last move plays,
+the solver taps what it attacks or opened, calls **Flag** or **No flag**, then
+moves. Motif doesn't make them or work anything out: the puzzle maker
+(Caïssa) precomputes every answer with python-chess and Stockfish, and Motif
+checks what it receives against the rules of chess, stores it, and compares
+taps and moves with it. See `samples/scan-sample.json`:
+
+    { "version": 1,
+      "scan": [
+        { "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+          "lastMove": "g8f6",
+          "flagged": true,
+          "quickScan": [ { "square": "e4", "kind": "attacked" } ],
+          "moves": { "d2d3": 0, "f3g5": 12, "c4f7": 552, ... },
+          "bestLine": ["d2d3"],
+          "source": "lichess", "sourceId": "00sHx" } ] }
+
+- `version` (the file's): the format version, 1 for now. A newer version than
+  the app knows is rejected whole.
+- `fenBefore`, `lastMove` (UCI): the position *before* the opponent's move,
+  and that move. The solver is the side to move after it.
+- `flagged`: the maker's call, Flag or No flag. Required.
+- `quickScan`: the squares the quick scan should find, each with a `kind`:
+  `attacked` (new attacks from the to-square), `opened` (lines opened through
+  the from-square) or `undefended` (no longer defended). Empty for a quiet
+  position.
+- `moves`: **every** legal move of the solver, with how many centipawns worse
+  it is than the best: best = 0, a move that throws away a forced mate =
+  100000. Promotions are listed once per piece (`b7b8q`, `b7b8n`, …). The app
+  passes a move within 50 cp of the best, so the margin can change without
+  new content.
+- `bestLine` (optional): shown after the move, from the position after
+  `lastMove`.
+- `source`, `sourceId` (optional): the maker's labels, e.g. `"own game"`,
+  `"lichess"`.
+- `targets` (`red`, `orange`, `kingZone`, `fork` square lists) and `arrows`
+  (`from`, `to`, `side`: `own`/`theirs`, `kind`: `check`/`capture`/`threat`)
+  are for the full scan (v2). They're optional, but checked when present.
+
+A puzzle is rejected, with its reason, when the FEN isn't legal, the last move
+isn't legal in it, a square isn't on the board, an arrow doesn't start on a
+piece, `moves` misses a legal move or lists an illegal one or has no move at 0,
+`bestLine` isn't playable, `flagged` is missing, or the solver has no move
+(the last move mated). Identity is the position (without move counters) plus
+the last move, so sending a puzzle again updates its answer and keeps its
+progress.
+
+Two ways in, the same checks: import the file in the app's Scan tab, or write
+`scan_puzzles` rows straight to the database (`db/0003_scan.sql`), upserting
+on `(user_id, content_key)` with `content_key` = the first four FEN fields,
+`/`, the last move (`<fen fields>/g8f6`) and `answer` = the puzzle's fields
+from `flagged` to `bestLine` as JSON. A bad row is skipped on load, never shown
+half-working. Check a file before sending it:
+
+    npm run check:external -- --scan scan.json
+
 ## Games
 
 A personal take on Chess.com's game collections, without the sharing and the
@@ -204,10 +262,11 @@ edit.
 
 ## Data
 
-The database is the source of truth (`db/0001_schema.sql` and
-`db/0002_games.sql`, set up as described in `db/README.md`): collections,
-puzzles, runs and attempts, game collections and games, each row private to
-its account by row-level security. Signing in is required.
+The database is the source of truth (`db/0001_schema.sql`,
+`db/0002_games.sql` and `db/0003_scan.sql`, set up as described in
+`db/README.md`): collections, puzzles, runs and attempts, game collections and
+games, and Scan Training's puzzles, runs and attempts, each row private to its
+account by row-level security. Signing in is required.
 
 - **Edits** — importing, renaming and deleting collections, editing comments,
   deleting puzzles, resetting progress — are written straight to the database,

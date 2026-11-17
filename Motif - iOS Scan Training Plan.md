@@ -563,6 +563,30 @@ weekly trend line in Swift Charts with an accessibility chart descriptor, and th
 plus the 10 most recent fails (FEN, last move, what was missed) through
 `ShareLink`.
 
+Built in S10 (`Model/Scan/ScanStats.swift`, `ScanStatsExport.swift`; `UI/Scan/ScanStatsView.swift`,
+a **Stats** row under All Puzzles):
+
+- **Played** means solved or failed; skips count for nothing. Attempts whose puzzle is gone are
+  left out.
+- **Median quick scan** is over every quick scan played; one cut off by its limit counts at
+  the limit, as `ScanTiming` counts it.
+- **Flag accuracy** is calls right over all played. A quick scan that ran out had no call, so it
+  counts as wrong.
+- **Missed** counts, per category, the squares or arrows each step played had to find and how
+  many were missed, by the answer's labels (`ScanMissCategory`). A missed square the answer no
+  longer has (the puzzle was re-sent) isn't counted. Most missed = most misses, then the higher
+  rate, then the plan's order. A No Flag call has no targets or arrows to miss.
+- **By week**: calendar weeks with play, the last 12, one metric at a time (Quick Scan, Flag
+  Calls, Solved) on a single line, the 10 s target as a dashed rule; touching a point shows its
+  week. VoiceOver gets an `AXChartDescriptor` with a summary.
+- **Export for Caïssa** (toolbar `ShareLink`, plain Markdown text): the figures, misses by
+  category, a weekly table and the 10 most recent fails, each with `fenBefore`, the last move in
+  SAN and UCI, the reason ("Bxf7 lost 3.1", "No Flag on a flagged position") and what was missed
+  per step. Numbers and dates are in a fixed format, so the text doesn't depend on the device's
+  language.
+- Debug fixture `scan-history` (six weeks of attempts) and route `scan-stats`; Duo capture
+  states S18k (Stats) and S18l (empty).
+
 ## 9. Implementation slices
 
 Each slice ends with `scripts/ios-verify.sh` green, the §7 checklist passed,
@@ -598,7 +622,8 @@ screenshots on iPhone and iPhone Duo, and its own PR.
 8. **S08 — Final check.** Ghosted move, Play It / Take Back.
 9. **S09 — Hard limits.** `ScanTiming` switching limits on, the Time limits
    switch.
-10. **S10 — Stats and export.**
+10. **S10 — Stats and export.** `ScanStats`, `ScanStatsView` with the weekly
+    chart, the Markdown export (§8).
 
 ## 10. Tests
 

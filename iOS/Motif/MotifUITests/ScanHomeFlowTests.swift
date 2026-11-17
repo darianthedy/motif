@@ -30,6 +30,19 @@ import XCTest
         dismissKeyboard(); wait(shown("1 puzzle rejected")); expect(add, "isEnabled == true"); capture("scan-import")
         add.tap(); wait(button("scan-all-puzzles")); XCTAssertTrue(shown("3").exists)
     }
+    /// S10: Stats from the home, empty before any play; with history, the figures, the trend and Export.
+    func testStatsShowHistoryAndExport() {
+        launch("scan"); let stats = button("scan-stats"); wait(stats); stats.tap()
+        wait(app.staticTexts["No Results Yet"]); XCTAssertFalse(button("scan-stats-export").exists)
+        launch("scan-stats", extra: ["-MotifFixture", "scan-history"])
+        wait(app.descendants(matching: .any)["scan-stats-chart"]); capture("scan-stats")
+        XCTAssertTrue(shown("Median Quick Scan").exists); XCTAssertTrue(shown("Flag Accuracy").exists)
+        XCTAssertTrue(shown("24 puzzles played").exists)
+        app.buttons["Flag Calls"].tap(); wait(app.descendants(matching: .any)["scan-stats-chart"])
+        let export = button("scan-stats-export"); XCTAssertTrue(export.isEnabled); export.tap()
+        let share = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Copy' OR label == 'Save to Files'")).firstMatch
+        wait(share); capture("scan-stats-export")
+    }
     func testOfflineDisablesImport() {
         launch("scan", offline: true); wait(app.descendants(matching: .any)["offline-banner"])
         button("scan-actions").tap()

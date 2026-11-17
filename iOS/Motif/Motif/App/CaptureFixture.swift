@@ -24,6 +24,7 @@ import Foundation
 ///   reconnect does, which uploads the outbox.
 /// - `scan-limits`: 20 fast scan attempts from 30 days ago, so every v1 step's hard limit is on
 ///   (Scan plan S09). Any fixture also resets the Scan tab's Time Limits switch to its default.
+/// - `scan-history`: six weeks of scan attempts over the pool, for the Stats screen (S10).
 /// - `reduce-transparency`: Motif's own glass takes its Reduce Transparency fallback (`motifGlass`);
 ///   Dynamic Type comes from `-UIPreferredContentSizeCategoryName` instead (D10).
 struct CaptureFixture: Sendable {
@@ -70,6 +71,7 @@ struct CaptureFixture: Sendable {
                                                                playedAt: past + Int64(n)))
             }
         }
+        if has("scan-history"), let library = store.library { await scanHistory(scanPool(library), store) }
         if let delay = values["online-after"].flatMap(Double.init) {
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(delay))
@@ -87,6 +89,32 @@ struct CaptureFixture: Sendable {
         if has("select"), app.launchRoute == nil || app.launchRoute == "games", let library = store.library {
             if let first = library.collections.first { app.openPuzzles([.collection(first.id)]) }
             if let first = library.gameCollections.first { app.openGames([.collection(first.id)]) }
+        }
+    }
+    /// Six weeks of scans over the pool, four a week, getting quicker and calling better, with
+    /// misses in every step and a fail or two a week: enough for every part of Stats (S10).
+    @MainActor private func scanHistory(_ pool: [ScanPuzzle], _ store: LibraryStore) async {
+        guard !pool.isEmpty else { return }
+        let week: Int64 = 7 * 24 * 60 * 60 * 1000, now = epochMilliseconds()
+        for n in 0..<24 {
+            let puzzle = pool[n % pool.count], answer = puzzle.answer, weekIndex = n / 4
+            let wrongCall = n % 4 == 3 && weekIndex < 4
+            let flagCall = wrongCall ? !answer.flagged : answer.flagged
+            var steps = ScanSteps(quickScan: ScanMarkStep(ms: 12_000 - weekIndex * 1_100 + (n % 4) * 400,
+                                                          missed: n.isMultiple(of: 3) ? answer.quickScan.prefix(1).map(\.square) : []))
+            if flagCall, answer.hasFullScan, let targets = answer.targets, let arrows = answer.arrows {
+                steps.targets = ScanMarkStep(ms: 16_000, missed: Array(targets.orange.suffix(n.isMultiple(of: 2) ? 1 : 0)))
+                steps.arrows = ScanMarkStep(ms: 12_000, missed: n % 4 == 0 ? arrows.suffix(1).map(\.line) : [])
+            }
+            let bad = n % 5 == 1, worst = answer.moves.max { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value }
+            let best = answer.moves.filter { $0.value == 0 }.keys.sorted().first
+            let played = (bad ? worst?.key : best).flatMap(Uci.parse)
+            steps.move = ScanMoveStep(ms: 4_000, played: played, lossCp: played.flatMap { answer.lossCp($0) })
+            let failReason: ScanFailReason? = wrongCall && answer.flagged ? .missedFlag : bad ? .badMove : nil
+            try? await store.recordScanAttempt(ScanAttempt(id: "history-\(n)", puzzleId: puzzle.id, runId: nil,
+                                                           result: failReason == nil ? .solved : .failed, flagCall: flagCall,
+                                                           detail: ScanAttemptDetail(steps: steps, failReason: failReason),
+                                                           playedAt: now - Int64(5 - weekIndex) * week - Int64(4 - n % 4) * 3_600_000))
         }
     }
 }

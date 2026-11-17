@@ -18,6 +18,10 @@ import Foundation
 ///   read the move list after a test that left the lines on.
 /// - `problem`: the Analysis view shows a move problem. `slow-reply`: the opponent takes 10 s to reply.
 /// - `import=<name>`: prefills an import sheet with one of `CaptureSeed.importTexts`.
+/// - `store=<name>`: the cache, outbox and remembered user persist under that name, so a relaunch
+///   with the same name finds them (the memory backend still starts fresh). With `offline-first`
+///   the relaunch opens offline from them. `online-after=<seconds>`: comes back online then, as a
+///   reconnect does, which uploads the outbox.
 /// - `reduce-transparency`: Motif's own glass takes its Reduce Transparency fallback (`motifGlass`);
 ///   Dynamic Type comes from `-UIPreferredContentSizeCategoryName` instead (D10).
 struct CaptureFixture: Sendable {
@@ -52,6 +56,12 @@ struct CaptureFixture: Sendable {
                 try? await store.recordAttempt(Attempt(id: "pending-\(n)", puzzleId: puzzle.id, runId: nil, result: .solved, mistakes: 0, hinted: false, playedAt: epochMilliseconds()))
             }
             store.online = online
+        }
+        if let delay = values["online-after"].flatMap(Double.init) {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(delay))
+                await store.setOnline(true)
+            }
         }
         switch values["status"] {
         case "syncing": store.debugStatus(.syncing)

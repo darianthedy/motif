@@ -31,7 +31,7 @@ SCHEME="Motif"
 # The PR smoke set: the whole unit target plus the UI flows that touch every screen
 # once. Solve keeps just its end-to-end test (sign in, import, solve, finish).
 SMOKE_UI="AccountFlowTests NavigationFlowTests PuzzlesHomeFlowTests SheetsBannersFlowTests
-SolveFlowTests/testSignInPasteImportAndCleanTapSolve ScanBoardFlowTests ScanHomeFlowTests"
+SolveFlowTests/testSignInPasteImportAndCleanTapSolve ScanBoardFlowTests ScanHomeFlowTests ScanSessionFlowTests"
 
 web=1
 smoke=0

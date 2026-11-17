@@ -30,6 +30,8 @@ struct BoardView: View {
     @State private var dropped: (from: String, to: String)?
     /// Counts marking taps, for the selection haptic.
     @State private var marked = 0
+    /// With Reduce Motion a move appears in place instead of sliding (Scan plan §4).
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     init(fen: String, orientation: Side = .white, interactive: Bool = true, placing: Side? = nil,
          highlight: (from: String, to: String)? = nil, highlightColor: Color = .blue, shakeKey: Int = 0, coordinates: Bool = true,
          onMove: @escaping (Uci) -> Void = { _ in }, onPlace: @escaping (Placement) -> Void = { _ in },
@@ -86,7 +88,7 @@ struct BoardView: View {
             .onChange(of: fen) { old, next in
                 interaction.reset(next); dragging = nil
                 let wasDropped = dropped; dropped = nil
-                guard let motion = highlight, motion.from != motion.to,
+                guard !reduceMotion, let motion = highlight, motion.from != motion.to,
                       Board.pieceAt(next, motion.to) != nil, Board.pieceAt(old, motion.from) != nil,
                       !(wasDropped?.from == motion.from && wasDropped?.to == motion.to) else { slide = nil; return }
                 slide = Slide(from: motion.from, to: motion.to, token: (slide?.token ?? 0) + 1)

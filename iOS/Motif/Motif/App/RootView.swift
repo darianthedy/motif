@@ -20,7 +20,10 @@ struct RootView: View {
             case .library where app.awaitingLaunchRoute || app.goingOffline: loading
             case .library:
                 #if DEBUG
-                if app.launchRoute == "board" { NavigationStack { BoardSampleView() } } else { tabs }
+                if app.launchRoute == "board" { NavigationStack { BoardSampleView() } }
+                else if let route = app.launchRoute, route.hasPrefix("scan-board") {
+                    NavigationStack { ScanBoardSampleView(page: route == "scan-board:shapes" ? .shapes : .mark) }
+                } else { tabs }
                 #else
                 tabs
                 #endif

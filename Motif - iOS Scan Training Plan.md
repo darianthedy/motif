@@ -41,8 +41,7 @@
 4. **iOS only.** The web app gets no Scan Training. The "web app is the spec"
    rule in `Motif - Tech Plan - iOS.md` doesn't apply to this feature: this
    plan is its spec.
-5. **No fixed quiet ratio.** Shuffled and all-collections sessions draw at
-   random, so the share of quiet positions follows the content the maker
+5. **No fixed quiet ratio.** Every session draws from the pool at random, so the share of quiet positions follows the content the maker
    sends. No pattern, no streak rule (Puzzle flow, last paragraph).
 6. **"Flag" is a scan word only.** `puzzles.flagged` already means "needs a
    look". Scan code says `flagCall` (what the user called) and `flagged`
@@ -50,9 +49,11 @@
 7. **Its own tab for the prototype.** Scan Training is a third tab, **Scan**,
    beside Puzzles and Games (confirmed 2026-11-17). It may move into Puzzles
    later; §6 keeps its views independent of the tab so that move is small.
-8. **Same persistence as the Puzzles tab** (confirmed 2026-11-17):
-   collections, resumable sessions, progress from attempts, offline play
-   through the cache and outbox (§2).
+8. **One pool, no collections; otherwise the Puzzles tab's persistence**
+   (confirmed 2026-11-17). Every scan puzzle is in one pool. Sessions
+   resume, progress comes from attempts, and play works offline through the
+   cache and outbox (§2). Each puzzle keeps the maker's `source` label, so a
+   filter by source can be added later without changing the data.
 9. **Native iOS, built to the project's design rules.** SwiftUI only, no new
    packages, deployment target stays iOS 26.1 (iOS 27 APIs behind
    `#available`). Every screen follows the Apple HIG review (`apple-design`
@@ -61,8 +62,8 @@
 
 ## 2. Data
 
-Scan Training copies the Puzzles tab's model one for one: **collections**
-of puzzles, **runs** (sessions) that store only their fixed queue, and
+Scan Training copies the Puzzles tab's model, minus collections: one
+**pool** of puzzles, **runs** (sessions) that store only their fixed queue, and
 **attempts** that are only ever inserted. Progress, status and where a run
 has got to are all worked out from the attempts, exactly as
 `README.md › Sessions` describes for puzzles. The same rules give the same
@@ -73,44 +74,32 @@ conflict, and play works offline.
 row, row-level security, foreign keys that include `user_id`, safe to re-run.
 
 ```sql
-create table if not exists public.scan_collections (
-  id         uuid        primary key,
-  user_id    text        not null default auth.user_id(),
-  name       text        not null,
-  created_at timestamptz not null default now(),
-  unique (user_id, id)
-);
-
 create table if not exists public.scan_puzzles (
-  id            uuid        primary key default gen_random_uuid(),
-  user_id       text        not null default auth.user_id(),
-  collection_id uuid        not null,
-  position      integer     not null,   -- order within the collection
+  id          uuid        primary key default gen_random_uuid(),
+  user_id     text        not null default auth.user_id(),
   -- fen_before (first four fields) + last_move: the same position sent
-  -- twice to a collection updates the row instead of adding a second one.
-  content_key   text        not null,
-  fen_before    text        not null,   -- before the opponent's last move
-  last_move     text        not null,   -- UCI
-  answer        jsonb       not null,   -- ScanAnswer, §3.2
-  version       integer     not null,   -- format version, §3
-  -- The maker's own labels, shown in puzzle detail: 'own game', 'lichess', ...
-  source        text,
-  source_id     text,
-  added_at      timestamptz not null default now(),
+  -- twice updates the row instead of adding a second one.
+  content_key text        not null,
+  fen_before  text        not null,   -- before the opponent's last move
+  last_move   text        not null,   -- UCI
+  answer      jsonb       not null,   -- ScanAnswer, §3.2
+  version     integer     not null,   -- format version, §3
+  -- The maker's own labels, shown in puzzle detail and usable as a filter
+  -- later: 'own game', 'lichess', ...
+  source      text,
+  source_id   text,
+  added_at    timestamptz not null default now(),
   unique (user_id, id),
-  unique (collection_id, content_key),
-  foreign key (user_id, collection_id)
-    references public.scan_collections (user_id, id) on delete cascade
+  unique (user_id, content_key)
 );
 
 -- As `runs`: only what never changes after a run starts.
 create table if not exists public.scan_runs (
   id         uuid        primary key,
   user_id    text        not null default auth.user_id(),
-  -- A collection id, 'all' for the draw across every collection, or 'review'.
-  scope      text        not null,
-  mode       text        not null
-    check (mode in ('ordered', 'randomInCollection', 'randomGlobal', 'reviewMistakes')),
+  -- 'all' for the whole pool, or 'review'.
+  scope      text        not null check (scope in ('all', 'review')),
+  mode       text        not null check (mode in ('randomGlobal', 'reviewMistakes')),
   queue      uuid[]      not null,
   started_at timestamptz not null,
   unique (user_id, id),
@@ -137,10 +126,10 @@ create table if not exists public.scan_attempts (
 );
 ```
 
-Grants match their puzzle twins: collections select/insert/delete plus
-`update (name)`; puzzles select/insert/update/delete (a re-sent puzzle
-updates `answer`); runs and attempts select/insert/delete, never update.
-Deleting a collection takes its puzzles and their attempts with it.
+Grants match their puzzle twins: puzzles select/insert/update/delete (a
+re-sent puzzle updates `answer`); runs and attempts select/insert/delete,
+never update. Deleting a puzzle takes its attempts with it, and a run
+simply skips puzzles that no longer exist.
 
 `result` uses the puzzle words on purpose (`solved` = passed, `failed`,
 `skipped`), so the derive code in §2.3 serves both.
@@ -163,17 +152,17 @@ Stats (v2) read only this, so nothing in it is a summary that can go stale.
 ### 2.2 Progress and sessions (same rules as Puzzles)
 
 - **Status** of a scan puzzle is its latest result: *new*, *solved* or *to
-  review*. Each collection shows the same Solved / To review / New card as
-  a puzzle collection.
+  review*. The Scan home shows the same Solved / To review / New card as a
+  puzzle collection, for the whole pool.
 - **A session is a run.** Starting one fixes its queue; leaving and coming
-  back resumes at the same puzzle, on this device or another. Each
-  collection, the draw across all collections and Review hold one run each;
-  starting another replaces it, and **Discard Session** deletes it.
-- **Modes**, the same four: in order, shuffled within a collection, random
-  across all collections (recently seen puzzles go to the back,
-  `RECENT_MEMORY`), and Review (the puzzles whose latest result is failed).
-  Shuffled and the all-collections draw are the default, so quiet and
-  flagged positions come in no fixed pattern (§1.5).
+  back resumes at the same puzzle, on this device or another. There are two
+  runs at most: the pool and Review. Starting another replaces it, and
+  **Discard Session** deletes it.
+- **Two modes**, taken from Puzzles: **Start** draws the whole pool at
+  random with recently seen puzzles at the back (`orderForGlobalDraw`,
+  `RECENT_MEMORY`), so quiet and flagged positions come in no fixed pattern
+  (§1.5); **Review Mistakes** takes the puzzles whose latest result is
+  failed.
 - **Failed puzzles come back sooner** in two ways, both from Puzzles: once
   more in the same run after `RETRY_GAP` (3) others, at most `MAX_RETRIES`
   (10) waiting; and in Review until solved.
@@ -183,14 +172,14 @@ Stats (v2) read only this, so nothing in it is a summary that can go stale.
   when the puzzle ends. Leaving in the middle of a scan resumes that puzzle
   from its last move, with fresh timers.
 - **Reset Scan Progress** (Scan tab menu) deletes every scan run and attempt
-  and leaves the collections alone. Puzzle progress isn't touched, and the
+  and leaves the puzzles alone. Puzzle progress isn't touched, and the
   Puzzles tab's reset doesn't touch scan progress.
 
 ### 2.3 On the device (offline)
 
 The same pieces the Puzzles tab uses, extended rather than copied:
 
-- **`Library`** gets `scanCollections`, `scanPuzzles`, `scanRuns` and
+- **`Library`** gets `scanPuzzles`, `scanRuns` and
   `scanAttempts`, loaded with the rest by `Backend.load()`. The cache
   (`Data/Cache.swift`) stores the whole `Library`, so the offline copy
   includes Scan with no new cache code.
@@ -199,12 +188,11 @@ The same pieces the Puzzles tab uses, extended rather than copied:
   returning to the foreground, on reconnecting and after each puzzle, and
   `overlay(_:_:)` lays them on the server copy, so play works offline and
   nothing is lost.
-- **Edits need a connection**, as for puzzles: importing, renaming and
-  deleting collections, deleting a puzzle, discarding a session and
+- **Edits need a connection**, as for puzzles: importing, deleting a
+  puzzle, discarding a session and
   resetting progress are written straight to the database and disabled
   offline with the same note.
-- **`Backend`** gets `createScanCollections`, `renameScanCollection`,
-  `deleteScanCollection`, `importScanPuzzles`, `deleteScanPuzzle`,
+- **`Backend`** gets `importScanPuzzles`, `deleteScanPuzzle`,
   `saveScanRun`, `deleteScanRun`, `recordScanAttempts` and
   `resetScanProgress`, in `Rest.swift` and `MemoryBackend.swift`.
 - **Derive code is shared, not copied.** `puzzleRecords`, `statsFor`,
@@ -223,19 +211,17 @@ them skips the full scan.
 
 ### 3.1 Two ways in
 
-- **Import file.** `{"version": 1, "collection": "Own blunders", "scan": [ ... ]}`
-  (a puzzle file has `"puzzles"` instead of `"scan"`, so the two can't be
-  confused). The Scan tab's Import sheet, the same view as the Puzzles one,
-  imports it into a new collection named by the file or into the
-  collection it was opened from. It shows "N added, M updated, K rejected"
-  with the reason for each rejection, as puzzle imports do, and upserts on
-  `(collection_id, content_key)`, so re-sending a file updates it and keeps
-  its progress.
+- **Import file.** `{"version": 1, "scan": [ ... ]}` (a puzzle file has
+  `"collection"` and `"puzzles"`, so the two can't be confused). The Scan
+  tab's Import sheet, the same view as the Puzzles one, adds it to the
+  pool. It shows "N added, M updated, K rejected" with the reason for each
+  rejection, as puzzle imports do, and upserts on `content_key`, so
+  re-sending a puzzle updates it and keeps its progress.
 - **Direct database write.** Caïssa signs in as the account and writes
-  `scan_collections` and `scan_puzzles` rows (with `version`) through
-  Neon's Data API, as `scripts/motif-db.py` does for games, upserting on
-  `(collection_id, content_key)`. RLS keeps it to that account's rows. The
-  app picks the rows up on its next load.
+  `scan_puzzles` rows (with `version`) through Neon's Data API, as
+  `scripts/motif-db.py` does for games, upserting on
+  `(user_id, content_key)`. RLS keeps it to that account's rows. The app
+  picks the rows up on its next load.
 
 Both ways end in the same check (§3.3): an import file rejects a bad puzzle
 before it's written; a bad row written directly is skipped on load and
@@ -444,23 +430,16 @@ layout automatically").
   `Tab("Scan", systemImage: "scope", value: .scan) { ScanHomeView() }`
   between Puzzles and Games. The tab is always shown, also with no puzzles
   (`tab-bars.md › Best practices`: "Don't disable or hide tab bar buttons").
-- **Scan tab = the Puzzles tab's shape.** A `NavigationSplitView` with
-  `ScanHomeView` as the sidebar and the selected collection's
-  `ScanCollectionView` as the detail, its selection and column visibility in
-  `AppState` like `puzzlesCollection` and `puzzlesColumns`, so folding an
-  iPhone Duo keeps them (Duo plan decisions 4, 12, 16).
-- **`ScanHomeView`**: an all-collections row (**Solve All**, random draw),
-  **Review Mistakes** with its count, the list of scan collections with
-  their counts, and a toolbar menu with Import, **Time limits** and Reset
-  Scan Progress. No collections yet → `ContentUnavailableView` saying how
-  to add them (import a file, or have Caïssa send them).
-- **`ScanCollectionView`**: the same layout as `CollectionView`: the
-  Solved / To review / New card, a **Session in Progress** row with
-  **Resume** and **Discard Session** when one is open, **Solve in Order** /
-  **Solve Shuffled**, and **All Puzzles** (list → detail showing the
-  position, last move, the maker's answer and labels). Rename, Import Into
-  Collection and Delete in the overflow menu, disabled offline. v2 adds a
-  Stats row.
+- **`ScanHomeView`**, the tab's root in a `NavigationStack` (one screen,
+  so no split view): the Solved / To review / New card for the pool; a
+  **Session in Progress** row with **Resume** and **Discard Session** when
+  one is open, otherwise **Start** (`.glassProminent`, the one prominent
+  action); **Review Mistakes** with its count; **All Puzzles** (list →
+  detail showing the position, last move, the maker's answer and labels,
+  with Delete, disabled offline). A toolbar menu holds Import, **Time
+  limits** and Reset Scan Progress. No puzzles yet →
+  `ContentUnavailableView` saying how to add them (import a file, or have
+  Caïssa send them). v2 adds a Stats row.
 - **Shared, not copied.** The stats card, session row and offline note move
   from `CollectionView.swift` to `UI/Shared/` so both tabs use one copy.
   The Scan views read the library from `AppState` and hold no session
@@ -570,14 +549,13 @@ screenshots on iPhone and iPhone Duo, and its own PR.
 2. **S02 — Model and persistence.** The stored types, `ScanGrader`,
    `ScanTiming` (record-only); `Derive.swift` made generic over
    `RunAttempt` (existing tests unchanged and green); `Library`, cache,
-   `Outbox`, `Backend`/`Rest`/`MemoryBackend` support for scan collections,
-   puzzles, runs and attempts; unit tests.
+   `Outbox`, `Backend`/`Rest`/`MemoryBackend` support for scan puzzles, runs
+   and attempts; unit tests.
 3. **S03 — Board modes.** `BoardMode`, `BoardAnnotations`, the `Canvas`
    overlay, `.markSquares` routing, the mark shapes. A debug launch route
    `scan-board` like `board`. Existing board tests stay green unchanged.
-4. **S04 — Scan tab.** `AppTab.scan`, `ScanHomeView`,
-   `ScanCollectionView`, the import sheet, the shared stats card and session
-   row; collection edits.
+4. **S04 — Scan tab.** `AppTab.scan`, `ScanHomeView`, All Puzzles and
+   puzzle detail, the import sheet, the shared stats card and session row.
 5. **S05 — Session.** `ScanSolveModel` and `ScanSessionView` for last
    move, quick scan, flag call, move and feedback; undo, skip, resume; a UI
    test for one flagged and one quiet puzzle, and one that plays offline,

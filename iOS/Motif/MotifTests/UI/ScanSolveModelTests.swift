@@ -9,8 +9,8 @@ import XCTest
         ScanPuzzle(id: "p", content: testScanContent(flagged: flagged, quickScan: quickScan,
                                                      scores: ["e8f7": 300, "e8f8": 30]), addedAt: 0)
     }
-    private func started(_ puzzle: ScanPuzzle, _ clock: TestClock) async -> ScanSolveModel {
-        let model = ScanSolveModel(puzzle, clock: clock)
+    private func started(_ puzzle: ScanPuzzle, _ clock: TestClock, limits: ScanLimits = ScanLimits()) async -> ScanSolveModel {
+        let model = ScanSolveModel(puzzle, limits: limits, clock: clock)
         let task = Task { await model.begin() }
         while model.step == .lastMove { clock.advance(by: .milliseconds(REPLY_MS)); await Task.yield() }
         await task.value
@@ -49,7 +49,7 @@ import XCTest
         clock.advance(by: .milliseconds(1500))
         model.play(kd8)
         XCTAssertEqual(model.step, .done); XCTAssertFalse(model.boardInteractive)
-        XCTAssertEqual(model.feedback?.verdict, .pass); XCTAssertEqual(model.feedback?.reason, "Kd8 is the best move.")
+        XCTAssertEqual(model.feedback?.verdict, .pass); XCTAssertEqual(model.feedback?.reason, "")
         let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 9))
         XCTAssertEqual(attempt.result, .solved); XCTAssertEqual(attempt.flagCall, false); XCTAssertEqual(attempt.runId, "r")
         XCTAssertEqual(attempt.detail.steps.quickScan?.ms, 4200); XCTAssertEqual(attempt.detail.steps.move?.ms, 1500)
@@ -76,7 +76,7 @@ import XCTest
         let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
         XCTAssertEqual(attempt.result, .solved); XCTAssertEqual(attempt.detail.softMisses, [.flaggedQuiet])
         XCTAssertEqual(model.feedback?.verdict, .softMiss)
-        XCTAssertEqual(model.feedback?.reason, "Kf8 is within half a pawn of Kd7 (−0.3).")
+        XCTAssertEqual(model.feedback?.reason, "−0.3. Best: Kd7.")
     }
 
     func testABadMoveFailsAndShowsTheBestMove() async throws {
@@ -88,7 +88,7 @@ import XCTest
         model.play(kf7)
         let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
         XCTAssertEqual(attempt.result, .failed); XCTAssertEqual(attempt.detail.failReason, .badMove)
-        XCTAssertEqual(model.feedback?.title, "Mistake"); XCTAssertEqual(model.feedback?.reason, "Kf7 loses 3.0. Best was Kd7.")
+        XCTAssertEqual(model.feedback?.title, "Mistake"); XCTAssertEqual(model.feedback?.reason, "−3.0. Best: Kd7.")
         XCTAssertEqual(model.annotations.arrows, [BoardArrow(from: "e8", to: "d7", side: .own)])
     }
 
@@ -98,13 +98,13 @@ import XCTest
         XCTAssertEqual(model.annotations.rings, ["d7": .correct, "a5": .extra, "c2": .missed])
         XCTAssertEqual(model.annotations.tints, ["d7": .quickScan, "a5": .quickScan])
         XCTAssertEqual(model.feedback?.verdict, .softMiss); XCTAssertEqual(model.feedback?.title, "Missed a Square")
-        XCTAssertEqual(model.feedback?.reason, "Missed c2, now attacked.")
+        XCTAssertEqual(model.feedback?.reason, "c2 attacked.")
     }
 
     func testOverTheTargetTimeIsASoftMiss() async throws {
         let clock = TestClock(), model = await started(puzzle(flagged: false, quickScan: []), clock)
         clock.advance(by: .seconds(12)); model.call(false)
-        XCTAssertEqual(model.feedback?.title, "Right, but Slow"); XCTAssertEqual(model.feedback?.time, "12.0 s · target 10 s")
+        XCTAssertEqual(model.feedback?.title, "Right, but Slow"); XCTAssertEqual(model.feedback?.time, "12.0 / 10 s")
         model.proceed(); clock.advance(by: .seconds(6)); model.play(kd8)
         let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
         XCTAssertEqual(attempt.result, .solved); XCTAssertEqual(attempt.detail.softMisses, [.quickScanSlow, .moveSlow])
@@ -153,8 +153,8 @@ import XCTest
                                                               ScanArrow(from: "d1", to: "d2", side: .theirs, kind: .threat)]),
                    addedAt: 0)
     }
-    private func atTargets(_ clock: TestClock = TestClock()) async -> ScanSolveModel {
-        let model = await started(fullScan(), clock)
+    private func atTargets(_ clock: TestClock = TestClock(), limits: ScanLimits = ScanLimits()) async -> ScanSolveModel {
+        let model = await started(fullScan(), clock, limits: limits)
         model.toggle("d1"); model.call(true); model.proceed()
         return model
     }
@@ -169,8 +169,8 @@ import XCTest
         XCTAssertEqual(model.annotations.tints, ["d1": .orange]); XCTAssertEqual(model.annotations.dots, ["d7", "a3"])
         clock.advance(by: .seconds(8)); model.finishStep()
         XCTAssertEqual(model.feedback?.verdict, .softMiss); XCTAssertEqual(model.feedback?.title, "Missed a Target")
-        XCTAssertEqual(model.feedback?.reason, "The king on d1 is red: it loses material.")
-        XCTAssertEqual(model.feedback?.time, "8.0 s · target 20 s")
+        XCTAssertEqual(model.feedback?.reason, "Kd1 red.")
+        XCTAssertEqual(model.feedback?.time, "8.0 / 20 s")
         XCTAssertEqual(model.annotations.rings, ["d1": .missed, "d7": .correct, "a3": .extra])
         XCTAssertFalse(model.canMark); model.tap("h1"); XCTAssertNil(model.current.targets["h1"])
 
@@ -181,7 +181,7 @@ import XCTest
         XCTAssertEqual(model.current.arrows, [BoardArrow(from: "e8", to: "d7", side: .own), BoardArrow(from: "d1", to: "c2", side: .theirs)])
         clock.advance(by: .seconds(5)); model.finishStep()
         XCTAssertEqual(model.feedback?.title, "Missed an Arrow")
-        XCTAssertEqual(model.feedback?.reason, "Missed their threat: the king from d1 to d2.")
+        XCTAssertEqual(model.feedback?.reason, "Kd1–d2 their threat.")
         XCTAssertEqual(model.annotations.arrows, [BoardArrow(from: "e8", to: "d7", side: .own, style: .correct),
                                                   BoardArrow(from: "d1", to: "c2", side: .theirs),
                                                   BoardArrow(from: "d1", to: "d2", side: .theirs, style: .missed)])
@@ -242,7 +242,7 @@ import XCTest
         XCTAssertEqual(model.annotations.rings, ["d1": .correct, "d7": .correct])
         model.proceed()
         model.drawArrow(from: "d1", to: "d2"); model.drawArrow(from: "e8", to: "d7"); model.finishStep()
-        XCTAssertEqual(model.feedback?.title, "All Arrows Found"); XCTAssertEqual(model.feedback?.reason, "Found every check, capture and threat.")
+        XCTAssertEqual(model.feedback?.title, "All Arrows Found"); XCTAssertEqual(model.feedback?.reason, "")
     }
 
     func testNoFlagOrNoFullScanGoesStraightToTheMove() async {
@@ -298,16 +298,122 @@ import XCTest
         let outcome = ScanOutcome(result: .failed, detail: ScanAttemptDetail(failReason: .badMove))
         let lost = ScanFeedback.move(kf7, grade: ScanMoveGrade(passed: false, lossCp: 100_000), outcome: outcome,
                                      answer: answer, startFen: start, flagCall: true, ms: 3000)
-        XCTAssertEqual(lost.reason, "Kf7 throws away a forced mate. Best was Kd7.")
-        XCTAssertEqual(lost.time, "3.0 s · target 10 s")
+        XCTAssertEqual(lost.reason, "Throws away the mate. Best: Kd7.")
+        XCTAssertEqual(lost.time, "3.0 / 10 s")
         let kept = ScanFeedback.move(kf8, grade: ScanMoveGrade(passed: true, lossCp: 400),
                                      outcome: ScanOutcome(result: .solved, detail: ScanAttemptDetail()),
                                      answer: answer, startFen: start, flagCall: false, ms: 1000)
-        XCTAssertEqual(kept.reason, "Kf8 keeps the forced mate."); XCTAssertEqual(kept.title, "Passed")
+        XCTAssertEqual(kept.reason, "Keeps the mate."); XCTAssertEqual(kept.title, "Passed")
         // A piece on the missed square is named.
         let fen = "4k3/8/8/8/8/8/8/3QK3 w - - 0 1"
         let scan = ScanAnswer(flagged: true, quickScan: [ScanSquare(square: "d1", kind: .undefended)], moves: [:])
         let missed = ScanFeedback.quickScan(ScanMarkGrade(missed: ["d1"]), flag: .pass, answer: scan, startFen: fen, ms: 1000)
-        XCTAssertEqual(missed.reason, "Missed the queen on d1, no longer defended.")
+        XCTAssertEqual(missed.reason, "Qd1 undefended.")
+    }
+
+    // MARK: Hard limits (S09)
+
+    private let allLimits = ScanLimits(on: Set(ScanTimedStep.allCases))
+    /// Lets the limit's task, woken by the clock, reach the main actor.
+    private func settle(_ until: () -> Bool) async {
+        for _ in 0..<100 where !until() { await Task.yield() }
+    }
+
+    func testAQuickScanThatRunsOutFailsTheFlaggedPuzzle() async throws {
+        let clock = TestClock(), model = await started(puzzle(flagged: true), clock, limits: allLimits)
+        XCTAssertNotNil(model.deadline)
+        XCTAssertEqual(model.deadline?.timeIntervalSince(try XCTUnwrap(model.stepStarted)), 10)
+        model.toggle("d7")
+        clock.advance(by: .seconds(10)); await settle { model.feedback != nil }
+        XCTAssertNil(model.flagCall); XCTAssertNil(model.deadline)
+        XCTAssertEqual(model.feedback?.verdict, .fail); XCTAssertEqual(model.feedback?.title, "Time's Up")
+        XCTAssertEqual(model.feedback?.reason, "Needed a Flag.")
+        XCTAssertEqual(model.feedback?.time, "10.0 / 10 s limit")
+        XCTAssertEqual(model.annotations.rings, ["d7": .correct], "the scan's rings stay on the board")
+        model.proceed(); XCTAssertEqual(model.step, .quickScan, "the puzzle ends here: no move")
+        let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
+        XCTAssertEqual(attempt.result, .failed); XCTAssertEqual(attempt.detail.failReason, .noCall)
+        XCTAssertNil(attempt.flagCall, "no call was made")
+        XCTAssertEqual(attempt.detail.steps.quickScan, ScanMarkStep(ms: 10_000, limitMs: 10_000, missed: [], extra: [], timedOut: true))
+        XCTAssertNil(attempt.detail.steps.move)
+        XCTAssertEqual(attempt.detail.softMisses, [.quickScanSlow])
+    }
+
+    func testAQuickScanThatRunsOutFailsAQuietPuzzleToo() async throws {
+        let clock = TestClock(), model = await started(puzzle(flagged: false, quickScan: []), clock, limits: allLimits)
+        clock.advance(by: .seconds(10)); await settle { model.feedback != nil }
+        XCTAssertEqual(model.feedback?.verdict, .fail); XCTAssertEqual(model.feedback?.reason, "Quiet.")
+        let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
+        XCTAssertEqual(attempt.result, .failed); XCTAssertEqual(attempt.detail.failReason, .noCall)
+    }
+
+    func testAStepFinishedInTimeCancelsItsLimit() async throws {
+        let clock = TestClock(), model = await started(puzzle(flagged: false, quickScan: []), clock, limits: allLimits)
+        clock.advance(by: .seconds(4)); model.call(false)
+        XCTAssertEqual(model.feedback?.title, "Clean Scan"); XCTAssertEqual(model.feedback?.time, "4.0 / 10 s limit")
+        clock.advance(by: .seconds(10)); await settle { false }
+        XCTAssertEqual(model.step, .quickScan, "the cancelled limit does nothing"); XCTAssertEqual(model.flagCall, false)
+        model.proceed()
+        XCTAssertEqual(model.deadline?.timeIntervalSince(try XCTUnwrap(model.stepStarted)), 5, "the quiet move's 5 s")
+        clock.advance(by: .seconds(2)); model.play(kd8)
+        let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
+        XCTAssertEqual(attempt.result, .solved); XCTAssertEqual(attempt.detail.softMisses, [])
+        XCTAssertEqual(attempt.detail.steps.quickScan?.limitMs, 10_000); XCTAssertNil(attempt.detail.steps.quickScan?.timedOut)
+        XCTAssertEqual(attempt.detail.steps.move?.limitMs, 5000)
+    }
+
+    func testNoMoveInTimeFails() async throws {
+        let clock = TestClock(), model = await started(puzzle(flagged: false, quickScan: []), clock, limits: allLimits)
+        model.call(false); model.proceed()
+        clock.advance(by: .seconds(5)); await settle { model.outcome != nil }
+        XCTAssertEqual(model.step, .done); XCTAssertFalse(model.boardInteractive)
+        XCTAssertEqual(model.feedback?.verdict, .fail); XCTAssertEqual(model.feedback?.title, "Time's Up")
+        XCTAssertEqual(model.feedback?.reason, "Best: Kd7.")
+        let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
+        XCTAssertEqual(attempt.result, .failed); XCTAssertEqual(attempt.detail.failReason, .noMove)
+        XCTAssertNil(attempt.detail.steps.move?.played); XCTAssertEqual(attempt.detail.softMisses, [.moveSlow])
+    }
+
+    func testTargetsAndArrowsEndAsTheyStand() async throws {
+        let clock = TestClock(), model = await atTargets(clock, limits: allLimits)
+        model.tap("d1")
+        clock.advance(by: .seconds(20)); await settle { model.feedback != nil }
+        XCTAssertEqual(model.feedback?.title, "Time's Up"); XCTAssertEqual(model.feedback?.verdict, .softMiss)
+        model.proceed()
+        model.drawArrow(from: "e8", to: "d7"); model.drawArrow(from: "d1", to: "d2")
+        clock.advance(by: .seconds(15)); await settle { model.feedback != nil }
+        XCTAssertEqual(model.feedback?.title, "Time's Up"); XCTAssertEqual(model.feedback?.verdict, .softMiss, "all found, but out of time")
+        model.proceed(); model.play(kd8); model.confirm()
+        let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
+        XCTAssertEqual(attempt.result, .solved)
+        XCTAssertEqual(attempt.detail.steps.targets, ScanMarkStep(ms: 20_000, limitMs: 20_000, missed: ["d7"], extra: [], timedOut: true))
+        XCTAssertEqual(attempt.detail.steps.arrows?.timedOut, true)
+        XCTAssertEqual(attempt.detail.softMisses, [.targetsMissed, .targetsSlow, .arrowsSlow])
+    }
+
+    func testTheMoveLimitRunsThroughTheFinalCheck() async throws {
+        let clock = TestClock(), model = await atTargets(clock, limits: allLimits)
+        model.finishStep(); model.proceed(); model.finishStep(); model.proceed()
+        let before = model.fen
+        clock.advance(by: .seconds(4)); model.play(kd8); XCTAssertEqual(model.step, .finalCheck)
+        clock.advance(by: .seconds(3)); model.takeBack(); model.play(kd8)
+        clock.advance(by: .seconds(3)); await settle { model.outcome != nil }
+        XCTAssertEqual(model.step, .done); XCTAssertNil(model.candidate); XCTAssertNil(model.annotations.ghost)
+        XCTAssertEqual(model.fen, before, "a held move wasn't played")
+        let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
+        XCTAssertEqual(attempt.detail.failReason, .noMove)
+        XCTAssertEqual(attempt.detail.steps.move, ScanMoveStep(ms: 10_000, limitMs: 10_000, played: nil, lossCp: nil, takeBacks: 1))
+    }
+
+    func testLeavingCancelsTheLimit() async {
+        let clock = TestClock(), model = await started(puzzle(flagged: true), clock, limits: allLimits)
+        model.cancel()
+        clock.advance(by: .seconds(10)); await settle { false }
+        XCTAssertNil(model.feedback); XCTAssertNil(model.flagCall)
+    }
+
+    func testRecordOnlyStepsHaveNoDeadline() async {
+        let model = await started(puzzle(flagged: true), TestClock(), limits: ScanLimits(on: [.targets]))
+        XCTAssertNil(model.deadline); XCTAssertNotNil(model.stepStarted)
     }
 }

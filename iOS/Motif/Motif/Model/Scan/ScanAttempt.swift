@@ -9,7 +9,7 @@ struct ScanAttempt: Equatable, Codable, Sendable, RunAttempt {
     var runId: String?
     /// `solved` = passed, as for puzzles, so the derive code serves both.
     var result: AttemptResult
-    /// What the user called: Flag (true) or No Flag. Nil for a skip.
+    /// What the user called: Flag (true) or No Flag. Nil for a skip, or a quick scan that ran out.
     var flagCall: Bool?
     var detail: ScanAttemptDetail
     var playedAt: Int64
@@ -24,7 +24,7 @@ struct ScanAttempt: Equatable, Codable, Sendable, RunAttempt {
     }
 
     /// A graded puzzle, from `ScanGrader.result(of:flagCall:answer:)`.
-    init(id: String = newID(), puzzleId: String, runId: String?, flagCall: Bool,
+    init(id: String = newID(), puzzleId: String, runId: String?, flagCall: Bool?,
          outcome: ScanOutcome, playedAt: Int64) {
         self.init(id: id, puzzleId: puzzleId, runId: runId, result: outcome.result,
                   flagCall: flagCall, detail: outcome.detail, playedAt: playedAt)

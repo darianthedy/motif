@@ -9,4 +9,7 @@ struct ScanMarkStep: Equatable, Codable, Sendable {
     var missed: [String] = []
     /// Marked but not in the answer. Recorded, never counted against.
     var extra: [String] = []
+    /// The limit ran out and the step ended as it stood; nil when it was finished in time. A
+    /// quick scan that ran out had no call, and fails the puzzle (`ScanFailReason.noCall`).
+    var timedOut: Bool? = nil
 }

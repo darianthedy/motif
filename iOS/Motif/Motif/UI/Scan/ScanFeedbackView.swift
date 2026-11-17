@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A graded step's feedback, inline under or beside the board, never an alert: the verdict as a
-/// symbol and title, the one-line reason, and the step's time.
+/// symbol and title, a short reason when there is one, and the step's time.
 struct ScanFeedbackView: View {
     let feedback: ScanFeedback
     var body: some View {
@@ -9,8 +9,10 @@ struct ScanFeedbackView: View {
             Label(feedback.title, systemImage: feedback.verdict.systemImage)
                 .font(.headline).foregroundStyle(tint)
                 .accessibilityIdentifier("scan-feedback-title")
-            Text(feedback.reason).font(.body).fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("scan-feedback-reason")
+            if !feedback.reason.isEmpty {
+                Text(feedback.reason).font(.body).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("scan-feedback-reason")
+            }
             if let note = feedback.note {
                 Text(note).font(.body.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
             }

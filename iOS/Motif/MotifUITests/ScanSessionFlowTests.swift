@@ -53,6 +53,24 @@ import XCTest
         XCTAssertTrue(button("scan-flag").exists, "the open puzzle stays open through the upload")
     }
 
+    /// S09: with fast times from weeks ago every step has a hard limit; the quick scan's runs out
+    /// with no call, which counts as No Flag. The Time Limits switch turns them off.
+    func testHardLimitsRunOutAndTheSwitchTurnsThemOff() {
+        launch("scan", extra: ["-MotifFixture", "scan-limits"]); start()
+        wait(button("scan-flag")); wait(app.descendants(matching: .any)["scan-limit"]); capture("scan-limit")
+        let feedback = app.descendants(matching: .any)["scan-feedback"]
+        XCTAssertTrue(matches(feedback, "exists == true", timeout: 20), "the 10 s limit never ran out")
+        expect(feedback, "label BEGINSWITH \"Time's Up\""); capture("scan-time-up")
+        button("scan-session-done").tap()
+
+        let menu = button("scan-actions"); wait(menu); menu.tap()
+        let toggle = app.descendants(matching: .any).matching(NSPredicate(format: "identifier == 'scan-time-limits' OR label == 'Time Limits'")).firstMatch
+        wait(toggle); toggle.tap()
+        let resume = button("resume-scan-session"); wait(resume); resume.tap()
+        wait(button("scan-flag"))
+        XCTAssertFalse(app.descendants(matching: .any)["scan-limit"].exists, "limits off: record-only")
+    }
+
     // MARK: Helpers
 
     private func start() { let start = button("scan-start"); wait(start); start.tap() }
@@ -72,14 +90,14 @@ import XCTest
             tap(square(name), until: "label ENDSWITH 'as often as defended'")
         }
         tap(square("e7"), until: "label ENDSWITH 'dot'"); capture("scan-targets")
-        next.tap(); expectFeedback("All Targets Found"); capture("scan-targets-feedback")
+        next.tap(); expectFeedback("All Targets Found", orSlow: true); capture("scan-targets-feedback")
         button("scan-continue").tap()
         wait(next)
         square("f6").press(forDuration: 0.1, thenDragTo: square("e4")); wait(button("scan-arrow-f6e4"))
         tap(square("f3"), until: "isSelected == true")
         tap(square("g5"), until: "isSelected == false", on: square("f3"))
         wait(button("scan-arrow-f3g5")); capture("scan-arrows")
-        next.tap(); expectFeedback("All Arrows Found"); capture("scan-arrows-feedback")
+        next.tap(); expectFeedback("All Arrows Found", orSlow: true); capture("scan-arrows-feedback")
         button("scan-continue").tap()
         // The final check (S08): Take Back, then d3 again and Play It.
         wait(app.descendants(matching: .any)["scan-prompt"]); move("d2", "d3")
@@ -102,9 +120,11 @@ import XCTest
         button("scan-continue").tap()
     }
 
-    private func expectFeedback(_ title: String) {
+    /// `orSlow`: a step with a lot of taps can run past its target on a slow simulator, which
+    /// only changes the title to "Right, but Slow".
+    private func expectFeedback(_ title: String, orSlow: Bool = false) {
         let feedback = app.descendants(matching: .any)["scan-feedback"]; wait(feedback)
-        expect(feedback, "label BEGINSWITH '\(title)'")
+        expect(feedback, orSlow ? "label BEGINSWITH '\(title)' OR label BEGINSWITH 'Right, but Slow'" : "label BEGINSWITH '\(title)'")
     }
 
     private func shown(_ value: String) -> XCUIElement {

@@ -56,30 +56,37 @@ enum ScanGrader {
     }
 
     /// Folds the steps into pass or fail, the soft misses and the fail reason
-    /// (Scoring). The first failing step gives the reason.
+    /// (Scoring). The first failing step gives the reason. A step the limit cut off counts as
+    /// over its target.
     static func result(of steps: ScanSteps, flagCall: Bool, answer: ScanAnswer,
                        margin: Int = marginCp) -> ScanOutcome {
         var soft: [ScanSoftMiss] = []
         var reason: ScanFailReason?
 
-        switch gradeFlag(called: flagCall, answer: answer) {
-        case .fail: reason = .missedFlag
-        case .softMiss: soft.append(.flaggedQuiet)
-        case .pass: break
+        // A quick scan that ran out had no call: it fails whatever the position.
+        if steps.quickScan?.timedOut == true {
+            reason = .noCall
+        } else {
+            switch gradeFlag(called: flagCall, answer: answer) {
+            case .fail: reason = .missedFlag
+            case .softMiss: soft.append(.flaggedQuiet)
+            case .pass: break
+            }
         }
         if let step = steps.quickScan {
             if !step.missed.isEmpty { soft.append(.quickScanMissed) }
-            if ScanTiming.isOverTarget(step.ms, .quickScan) { soft.append(.quickScanSlow) }
+            if step.timedOut == true || ScanTiming.isOverTarget(step.ms, .quickScan) { soft.append(.quickScanSlow) }
         }
         if let step = steps.targets {
             if !step.missed.isEmpty { soft.append(.targetsMissed) }
-            if ScanTiming.isOverTarget(step.ms, .targets) { soft.append(.targetsSlow) }
+            if step.timedOut == true || ScanTiming.isOverTarget(step.ms, .targets) { soft.append(.targetsSlow) }
         }
         if let step = steps.arrows {
             if !step.missed.isEmpty { soft.append(.arrowsMissed) }
-            if ScanTiming.isOverTarget(step.ms, .arrows) { soft.append(.arrowsSlow) }
+            if step.timedOut == true || ScanTiming.isOverTarget(step.ms, .arrows) { soft.append(.arrowsSlow) }
         }
-        if let step = steps.move, ScanTiming.isOverTarget(step.ms, .move(flagCall: flagCall)) {
+        // A move the limit cut off is over the target too, whatever the clock said.
+        if let step = steps.move, step.played == nil || ScanTiming.isOverTarget(step.ms, .move(flagCall: flagCall)) {
             soft.append(.moveSlow)
         }
         if reason == nil {

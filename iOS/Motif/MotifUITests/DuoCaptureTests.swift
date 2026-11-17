@@ -459,8 +459,9 @@ import XCTest
         }
     }
     /// The banners on three hosts: a list, the session and the Analysis view.
-    /// Scan Training's session (Scan plan S07): the flagged sample through the quick scan, the
-    /// full scan's targets and arrows, and the move, each step and its feedback. The queue is
+    /// Scan Training's session (Scan plan S07–S09): the flagged sample through the quick scan, the
+    /// full scan's targets and arrows, and the move, each step and its feedback; then a hard
+    /// limit's countdown and a quick scan that ran out. The queue is
     /// drawn at random, so a quiet first puzzle is skipped to reach the flagged one.
     func testS18Scan() {
         func flagged() {
@@ -498,6 +499,13 @@ import XCTest
         }
         shot("S18g", "scan", finalCheck)
         shot("S18h", "scan") { finalCheck(); tapButton("scan-play-it"); wait(any("scan-feedback")) }
+        // S09: hard limits on (fast times from weeks ago): the countdown, then the quick scan run out.
+        func limited() { tapButton("scan-start"); wait(button("scan-flag")); wait(any("scan-limit")) }
+        shot("S18i", "scan", fixture: "scan-limits", settle: 0.3, limited)
+        shot("S18j", "scan", fixture: "scan-limits") {
+            limited()
+            if !matches(any("scan-feedback"), "exists == true", timeout: 20) { missing = "scan-feedback" }
+        }
     }
     func testS17Banners() {
         let hosts: [(String, String?, () -> Void)] = [

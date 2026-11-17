@@ -45,6 +45,53 @@ struct ScanFeedback: Equatable, Sendable {
         return ScanFeedback(verdict: .pass, title: "Clean Scan", reason: found, time: time)
     }
 
+    /// The target step. Misses are soft (Scoring); extra marks are never counted against.
+    static func targets(_ grade: ScanMarkGrade, marked: [String: ScanTargetMark], answer: ScanAnswer,
+                        startFen: String, ms: Int) -> ScanFeedback {
+        let time = timeText(ms, .targets)
+        if let first = grade.missed.first, let targets = answer.targets {
+            let title = grade.missed.count == 1 ? "Missed a Target" : "Missed \(grade.missed.count) Targets"
+            let name = squareName(first, startFen)
+            let reason: String
+            if targets.red.contains(first) {
+                reason = marked[first] == .orange ? "\(capitalized(name)) is red: it loses material." : "Missed \(name), which loses material."
+            } else if targets.orange.contains(first) {
+                reason = marked[first] == .red ? "\(capitalized(name)) is orange: attacked as often as defended, nothing lost yet."
+                    : "Missed \(name), attacked as often as defended."
+            } else if targets.kingZone.contains(first) {
+                reason = "Missed \(first), a square by the king."
+            } else {
+                reason = "Missed \(first), a fork square."
+            }
+            return ScanFeedback(verdict: .softMiss, title: title, reason: reason + more(grade.missed), time: time)
+        }
+        let found = answer.targets?.allSquares.isEmpty ?? true ? "Nothing here needed a target." : "Found every target."
+        if ScanTiming.isOverTarget(ms, .targets) { return ScanFeedback(verdict: .softMiss, title: "Right, but Slow", reason: found, time: time) }
+        return ScanFeedback(verdict: .pass, title: "All Targets Found", reason: found, time: time)
+    }
+
+    /// The arrow step. Misses are soft; extra arrows aren't graded.
+    static func arrows(_ grade: ScanMarkGrade, answer: ScanAnswer, startFen: String, ms: Int) -> ScanFeedback {
+        let time = timeText(ms, .arrows)
+        if let first = grade.missed.first, let arrow = answer.arrows?.first(where: { $0.line == first }) {
+            let title = grade.missed.count == 1 ? "Missed an Arrow" : "Missed \(grade.missed.count) Arrows"
+            let whose = arrow.side == .own ? "your" : "their"
+            let kind: String
+            switch arrow.kind {
+            case .check: kind = "check"
+            case .capture: kind = "capture"
+            case .threat: kind = "threat"
+            }
+            let piece = Board.pieceAt(startFen, arrow.from).map { "the \($0.type.name.lowercased())" } ?? "the piece"
+            let reason = "Missed \(whose) \(kind): \(piece) from \(arrow.from) to \(arrow.to)."
+            return ScanFeedback(verdict: .softMiss, title: title, reason: reason + more(grade.missed), time: time)
+        }
+        let found = answer.arrows?.isEmpty ?? true ? "No check, capture or threat here needed an arrow."
+            : "Found every check, capture and threat."
+        if ScanTiming.isOverTarget(ms, .arrows) { return ScanFeedback(verdict: .softMiss, title: "Right, but Slow", reason: found, time: time) }
+        return ScanFeedback(verdict: .pass, title: "All Arrows Found", reason: found, time: time)
+    }
+
     /// The move, and with it the puzzle's result: a missed Flag fails the puzzle whatever the move.
     static func move(_ move: Uci, grade: ScanMoveGrade, outcome: ScanOutcome, answer: ScanAnswer,
                      startFen: String, flagCall: Bool, ms: Int) -> ScanFeedback {
@@ -92,6 +139,18 @@ struct ScanFeedback: Equatable, Sendable {
         }
         let more = missed.count > 1 ? " (and \(missed.count - 1) more)" : ""
         return "Missed \(piece), \(why)\(more)."
+    }
+
+    /// "the knight on e4", or the bare square when it's empty.
+    private static func squareName(_ square: String, _ fen: String) -> String {
+        Board.pieceAt(fen, square).map { "the \($0.type.name.lowercased()) on \(square)" } ?? square
+    }
+
+    private static func capitalized(_ text: String) -> String { text.prefix(1).uppercased() + text.dropFirst() }
+
+    /// " (and 2 more)" after the first miss.
+    private static func more(_ missed: [String]) -> String {
+        missed.count > 1 ? " (and \(missed.count - 1) more)" : ""
     }
 
     static func pawns(_ cp: Int) -> String { String(format: "%.1f", Double(cp) / 100) }

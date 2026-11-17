@@ -144,6 +144,115 @@ import XCTest
         model.proceed(); model.play(Uci.parse("e8e6")!); XCTAssertEqual(model.step, .move, "illegal moves are ignored")
     }
 
+    /// The kings' position with a full scan: the white king on d1 is red, d7 a king-zone square;
+    /// Black's king threatens d7, White's d2.
+    private func fullScan() -> ScanPuzzle {
+        ScanPuzzle(id: "f", content: testScanContent(flagged: true, quickScan: ["d1"], scores: ["e8f7": 300],
+                                                     targets: ScanTargets(red: ["d1"], kingZone: ["d7"]),
+                                                     arrows: [ScanArrow(from: "e8", to: "d7", side: .own, kind: .threat),
+                                                              ScanArrow(from: "d1", to: "d2", side: .theirs, kind: .threat)]),
+                   addedAt: 0)
+    }
+    private func atTargets(_ clock: TestClock = TestClock()) async -> ScanSolveModel {
+        let model = await started(fullScan(), clock)
+        model.toggle("d1"); model.call(true); model.proceed()
+        return model
+    }
+
+    func testFlagWithAFullScanRunsTargetsThenArrowsThenTheMove() async throws {
+        let clock = TestClock(), model = await atTargets(clock)
+        XCTAssertEqual(model.step, .targets); XCTAssertEqual(model.boardMode, .markTargets)
+        XCTAssertTrue(model.annotations.isEmpty, "the targets start on a clean board"); XCTAssertNotNil(model.stepStarted)
+        model.tap("d1"); model.tap("d1")      // red, then orange
+        model.markTargets(["d7", "a3"])        // one drag: two dots
+        XCTAssertEqual(model.current.targets, ["d1": .orange, "d7": .dot, "a3": .dot])
+        XCTAssertEqual(model.annotations.tints, ["d1": .orange]); XCTAssertEqual(model.annotations.dots, ["d7", "a3"])
+        clock.advance(by: .seconds(8)); model.finishStep()
+        XCTAssertEqual(model.feedback?.verdict, .softMiss); XCTAssertEqual(model.feedback?.title, "Missed a Target")
+        XCTAssertEqual(model.feedback?.reason, "The king on d1 is red: it loses material.")
+        XCTAssertEqual(model.feedback?.time, "8.0 s · target 20 s")
+        XCTAssertEqual(model.annotations.rings, ["d1": .missed, "d7": .correct, "a3": .extra])
+        XCTAssertFalse(model.canMark); model.tap("h1"); XCTAssertNil(model.current.targets["h1"])
+
+        model.proceed()
+        XCTAssertEqual(model.step, .arrows); XCTAssertEqual(model.boardMode, .drawArrows); XCTAssertTrue(model.annotations.isEmpty)
+        model.drawArrow(from: "e8", to: "d7"); model.drawArrow(from: "d1", to: "c2")
+        model.drawArrow(from: "a4", to: "a5")  // from an empty square: nothing
+        XCTAssertEqual(model.current.arrows, [BoardArrow(from: "e8", to: "d7", side: .own), BoardArrow(from: "d1", to: "c2", side: .theirs)])
+        clock.advance(by: .seconds(5)); model.finishStep()
+        XCTAssertEqual(model.feedback?.title, "Missed an Arrow")
+        XCTAssertEqual(model.feedback?.reason, "Missed their threat: the king from d1 to d2.")
+        XCTAssertEqual(model.annotations.arrows, [BoardArrow(from: "e8", to: "d7", side: .own, style: .correct),
+                                                  BoardArrow(from: "d1", to: "c2", side: .theirs),
+                                                  BoardArrow(from: "d1", to: "d2", side: .theirs, style: .missed)])
+
+        model.proceed()
+        XCTAssertEqual(model.step, .move); XCTAssertTrue(model.annotations.isEmpty)
+        model.play(kd8)
+        let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
+        XCTAssertEqual(attempt.result, .solved)
+        XCTAssertEqual(attempt.detail.steps.targets, ScanMarkStep(ms: 8000, limitMs: nil, missed: ["d1"], extra: ["a3"]))
+        XCTAssertEqual(attempt.detail.steps.arrows, ScanMarkStep(ms: 5000, limitMs: nil, missed: ["d1d2"], extra: ["d1c2"]))
+        XCTAssertEqual(attempt.detail.softMisses, [.targetsMissed, .arrowsMissed])
+    }
+
+    func testAFullScanFoundCleanly() async {
+        let model = await atTargets()
+        model.tap("d1"); model.tap("d7"); model.finishStep()
+        XCTAssertEqual(model.feedback?.verdict, .pass); XCTAssertEqual(model.feedback?.title, "All Targets Found")
+        XCTAssertEqual(model.annotations.rings, ["d1": .correct, "d7": .correct])
+        model.proceed()
+        model.drawArrow(from: "d1", to: "d2"); model.drawArrow(from: "e8", to: "d7"); model.finishStep()
+        XCTAssertEqual(model.feedback?.title, "All Arrows Found"); XCTAssertEqual(model.feedback?.reason, "Found every check, capture and threat.")
+    }
+
+    func testNoFlagOrNoFullScanGoesStraightToTheMove() async {
+        let quiet = await started(fullScan(), TestClock())
+        quiet.call(false); quiet.proceed(); XCTAssertEqual(quiet.step, .move, "No Flag skips the full scan")
+        let v1 = await started(puzzle(flagged: true), TestClock())
+        v1.call(true); v1.proceed(); XCTAssertEqual(v1.step, .move, "a puzzle without targets and arrows skips it")
+    }
+
+    func testArrowUndoAndRedrawing() async {
+        let manager = UndoManager(); manager.groupsByEvent = false
+        let model = await atTargets()
+        model.finishStep(); model.proceed()
+        model.attach(manager)
+        manager.beginUndoGrouping(); model.drawArrow(from: "e8", to: "d7"); manager.endUndoGrouping()
+        manager.beginUndoGrouping(); model.drawArrow(from: "d1", to: "d2"); manager.endUndoGrouping()
+        XCTAssertEqual(manager.undoActionName, "Arrow")
+        manager.beginUndoGrouping(); model.removeArrow(at: 0); manager.endUndoGrouping()
+        XCTAssertEqual(model.current.lines, ["d1d2"])
+        model.undo(); XCTAssertEqual(model.current.arrows.map(\.line), ["e8d7", "d1d2"])
+        model.undo(); XCTAssertEqual(model.current.lines, ["e8d7"])
+        manager.redo(); XCTAssertEqual(model.current.lines, ["e8d7", "d1d2"])
+        // Drawing an arrow that's there takes it away, undoably.
+        manager.beginUndoGrouping(); model.drawArrow(from: "e8", to: "d7"); manager.endUndoGrouping()
+        XCTAssertEqual(model.current.lines, ["d1d2"])
+        model.undo(); XCTAssertEqual(model.current.lines, ["e8d7", "d1d2"])
+        model.finishStep(); XCTAssertFalse(manager.canUndo, "the step's undo ends with it")
+    }
+
+    func testADragOfTargetsIsOneUndo() async {
+        let manager = UndoManager(); manager.groupsByEvent = false
+        let model = await atTargets()
+        model.attach(manager)
+        manager.beginUndoGrouping(); model.markTargets(["d7", "c7", "d1"]); manager.endUndoGrouping()
+        XCTAssertEqual(manager.undoActionName, "Marks")
+        model.undo(); XCTAssertEqual(model.current.targets, [:]); XCTAssertFalse(model.canUndo)
+    }
+
+    func testInputOutsideItsMarkingStepIsIgnored() async {
+        let model = await atTargets()
+        model.drawArrow(from: "e8", to: "d7"); model.toggle("d7"); model.removeArrow(at: 0)
+        XCTAssertEqual(model.current, ScanMarks(), "no arrows or quick-scan marks in the targets")
+        model.finishStep(); model.proceed()
+        model.markTargets(["d7"]); model.tap("d1")
+        XCTAssertEqual(model.current, ScanMarks(), "no targets in the arrows")
+        let scanning = await started(fullScan(), TestClock())
+        scanning.finishStep(); XCTAssertNil(scanning.feedback, "the quick scan ends with a call, not Next")
+    }
+
     func testFeedbackWording() {
         let answer = testScanContent(flagged: true, scores: ["e8f7": 100_000]).answer
         let start = testScanContent().startFen!

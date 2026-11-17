@@ -501,12 +501,13 @@ layout automatically").
   - *Targets:* `.markTargets`. Tap a piece for red → orange → clear, tap an
     empty square for a dot, drag to mark several. Next ends the step.
   - *Checks, captures, threats:* `.drawArrows`. Tap an arrow to delete it.
-  - *Move:* `.play`. In v2 the move is shown ghosted and a sheet
-    (`.sheet(item:)`, `.presentationDetents([.medium])`) asks "Their checks
-    after this? What does this piece stop guarding?" with **Play It**
-    (`.glassProminent`) and **Take Back**. Swiping the sheet down is Take
-    Back, so it always has a way out (`sheets.md › Best practices`). In v1
-    the move plays at once.
+  - *Move:* `.play`. After a full scan (v2) the move isn't played at once:
+    the board shows the position after it with the moved piece see-through,
+    and the action row offers only **Take Back** (`.glass`) and **Play It**
+    (`.glassProminent`), no questions and no sheet, so nothing covers the
+    board being checked. The move step's clock runs on through the check,
+    and take-backs are recorded as `move.takeBacks`. No Flag and v1 puzzles
+    play the move at once.
   - *Feedback:* inline, never an alert (`feedback.md`): the answer as marked
     rings on the board, a `Label` with a pass/fail symbol and the one-line
     reason ("Missed: Bxf7 hit the pawn on f7"), and **Continue**. VoiceOver
@@ -583,7 +584,7 @@ screenshots on iPhone and iPhone Duo, and its own PR.
    puzzles that use the full scan, with their checks.
 7. **S07 — Target and arrow modes.** `.markTargets`, `.drawArrows`, the
    two-tap arrow, arrow hit-testing, the VoiceOver arrow list.
-8. **S08 — Final check.** Ghosted move, the Play It / Take Back sheet.
+8. **S08 — Final check.** Ghosted move, Play It / Take Back.
 9. **S09 — Hard limits.** `ScanTiming` switching limits on, the Time limits
    switch.
 10. **S10 — Stats and export.**

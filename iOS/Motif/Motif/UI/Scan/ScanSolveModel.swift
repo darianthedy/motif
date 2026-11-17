@@ -4,8 +4,8 @@ import Observation
 /// One scan puzzle, step by step (Scan plan §5): the board, the marks, the step's time and the
 /// attempt being built. Grading is `ScanGrader`'s; this model only collects input and times it.
 /// The last move plays, the quick scan ends with Flag or No Flag, feedback; on a Flag with a full
-/// scan the targets, feedback, the arrows, feedback; then the move and its feedback. Nothing is
-/// saved until the view records `outcome`.
+/// scan the targets, feedback, the arrows, feedback; then the move, held ghosted for the final
+/// check after a full scan, and its feedback. Nothing is saved until the view records `outcome`.
 @Observable @MainActor final class ScanSolveModel {
     let puzzle: ScanPuzzle
     /// The side to move after the opponent's last move.
@@ -20,6 +20,8 @@ import Observation
     private(set) var feedback: ScanFeedback?
     /// When the running step started, for the elapsed-time display; nil between steps.
     private(set) var stepStarted: Date?
+    /// The move under final check: shown ghosted until Play It or Take Back.
+    private(set) var candidate: Uci?
     /// Set once the move is graded: what the view records.
     private(set) var outcome: ScanOutcome?
     /// The step's marks before each change, newest last: what Undo goes back to.
@@ -35,6 +37,8 @@ import Observation
     @ObservationIgnored private weak var undoManager: UndoManager?
     /// Kept so the move's result can say how much it gave away.
     @ObservationIgnored private let startFen: String
+    /// Moves taken back at the final check, recorded with the move.
+    @ObservationIgnored private var takeBacks = 0
 
     init(_ puzzle: ScanPuzzle, clock: any AnalysisClock = SystemClock(), now: @escaping () -> Date = Date.init) {
         self.puzzle = puzzle; self.clock = clock; self.now = now
@@ -50,6 +54,9 @@ import Observation
     /// A marking step (quick scan, targets, arrows) is open for input.
     var canMark: Bool { [.quickScan, .targets, .arrows].contains(step) && feedback == nil }
     var canMove: Bool { step == .move }
+    /// A move is held for the final check only after the full scan (Puzzle flow 6); No Flag and
+    /// v1 puzzles play at once.
+    var needsFinalCheck: Bool { flagCall == true && puzzle.answer.hasFullScan }
     var canUndo: Bool { canMark && !history.isEmpty }
     var boardMode: BoardMode {
         switch step {
@@ -63,6 +70,9 @@ import Observation
     /// The opponent's last move in SAN ("Nf6").
     var lastMoveSan: String { Board.sanFor(puzzle.fenBefore, puzzle.lastMove) ?? puzzle.lastMove.text }
 
+    /// The move under final check in SAN ("Nxe5"), for the prompt.
+    var candidateSan: String? { candidate.map { Board.sanFor(startFen, $0) ?? $0.text } }
+
     /// The step's one line of guidance.
     var prompt: String {
         switch step {
@@ -71,6 +81,7 @@ import Observation
         case .targets: "Tap a piece: once red (loses material), twice orange (attacked as often as defended). Tap a king-zone or fork square for a dot."
         case .arrows: "Drag every check, capture and threat, both sides. Tap an arrow to delete it."
         case .move: flagCall == true ? "Play your move, with the scan in mind." : "Play your move."
+        case .finalCheck: "Play \(candidateSan ?? "it"), or take it back."
         default: ""
         }
     }
@@ -106,6 +117,10 @@ import Observation
             }
             for arrow in answer where missed.contains(arrow.line) {
                 annotations.arrows.append(BoardArrow(from: arrow.from, to: arrow.to, side: arrow.side == .own ? .own : .theirs, style: .missed))
+            }
+        case .finalCheck:
+            if let candidate, let piece = Board.pieceAt(fen, moveTo(candidate)) {
+                annotations.ghost = BoardGhost(square: moveTo(candidate), piece: piece)
             }
         case .done:
             if let outcome, outcome.detail.failReason == .badMove, let best = ScanFeedback.bestMove(puzzle.answer) {
@@ -222,12 +237,43 @@ import Observation
         }
     }
 
-    /// The solver's move: graded against the maker's scores, then the puzzle's result.
+    /// The solver's move. After a full scan it's held ghosted for the final check; otherwise it's
+    /// graded at once.
     func play(_ move: Uci) {
-        guard canMove, let flagCall, Board.isLegal(fen, move), let next = Board.applyUci(fen, move) else { return }
+        guard canMove, flagCall != nil, Board.isLegal(fen, move), let next = Board.applyUci(fen, move) else { return }
+        guard needsFinalCheck else { return grade(move, next: next) }
+        // The board shows the position after the move, the moved piece see-through; the step's
+        // clock keeps running, as the final check is part of the move's time.
+        candidate = move
+        fen = next
+        highlight = (moveFrom(move), moveTo(move))
+        step = .finalCheck
+    }
+
+    /// Play It on the final check: the held move is graded.
+    func confirm() {
+        guard step == .finalCheck, let candidate else { return }
+        self.candidate = nil
+        grade(candidate, next: fen)
+    }
+
+    /// Take Back on the final check: back to the move, the clock still running.
+    func takeBack() {
+        guard step == .finalCheck, candidate != nil else { return }
+        candidate = nil
+        takeBacks += 1
+        fen = startFen
+        highlight = (moveFrom(puzzle.lastMove), moveTo(puzzle.lastMove))
+        step = .move
+    }
+
+    /// Grades the move against the maker's scores, then the puzzle's result.
+    private func grade(_ move: Uci, next: String) {
+        guard let flagCall else { return }
         let ms = elapsedMs()
         let grade = ScanGrader.gradeMove(move, answer: puzzle.answer)
-        steps.move = ScanMoveStep(ms: ms, limitMs: ScanTiming.limitMs(.move(flagCall: flagCall)), played: move, lossCp: grade.lossCp)
+        steps.move = ScanMoveStep(ms: ms, limitMs: ScanTiming.limitMs(.move(flagCall: flagCall)), played: move, lossCp: grade.lossCp,
+                                  takeBacks: takeBacks > 0 ? takeBacks : nil)
         let outcome = ScanGrader.result(of: steps, flagCall: flagCall, answer: puzzle.answer)
         fen = next
         highlight = (moveFrom(move), moveTo(move))

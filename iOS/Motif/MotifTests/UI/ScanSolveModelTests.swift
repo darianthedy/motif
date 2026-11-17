@@ -188,12 +188,51 @@ import XCTest
 
         model.proceed()
         XCTAssertEqual(model.step, .move); XCTAssertTrue(model.annotations.isEmpty)
-        model.play(kd8)
+        model.play(kd8); XCTAssertEqual(model.step, .finalCheck)
+        model.confirm()
         let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
         XCTAssertEqual(attempt.result, .solved)
         XCTAssertEqual(attempt.detail.steps.targets, ScanMarkStep(ms: 8000, limitMs: nil, missed: ["d1"], extra: ["a3"]))
         XCTAssertEqual(attempt.detail.steps.arrows, ScanMarkStep(ms: 5000, limitMs: nil, missed: ["d1d2"], extra: ["d1c2"]))
         XCTAssertEqual(attempt.detail.softMisses, [.targetsMissed, .arrowsMissed])
+    }
+
+    /// S08: after a full scan the move waits, ghosted, for Play It or Take Back; its time runs
+    /// through the final check and take-backs are recorded.
+    func testTheFinalCheckHoldsTheMoveGhosted() async throws {
+        let clock = TestClock(), model = await atTargets(clock)
+        model.finishStep(); model.proceed(); model.finishStep(); model.proceed()
+        XCTAssertEqual(model.step, .move); XCTAssertTrue(model.needsFinalCheck)
+        let before = model.fen
+        clock.advance(by: .seconds(2)); model.play(kf7)
+        XCTAssertEqual(model.step, .finalCheck); XCTAssertEqual(model.step.title, "Final Check")
+        XCTAssertEqual(model.candidate, kf7); XCTAssertEqual(model.candidateSan, "Kf7")
+        XCTAssertNil(model.outcome); XCTAssertNil(model.feedback); XCTAssertNotNil(model.stepStarted, "the clock keeps running")
+        XCTAssertFalse(model.canMove); XCTAssertFalse(model.boardInteractive)
+        XCTAssertEqual(model.fen, Board.applyUci(before, kf7)); XCTAssertEqual(model.highlight?.to, "f7")
+        XCTAssertEqual(model.annotations.ghost, BoardGhost(square: "f7", piece: Board.Piece(square: "f7", type: .king, color: .black)))
+        model.play(kd8); XCTAssertEqual(model.candidate, kf7, "no second move while one is held")
+
+        clock.advance(by: .seconds(3)); model.takeBack()
+        XCTAssertEqual(model.step, .move); XCTAssertEqual(model.fen, before); XCTAssertNil(model.candidate)
+        XCTAssertNil(model.annotations.ghost); XCTAssertEqual(model.highlight?.to, "d1", "the last move is highlighted again")
+        model.confirm(); XCTAssertEqual(model.step, .move, "nothing to play once taken back")
+
+        clock.advance(by: .seconds(1)); model.play(kd8); model.confirm()
+        XCTAssertEqual(model.step, .done); XCTAssertNil(model.annotations.ghost)
+        XCTAssertEqual(model.attempt(runId: "r", playedAt: 1)?.result, .solved)
+        let move = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1)?.detail.steps.move)
+        XCTAssertEqual(move, ScanMoveStep(ms: 6000, limitMs: nil, played: kd8, lossCp: 0, takeBacks: 1))
+        model.takeBack(); XCTAssertEqual(model.step, .done, "a graded move stays played")
+    }
+
+    func testNoFinalCheckWithoutAFullScan() async {
+        let quiet = await started(fullScan(), TestClock())
+        quiet.call(false); quiet.proceed(); quiet.play(kd8)
+        XCTAssertEqual(quiet.step, .done, "No Flag plays at once"); XCTAssertNil(quiet.attempt(runId: "r", playedAt: 1)?.detail.steps.move?.takeBacks)
+        let v1 = await started(puzzle(flagged: true), TestClock())
+        v1.call(true); v1.proceed(); v1.play(kd8)
+        XCTAssertEqual(v1.step, .done, "a v1 Flag puzzle plays at once")
     }
 
     func testAFullScanFoundCleanly() async {

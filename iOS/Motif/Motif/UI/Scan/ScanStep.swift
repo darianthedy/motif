@@ -2,7 +2,7 @@ import Foundation
 
 /// Where a scan puzzle has got to (Puzzle flow). Feedback isn't a step: each step shows its own
 /// once it's graded. `lastMove` → `quickScan` → `move` → `done`; a Flag call on a puzzle with a full
-/// scan runs `targets` → `arrows` before the move. `finalCheck` comes with S08.
+/// scan runs `targets` → `arrows` before the move, and holds the move for `finalCheck`.
 enum ScanStep: Equatable, Sendable {
     case lastMove, quickScan, targets, arrows, move, finalCheck, done
 

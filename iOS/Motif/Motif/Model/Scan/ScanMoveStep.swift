@@ -9,4 +9,6 @@ struct ScanMoveStep: Equatable, Codable, Sendable {
     var played: Uci?
     /// Centipawns worse than the best, from the maker's `moves`.
     var lossCp: Int?
+    /// Moves taken back at the final check before this one was played; nil for none.
+    var takeBacks: Int? = nil
 }

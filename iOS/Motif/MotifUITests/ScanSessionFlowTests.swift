@@ -58,7 +58,8 @@ import XCTest
     private func start() { let start = button("scan-start"); wait(start); start.tap() }
 
     /// After 3…Nf6: the knight attacks e4. Flag; the full scan's targets (e4 red, e5 and f7
-    /// orange, a dot on e7) and arrows (Nxe4 theirs, Ng5 yours); then d3, the best move.
+    /// orange, a dot on e7) and arrows (Nxe4 theirs, Ng5 yours); then d3, the best move, taken
+    /// back once at the final check and then played.
     private func playFlagged() {
         tap("e4"); expect(square("e4"), "label ENDSWITH 'marked'"); capture("scan-quick-scan")
         button("scan-flag").tap()
@@ -80,7 +81,13 @@ import XCTest
         wait(button("scan-arrow-f3g5")); capture("scan-arrows")
         next.tap(); expectFeedback("All Arrows Found"); capture("scan-arrows-feedback")
         button("scan-continue").tap()
+        // The final check (S08): Take Back, then d3 again and Play It.
         wait(app.descendants(matching: .any)["scan-prompt"]); move("d2", "d3")
+        let takeBack = button("scan-take-back"); wait(takeBack)
+        expect(square("d3"), "label CONTAINS 'to play here'"); capture("scan-final-check")
+        takeBack.tap()
+        wait(app.descendants(matching: .any)["scan-prompt"]); move("d2", "d3")
+        let playIt = button("scan-play-it"); wait(playIt); playIt.tap()
         expectFeedback("Passed"); capture("scan-move-feedback")
         button("scan-continue").tap()
     }

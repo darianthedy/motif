@@ -131,7 +131,8 @@ struct ScanSessionPuzzle: View {
         .animation(.smooth, value: model.feedback)
     }
 
-    /// Flag / No Flag while scanning, Next on the targets and arrows, Continue on feedback.
+    /// Flag / No Flag while scanning, Next on the targets and arrows, Take Back / Play It on the
+    /// final check, Continue on feedback.
     /// Neither call is prominent, so the buttons never hint at the answer; stacked at
     /// accessibility text sizes. A hidden button keeps the row's height between steps, so the
     /// board doesn't change size under them.
@@ -148,6 +149,11 @@ struct ScanSessionPuzzle: View {
                     HStack(spacing: 12) { calls }
                     VStack(spacing: 12) { calls }
                 }
+            } else if model.step == .finalCheck {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) { finalCheck }
+                    VStack(spacing: 12) { finalCheck }
+                }
             }
         }
     }
@@ -163,6 +169,14 @@ struct ScanSessionPuzzle: View {
             .buttonStyle(.glass).controlSize(.large).accessibilityIdentifier("scan-no-flag")
         Button { model.call(true) } label: { Label("Flag", systemImage: "flag.fill").frame(maxWidth: .infinity) }
             .buttonStyle(.glass).controlSize(.large).accessibilityIdentifier("scan-flag")
+    }
+
+    /// The move waits, ghosted, for one of these (Puzzle flow 6).
+    @ViewBuilder private var finalCheck: some View {
+        Button { model.takeBack() } label: { Label("Take Back", systemImage: "arrow.uturn.backward").frame(maxWidth: .infinity) }
+            .buttonStyle(.glass).controlSize(.large).accessibilityIdentifier("scan-take-back")
+        Button { model.confirm() } label: { Label("Play It", systemImage: "checkmark").frame(maxWidth: .infinity) }
+            .buttonStyle(.glassProminent).controlSize(.large).accessibilityIdentifier("scan-play-it")
     }
 
     // MARK: Actions

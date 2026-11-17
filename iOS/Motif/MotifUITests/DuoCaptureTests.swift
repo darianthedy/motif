@@ -492,10 +492,12 @@ import XCTest
         shot("S18d", "scan") { targets(); tapButton("scan-next"); wait(any("scan-feedback")) }
         shot("S18e", "scan", arrows)
         shot("S18f", "scan") { arrows(); tapButton("scan-next"); wait(any("scan-feedback")) }
-        shot("S18g", "scan") {
+        func finalCheck() {
             arrows(); tapButton("scan-next"); tapButton("scan-continue"); wait(any("scan-prompt"))
-            move("d2", "d3"); wait(any("scan-feedback"))
+            move("d2", "d3"); wait(button("scan-play-it"))
         }
+        shot("S18g", "scan", finalCheck)
+        shot("S18h", "scan") { finalCheck(); tapButton("scan-play-it"); wait(any("scan-feedback")) }
     }
     func testS17Banners() {
         let hosts: [(String, String?, () -> Void)] = [

@@ -138,7 +138,8 @@ struct BoardView: View {
                 if sweep.contains(square) { Color.yellow.opacity(0.35) }
                 // A mark's fill sits under the piece so the piece stays legible; its shape is in `BoardOverlay`.
                 if let fill = annotations.tints[square]?.fill { fill }
-                if let piece, dragging != square, slide?.to != square {
+                // A ghost stands in for the piece on its square: the move isn't played yet.
+                if let piece, dragging != square, slide?.to != square, annotations.ghost?.square != square {
                     PieceImage(type: piece.type, color: piece.color).padding(2)
                 }
                 if let ghost = annotations.ghost, ghost.square == square {

@@ -9,8 +9,8 @@
  */
 import { Chess } from 'chess.js';
 
-/** The newest format version the app understands. */
-export const SCAN_VERSION = 1;
+/** The newest format version the app understands. 2 adds the full scan. */
+export const SCAN_VERSION = 2;
 
 export interface ScanRejection {
   /** Index into the file's `scan` array; -1 for the whole file. */
@@ -39,6 +39,8 @@ const isObject = (value: unknown): value is Raw =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 const isSquare = (text: string) => /^[a-h][1-8]$/.test(text);
 const absent = (value: unknown) => value === undefined || value === null;
+type Square = Parameters<Chess['get']>[0];
+const TARGET_LISTS = ['red', 'orange', 'kingZone', 'fork'] as const;
 
 function parseUci(text: string): string | null {
   const lower = text.trim().toLowerCase();
@@ -75,8 +77,68 @@ function versionProblem(version: number): string | null {
   return null;
 }
 
+/** The position with `side` to move; handing the move over drops en passant. */
+function withTurn(fen: string, side: 'w' | 'b'): string {
+  const fields = fen.split(/\s+/);
+  if (fields[1] === side) return fen;
+  fields[1] = side;
+  fields[3] = '-';
+  return fields.join(' ');
+}
+
+interface Arrow {
+  from: string;
+  to: string;
+  side: string;
+  kind: string;
+}
+
+/** Version 2: what the full scan must hold (ScanImport.fullScanProblem). */
+function fullScanProblem(entry: Raw, arrows: Arrow[] | null, chess: Chess): string | null {
+  const targets = isObject(entry.targets) ? entry.targets : null;
+  if (entry.flagged) {
+    if (!targets) return 'Flag puzzle is missing "targets"';
+    if (!arrows) return 'Flag puzzle is missing "arrows"';
+  }
+  if (targets) {
+    const list = (name: string) => (targets[name] as string[] | undefined | null) ?? [];
+    const seen = new Set<string>();
+    for (const square of TARGET_LISTS.flatMap(list)) {
+      if (seen.has(square)) return `Target ${square} is listed twice`;
+      seen.add(square);
+    }
+    for (const square of [...list('red'), ...list('orange')]) {
+      if (!chess.get(square as Square)) return `Red or orange target ${square} is not a piece`;
+    }
+    for (const square of [...list('kingZone'), ...list('fork')]) {
+      if (chess.get(square as Square)) return `King-zone or fork square ${square} is not empty`;
+    }
+  }
+  if (!arrows) return null;
+  const start = chess.fen();
+  const solver = chess.turn();
+  const lines = new Set<string>();
+  for (const arrow of arrows) {
+    const name = `${arrow.from}-${arrow.to}`;
+    if (lines.has(arrow.from + arrow.to)) return `Arrow ${name} is listed twice`;
+    lines.add(arrow.from + arrow.to);
+    const piece = chess.get(arrow.from as Square);
+    if (!piece) return `Arrow ${name} does not start on a piece`;
+    const side = piece.color === solver ? 'own' : 'theirs';
+    if (arrow.side !== side) {
+      return `Arrow ${name} is "${arrow.side}" but starts on ${side === 'own' ? "the solver's" : "the opponent's"} piece`;
+    }
+    const moves = (load(withTurn(start, piece.color))?.moves({ square: arrow.from as Square, verbose: true }) ?? [])
+      .filter((m) => m.to === arrow.to);
+    if (!moves.length) return `Arrow ${name} is not a legal move`;
+    if (arrow.kind === 'capture' && !moves.some((m) => m.san.includes('x'))) return `Arrow ${name} is not a capture`;
+    if (arrow.kind === 'check' && !moves.some((m) => /[+#]$/.test(m.san))) return `Arrow ${name} does not give check`;
+  }
+  return null;
+}
+
 /** Why one entry can't be played, or null. Reads and checks, as the app does. */
-export function scanProblem(entry: unknown): string | null {
+export function scanProblem(entry: unknown, version: number): string | null {
   if (!isObject(entry)) return 'Not an object';
   const fen = entry.fenBefore;
   if (typeof fen !== 'string') return 'Malformed FEN';
@@ -97,14 +159,15 @@ export function scanProblem(entry: unknown): string | null {
   }
   if (!absent(entry.targets)) {
     if (!isObject(entry.targets)) return 'Malformed "targets"';
-    for (const name of ['red', 'orange', 'kingZone', 'fork']) {
+    for (const name of TARGET_LISTS) {
       const list = entry.targets[name];
       if (absent(list)) continue;
       if (!Array.isArray(list) || !list.every((s) => typeof s === 'string')) return 'Malformed "targets"';
     }
   }
-  const arrows: { from: string; to: string }[] = [];
+  let arrows: Arrow[] | null = null;
   if (!absent(entry.arrows)) {
+    arrows = [];
     if (!Array.isArray(entry.arrows)) return 'Malformed "arrows"';
     for (const item of entry.arrows) {
       if (!isObject(item) || typeof item.from !== 'string' || typeof item.to !== 'string') {
@@ -116,7 +179,7 @@ export function scanProblem(entry: unknown): string | null {
       if (typeof item.kind !== 'string' || !ARROW_KINDS.includes(item.kind)) {
         return `Unknown arrow kind for ${item.from}-${item.to}`;
       }
-      arrows.push({ from: item.from, to: item.to });
+      arrows.push({ from: item.from, to: item.to, side: item.side, kind: item.kind });
     }
   }
   if (!isObject(entry.moves)) return 'Missing a "moves" object';
@@ -144,17 +207,21 @@ export function scanProblem(entry: unknown): string | null {
   const start = chess.fen();
 
   if (isObject(entry.targets)) {
-    for (const name of ['red', 'orange', 'kingZone', 'fork']) {
+    for (const name of TARGET_LISTS) {
       squares.push(...((entry.targets[name] as string[] | undefined | null) ?? []));
     }
   }
-  squares.push(...arrows.flatMap((a) => [a.from, a.to]));
+  squares.push(...(arrows ?? []).flatMap((a) => [a.from, a.to]));
   const bad = squares.find((s) => !isSquare(s));
   if (bad) return `Square ${bad} is not on the board`;
-  for (const arrow of arrows) {
-    if (!chess.get(arrow.from as Parameters<Chess['get']>[0])) {
+  for (const arrow of arrows ?? []) {
+    if (!chess.get(arrow.from as Square)) {
       return `Arrow ${arrow.from}-${arrow.to} does not start on a piece`;
     }
+  }
+  if (version >= 2) {
+    const problem = fullScanProblem(entry, arrows, chess);
+    if (problem) return problem;
   }
 
   const legal = chess.moves({ verbose: true }).map((m) => m.from + m.to + (m.promotion ?? ''));
@@ -184,7 +251,7 @@ export function scanProblem(entry: unknown): string | null {
   return null;
 }
 
-/** Reads `{"version": 1, "scan": [ ... ]}` as the app's import does. */
+/** Reads `{"version": 2, "scan": [ ... ]}` as the app's import does. */
 export function readScan(text: string): ScanReadResult {
   const result: ScanReadResult = { puzzles: [], rejected: [] };
   let parsed: unknown;
@@ -210,7 +277,7 @@ export function readScan(text: string): ScanReadResult {
   }
   const positions = new Map<string, number>();
   parsed.scan.forEach((entry: unknown, index: number) => {
-    const reason = scanProblem(entry);
+    const reason = scanProblem(entry, version);
     if (reason) {
       result.rejected.push({ index, reason });
       return;

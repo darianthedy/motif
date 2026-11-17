@@ -86,11 +86,39 @@ final class ScanImportTests: XCTestCase {
         XCTAssertNil(ScanImport.problem(puzzle))
 
         var newer = puzzle
-        newer.version = 2
-        XCTAssertEqual(ScanImport.problem(newer), "Format version 2 is newer than this app understands (1)")
+        newer.version = 3
+        XCTAssertEqual(ScanImport.problem(newer), "Format version 3 is newer than this app understands (2)")
         var gap = puzzle
         gap.answer.moves.removeValue(forKey: "d2d3")
         XCTAssertEqual(ScanImport.problem(gap), "Moves are missing 1 legal move: d2d3")
+    }
+
+    /// A version 1 Flag puzzle stays loadable without a full scan; the same
+    /// row written as version 2 is held to the full-scan checks.
+    func testTheFullScanIsRequiredFromVersion2() throws {
+        var puzzle = try XCTUnwrap(ScanImport.read(sampleText()).puzzles.first)
+        XCTAssertEqual(puzzle.version, 1)
+        XCTAssertNil(ScanImport.problem(puzzle))
+        XCTAssertFalse(puzzle.answer.hasFullScan)
+
+        puzzle.version = 2
+        XCTAssertEqual(ScanImport.problem(puzzle), #"Flag puzzle is missing "targets""#)
+        puzzle.answer.targets = ScanTargets(red: ["e4"], orange: ["e5"], kingZone: ["e7"])
+        XCTAssertEqual(ScanImport.problem(puzzle), #"Flag puzzle is missing "arrows""#)
+        puzzle.answer.arrows = []
+        XCTAssertNil(ScanImport.problem(puzzle))
+        XCTAssertTrue(puzzle.answer.hasFullScan)
+
+        let row = try JSONSerialization.jsonObject(with: JSONEncoder().encode(puzzle.answer))
+        let stored = try ScanImport.stored(fenBefore: puzzle.fenBefore, lastMove: puzzle.lastMove.text,
+                                           answer: row, version: 2, source: nil, sourceId: nil)
+        XCTAssertEqual(stored.answer, puzzle.answer)
+        XCTAssertThrowsError(try ScanImport.stored(fenBefore: puzzle.fenBefore, lastMove: puzzle.lastMove.text,
+                                                   answer: ["flagged": true, "quickScan": [], "moves": puzzle.answer.moves],
+                                                   version: 2, source: nil, sourceId: nil))
+
+        puzzle.answer.flagged = false
+        XCTAssertFalse(puzzle.answer.hasFullScan, "No flag never runs the full scan")
     }
 
     func testTheSolversPromotionsAreFourMoves() {

@@ -206,8 +206,10 @@ The same pieces the Puzzles tab uses, extended rather than copied:
 
 Written up for Caïssa in the README's Import
 section (beside the puzzle file format), with a sample at `samples/scan-sample.json`. Version 1 covers the
-v1 steps; `targets`, `arrows` are optional until v2 and a puzzle without
-them skips the full scan.
+v1 steps; `targets`, `arrows` are optional there and a puzzle without
+them skips the full scan. Version 2 (S06) requires both on every Flag
+puzzle and checks them against the position (§3.3); version 1 files and rows
+still load under the version 1 rules.
 
 ### 3.1 Two ways in
 
@@ -281,6 +283,20 @@ and the loader, with unit tests. A puzzle is rejected, with the reason, if:
 - any square isn't on the board, or an arrow doesn't start on a piece;
 - `moves` is missing a legal move of the solver or lists an illegal one;
 - `flagged` is missing, or `version` is newer than the app understands.
+
+From version 2, also if:
+
+- a Flag puzzle has no `targets` or no `arrows` (empty is fine);
+- a square is in two target lists, a `red` or `orange` target isn't a
+  piece, or a `kingZone` or `fork` square isn't empty ("Empty squares only
+  for king-zone and fork squares");
+- an arrow is listed twice, its `side` isn't the side of the piece it starts
+  on, it isn't a legal move of that piece with its side to move ("one move
+  deep", for both sides), a `capture` captures nothing, or a `check` gives no
+  check.
+
+`ScanAnswer.hasFullScan` (Flag with both present) is what S07's step order
+reads.
 
 `scripts/validate-external.ts` gets a `--scan` mode that runs the same
 checks on a file, so Caïssa can test one before sending it.

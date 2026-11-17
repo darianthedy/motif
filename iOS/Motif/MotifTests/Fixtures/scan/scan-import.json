@@ -1317,9 +1317,1026 @@
    ]
   },
   {
-   "name": "a newer format version",
+   "name": "version 2: the full scan on Flag puzzles, none on No flag",
    "file": {
     "version": 2,
+    "scan": [
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {
+       "red": [
+        "e4"
+       ],
+       "orange": [
+        "e5",
+        "f7"
+       ],
+       "kingZone": [
+        "e7"
+       ],
+       "fork": []
+      },
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "own",
+        "kind": "threat"
+       },
+       {
+        "from": "c4",
+        "to": "f7",
+        "side": "own",
+        "kind": "check"
+       },
+       {
+        "from": "f6",
+        "to": "e4",
+        "side": "theirs",
+        "kind": "capture"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     },
+     {
+      "fenBefore": "4k3/3p4/8/4P3/8/8/8/4K3 b - - 0 1",
+      "lastMove": "d7d5",
+      "flagged": true,
+      "quickScan": [],
+      "targets": {
+       "red": [
+        "d5"
+       ]
+      },
+      "arrows": [
+       {
+        "from": "e5",
+        "to": "d6",
+        "side": "own",
+        "kind": "capture"
+       },
+       {
+        "from": "e8",
+        "to": "e7",
+        "side": "theirs",
+        "kind": "threat"
+       }
+      ],
+      "moves": {
+       "e5e6": 0,
+       "e5d6": 101,
+       "e1d2": 102,
+       "e1e2": 103,
+       "e1f2": 104,
+       "e1f1": 105,
+       "e1d1": 106
+      }
+     },
+     {
+      "fenBefore": "4k3/8/8/8/8/8/3r4/4K3 b - - 0 1",
+      "lastMove": "d2e2",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e1",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {},
+      "arrows": [
+       {
+        "from": "e1",
+        "to": "e2",
+        "side": "own",
+        "kind": "capture"
+       },
+       {
+        "from": "e2",
+        "to": "e7",
+        "side": "theirs",
+        "kind": "threat"
+       },
+       {
+        "from": "e8",
+        "to": "d7",
+        "side": "theirs",
+        "kind": "threat"
+       }
+      ],
+      "moves": {
+       "e1e2": 0,
+       "e1f1": 101,
+       "e1d1": 102
+      }
+     },
+     {
+      "fenBefore": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+      "lastMove": "b8c6",
+      "flagged": false,
+      "quickScan": [],
+      "moves": {
+       "f3d4": 0,
+       "f3e5": 101,
+       "f3g5": 102,
+       "f3h4": 103,
+       "f3g1": 104,
+       "a2a3": 105,
+       "a2a4": 106,
+       "b2b3": 107,
+       "b2b4": 108,
+       "c2c3": 109,
+       "c2c4": 110,
+       "d2d3": 111,
+       "d2d4": 112,
+       "g2g3": 113,
+       "g2g4": 114,
+       "h2h3": 115,
+       "h2h4": 116,
+       "b1a3": 117,
+       "b1c3": 118,
+       "d1e2": 119,
+       "e1e2": 120,
+       "f1e2": 121,
+       "f1d3": 122,
+       "f1c4": 123,
+       "f1b5": 124,
+       "f1a6": 125,
+       "h1g1": 126
+      }
+     }
+    ]
+   },
+   "accepted": [
+    {
+     "key": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq -/g8f6",
+     "flagged": true
+    },
+    {
+     "key": "4k3/3p4/8/4P3/8/8/8/4K3 b - -/d7d5",
+     "flagged": true
+    },
+    {
+     "key": "4k3/8/8/8/8/8/3r4/4K3 b - -/d2e2",
+     "flagged": true
+    },
+    {
+     "key": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq -/b8c6",
+     "flagged": false
+    }
+   ],
+   "rejected": []
+  },
+  {
+   "name": "version 2: every full-scan rejection reason, one per puzzle",
+   "file": {
+    "version": 2,
+    "scan": [
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "own",
+        "kind": "threat"
+       },
+       {
+        "from": "c4",
+        "to": "f7",
+        "side": "own",
+        "kind": "check"
+       },
+       {
+        "from": "f6",
+        "to": "e4",
+        "side": "theirs",
+        "kind": "capture"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {
+       "red": [
+        "e4"
+       ],
+       "orange": [
+        "e5",
+        "f7"
+       ],
+       "kingZone": [
+        "e7"
+       ],
+       "fork": []
+      },
+      "arrows": null,
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {
+       "red": [
+        "e4"
+       ],
+       "orange": [
+        "e4"
+       ]
+      },
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "own",
+        "kind": "threat"
+       },
+       {
+        "from": "c4",
+        "to": "f7",
+        "side": "own",
+        "kind": "check"
+       },
+       {
+        "from": "f6",
+        "to": "e4",
+        "side": "theirs",
+        "kind": "capture"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {
+       "red": [
+        "e3"
+       ]
+      },
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "own",
+        "kind": "threat"
+       },
+       {
+        "from": "c4",
+        "to": "f7",
+        "side": "own",
+        "kind": "check"
+       },
+       {
+        "from": "f6",
+        "to": "e4",
+        "side": "theirs",
+        "kind": "capture"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {
+       "kingZone": [
+        "g7"
+       ]
+      },
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "own",
+        "kind": "threat"
+       },
+       {
+        "from": "c4",
+        "to": "f7",
+        "side": "own",
+        "kind": "check"
+       },
+       {
+        "from": "f6",
+        "to": "e4",
+        "side": "theirs",
+        "kind": "capture"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {
+       "red": [
+        "e4"
+       ],
+       "orange": [
+        "e5",
+        "f7"
+       ],
+       "kingZone": [
+        "e7"
+       ],
+       "fork": []
+      },
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "own",
+        "kind": "threat"
+       },
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "own",
+        "kind": "threat"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {
+       "red": [
+        "e4"
+       ],
+       "orange": [
+        "e5",
+        "f7"
+       ],
+       "kingZone": [
+        "e7"
+       ],
+       "fork": []
+      },
+      "arrows": [
+       {
+        "from": "f6",
+        "to": "e4",
+        "side": "own",
+        "kind": "capture"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {
+       "red": [
+        "e4"
+       ],
+       "orange": [
+        "e5",
+        "f7"
+       ],
+       "kingZone": [
+        "e7"
+       ],
+       "fork": []
+      },
+      "arrows": [
+       {
+        "from": "c4",
+        "to": "f7",
+        "side": "theirs",
+        "kind": "check"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {
+       "red": [
+        "e4"
+       ],
+       "orange": [
+        "e5",
+        "f7"
+       ],
+       "kingZone": [
+        "e7"
+       ],
+       "fork": []
+      },
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "f5",
+        "side": "own",
+        "kind": "threat"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {
+       "red": [
+        "e4"
+       ],
+       "orange": [
+        "e5",
+        "f7"
+       ],
+       "kingZone": [
+        "e7"
+       ],
+       "fork": []
+      },
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "own",
+        "kind": "capture"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {
+       "red": [
+        "e4"
+       ],
+       "orange": [
+        "e5",
+        "f7"
+       ],
+       "kingZone": [
+        "e7"
+       ],
+       "fork": []
+      },
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "own",
+        "kind": "check"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     }
+    ]
+   },
+   "accepted": [],
+   "rejected": [
+    {
+     "index": 0,
+     "reason": "Flag puzzle is missing \"targets\""
+    },
+    {
+     "index": 1,
+     "reason": "Flag puzzle is missing \"arrows\""
+    },
+    {
+     "index": 2,
+     "reason": "Target e4 is listed twice"
+    },
+    {
+     "index": 3,
+     "reason": "Red or orange target e3 is not a piece"
+    },
+    {
+     "index": 4,
+     "reason": "King-zone or fork square g7 is not empty"
+    },
+    {
+     "index": 5,
+     "reason": "Arrow f3-g5 is listed twice"
+    },
+    {
+     "index": 6,
+     "reason": "Arrow f6-e4 is \"own\" but starts on the opponent's piece"
+    },
+    {
+     "index": 7,
+     "reason": "Arrow c4-f7 is \"theirs\" but starts on the solver's piece"
+    },
+    {
+     "index": 8,
+     "reason": "Arrow f3-f5 is not a legal move"
+    },
+    {
+     "index": 9,
+     "reason": "Arrow f3-g5 is not a capture"
+    },
+    {
+     "index": 10,
+     "reason": "Arrow f3-g5 does not give check"
+    }
+   ]
+  },
+  {
+   "name": "a newer format version",
+   "file": {
+    "version": 3,
     "scan": [
      {
       "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
@@ -1368,7 +2385,7 @@
    "rejected": [
     {
      "index": -1,
-     "reason": "Format version 2 is newer than this app understands (1)"
+     "reason": "Format version 3 is newer than this app understands (2)"
     }
    ]
   },

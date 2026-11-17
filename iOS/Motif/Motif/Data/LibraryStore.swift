@@ -120,8 +120,7 @@ final class LibraryStore {
     private func record(_ added: OutboxRecords) async throws {
         guard let user else { return }
         let version = generation
-        var next = outboxRecords; next.runs += added.runs; next.attempts += added.attempts
-        outboxRecords = next
+        outboxRecords = outboxRecords + added
         outboxChanges += 1
         try await outbox.add(user.id, added)
         outboxChanges += 1
@@ -131,6 +130,8 @@ final class LibraryStore {
     }
     func startRun(_ run: Run) async throws { try await record(OutboxRecords(runs: [run])) }
     func recordAttempt(_ attempt: Attempt) async throws { try await record(OutboxRecords(attempts: [attempt])) }
+    func startScanRun(_ run: Run) async throws { try await record(OutboxRecords(scanRuns: [run])) }
+    func recordScanAttempt(_ attempt: ScanAttempt) async throws { try await record(OutboxRecords(scanAttempts: [attempt])) }
     func signIn(_ email: String, _ password: String, signUp: Bool = false) async throws {
         if signUp { try await account.signUp(email, password) } else { try await account.signIn(email, password) }
         let found = try await account.currentUser()

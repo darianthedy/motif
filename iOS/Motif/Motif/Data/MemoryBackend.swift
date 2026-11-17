@@ -95,6 +95,49 @@ actor MemoryBackend: Backend {
         try persist()
     }
     func resetProgress() throws { library.attempts = []; library.runs = []; try persist() }
+    func importScanPuzzles(_ puzzles: [ScanPuzzleContent]) throws -> [ScanPuzzle] {
+        var stored: [ScanPuzzle] = []
+        for content in distinctScanPuzzles(puzzles) {
+            if let index = library.scanPuzzles.firstIndex(where: { $0.contentKey == content.contentKey }) {
+                library.scanPuzzles[index].content = content
+                stored.append(library.scanPuzzles[index])
+            } else {
+                let puzzle = ScanPuzzle(id: newID(), content: content, addedAt: epochMilliseconds())
+                library.scanPuzzles.append(puzzle)
+                stored.append(puzzle)
+            }
+        }
+        try persist()
+        return stored
+    }
+    func deleteScanPuzzle(_ id: String) throws {
+        library.scanPuzzles.removeAll { $0.id == id }
+        library.scanAttempts.removeAll { $0.puzzleId == id }
+        try persist()
+    }
+    func saveScanRun(_ run: Run) throws {
+        let held = library.scanRuns.first { $0.scope == run.scope }
+        if let held, held.startedAt >= run.startedAt { return }
+        if let held { removeScanRun(held.id) }
+        library.scanRuns.append(run)
+        try persist()
+    }
+    private func removeScanRun(_ id: String) {
+        library.scanRuns.removeAll { $0.id == id }
+        for i in library.scanAttempts.indices where library.scanAttempts[i].runId == id { library.scanAttempts[i].runId = nil }
+    }
+    func deleteScanRun(_ id: String) throws { removeScanRun(id); try persist() }
+    func recordScanAttempts(_ attempts: [ScanAttempt]) throws {
+        let puzzles = Set(library.scanPuzzles.map(\.id)), runs = Set(library.scanRuns.map(\.id))
+        var stored = Set(library.scanAttempts.map(\.id))
+        for var attempt in attempts where !stored.contains(attempt.id) && puzzles.contains(attempt.puzzleId) {
+            stored.insert(attempt.id)
+            if let runId = attempt.runId, runId.isEmpty || !runs.contains(runId) { attempt.runId = nil }
+            library.scanAttempts.append(attempt)
+        }
+        try persist()
+    }
+    func resetScanProgress() throws { library.scanAttempts = []; library.scanRuns = []; try persist() }
     func createGameCollections(_ collections: [GameCollection]) throws {
         for c in collections where library.gameCollections.contains(where: { $0.id == c.id }) {
             throw DataFailure(message: "Game collection \(c.id) already exists")

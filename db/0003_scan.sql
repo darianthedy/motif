@@ -104,9 +104,11 @@ end;
 $$;
 
 -- A re-sent puzzle updates its answer and labels. Runs and attempts are never
--- updated.
+-- updated. `content_key` is in the list because PostgREST's upsert (the app's
+-- import and the maker's direct writes) sets every column it sends, the
+-- conflict key included, to the value it already has.
 grant select, insert, delete on public.scan_puzzles to authenticated;
-grant update (fen_before, last_move, answer, version, source, source_id)
+grant update (content_key, fen_before, last_move, answer, version, source, source_id)
   on public.scan_puzzles to authenticated;
 grant select, insert, delete on public.scan_runs to authenticated;
 grant select, insert, delete on public.scan_attempts to authenticated;

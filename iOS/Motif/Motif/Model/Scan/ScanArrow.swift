@@ -10,3 +10,9 @@ struct ScanArrow: Hashable, Codable, Sendable {
     var side: Side
     var kind: Kind
 }
+
+extension ScanArrow {
+    /// From + to squares ("f3g5"): how arrows are compared and stored in
+    /// `ScanAttemptDetail`. Side and kind follow from the squares.
+    var line: String { from + to }
+}

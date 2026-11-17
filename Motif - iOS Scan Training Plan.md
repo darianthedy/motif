@@ -6,11 +6,13 @@
 > change them; where it has to pick something they leave open, the pick is
 > listed under §11 Open questions.
 >
-> In short: a Python script on the Mac Mini works out every answer ahead of
-> time with python-chess and Stockfish and uploads the puzzles to two new
-> tables. The app only compares taps, arrows and moves with those stored
-> answers. `BoardView` gets annotation modes and one `Canvas` overlay, and a
-> new `ScanSolveModel` runs the steps, timers and grading.
+> In short: Motif doesn't make scan puzzles. The puzzle maker (Caïssa)
+> works out every answer, including Flag or No flag, and hands the puzzles
+> over as a JSON import file or by writing rows straight into the database.
+> Motif defines that format, checks what it receives, stores it, and only
+> compares taps, arrows and moves with the stored answers. `BoardView` gets
+> annotation modes and one `Canvas` overlay, and a new `ScanSolveModel` runs
+> the steps, timers and grading.
 
 ---
 
@@ -21,26 +23,27 @@
    carries a position *before* the opponent's move, the move itself and a
    graded answer for each step, which `puzzles` has no place for. Existing
    puzzle mode and game collections stay unchanged (Scope).
-2. **All answers are precomputed** (Puzzle content and answers). The phone
+2. **The puzzle maker owns the content; Motif owns the format.** Making
+   puzzles (finding positions, running python-chess and Stockfish, deciding
+   Flag or No flag, targets, arrows and move scores) is Caïssa's job and is
+   not part of this plan. Motif publishes the format (§3), checks every
+   puzzle it receives against the rules of chess, and stores it. The phone
    runs no engine for Scan Training, though Stockfish is already in the app
-   for the eval bar. Grading only compares input with stored answers, so it
-   is deterministic, offline and testable without an engine. That includes
-   the flag: whether a position is Flag or No flag is a field of the puzzle
-   (`answer.flagged`), decided by the puzzle maker; the app only compares
-   the user's call with it.
-3. **Move grading uses a stored eval per legal move.** The script stores the
-   centipawn loss of *every* legal move in the start position (about 35
-   moves, each ≤ 1 s of Stockfish). A move passes when its loss is within the
-   pass margin: 50 cp (half a pawn) or less, or any move that keeps a
-   forced mate (confirmed 2026-11-17). Example: best is +1.2, a move at +0.9
-   passes, one at +0.4 fails. The one-line feedback reason can then say
+   for the eval bar: grading only compares input with stored answers, so it
+   is deterministic, offline and testable without an engine.
+3. **Move grading uses a score per legal move from the maker.** Each puzzle
+   lists how much worse every legal move is than the best one, in
+   centipawns. A move passes when it's within 50 cp (half a pawn), or keeps
+   a forced mate (confirmed 2026-11-17). Example: best is +1.2, a move at
+   +0.9 passes, one at +0.4 fails. Motif applies the margin, so changing it
+   needs no new content. The one-line feedback reason can then say
    "loses 2.3" for any move played.
 4. **iOS only.** The web app gets no Scan Training. The "web app is the spec"
    rule in `Motif - Tech Plan - iOS.md` doesn't apply to this feature: this
    plan is its spec.
 5. **No fixed quiet ratio.** Each draw picks from the whole due pool at
-   random, so the share of quiet positions follows the pool and changes as it
-   grows. No pattern, no streak rule (Puzzle flow, last paragraph).
+   random, so the share of quiet positions follows the content the maker
+   sends. No pattern, no streak rule (Puzzle flow, last paragraph).
 6. **"Flag" is a scan word only.** `puzzles.flagged` already means "needs a
    look". Scan code says `flagCall` (what the user called) and `flagged`
    only on `ScanAnswer` (what the position is), never on a `Puzzle`.
@@ -60,19 +63,21 @@ row, row-level security, foreign keys that include `user_id`, safe to re-run.
 
 ```sql
 create table if not exists public.scan_puzzles (
-  id          uuid        primary key,
+  id          uuid        primary key default gen_random_uuid(),
   user_id     text        not null default auth.user_id(),
-  -- 'own' | 'lichess' | 'quiet'
-  source      text        not null check (source in ('own', 'lichess', 'quiet')),
-  -- Lichess puzzle id, or game id + ply, for re-imports and for linking back.
-  source_id   text,
+  -- fen_before (first four fields) + last_move: the same position sent
+  -- twice updates the row instead of adding a second one.
+  content_key text        not null,
   fen_before  text        not null,   -- before the opponent's last move
   last_move   text        not null,   -- UCI
-  answer      jsonb       not null,   -- ScanAnswer, §2.1
-  version     integer     not null,   -- answer format version
+  answer      jsonb       not null,   -- ScanAnswer, §3.2
+  version     integer     not null,   -- format version, §3
+  -- The maker's own labels, shown in stats only: 'own game', 'lichess', ...
+  source      text,
+  source_id   text,
   added_at    timestamptz not null default now(),
   unique (user_id, id),
-  unique (user_id, source, source_id)
+  unique (user_id, content_key)
 );
 
 -- Insert-only, id made on the device: the outbox can always retry.
@@ -83,7 +88,7 @@ create table if not exists public.scan_attempts (
   result      text        not null check (result in ('pass', 'fail')),
   flag_call   boolean     not null,
   -- Per step: ms taken, limit in force (null while timing is record-only),
-  -- missed and extra squares/arrows. ScanAttemptDetail, §2.2.
+  -- missed and extra squares/arrows. ScanAttemptDetail, §2.1.
   detail      jsonb       not null,
   played_at   timestamptz not null,
   foreign key (user_id, puzzle_id)
@@ -91,39 +96,11 @@ create table if not exists public.scan_attempts (
 );
 ```
 
-Grants: `scan_puzzles` select/insert/update/delete (re-import updates
-`answer`); `scan_attempts` select/insert/delete, never update.
+Grants: `scan_puzzles` select/insert/update/delete (a re-sent puzzle updates
+`answer`); `scan_attempts` select/insert/delete, never update. A puzzle the
+maker deletes takes its attempts with it.
 
-### 2.1 `ScanAnswer` (stored as `answer`)
-
-```json
-{
-  "flagged": true,
-  "flagReasons": ["quickScan", "inCheck", "winning"],
-  "quickScan": [
-    { "square": "f7", "kind": "attacked" },
-    { "square": "d1", "kind": "opened" },
-    { "square": "c6", "kind": "undefended" }
-  ],
-  "targets": {
-    "red": ["f7"], "orange": ["e5"],
-    "kingZone": ["g7", "h7"], "fork": ["d5"]
-  },
-  "arrows": [
-    { "from": "c4", "to": "f7", "side": "own", "kind": "capture" },
-    { "from": "d8", "to": "h4", "side": "theirs", "kind": "threat" }
-  ],
-  "moves": { "e1g1": 0, "c4f7": -12, "d2d3": 85 },
-  "bestLine": ["c4f7", "e8f7", "f3g5"]
-}
-```
-
-`moves` maps every legal move to its centipawn loss against the best move
-(mates as ±100000 minus the mate distance). `targets` and `arrows` are empty
-until v2 content is generated; v1 puzzles get them on a re-run, and the
-`version` column says which steps a puzzle supports.
-
-### 2.2 `ScanAttemptDetail` (stored as `detail`)
+### 2.1 `ScanAttemptDetail` (stored as `detail`)
 
 ```json
 {
@@ -138,75 +115,95 @@ until v2 content is generated; v1 puzzles get them on a re-run, and the
 
 Stats (v2) read only this, so nothing in it is a summary that can go stale.
 
-### 2.3 On the device
+### 2.2 On the device
 
 `Library` gets `scanPuzzles: [ScanPuzzle]` and `scanAttempts: [ScanAttempt]`,
 loaded with the rest by `Backend.load()`. `Backend` gets
-`recordScanAttempts(_:)`, and `OutboxRecords` gets `scanAttempts`, flushed the
-same way as `attempts` so an attempt made offline is never lost.
-`MemoryBackend` gets the same, for tests and fixtures.
+`importScanPuzzles(_:)` and `recordScanAttempts(_:)`, and `OutboxRecords`
+gets `scanAttempts`, flushed the same way as `attempts` so an attempt made
+offline is never lost. `MemoryBackend` gets the same, for tests and
+fixtures.
 
-## 3. Content pipeline (Mac Mini)
+## 3. Puzzle format (the contract with the maker)
 
-`scripts/scan/` in Python 3, run with `-I`, using python-chess and the
-Homebrew `stockfish` binary. It reuses the Neon sign-in from
-`scripts/motif-db.py` (moved into `scripts/motif_auth.py` so both import it),
-prints what it would write, and writes only with `--apply`.
+Written up for Caïssa in the README's Import
+section (beside the puzzle file format), with a sample at `samples/scan-sample.json`. Version 1 covers the
+v1 steps; `targets`, `arrows` are optional until v2 and a puzzle without
+them skips the full scan.
 
+### 3.1 Two ways in
+
+- **Import file.** The existing Import sheet accepts a JSON file whose top
+  level is `{"version": 1, "scan": [ ... ]}` (a puzzle file is `{"collection", "puzzles"}`,
+  so the two can't be confused). It shows "N added, M updated, K rejected"
+  with the reason for each rejection, as puzzle imports do, and writes
+  through `Backend.importScanPuzzles`, upserting on `content_key`.
+- **Direct database write.** Caïssa signs in as the account and writes
+  `scan_puzzles` rows (with `version`) through Neon's Data API, as `scripts/motif-db.py`
+  does for games, upserting on `(user_id, content_key)`. RLS keeps it to
+  that account's rows. The app picks the rows up on its next load.
+
+Both ways end in the same check (§3.3): an import file rejects a bad puzzle
+before it's written; a bad row written directly is skipped on load and
+logged, never shown half-working.
+
+### 3.2 One puzzle
+
+```json
+{
+  "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+  "lastMove": "g8f6",
+  "flagged": true,
+  "quickScan": [
+    { "square": "e4", "kind": "attacked" },
+    { "square": "c6", "kind": "undefended" }
+  ],
+  "targets": {
+    "red": ["f7"], "orange": ["e5"],
+    "kingZone": ["g7", "h7"], "fork": ["d5"]
+  },
+  "arrows": [
+    { "from": "f3", "to": "g5", "side": "own", "kind": "threat" },
+    { "from": "f6", "to": "e4", "side": "theirs", "kind": "capture" }
+  ],
+  "moves": { "f3g5": 0, "d2d3": 35, "b1c3": 40, "c4f7": 310 },
+  "bestLine": ["f3g5", "d7d5", "e4d5"],
+  "source": "lichess",
+  "sourceId": "00sHx"
+}
 ```
-scripts/scan/build.py own   --since 2026-10-01 [--apply]   # from game collections
-scripts/scan/build.py lichess lichess_db_puzzle.csv --rating 1400-2000 --count 300 [--apply]
-scripts/scan/build.py quiet  --from-own --count 100 [--apply]
-scripts/scan/build.py regrade [--apply]   # re-run answers for every stored puzzle
-```
 
-**Sources.**
+- `fenBefore` + `lastMove`: the position before the opponent's move and
+  that move. The solver is the side to move after it.
+- `flagged`: the maker's call, Flag or No flag. Motif never works it out.
+- `quickScan`: the squares the quick scan should find, each with a `kind`
+  (`attacked`, `opened`, `undefended`) used in the feedback reason.
+- `targets`, `arrows` (v2): what the full scan should find. Arrow `kind` is
+  `check`, `capture` or `threat`; `side` is `own` or `theirs`. Extra arrows
+  aren't graded.
+- `moves`: every legal move of the solver, with how many centipawns worse
+  it is than the best (best = 0; a move that throws away a mate counts as
+  100000). Every legal move must be present, so any move played can be
+  graded.
+- `bestLine`: shown after the move, optional.
+- `source`, `sourceId`: the maker's labels, optional.
 
-- **Own games:** read the PGNs from `games`, analyse each of the owner's
-  moves (depth 18), and take every move that loses ≥ 2.0 (or misses a mate).
-  The puzzle is the position after the opponent's move before it:
-  `fen_before` = before that opponent move, `last_move` = the opponent move.
-  The owner's side is read from the PGN `White`/`Black` headers.
-- **Lichess:** the CSV's `FEN` is already before the opponent's move and the
-  first UCI in `Moves` is that move, so `fen_before = FEN`,
-  `last_move = Moves[0]`. Filter by rating and theme.
-- **Quiet:** positions from own games where |eval| ≤ 0.5, the best and
-  second-best moves are within 0.3, and the flag rule (below) comes out false.
+What the requirements say about content (own games one move before a
+blunder, Lichess puzzles started a move earlier, quiet positions within
+0.5) is guidance for the maker, not something Motif checks.
 
-**Answers** (`scripts/scan/answers.py`, pure functions over a `chess.Board`,
-each with pytest cases):
+### 3.3 What Motif checks
 
-- **Quick scan.** With `M` the opponent's move:
-  - *attacked*: the solver's pieces attacked by the moved piece on its
-    to-square that it didn't attack from its from-square.
-  - *opened*: the solver's pieces newly attacked by the opponent's line
-    pieces through the from-square (discovered attacks).
-  - *undefended*: the opponent's pieces the moved piece defended before `M`
-    that now have no defender.
-  - Castling counts the rook as a moved piece too; en passant counts the
-    captured pawn's square as opened.
-- **Flag** = any quick-scan square, or side to move in check, or eval for
-  the side to move ≥ +3.0. The reasons go in `flagReasons`. Only "real
-  trouble" counts as a quick-scan square for the flag: a piece attacked by
-  something cheaper, or attacked more often than defended (§11.1). The
-  maker can override any puzzle by hand in `scripts/scan/overrides.json`
-  (`{"<source>:<source_id>": {"flagged": false}}`); an override wins on
-  every re-run and is recorded as the reason `manual`.
-- **Targets** (v2): attackers and defenders per piece, with SEE. *Red* = a
-  capture there wins material, *orange* = an even 1–1 trade. *King zone* =
-  squares next to either king that the other side attacks. *Fork* = empty
-  squares a knight, pawn or queen of either side can reach in one move from
-  which it attacks two pieces worth more than itself, or a piece and the
-  king.
-- **Arrows** (v2), both sides, one move deep: checks; captures with SEE > 0
-  or that mate; threats found with a null move: after
-  `board.push(chess.Move.null())`, the opponent's moves that win ≥ 1.5 at
-  depth 12. Only these are graded; extra arrows aren't.
-- **Moves:** Stockfish `multipv` over all legal moves, depth 18, cached by
-  FEN in `~/.cache/motif-scan/` so re-runs are fast.
+`Model/Scan/ScanImport.swift`, a pure function shared by the import sheet
+and the loader, with unit tests. A puzzle is rejected, with the reason, if:
 
-Every generated puzzle is replayed through python-chess before upload
-(`last_move` legal from `fen_before`, every answer square on the board).
+- `fenBefore` isn't a legal position, or `lastMove` isn't legal in it;
+- any square isn't on the board, or an arrow doesn't start on a piece;
+- `moves` is missing a legal move of the solver or lists an illegal one;
+- `flagged` is missing, or `version` is newer than the app understands.
+
+`scripts/validate-external.ts` gets a `--scan` mode that runs the same
+checks on a file, so Caïssa can test one before sending it.
 
 ## 4. Board
 
@@ -359,7 +356,7 @@ layout automatically").
   puzzles are due, a **Start** button (`.buttonStyle(.glassProminent)`, the
   one prominent action), last session's result, and the **Time limits**
   switch. No puzzles yet → `ContentUnavailableView` saying how to add them
-  (`scripts/scan/build.py`). v2 adds a Stats row. It reads the library from
+  (import a file, or have Caïssa send them). v2 adds a Stats row. It reads the library from
   `AppState` like the other tabs and holds no session state, so moving it
   into Puzzles later only moves the view.
 - **Session.** Start opens `ScanSessionView` with `.fullScreenCover(item:)`,
@@ -446,7 +443,7 @@ review and the `swiftui-pro` rules:
 `ScanStatsView`, pushed from the Scan tab, computed on the device from
 `scanAttempts`: median quick-scan time, flag accuracy (calls right / all),
 the most-missed category (quick-scan kind, target colour, arrow kind), and a
-weekly trend line in Swift Charts with an accessibility chart descriptor.
+weekly trend line in Swift Charts with an accessibility chart descriptor, and the share of Flag puzzles in the content.
 **Export for Caïssa** shares a short Markdown summary of the same numbers
 plus the 10 most recent fails (FEN, last move, what was missed) through
 `ShareLink`.
@@ -458,10 +455,10 @@ screenshots on iPhone and iPhone Duo, and its own PR.
 
 **v1**
 
-1. **S01 — Schema and pipeline.** `db/0003_scan.sql`; `scripts/scan/` with
-   quick scan, flag and move answers; own, Lichess and quiet sources;
-   pytest cases. Upload a first set of ~200 puzzles and report the flag
-   rate (§11.2).
+1. **S01 — Schema and format.** `db/0003_scan.sql`, the format write-up and
+   `samples/scan-sample.json`, `ScanImport` checks, the `--scan` mode of
+   `validate-external.ts`. Hand the format to Caïssa so content can be made
+   while the app is built.
 2. **S02 — Model.** The stored types, `ScanGrader`, `ScanQueue`,
    `ScanTiming` (record-only), `Backend`/`MemoryBackend`/`Outbox` support,
    unit tests.
@@ -475,8 +472,8 @@ screenshots on iPhone and iPhone Duo, and its own PR.
 
 **v2**
 
-5. **S05 — Full-scan answers.** Targets and arrows in the pipeline,
-   `regrade` over stored puzzles.
+5. **S05 — Full-scan format.** `targets` and `arrows` required for
+   puzzles that use the full scan, with their checks.
 6. **S06 — Target and arrow modes.** `.markTargets`, `.drawArrows`, the
    two-tap arrow, arrow hit-testing, the VoiceOver arrow list.
 7. **S07 — Final check.** Ghosted move, the Play It / Take Back sheet.
@@ -486,12 +483,12 @@ screenshots on iPhone and iPhone Duo, and its own PR.
 
 ## 10. Tests
 
-- **Pipeline (pytest):** fixed FENs for each quick-scan kind, castling (rook
-  counted), en passant, promotion, discovered check; flag reasons; a quiet
-  position that must not flag; SEE red vs orange; a null-move threat.
-- **Grader:** table tests over fixture answers in
-  `MotifTests/Fixtures/scan/`, written by the pipeline, so Swift and Python
-  read the same files.
+- **Import checks:** one fixture per rejection reason in §3.3, plus
+  castling, en passant and promotion as `lastMove`; a re-sent puzzle
+  updates instead of duplicating; a bad row from the database is skipped.
+- **Grader:** table tests over fixture puzzles in
+  `MotifTests/Fixtures/scan/`, the same files `validate-external.ts --scan`
+  reads in its tests.
 - **Queue and timing:** a seeded random source and a fake clock; the 14-day
   switch, the median rule at its edges, limits off with the switch off or
   VoiceOver on.
@@ -508,14 +505,13 @@ screenshots on iPhone and iPhone Duo, and its own PR.
 
 ## 11. Open questions
 
-1. **The puzzle maker's flag rule.** The flag is stored in each puzzle
-   (§1.2); this question is only how `scripts/scan/` decides it. Read
-   literally, "the quick scan found something" is true after almost every
-   move (a knight move usually hits some well-defended pawn), so nearly
-   every puzzle would be Flag and the call would teach nothing. Proposed:
-   only pieces in real trouble count (§3). S01 reports the flag rate on the
-   first 200 puzzles before the app is built, so the rule can be tuned, and
-   `overrides.json` fixes single puzzles.
+1. **Flag rule, for the maker.** Not Motif's decision, but worth passing to
+   Caïssa: read literally, "the quick scan found something" is true after
+   almost every move, so nearly every puzzle would be Flag and the call
+   would teach nothing. Counting only pieces in real trouble (attacked by
+   something cheaper, or attacked more often than defended) keeps Flag
+   meaningful. The Scan tab's stats show the share of Flag puzzles, so it's
+   easy to see if it drifts.
 2. **"Comes back sooner".** The doubling interval in §5 is a proposal.
 3. **Caïssa summary format.** Markdown via the share sheet is a guess at
    what Caïssa reads best.

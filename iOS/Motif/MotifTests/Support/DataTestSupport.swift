@@ -61,6 +61,16 @@ struct LoggingBackend: Backend {
         try await memory.recordAttempts(a)
     }
     func resetProgress() async throws { await events.record("reset"); try await memory.resetProgress() }
+    func importScanPuzzles(_ p: [ScanPuzzleContent]) async throws -> [ScanPuzzle] { try await memory.importScanPuzzles(p) }
+    func deleteScanPuzzle(_ id: String) async throws { try await memory.deleteScanPuzzle(id) }
+    func saveScanRun(_ r: Run) async throws { await events.record("scanSave"); try await memory.saveScanRun(r) }
+    func deleteScanRun(_ id: String) async throws { try await memory.deleteScanRun(id) }
+    func recordScanAttempts(_ a: [ScanAttempt]) async throws {
+        await events.record("scanAttempts")
+        if await events.failAttempts { throw DataFailure(message: "Upload failed") }
+        try await memory.recordScanAttempts(a)
+    }
+    func resetScanProgress() async throws { await events.record("scanReset"); try await memory.resetScanProgress() }
     func createGameCollections(_ c: [GameCollection]) async throws { try await memory.createGameCollections(c) }
     func renameGameCollection(_ id: String, _ name: String) async throws { try await memory.renameGameCollection(id, name) }
     func deleteGameCollection(_ id: String) async throws { try await memory.deleteGameCollection(id) }

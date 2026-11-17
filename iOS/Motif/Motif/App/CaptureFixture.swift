@@ -96,6 +96,12 @@ struct FixtureBackend: Backend {
     func deleteRun(_ id: String) async throws { try await write(); try await base.deleteRun(id) }
     func recordAttempts(_ attempts: [Attempt]) async throws { try await base.recordAttempts(attempts) }
     func resetProgress() async throws { try await write(); try await base.resetProgress() }
+    func importScanPuzzles(_ puzzles: [ScanPuzzleContent]) async throws -> [ScanPuzzle] { try await write(); return try await base.importScanPuzzles(puzzles) }
+    func deleteScanPuzzle(_ id: String) async throws { try await write(); try await base.deleteScanPuzzle(id) }
+    func saveScanRun(_ run: Run) async throws { try await base.saveScanRun(run) }
+    func deleteScanRun(_ id: String) async throws { try await write(); try await base.deleteScanRun(id) }
+    func recordScanAttempts(_ attempts: [ScanAttempt]) async throws { try await base.recordScanAttempts(attempts) }
+    func resetScanProgress() async throws { try await write(); try await base.resetScanProgress() }
     func createGameCollections(_ collections: [GameCollection]) async throws { try await write(); try await base.createGameCollections(collections) }
     func renameGameCollection(_ id: String, _ name: String) async throws { try await write(); try await base.renameGameCollection(id, name) }
     func deleteGameCollection(_ id: String) async throws { try await write(); try await base.deleteGameCollection(id) }

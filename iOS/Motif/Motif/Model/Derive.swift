@@ -2,7 +2,7 @@
 /// review and progress cannot disagree or drift between devices.
 
 /// Oldest first; id breaks ties consistently on every device.
-private func chronological(_ attempts: [Attempt]) -> [Attempt] {
+private func chronological<A: RunAttempt>(_ attempts: [A]) -> [A] {
     attempts.sorted { $0.playedAt == $1.playedAt ? $0.id < $1.id : $0.playedAt < $1.playedAt }
 }
 
@@ -16,7 +16,7 @@ struct PuzzleRecord: Equatable, Codable, Sendable {
     var lastPlayedAt: Int64
 }
 
-func puzzleRecords(_ attempts: [Attempt]) -> [String: PuzzleRecord] {
+func puzzleRecords<A: RunAttempt>(_ attempts: [A]) -> [String: PuzzleRecord] {
     var records: [String: PuzzleRecord] = [:]
     for attempt in chronological(attempts) {
         var record = records[attempt.puzzleId]
@@ -41,7 +41,7 @@ func reviewIds(_ puzzleIds: [String], _ records: [String: PuzzleRecord]) -> [Str
     puzzleIds.filter { statusOf(records, $0) == .failed }
 }
 
-func recentIds(_ attempts: [Attempt]) -> [String] {
+func recentIds<A: RunAttempt>(_ attempts: [A]) -> [String] {
     puzzleRecords(attempts).sorted {
         $0.value.lastPlayedAt == $1.value.lastPlayedAt
             ? $0.key < $1.key : $0.value.lastPlayedAt > $1.value.lastPlayedAt
@@ -90,7 +90,16 @@ private struct Retry {
 /// Replay attempts. Misses return once after the gap, bounded by MAX_RETRIES.
 /// Due retries precede fresh puzzles; remaining retries serve early at the end.
 /// Concurrent devices interleave; the worst case is a puzzle served twice.
+func runProgress<A: RunAttempt>(_ run: Run, _ attempts: [A], _ existing: Set<String>) -> RunProgress {
+    replay(run, attempts, existing)
+}
+
+/// Puzzle attempts, so an empty `[]` still picks a type.
 func runProgress(_ run: Run, _ attempts: [Attempt], _ existing: Set<String>) -> RunProgress {
+    replay(run, attempts, existing)
+}
+
+private func replay<A: RunAttempt>(_ run: Run, _ attempts: [A], _ existing: Set<String>) -> RunProgress {
     let queue = run.queue.filter { existing.contains($0) }
     let inQueue = Set(queue)
     let mine = chronological(attempts.filter { $0.runId == run.id && inQueue.contains($0.puzzleId) })

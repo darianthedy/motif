@@ -107,6 +107,24 @@ enum ScanImport {
         return nil
     }
 
+    /// A `scan_puzzles` row, written by the app or straight to the database:
+    /// `answer` is the stored JSON object, read with the same rules as a file.
+    static func stored(fenBefore: String, lastMove: String, answer: Any, version: Int,
+                       source: String?, sourceId: String?) throws -> ScanPuzzleContent {
+        guard var raw = answer as? [String: Any] else { throw DataFailure(message: "Answer is not an object") }
+        raw["fenBefore"] = fenBefore
+        raw["lastMove"] = lastMove
+        raw["source"] = source ?? NSNull()
+        raw["sourceId"] = sourceId ?? NSNull()
+        if let problem = versionProblem(version) { throw DataFailure(message: problem) }
+        switch parse(raw, version: version) {
+        case .failure(let failure): throw DataFailure(message: failure.reason)
+        case .success(let content):
+            if let problem = problem(content) { throw DataFailure(message: problem) }
+            return content
+        }
+    }
+
     /// The first four FEN fields and the move, so move counters don't matter.
     static func contentKey(fenBefore: String, lastMove: Uci) -> String {
         "\(normalizeFen(fenBefore))/\(lastMove.text)"

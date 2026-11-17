@@ -32,7 +32,9 @@ actor MemoryRest: Rest {
                 continue
             }
             row["id"] = row["id"] ?? .string(newID())
-            if table == "puzzles" || table == "games" { row["added_at"] = row["added_at"] ?? .string(isoTime(5000)) }
+            if table == "puzzles" || table == "games" || table == "scan_puzzles" {
+                row["added_at"] = row["added_at"] ?? .string(isoTime(5000))
+            }
             if table == "puzzles" { row["flagged"] = row["flagged"] ?? .bool(false) }
             if table == "puzzles" || table == "games" {
                 let parent = table == "puzzles" ? "collections" : "game_collections"
@@ -61,10 +63,13 @@ actor MemoryRest: Rest {
             delete("games", [.in("collection_id", removed.map(JSONValue.string))])
         } else if table == "puzzles" {
             delete("attempts", [.in("puzzle_id", removed.map(JSONValue.string))])
-        } else if table == "runs" {
-            for index in (tables["attempts"] ?? []).indices {
-                if let run = tables["attempts"]![index]["run_id"]?.text, removed.contains(run) {
-                    tables["attempts"]![index]["run_id"] = .null
+        } else if table == "scan_puzzles" {
+            delete("scan_attempts", [.in("puzzle_id", removed.map(JSONValue.string))])
+        } else if table == "runs" || table == "scan_runs" {
+            let attempts = table == "runs" ? "attempts" : "scan_attempts"
+            for index in (tables[attempts] ?? []).indices {
+                if let run = tables[attempts]![index]["run_id"]?.text, removed.contains(run) {
+                    tables[attempts]![index]["run_id"] = .null
                 }
             }
         }

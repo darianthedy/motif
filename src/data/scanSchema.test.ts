@@ -71,6 +71,24 @@ describe('scan tables', () => {
     expect(rows.map((r) => r.answer.flagged)).toEqual([false]);
   });
 
+  it('accepts a re-send written as PostgREST upserts it', async () => {
+    const me = user();
+    const first = await addPuzzle(me, 'rest');
+    // merge-duplicates sets every column in the request, the conflict key too.
+    const rows = await asUser(db, me, (q) =>
+      q<{ id: string }>(
+        `insert into public.scan_puzzles (content_key, fen_before, last_move, answer, version, source, source_id)
+           values ('rest', 'fen', 'e7e5', '{"flagged": false}'::jsonb, 1, 'lichess', '00sHx')
+         on conflict (user_id, content_key) do update set
+           content_key = excluded.content_key, fen_before = excluded.fen_before,
+           last_move = excluded.last_move, answer = excluded.answer, version = excluded.version,
+           source = excluded.source, source_id = excluded.source_id
+         returning id`,
+      ),
+    );
+    expect(rows[0].id).toBe(first);
+  });
+
   it('keeps one run per scope', async () => {
     const me = user();
     const p = await addPuzzle(me);
@@ -172,7 +190,7 @@ describe('scan access rules', () => {
       `update public.scan_runs set mode = 'reviewMistakes'`,
       `update public.scan_attempts set result = 'failed'`,
       `update public.scan_puzzles set added_at = now()`,
-      `update public.scan_puzzles set content_key = 'other'`,
+      `update public.scan_puzzles set user_id = 'other'`,
     ]) {
       await expect(asUser(db, me, (q) => q(sql))).rejects.toThrow(/permission denied/);
     }

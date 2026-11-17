@@ -55,15 +55,22 @@ struct Library: Equatable, Codable, Sendable {
     var attempts: [Attempt] = []
     var gameCollections: [GameCollection] = []
     var games: [Game] = []
+    /// Scan Training: one pool, runs scoped `SCOPE_ALL` or `SCOPE_REVIEW`.
+    var scanPuzzles: [ScanPuzzle] = []
+    var scanRuns: [Run] = []
+    var scanAttempts: [ScanAttempt] = []
 }
 
 func emptyLibrary() -> Library { Library() }
 import Foundation
+import os
 
 
 /// Older cached copies acquire new row kinds as empty arrays.
 extension Library {
-    private enum Keys: String, CodingKey { case collections, puzzles, runs, attempts, gameCollections, games }
+    private enum Keys: String, CodingKey {
+        case collections, puzzles, runs, attempts, gameCollections, games, scanPuzzles, scanRuns, scanAttempts
+    }
     init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         collections = try c.decodeIfPresent([Collection].self, forKey: .collections) ?? []
@@ -72,6 +79,9 @@ extension Library {
         attempts = try c.decodeIfPresent([Attempt].self, forKey: .attempts) ?? []
         gameCollections = try c.decodeIfPresent([GameCollection].self, forKey: .gameCollections) ?? []
         games = try c.decodeIfPresent([Game].self, forKey: .games) ?? []
+        scanPuzzles = try c.decodeIfPresent([ScanPuzzle].self, forKey: .scanPuzzles) ?? []
+        scanRuns = try c.decodeIfPresent([Run].self, forKey: .scanRuns) ?? []
+        scanAttempts = try c.decodeIfPresent([ScanAttempt].self, forKey: .scanAttempts) ?? []
     }
 }
 
@@ -100,6 +110,14 @@ protocol Backend: Sendable {
     func deleteRun(_ id: String) async throws
     func recordAttempts(_ attempts: [Attempt]) async throws
     func resetProgress() async throws
+    /// Upserts on content key: a re-sent puzzle keeps its id, time and progress.
+    func importScanPuzzles(_ puzzles: [ScanPuzzleContent]) async throws -> [ScanPuzzle]
+    func deleteScanPuzzle(_ id: String) async throws
+    func saveScanRun(_ run: Run) async throws
+    func deleteScanRun(_ id: String) async throws
+    func recordScanAttempts(_ attempts: [ScanAttempt]) async throws
+    /// Every scan run and attempt; scan puzzles and puzzle progress stay.
+    func resetScanProgress() async throws
     func createGameCollections(_ collections: [GameCollection]) async throws
     func renameGameCollection(_ id: String, _ name: String) async throws
     func deleteGameCollection(_ id: String) async throws
@@ -183,6 +201,64 @@ func attemptRow(_ attempt: Attempt) -> Row {
      "mistakes": .number(Double(attempt.mistakes)), "hinted": .bool(attempt.hinted),
      "played_at": .string(isoTime(attempt.playedAt))]
 }
+func runFrom(_ row: Row) throws -> Run {
+    try Run(id: row.text("id"), scope: row.text("scope"), mode: row.decode("mode"),
+            queue: row.decode("queue"), startedAt: rowTime(row["started_at"]))
+}
+func runRow(_ run: Run) -> Row {
+    ["id": .string(run.id), "scope": .string(run.scope), "mode": .string(run.mode.rawValue),
+     "queue": .strings(run.queue), "started_at": .string(isoTime(run.startedAt))]
+}
+/// Last entry wins, at its last occurrence, as for puzzles.
+func distinctScanPuzzles(_ puzzles: [ScanPuzzleContent]) -> [ScanPuzzleContent] {
+    var out: [ScanPuzzleContent] = []
+    for puzzle in puzzles {
+        out.removeAll { $0.contentKey == puzzle.contentKey }
+        out.append(puzzle)
+    }
+    return out
+}
+func jsonValue(_ value: some Encodable) throws -> JSONValue {
+    try JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(value))
+}
+func scanPuzzleRow(_ content: ScanPuzzleContent) throws -> Row {
+    ["content_key": .string(content.contentKey), "fen_before": .string(content.fenBefore),
+     "last_move": .string(content.lastMove.text), "answer": try jsonValue(content.answer),
+     "version": .number(Double(content.version)),
+     "source": content.source.map(JSONValue.string) ?? .null,
+     "source_id": content.sourceId.map(JSONValue.string) ?? .null]
+}
+/// Read with the import's rules, so a row written straight to the database
+/// that the app couldn't play throws here instead of showing half-working.
+func scanPuzzleFrom(_ row: Row) throws -> ScanPuzzle {
+    let answer = try JSONSerialization.jsonObject(with: JSONEncoder().encode(row["answer"] ?? .null),
+                                                  options: .fragmentsAllowed)
+    let content = try ScanImport.stored(fenBefore: row.text("fen_before"), lastMove: row.text("last_move"),
+                                        answer: answer, version: row.integer("version"),
+                                        source: row["source"]?.text, sourceId: row["source_id"]?.text)
+    return try ScanPuzzle(id: row.text("id"), content: content, addedAt: rowTime(row["added_at"]))
+}
+private let scanLog = Logger(subsystem: "motif", category: "scan")
+/// Bad rows are skipped and logged, never fatal to the rest of the library.
+func playableScanPuzzles(_ rows: [Row]) -> [ScanPuzzle] {
+    rows.compactMap { row in
+        do { return try scanPuzzleFrom(row) } catch {
+            scanLog.error("Skipped scan puzzle \(row["id"]?.text ?? "?", privacy: .public): \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+}
+func scanAttemptRow(_ attempt: ScanAttempt) throws -> Row {
+    ["id": .string(attempt.id), "puzzle_id": .string(attempt.puzzleId),
+     "run_id": attempt.runId.map(JSONValue.string) ?? .null, "result": .string(attempt.result.rawValue),
+     "flag_call": attempt.flagCall.map(JSONValue.bool) ?? .null, "detail": try jsonValue(attempt.detail),
+     "played_at": .string(isoTime(attempt.playedAt))]
+}
+func scanAttemptFrom(_ row: Row) throws -> ScanAttempt {
+    try ScanAttempt(id: row.text("id"), puzzleId: row.text("puzzle_id"), runId: row["run_id"]?.text,
+                    result: row.decode("result"), flagCall: row["flag_call"]?.boolean,
+                    detail: row.decode("detail"), playedAt: rowTime(row["played_at"]))
+}
 func gameFrom(_ row: Row) throws -> Game {
     try Game(id: row.text("id"), collectionId: row.text("collection_id"), position: row.integer("position"),
              pgn: row.text("pgn"), orientation: row["orientation"]?.text == "b" ? .black : .white,
@@ -201,21 +277,25 @@ struct RestBackend: Backend {
         async let a = rest.select("attempts")
         async let gc = rest.select("game_collections")
         async let g = rest.select("games")
+        async let sp = rest.select("scan_puzzles")
+        async let sr = rest.select("scan_runs")
+        async let sa = rest.select("scan_attempts")
         let (collections, puzzles, runs, attempts, gameCollections, games) = try await (c, p, r, a, gc, g)
+        let (scanPuzzles, scanRuns, scanAttempts) = try await (sp, sr, sa)
         return try Library(
             collections: collections.map { try Collection(id: $0.text("id"), name: $0.text("name"), createdAt: rowTime($0["created_at"])) },
             puzzles: puzzles.map(puzzleFrom),
-            runs: runs.map {
-                try Run(id: $0.text("id"), scope: $0.text("scope"), mode: $0.decode("mode"),
-                        queue: $0.decode("queue"), startedAt: rowTime($0["started_at"]))
-            },
+            runs: runs.map(runFrom),
             attempts: attempts.map {
                 try Attempt(id: $0.text("id"), puzzleId: $0.text("puzzle_id"), runId: $0["run_id"]?.text,
                             result: $0.decode("result"), mistakes: $0.integer("mistakes"),
                             hinted: $0["hinted"]?.boolean ?? false, playedAt: rowTime($0["played_at"]))
             },
             gameCollections: gameCollections.map { try GameCollection(id: $0.text("id"), name: $0.text("name"), createdAt: rowTime($0["created_at"])) },
-            games: games.map(gameFrom))
+            games: games.map(gameFrom),
+            scanPuzzles: playableScanPuzzles(scanPuzzles),
+            scanRuns: scanRuns.map(runFrom),
+            scanAttempts: scanAttempts.map(scanAttemptFrom))
     }
     func createCollections(_ collections: [Collection]) async throws {
         if collections.isEmpty { return }
@@ -246,12 +326,11 @@ struct RestBackend: Backend {
         try await rest.update("puzzles", ["flagged": .bool(flagged)], [.eq("id", .string(id))])
     }
     func deletePuzzle(_ id: String) async throws { try await rest.delete("puzzles", [.eq("id", .string(id))]) }
-    func saveRun(_ run: Run) async throws {
-        try await rest.delete("runs", [.eq("scope", .string(run.scope)), .lt("started_at", .string(isoTime(run.startedAt)))])
-        _ = try await rest.insert("runs", [[
-            "id": .string(run.id), "scope": .string(run.scope), "mode": .string(run.mode.rawValue),
-            "queue": .strings(run.queue), "started_at": .string(isoTime(run.startedAt)),
-        ]], UpsertOptions(onConflict: ["user_id", "scope"], ignoreDuplicates: true))
+    func saveRun(_ run: Run) async throws { try await saveRun(run, in: "runs") }
+    /// An older run in the scope is replaced; a newer one stays.
+    private func saveRun(_ run: Run, in table: String) async throws {
+        try await rest.delete(table, [.eq("scope", .string(run.scope)), .lt("started_at", .string(isoTime(run.startedAt)))])
+        _ = try await rest.insert(table, [runRow(run)], UpsertOptions(onConflict: ["user_id", "scope"], ignoreDuplicates: true))
     }
     func deleteRun(_ id: String) async throws { try await rest.delete("runs", [.eq("id", .string(id))]) }
     private func existing(_ table: String, _ ids: [String]) async throws -> Set<String> {
@@ -263,22 +342,47 @@ struct RestBackend: Backend {
         return found
     }
     func recordAttempts(_ attempts: [Attempt]) async throws {
+        try await record(attempts, in: "attempts", puzzles: "puzzles", runs: "runs", row: attemptRow)
+    }
+    /// Attempts for deleted puzzles are dropped and links to deleted runs
+    /// cleared, so an outbox replay after a delete or reset still uploads.
+    private func record<A: RunAttempt>(_ attempts: [A], in table: String, puzzles puzzleTable: String,
+                                       runs runTable: String, row: (A) throws -> Row) async throws {
         if attempts.isEmpty { return }
-        let puzzles = try await existing("puzzles", attempts.map(\.puzzleId))
+        let puzzles = try await existing(puzzleTable, attempts.map(\.puzzleId))
         let runIds = attempts.compactMap(\.runId).filter { !$0.isEmpty }
-        let runs = runIds.isEmpty ? Set<String>() : try await existing("runs", runIds)
-        let rows = attempts.filter { puzzles.contains($0.puzzleId) }.map { attempt in
-            var attempt = attempt
-            if let id = attempt.runId, !id.isEmpty, !runs.contains(id) { attempt.runId = nil }
-            return attemptRow(attempt)
+        let runs = runIds.isEmpty ? Set<String>() : try await existing(runTable, runIds)
+        let rows = try attempts.filter { puzzles.contains($0.puzzleId) }.map { attempt in
+            var stored = try row(attempt)
+            if let id = attempt.runId, !id.isEmpty, !runs.contains(id) { stored["run_id"] = .null }
+            return stored
         }
         for chunk in dataChunks(rows) {
-            _ = try await rest.insert("attempts", chunk, UpsertOptions(onConflict: ["id"], ignoreDuplicates: true))
+            _ = try await rest.insert(table, chunk, UpsertOptions(onConflict: ["id"], ignoreDuplicates: true))
         }
     }
     func resetProgress() async throws {
         let own: [Filter] = [.eq("user_id", .string(userId))]
         try await rest.delete("attempts", own); try await rest.delete("runs", own)
+    }
+    func importScanPuzzles(_ puzzles: [ScanPuzzleContent]) async throws -> [ScanPuzzle] {
+        var stored: [ScanPuzzle] = []
+        for chunk in dataChunks(distinctScanPuzzles(puzzles)) {
+            let rows = try await rest.insert("scan_puzzles", try chunk.map(scanPuzzleRow),
+                                             UpsertOptions(onConflict: ["user_id", "content_key"]))
+            stored += try rows.map(scanPuzzleFrom)
+        }
+        return stored
+    }
+    func deleteScanPuzzle(_ id: String) async throws { try await rest.delete("scan_puzzles", [.eq("id", .string(id))]) }
+    func saveScanRun(_ run: Run) async throws { try await saveRun(run, in: "scan_runs") }
+    func deleteScanRun(_ id: String) async throws { try await rest.delete("scan_runs", [.eq("id", .string(id))]) }
+    func recordScanAttempts(_ attempts: [ScanAttempt]) async throws {
+        try await record(attempts, in: "scan_attempts", puzzles: "scan_puzzles", runs: "scan_runs", row: scanAttemptRow)
+    }
+    func resetScanProgress() async throws {
+        let own: [Filter] = [.eq("user_id", .string(userId))]
+        try await rest.delete("scan_attempts", own); try await rest.delete("scan_runs", own)
     }
     func createGameCollections(_ collections: [GameCollection]) async throws {
         if collections.isEmpty { return }

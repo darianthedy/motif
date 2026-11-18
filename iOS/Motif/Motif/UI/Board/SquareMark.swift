@@ -18,6 +18,14 @@ enum SquareMark: Equatable, Sendable {
         }
     }
 
+    /// The tint under the piece, dimmed when the mark is carried from an earlier step. A carried
+    /// quick-scan mark has no fill: dimmed violet reads as pink on a light square, too close to a
+    /// red target's tint, so its notch alone shows it.
+    func fill(faded: Bool) -> Color? {
+        guard faded else { return fill }
+        return self == .quickScan ? nil : fill.map { $0.opacity(0.45) }
+    }
+
     /// The tint under the piece; the orange mark is an outline only.
     var fill: Color? {
         switch self {

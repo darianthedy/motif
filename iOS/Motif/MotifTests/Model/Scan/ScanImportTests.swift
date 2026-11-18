@@ -86,8 +86,8 @@ final class ScanImportTests: XCTestCase {
         XCTAssertNil(ScanImport.problem(puzzle))
 
         var newer = puzzle
-        newer.version = 3
-        XCTAssertEqual(ScanImport.problem(newer), "Format version 3 is newer than this app understands (2)")
+        newer.version = 4
+        XCTAssertEqual(ScanImport.problem(newer), "Format version 4 is newer than this app understands (3)")
         var gap = puzzle
         gap.answer.moves.removeValue(forKey: "d2d3")
         XCTAssertEqual(ScanImport.problem(gap), "Moves are missing 1 legal move: d2d3")

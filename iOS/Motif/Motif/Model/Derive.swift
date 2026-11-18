@@ -91,15 +91,32 @@ private struct Retry {
 /// Due retries precede fresh puzzles; remaining retries serve early at the end.
 /// Concurrent devices interleave; the worst case is a puzzle served twice.
 func runProgress<A: RunAttempt>(_ run: Run, _ attempts: [A], _ existing: Set<String>) -> RunProgress {
-    replay(run, attempts, existing)
+    replay(run, attempts, existing).progress
+}
+
+/// Where a run stands counted in serves, retries included: `done` puzzles finished (pass, fail or
+/// skip) out of `total` = done + still to serve. A fail adds its retry to the total, so the
+/// counter and bar move forward after every puzzle ("Puzzle 2 of 3" after a first fail).
+struct RunPosition: Equatable, Sendable {
+    var done: Int
+    var total: Int
+    /// 1-based number of the puzzle on screen, capped at the total.
+    var number: Int { min(done + 1, max(total, 1)) }
+    var fraction: Double { total == 0 ? 1 : Double(done) / Double(total) }
+}
+
+func runPosition<A: RunAttempt>(_ run: Run, _ attempts: [A], _ existing: Set<String>) -> RunPosition {
+    let (progress, done) = replay(run, attempts, existing)
+    return RunPosition(done: done, total: done + progress.remaining)
 }
 
 /// Puzzle attempts, so an empty `[]` still picks a type.
 func runProgress(_ run: Run, _ attempts: [Attempt], _ existing: Set<String>) -> RunProgress {
-    replay(run, attempts, existing)
+    replay(run, attempts, existing).progress
 }
 
-private func replay<A: RunAttempt>(_ run: Run, _ attempts: [A], _ existing: Set<String>) -> RunProgress {
+/// The run's progress, plus how many serves it has finished (skips included).
+private func replay<A: RunAttempt>(_ run: Run, _ attempts: [A], _ existing: Set<String>) -> (progress: RunProgress, done: Int) {
     let queue = run.queue.filter { existing.contains($0) }
     let inQueue = Set(queue)
     let mine = chronological(attempts.filter { $0.runId == run.id && inQueue.contains($0.puzzleId) })
@@ -108,11 +125,13 @@ private func replay<A: RunAttempt>(_ run: Run, _ attempts: [A], _ existing: Set<
     var failed: Set<String> = []
     var retries: [Retry] = []
     var completed = 0
+    var done = 0
     for attempt in mine {
         let id = attempt.puzzleId
         if finished.contains(id) { continue }
         let retrying = retries.contains { $0.puzzleId == id }
         retries.removeAll { $0.puzzleId == id }
+        done += 1
         if attempt.result == .skipped {
             finished.insert(id)
             continue
@@ -134,7 +153,8 @@ private func replay<A: RunAttempt>(_ run: Run, _ attempts: [A], _ existing: Set<
     let fresh = queue.filter { !finished.contains($0) && !waiting.contains($0) }
     let due = retries.first { $0.readyAt <= completed }
     let current = due?.puzzleId ?? fresh.first ?? retries.first?.puzzleId
-    return RunProgress(queue: queue, current: current, remaining: fresh.count + retries.count,
-                       played: mine.count, solved: solved.count, failed: failed.count,
-                       progress: queue.isEmpty ? 1 : min(1, Double(solved.count) / Double(queue.count)))
+    let progress = RunProgress(queue: queue, current: current, remaining: fresh.count + retries.count,
+                               played: mine.count, solved: solved.count, failed: failed.count,
+                               progress: queue.isEmpty ? 1 : min(1, Double(solved.count) / Double(queue.count)))
+    return (progress, done)
 }

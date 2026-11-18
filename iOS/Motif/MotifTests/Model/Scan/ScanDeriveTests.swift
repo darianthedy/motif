@@ -36,6 +36,25 @@ final class ScanDeriveTests: XCTestCase {
         XCTAssertFalse(scanResumable(lib, SCOPE_ALL))
     }
 
+    /// Playtest 2: the counter and bar move after every finished puzzle, and a fail's retry adds one.
+    func testTheCounterMovesAfterAFailAndTheRetryAddsToTheTotal() {
+        var lib = library(2); let r = run(["s0", "s1"]); lib.scanRuns = [r]
+        XCTAssertEqual(scanPositionOf(lib, r), RunPosition(done: 0, total: 2))
+        XCTAssertEqual(scanPositionOf(lib, r).number, 1)
+        lib.scanAttempts = [attempt("s0", .failed)]
+        let afterFail = scanPositionOf(lib, r)
+        XCTAssertEqual(afterFail.number, 2); XCTAssertEqual(afterFail.total, 3, "Puzzle 2 of 3")
+        XCTAssertEqual(afterFail.fraction, 1.0 / 3, accuracy: 1e-9)
+        lib.scanAttempts.append(attempt("s1", .solved))
+        XCTAssertEqual(scanPositionOf(lib, r).number, 3); XCTAssertEqual(scanPositionOf(lib, r).total, 3)
+        lib.scanAttempts.append(attempt("s0", .solved))
+        XCTAssertEqual(scanPositionOf(lib, r), RunPosition(done: 3, total: 3))
+        XCTAssertEqual(scanPositionOf(lib, r).fraction, 1)
+        // A skip moves the counter too, with no retry.
+        var skip = library(2); skip.scanRuns = [r]; skip.scanAttempts = [attempt("s0", .skipped)]
+        XCTAssertEqual(scanPositionOf(skip, r), RunPosition(done: 1, total: 2))
+    }
+
     func testADeletedPuzzleDropsOutOfTheRun() {
         var lib = library(3); let r = run(["s0", "s1", "s2"]); lib.scanRuns = [r]
         lib.scanPuzzles.removeAll { $0.id == "s0" }

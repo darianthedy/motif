@@ -9,8 +9,11 @@
  */
 import { Chess } from 'chess.js';
 
-/** The newest format version the app understands. 2 adds the full scan. */
-export const SCAN_VERSION = 2;
+/**
+ * The newest format version the app understands. 2 adds the full scan; 3 lets a
+ * red or orange target be an empty king-zone square (next to either king).
+ */
+export const SCAN_VERSION = 3;
 
 export interface ScanRejection {
   /** Index into the file's `scan` array; -1 for the whole file. */
@@ -93,8 +96,24 @@ interface Arrow {
   kind: string;
 }
 
+/** The king zone: a square next to either king (ScanImport.nextToAKing). */
+function nextToAKing(square: string, chess: Chess): boolean {
+  const file = square.charCodeAt(0);
+  const rank = Number(square[1]);
+  for (let df = -1; df <= 1; df++) {
+    for (let dr = -1; dr <= 1; dr++) {
+      if (!df && !dr) continue;
+      const f = file + df;
+      const r = rank + dr;
+      if (f < 97 || f > 104 || r < 1 || r > 8) continue;
+      if (chess.get(`${String.fromCharCode(f)}${r}` as Square)?.type === 'k') return true;
+    }
+  }
+  return false;
+}
+
 /** Version 2: what the full scan must hold (ScanImport.fullScanProblem). */
-function fullScanProblem(entry: Raw, arrows: Arrow[] | null, chess: Chess): string | null {
+function fullScanProblem(entry: Raw, arrows: Arrow[] | null, chess: Chess, version: number): string | null {
   const targets = isObject(entry.targets) ? entry.targets : null;
   if (entry.flagged) {
     if (!targets) return 'Flag puzzle is missing "targets"';
@@ -107,8 +126,11 @@ function fullScanProblem(entry: Raw, arrows: Arrow[] | null, chess: Chess): stri
       if (seen.has(square)) return `Target ${square} is listed twice`;
       seen.add(square);
     }
+    // From v3 an empty king-zone square can be red or orange, counted like a piece.
     for (const square of [...list('red'), ...list('orange')]) {
-      if (!chess.get(square as Square)) return `Red or orange target ${square} is not a piece`;
+      if (chess.get(square as Square)) continue;
+      if (version < 3) return `Red or orange target ${square} is not a piece`;
+      if (!nextToAKing(square, chess)) return `Red or orange target ${square} is neither a piece nor next to a king`;
     }
     for (const square of [...list('kingZone'), ...list('fork')]) {
       if (chess.get(square as Square)) return `King-zone or fork square ${square} is not empty`;
@@ -220,7 +242,7 @@ export function scanProblem(entry: unknown, version: number): string | null {
     }
   }
   if (version >= 2) {
-    const problem = fullScanProblem(entry, arrows, chess);
+    const problem = fullScanProblem(entry, arrows, chess, version);
     if (problem) return problem;
   }
 
@@ -251,7 +273,7 @@ export function scanProblem(entry: unknown, version: number): string | null {
   return null;
 }
 
-/** Reads `{"version": 2, "scan": [ ... ]}` as the app's import does. */
+/** Reads `{"version": 3, "scan": [ ... ]}` as the app's import does. */
 export function readScan(text: string): ScanReadResult {
   const result: ScanReadResult = { puzzles: [], rejected: [] };
   let parsed: unknown;

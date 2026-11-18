@@ -170,7 +170,7 @@ import XCTest
         XCTAssertEqual(model.annotations.faded, ["d1"], "dimmed: it isn't the targets' input"); XCTAssertNotNil(model.stepStarted)
         XCTAssertEqual(model.current, ScanMarks())
         model.tap("d1")                        // orange first
-        model.markTargets(["d7", "a3"])        // one drag: two dots
+        for _ in 0..<3 { model.markTargets(["d7", "a3"]) }  // three drags: orange, red, then two dots
         XCTAssertEqual(model.current.targets, ["d1": .orange, "d7": .dot, "a3": .dot])
         XCTAssertEqual(model.annotations.tints, ["d1": .orange]); XCTAssertEqual(model.annotations.dots, ["d7", "a3"])
         XCTAssertEqual(model.annotations.faded, [], "the step's own mark replaces the carried one")
@@ -248,7 +248,7 @@ import XCTest
 
     func testAFullScanFoundCleanly() async {
         let model = await atTargets()
-        model.tap("d1"); model.tap("d1"); model.tap("d7"); model.finishStep()  // orange, then red
+        model.tap("d1"); model.tap("d1"); for _ in 0..<3 { model.tap("d7") }; model.finishStep()  // orange, then red; d7 orange, red, dot
         XCTAssertEqual(model.feedback?.verdict, .pass); XCTAssertEqual(model.feedback?.title, "All Targets Found")
         XCTAssertEqual(model.annotations.rings, ["d1": .correct, "d7": .correct])
         model.proceed()
@@ -271,7 +271,7 @@ import XCTest
         XCTAssertEqual(model.feedback?.title, "Missed the Flag"); XCTAssertNil(model.outcome, "the puzzle goes on")
         XCTAssertTrue(model.runsFullScan)
         model.proceed(); XCTAssertEqual(model.step, .targets)
-        model.tap("d1"); model.tap("d1"); model.tap("d7"); model.finishStep()
+        model.tap("d1"); model.tap("d1"); for _ in 0..<3 { model.tap("d7") }; model.finishStep()
         XCTAssertEqual(model.feedback?.title, "All Targets Found")
         model.proceed(); XCTAssertEqual(model.step, .arrows)
         model.drawArrow(from: "e8", to: "d7"); model.finishStep(); model.proceed()

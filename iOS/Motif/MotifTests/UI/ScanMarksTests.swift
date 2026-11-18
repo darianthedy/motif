@@ -3,13 +3,23 @@ import XCTest
 
 /// Scan plan S07: what one tap, one drag or one arrow does to the step's marks.
 final class ScanMarksTests: XCTestCase {
-    func testAPieceGoesOrangeRedClearAndAnEmptySquareTakesADot() {
+    func testAPieceGoesOrangeRedClearAndAnEmptySquareOrangeRedDotClear() {
         var marks = ScanMarks()
         marks.cycleTarget("e4", piece: true); XCTAssertEqual(marks.orange, ["e4"])
         marks.cycleTarget("e4", piece: true); XCTAssertEqual(marks.red, ["e4"]); XCTAssertEqual(marks.orange, [])
         marks.cycleTarget("e4", piece: true); XCTAssertEqual(marks.targets, [:])
-        marks.cycleTarget("g7", piece: false); XCTAssertEqual(marks.dots, ["g7"])
-        marks.cycleTarget("g7", piece: false); XCTAssertEqual(marks.dots, [])
+        marks.cycleTarget("g7", piece: false); XCTAssertEqual(marks.orange, ["g7"])
+        marks.cycleTarget("g7", piece: false); XCTAssertEqual(marks.red, ["g7"])
+        marks.cycleTarget("g7", piece: false); XCTAssertEqual(marks.dots, ["g7"]); XCTAssertEqual(marks.red, [])
+        marks.cycleTarget("g7", piece: false); XCTAssertEqual(marks.targets, [:])
+    }
+    /// Playtest 2: a carried quick-scan mark drops its fill (dimmed violet read as pink, like red),
+    /// keeping only its notch; carried targets keep a dimmed fill.
+    func testACarriedQuickScanMarkHasNoFill() {
+        XCTAssertNotNil(SquareMark.quickScan.fill(faded: false))
+        XCTAssertNil(SquareMark.quickScan.fill(faded: true))
+        XCTAssertNotNil(SquareMark.red.fill(faded: true))
+        XCTAssertNil(SquareMark.orange.fill(faded: true))
     }
     func testTargetsDrawAsTintsAndDots() {
         let marks = ScanMarks(targets: ["f7": .red, "e5": .orange, "g7": .dot])

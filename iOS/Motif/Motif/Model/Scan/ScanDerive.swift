@@ -39,6 +39,11 @@ func scanProgressOf(_ library: Library, _ run: Run) -> RunProgress {
     runProgress(run, library.scanAttempts, Set(library.scanPuzzles.map(\.id)))
 }
 
+/// The scan session's counter and bar: every finished puzzle moves them, retries add to the total.
+func scanPositionOf(_ library: Library, _ run: Run) -> RunPosition {
+    runPosition(run, library.scanAttempts, Set(library.scanPuzzles.map(\.id)))
+}
+
 /// A scope has a scan run with something still to serve.
 func scanResumable(_ library: Library, _ scope: RunScope) -> Bool {
     guard let run = scanRunIn(library, scope) else { return false }

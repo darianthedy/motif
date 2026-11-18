@@ -94,6 +94,9 @@ import XCTest
         tap(square("e4"), until: "label ENDSWITH 'as often as defended'")
         tap(square("e4"), until: "label ENDSWITH 'loses material'")
         for name in ["e5", "f7"] { tap(square(name), until: "label ENDSWITH 'as often as defended'") }
+        // An empty square goes orange → red → dot, as a king-zone square can be coloured.
+        tap(square("e7"), until: "label ENDSWITH 'as often as defended'")
+        tap(square("e7"), until: "label ENDSWITH 'loses material'")
         tap(square("e7"), until: "label ENDSWITH 'dot'"); capture("scan-targets")
         next.tap(); expectFeedback("All Targets Found", orSlow: true); capture("scan-targets-feedback")
         moveOn()

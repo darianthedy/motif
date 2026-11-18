@@ -3,9 +3,11 @@ import Observation
 
 /// One scan puzzle, step by step (Scan plan §5): the board, the marks, the step's time and the
 /// attempt being built. Grading is `ScanGrader`'s; this model only collects input and times it.
-/// The last move plays, the quick scan ends with Flag or No Flag, feedback; on a Flag with a full
-/// scan the targets, feedback, the arrows, feedback; then the move, held ghosted for the final
-/// check after a full scan, and its feedback. Nothing is saved until the view records `outcome`.
+/// The last move plays, the quick scan ends with Flag or No Flag, feedback; on a flagged puzzle
+/// with a full scan the targets, feedback, the arrows, feedback (after a wrong No Flag too: the
+/// puzzle has failed, but the scan it skipped is still drilled); then the move, held ghosted for
+/// the final check after a full scan, and its feedback. Each step's marks stay on the board,
+/// dimmed, through the steps after it. Nothing is saved until the view records `outcome`.
 /// A step with a hard limit (`ScanLimits`) ends as it stands when the limit runs out: missing
 /// marks are soft misses, and a quick scan with no call or no move in time fails the puzzle.
 @Observable @MainActor final class ScanSolveModel {
@@ -17,6 +19,8 @@ import Observation
     private(set) var highlight: (from: String, to: String)?
     /// What the step on screen has marked: squares, targets or arrows.
     private(set) var current = ScanMarks()
+    /// What the earlier marking steps left, shown dimmed and read-only under the step's own.
+    private(set) var carried = ScanMarks()
     private(set) var flagCall: Bool?
     /// The graded step's feedback; nil while a step is being played.
     private(set) var feedback: ScanFeedback?
@@ -47,10 +51,23 @@ import Observation
     @ObservationIgnored private var takeBacks = 0
     /// Sleeps until the running step's limit, then ends it; cancelled when the step ends first.
     @ObservationIgnored private var limitTask: Task<Void, Never>?
+    /// Moves on from a step found cleanly and in time, after `autoAdvanceMs`.
+    @ObservationIgnored private var advanceTask: Task<Void, Never>?
+    /// Off with VoiceOver or Switch Control, so the feedback is never cut short.
+    var autoAdvance = true
+    /// How long a clean step's feedback stays before the next step starts; 0 never moves on.
+    let autoAdvanceMs: Int
+    static let defaultAutoAdvanceMs = 900
+    /// `-MotifScanAutoAdvanceMs <ms>` on launch overrides the pause (UI tests: longer, so each
+    /// feedback can be read, or 0 for screenshots of it).
+    static var configuredAutoAdvanceMs: Int {
+        UserDefaults.standard.object(forKey: "MotifScanAutoAdvanceMs") == nil
+            ? defaultAutoAdvanceMs : UserDefaults.standard.integer(forKey: "MotifScanAutoAdvanceMs")
+    }
 
     init(_ puzzle: ScanPuzzle, limits: ScanLimits = ScanLimits(), clock: any AnalysisClock = SystemClock(),
-         now: @escaping () -> Date = Date.init) {
-        self.puzzle = puzzle; self.limits = limits; self.clock = clock; self.now = now
+         now: @escaping () -> Date = Date.init, autoAdvanceMs: Int = ScanSolveModel.defaultAutoAdvanceMs) {
+        self.puzzle = puzzle; self.limits = limits; self.clock = clock; self.now = now; self.autoAdvanceMs = autoAdvanceMs
         fen = puzzle.fenBefore
         startFen = puzzle.startFen ?? puzzle.fenBefore
         solver = Board.turnOf(startFen) ?? .white
@@ -63,9 +80,12 @@ import Observation
     /// A marking step (quick scan, targets, arrows) is open for input.
     var canMark: Bool { [.quickScan, .targets, .arrows].contains(step) && feedback == nil }
     var canMove: Bool { step == .move }
-    /// A move is held for the final check only after the full scan (Puzzle flow 6); No Flag and
-    /// v1 puzzles play at once.
-    var needsFinalCheck: Bool { flagCall == true && puzzle.answer.hasFullScan }
+    /// A flagged puzzle with targets and arrows runs them after the quick scan, whatever the call:
+    /// a wrong No Flag has already failed it, but the scan is the part most worth drilling.
+    var runsFullScan: Bool { flagCall != nil && puzzle.answer.hasFullScan }
+    /// A move is held for the final check only after the full scan (Puzzle flow 6); a quiet No
+    /// Flag and v1 puzzles play at once.
+    var needsFinalCheck: Bool { runsFullScan }
     var canUndo: Bool { canMark && !history.isEmpty }
     var boardMode: BoardMode {
         switch step {
@@ -100,6 +120,7 @@ import Observation
     /// move, an arrow for the best one.
     var annotations: BoardAnnotations {
         var annotations = current.annotations
+        if [.targets, .arrows].contains(step) { carry(into: &annotations) }
         switch step {
         case .quickScan:
             if let grade = quickScanGrade, feedback != nil {
@@ -132,12 +153,41 @@ import Observation
                 annotations.ghost = BoardGhost(square: moveTo(candidate), piece: piece)
             }
         case .done:
-            if let outcome, outcome.detail.failReason == .badMove, let best = ScanFeedback.bestMove(puzzle.answer) {
-                annotations.arrows = [BoardArrow(from: moveFrom(best), to: moveTo(best), side: .own)]
-            }
+            annotations.arrows = resultArrows
         default: break
         }
         return annotations
+    }
+
+    /// The result on the board: the move played, ticked when it was the best; otherwise the best
+    /// move. Then the best line's reply, dashed, when the line starts with the move shown.
+    var resultArrows: [BoardArrow] {
+        guard step == .done else { return [] }
+        let played = steps.move?.played, best = ScanFeedback.bestMove(puzzle.answer)
+        var arrows: [BoardArrow] = []
+        let shown: Uci
+        if let played, played.text == best?.text || puzzle.answer.lossCp(played) == 0 {
+            arrows.append(BoardArrow(from: moveFrom(played), to: moveTo(played), side: .own, style: .correct))
+            shown = played
+        } else if let best {
+            arrows.append(BoardArrow(from: moveFrom(best), to: moveTo(best), side: .own))
+            shown = best
+        } else { return [] }
+        if let line = puzzle.answer.bestLine, line.count > 1, line[0].text == shown.text {
+            arrows.append(BoardArrow(from: moveFrom(line[1]), to: moveTo(line[1]), side: .theirs))
+        }
+        return arrows
+    }
+
+    /// The earlier steps' tints and dots, dimmed, on squares the step hasn't marked itself.
+    private func carry(into annotations: inout BoardAnnotations) {
+        let earlier = carried.annotations
+        for (square, mark) in earlier.tints where annotations.tints[square] == nil && !annotations.dots.contains(square) {
+            annotations.tints[square] = mark; annotations.faded.insert(square)
+        }
+        for square in earlier.dots where annotations.tints[square] == nil && !annotations.dots.contains(square) {
+            annotations.dots.insert(square); annotations.faded.insert(square)
+        }
     }
 
     // MARK: Steps
@@ -180,8 +230,11 @@ import Observation
 
     /// An arrow from a piece, either side's: own when the piece is the solver's. Drawing the same
     /// arrow again takes it away.
+    /// Only a move of that piece, one move deep as the answer's arrows are (an arrow no piece
+    /// could play is refused, never graded).
     func drawArrow(from: String, to: String) {
-        guard canMark, step == .arrows, let piece = Board.pieceAt(fen, from) else { return }
+        guard canMark, step == .arrows, let piece = Board.pieceAt(fen, from),
+              !ScanImport.arrowSans(fen, from: from, to: to).isEmpty else { return }
         change("Arrow") { $0.drawArrow(from: from, to: to, side: piece.color == solver ? .own : .theirs) }
     }
 
@@ -224,6 +277,7 @@ import Observation
         feedback = .quickScan(grade, flag: ScanGrader.gradeFlag(called: flag, answer: puzzle.answer),
                               answer: puzzle.answer, startFen: startFen, ms: ms)
             .limited(limits.limitMs(.quickScan), timedOut: timedOut)
+        scheduleAdvance()
     }
 
     private func finishStep(timedOut: Bool) {
@@ -238,6 +292,7 @@ import Observation
             endStep()
             feedback = .targets(grade, marked: current.targets, answer: puzzle.answer, startFen: startFen, ms: ms)
                 .limited(limits.limitMs(.targets), timedOut: timedOut)
+            scheduleAdvance()
         case .arrows:
             guard let grade = ScanGrader.gradeArrows(drawn: current.lines, answer: puzzle.answer) else { return }
             steps.arrows = ScanMarkStep(ms: ms, limitMs: limits.limitMs(.arrows), missed: grade.missed, extra: grade.extra, timedOut: out)
@@ -245,6 +300,7 @@ import Observation
             endStep()
             feedback = .arrows(grade, answer: puzzle.answer, startFen: startFen, ms: ms)
                 .limited(limits.limitMs(.arrows), timedOut: timedOut)
+            scheduleAdvance()
         default: return
         }
     }
@@ -263,12 +319,13 @@ import Observation
         }
     }
 
-    /// Continue after a step's feedback. No Flag goes to the move; Flag runs the full scan first
-    /// when the puzzle has one (format v2), else goes to the move as in v1.
+    /// Continue after a step's feedback. A flagged puzzle with a full scan (format v2) runs it
+    /// first, whatever the call; otherwise on to the move, as in v1.
     func proceed() {
         guard feedback != nil, outcome == nil else { return }
+        advanceTask?.cancel(); advanceTask = nil
         switch step {
-        case .quickScan: start(flagCall == true && puzzle.answer.hasFullScan ? .targets : .move)
+        case .quickScan: start(runsFullScan ? .targets : .move)
         case .targets: start(.arrows)
         case .arrows: start(.move)
         default: return
@@ -309,7 +366,7 @@ import Observation
     /// ran out first.
     private func grade(_ move: Uci?, next: String) {
         guard let flagCall else { return }
-        let ms = elapsedMs(timedOut: move == nil), timed = ScanTimedStep.move(flagCall: flagCall)
+        let ms = elapsedMs(timedOut: move == nil), timed = moveStep
         let grade = move.map { ScanGrader.gradeMove($0, answer: puzzle.answer) }
         steps.move = ScanMoveStep(ms: ms, limitMs: limits.limitMs(timed), played: move, lossCp: grade?.lossCp,
                                   takeBacks: takeBacks > 0 ? takeBacks : nil)
@@ -321,10 +378,10 @@ import Observation
         step = .done
         if let move, let grade {
             feedback = ScanFeedback.move(move, grade: grade, outcome: outcome, answer: puzzle.answer,
-                                         startFen: startFen, flagCall: flagCall, ms: ms)
+                                         startFen: startFen, step: timed, ms: ms)
                 .limited(limits.limitMs(timed), timedOut: false)
         } else {
-            feedback = .noMove(outcome: outcome, answer: puzzle.answer, startFen: startFen, flagCall: flagCall, ms: ms)
+            feedback = .noMove(outcome: outcome, answer: puzzle.answer, startFen: startFen, step: timed, ms: ms)
         }
     }
 
@@ -344,12 +401,17 @@ import Observation
     /// Leaving the puzzle: nothing of it is kept (plan §2.2).
     func cancel() {
         limitTask?.cancel(); limitTask = nil
+        advanceTask?.cancel(); advanceTask = nil
         undoManager?.removeAllActions(withTarget: self)
     }
 
     // MARK: Private
 
     private func start(_ next: ScanStep) {
+        // The finished step's marks carry on, dimmed: the targets build on the quick scan and
+        // the arrows aim at the targets. Arrows end the marking, so none are carried.
+        carried.squares.formUnion(current.squares)
+        carried.targets.merge(current.targets) { _, new in new }
         step = next; feedback = nil; history = []; current = ScanMarks()
         startedAt = clock.now; stepStarted = now()
         deadline = nil
@@ -370,8 +432,23 @@ import Observation
         case .quickScan: .quickScan
         case .targets: .targets
         case .arrows: .arrows
-        case .move, .finalCheck: flagCall.map { ScanTimedStep.move(flagCall: $0) }
+        case .move, .finalCheck: flagCall == nil ? nil : moveStep
         default: nil
+        }
+    }
+
+    /// The move's target: the flagged one after a full scan, which a wrong No Flag runs too.
+    private var moveStep: ScanTimedStep { ScanTimedStep.move(flagCall: flagCall == true, steps: steps) }
+
+    /// A step found cleanly and in time moves on by itself after a short pause; a miss waits for
+    /// Continue, so it can be read. The quick scan only when its call was right too.
+    private func scheduleAdvance() {
+        guard autoAdvance, autoAdvanceMs > 0, feedback?.verdict == .pass, outcome == nil else { return }
+        let step = step, clock = clock, until = clock.now + .milliseconds(autoAdvanceMs)
+        advanceTask = Task { [weak self] in
+            do { try await clock.sleep(until: until) } catch { return }
+            guard !Task.isCancelled, let self, self.step == step, self.feedback != nil else { return }
+            self.proceed()
         }
     }
 

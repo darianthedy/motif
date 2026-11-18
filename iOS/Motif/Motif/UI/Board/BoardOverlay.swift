@@ -13,11 +13,11 @@ struct BoardOverlay: View {
         Canvas { context, _ in
             for (square, mark) in annotations.tints {
                 guard let rect = Self.rect(square, orientation, size) else { continue }
-                drawTint(mark, in: rect, context: context)
+                drawTint(mark, in: rect, context: faded(square, context))
             }
             for square in annotations.dots {
                 guard let rect = Self.rect(square, orientation, size) else { continue }
-                let dot = rect.insetBy(dx: size * 0.37, dy: size * 0.37)
+                let dot = rect.insetBy(dx: size * 0.37, dy: size * 0.37), context = faded(square, context)
                 context.fill(Path(ellipseIn: dot), with: .color(BoardPalette.markDot))
                 context.stroke(Path(ellipseIn: dot), with: .color(.white), lineWidth: max(1, size * 0.03))
             }
@@ -30,8 +30,8 @@ struct BoardOverlay: View {
                 guard let rect = Self.rect(square, orientation, size) else { continue }
                 switch mark {
                 case .quickScan: break
-                case .red: cornerBadge(.red, in: rect, context: context)
-                case .orange: cornerBadge(.orange, in: rect, context: context)
+                case .red: cornerBadge(.red, in: rect, context: faded(square, context))
+                case .orange: cornerBadge(.orange, in: rect, context: faded(square, context))
                 }
             }
             for arrow in annotations.arrows { drawArrow(arrow, context: context) }
@@ -45,6 +45,14 @@ struct BoardOverlay: View {
         .accessibilityHidden(true)
     }
     private enum Symbol: Hashable { case red, orange, correct, extra }
+    /// An earlier step's mark is drawn at reduced opacity: still there to build on, plainly not
+    /// this step's input.
+    private func faded(_ square: String, _ context: GraphicsContext) -> GraphicsContext {
+        guard annotations.faded.contains(square) else { return context }
+        var copy = context
+        copy.opacity = 0.45
+        return copy
+    }
     private var badgeSize: CGFloat { (size * 0.36).rounded() }
 
     /// A square's frame on a board of 8 × `size`, as seen from `orientation`; nil off the board.

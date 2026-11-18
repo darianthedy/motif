@@ -8,6 +8,8 @@ struct ScanSessionPuzzle: View {
     @Environment(AppState.self) private var app
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.undoManager) private var undoManager
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
+    @Environment(\.accessibilitySwitchControlEnabled) private var switchControl
     let puzzle: ScanPuzzle
     let run: Run
     let progress: RunProgress
@@ -19,7 +21,7 @@ struct ScanSessionPuzzle: View {
     init(puzzle: ScanPuzzle, run: Run, progress: RunProgress, limits: ScanLimits = ScanLimits(),
          measured: Binding<SessionMeasurements>) {
         self.puzzle = puzzle; self.run = run; self.progress = progress; _measured = measured
-        _model = State(initialValue: ScanSolveModel(puzzle, limits: limits))
+        _model = State(initialValue: ScanSolveModel(puzzle, limits: limits, autoAdvanceMs: ScanSolveModel.configuredAutoAdvanceMs))
     }
     var body: some View {
         // As in `SessionPuzzle`: one view tree in every pose, the board pinned (no scroll view
@@ -69,7 +71,8 @@ struct ScanSessionPuzzle: View {
         }
         // A limit that runs out mid-promotion ends the move: the piece row goes with it.
         .onChange(of: model.step) { pending = nil }
-        .onAppear { model.attach(undoManager) }
+        .onAppear { model.attach(undoManager); model.autoAdvance = !voiceOver && !switchControl }
+        .onChange(of: voiceOver || switchControl) { _, assistive in model.autoAdvance = !assistive }
         .onChange(of: undoManager) { _, next in model.attach(next) }
         .onDisappear { model.cancel() }
         .task { await model.begin() }
@@ -150,21 +153,20 @@ struct ScanSessionPuzzle: View {
     /// Flag / No Flag while scanning, Next on the targets and arrows, Take Back / Play It on the
     /// final check, Continue on feedback.
     /// Neither call is prominent, so the buttons never hint at the answer; stacked at
-    /// accessibility text sizes. A hidden button keeps the row's height between steps, so the
-    /// board doesn't change size under them.
+    /// accessibility text sizes. Hidden copies of the tallest rows keep the row's height between
+    /// steps, so the board doesn't change size under them: the glass calls stand a little taller
+    /// than the prominent Continue, and the board, sized in whole squares, jumped 8 pt for it.
     private var actions: some View {
         ZStack {
             continueButton.hidden().accessibilityHidden(true)
+            callRow.hidden().accessibilityHidden(true)
             if model.feedback != nil {
                 continueButton
             } else if model.canMark, model.step != .quickScan {
                 Button { model.finishStep() } label: { Label("Next", systemImage: "checkmark").frame(maxWidth: .infinity) }
                     .buttonStyle(.glassProminent).controlSize(.large).accessibilityIdentifier("scan-next")
             } else if model.canMark {
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 12) { calls }
-                    VStack(spacing: 12) { calls }
-                }
+                callRow
             } else if model.step == .finalCheck {
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 12) { finalCheck }
@@ -178,6 +180,13 @@ struct ScanSessionPuzzle: View {
         Button { next() } label: { Label("Continue", systemImage: "arrow.right").frame(maxWidth: .infinity) }
             .buttonStyle(.glassProminent).controlSize(.large)
             .disabled(recording).accessibilityIdentifier("scan-continue")
+    }
+
+    private var callRow: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) { calls }
+            VStack(spacing: 12) { calls }
+        }
     }
 
     @ViewBuilder private var calls: some View {

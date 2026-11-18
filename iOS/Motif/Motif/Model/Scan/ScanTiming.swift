@@ -70,7 +70,7 @@ enum ScanTiming {
         if let step = steps.quickScan { out.append((.quickScan, step.ms)) }
         if let step = steps.targets { out.append((.targets, step.ms)) }
         if let step = steps.arrows { out.append((.arrows, step.ms)) }
-        if let step = steps.move, let flagCall = attempt.flagCall { out.append((.move(flagCall: flagCall), step.ms)) }
+        if let step = steps.move, let flagCall = attempt.flagCall { out.append((.move(flagCall: flagCall, steps: steps), step.ms)) }
         return out
     }
 }

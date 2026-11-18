@@ -73,10 +73,14 @@ struct ScanHomeView: View {
             }
             Section {
                 Button { Task { await app.beginScan(SCOPE_REVIEW, .reviewMistakes) } } label: {
+                    // The count shows at 0 too, and the whole row greys out, so an empty review
+                    // never looks like something to tap.
                     LabeledContent {
-                        if !review.isEmpty { Text("\(review.count)").monospacedDigit() }
+                        Text("\(review.count)").monospacedDigit()
                     } label: { Label("Review Mistakes", systemImage: "arrow.counterclockwise") }
+                    .foregroundStyle(review.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
                 }
+                .tint(review.isEmpty ? .secondary : nil)
                 .disabled(review.isEmpty).accessibilityIdentifier("scan-review-mistakes")
             }
             Section {

@@ -171,12 +171,7 @@ enum ScanImport {
                 return "Arrow \(name) is \"\(arrow.side.rawValue)\" but starts on "
                     + (side == .own ? "the solver's piece" : "the opponent's piece")
             }
-            // One move deep, for either side: a legal move of that piece if its
-            // side were to move. Promotions count once whatever the piece.
-            let fen = withTurn(start, piece.color)
-            let sans = Board.legalUcis(fen)
-                .filter { moveFrom($0) == arrow.from && moveTo($0) == arrow.to }
-                .compactMap { Board.sanFor(fen, $0) }
+            let sans = arrowSans(start, from: arrow.from, to: arrow.to)
             guard !sans.isEmpty else { return "Arrow \(name) is not a legal move" }
             switch arrow.kind {
             case .capture where !sans.contains(where: { $0.contains("x") }):
@@ -188,6 +183,17 @@ enum ScanImport {
             }
         }
         return nil
+    }
+
+    /// An arrow as moves, one move deep for either side: the SAN of each legal move from `from`
+    /// to `to` of that piece if its side were to move ("Nxe4"; promotions once per piece). Empty
+    /// when it isn't one, so the arrow step can refuse it as the import does.
+    static func arrowSans(_ fen: String, from: String, to: String) -> [String] {
+        guard let piece = Board.pieceAt(fen, from) else { return [] }
+        let turned = withTurn(fen, piece.color)
+        return Board.legalUcis(turned)
+            .filter { moveFrom($0) == from && moveTo($0) == to }
+            .compactMap { Board.sanFor(turned, $0) }
     }
 
     /// The position with `side` to move. Handing the move over drops the en

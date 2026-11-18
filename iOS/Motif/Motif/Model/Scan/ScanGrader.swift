@@ -86,7 +86,7 @@ enum ScanGrader {
             if step.timedOut == true || ScanTiming.isOverTarget(step.ms, .arrows) { soft.append(.arrowsSlow) }
         }
         // A move the limit cut off is over the target too, whatever the clock said.
-        if let step = steps.move, step.played == nil || ScanTiming.isOverTarget(step.ms, .move(flagCall: flagCall)) {
+        if let step = steps.move, step.played == nil || ScanTiming.isOverTarget(step.ms, .move(flagCall: flagCall, steps: steps)) {
             soft.append(.moveSlow)
         }
         if reason == nil {

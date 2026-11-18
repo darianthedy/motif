@@ -137,7 +137,7 @@ struct BoardView: View {
                 if selected { Color.yellow.opacity(0.55) }
                 if sweep.contains(square) { Color.yellow.opacity(0.35) }
                 // A mark's fill sits under the piece so the piece stays legible; its shape is in `BoardOverlay`.
-                if let fill = annotations.tints[square]?.fill { fill }
+                if let fill = annotations.tints[square]?.fill { fill.opacity(annotations.faded.contains(square) ? 0.45 : 1) }
                 // A ghost stands in for the piece on its square: the move isn't played yet.
                 if let piece, dragging != square, slide?.to != square, annotations.ghost?.square != square {
                     PieceImage(type: piece.type, color: piece.color).padding(2)
@@ -170,17 +170,19 @@ struct BoardView: View {
                 including: interactive && placing == nil ? .all : .none)
     }
     private func isMarked(_ square: String) -> Bool {
+        // An earlier step's dimmed mark isn't this step's: not selected.
+        guard !annotations.faded.contains(square) else { return false }
         switch mode {
-        case .play, .drawArrows: false
-        case .markSquares: annotations.tints[square] != nil
-        case .markTargets: annotations.tints[square] != nil || annotations.dots.contains(square)
+        case .play, .drawArrows: return false
+        case .markSquares: return annotations.tints[square] != nil
+        case .markTargets: return annotations.tints[square] != nil || annotations.dots.contains(square)
         }
     }
     private func hint(_ square: String, piece: Board.Piece?) -> String {
         switch mode {
         case .play: ""
         case .markSquares: "Marks or unmarks the square."
-        case .markTargets: piece == nil ? "Adds or removes a dot." : "Marks the piece red, then orange, then clears it."
+        case .markTargets: piece == nil ? "Adds or removes a dot." : "Marks the piece orange, then red, then clears it."
         case .drawArrows:
             if let arrowStart { arrowStart == square ? "Cancels the arrow." : "Ends the arrow from \(arrowStart) here." }
             else { piece == nil ? "" : "Starts an arrow from this piece." }

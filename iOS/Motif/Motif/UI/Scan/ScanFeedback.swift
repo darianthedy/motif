@@ -78,7 +78,7 @@ struct ScanFeedback: Equatable, Sendable {
 
     /// The move, and with it the puzzle's result: a missed Flag fails the puzzle whatever the move.
     static func move(_ move: Uci, grade: ScanMoveGrade, outcome: ScanOutcome, answer: ScanAnswer,
-                     startFen: String, flagCall: Bool, ms: Int) -> ScanFeedback {
+                     startFen: String, step: ScanTimedStep, ms: Int) -> ScanFeedback {
         let best = bestMove(answer).map { Board.sanFor(startFen, $0) ?? $0.text }
         let loss = grade.lossCp ?? 0
         let reason: String
@@ -91,10 +91,13 @@ struct ScanFeedback: Equatable, Sendable {
         switch (outcome.result, grade.passed) {
         case (.failed, false): title = "Mistake"
         case (.failed, true): title = "Good Move, Puzzle Failed"
-        default: title = verdict == .pass ? "Passed" : "Passed with Misses"
+        default:
+            // Only over time: no square, target or arrow missed. Says so, so it doesn't read as a
+            // miss in the summary's sense (a failed puzzle).
+            let slowOnly = outcome.detail.softMisses.allSatisfy(\.isSlow)
+            title = verdict == .pass ? "Passed" : slowOnly ? "Passed, Slow" : "Passed with Misses"
         }
-        return ScanFeedback(verdict: verdict, title: title, reason: reason, note: note,
-                            time: timeText(ms, .move(flagCall: flagCall)))
+        return ScanFeedback(verdict: verdict, title: title, reason: reason, note: note, time: timeText(ms, step))
     }
 
     /// The quick scan's limit ran out before a call: the puzzle fails on any position.
@@ -104,11 +107,11 @@ struct ScanFeedback: Equatable, Sendable {
     }
 
     /// The move step's limit ran out before a move was played: the puzzle fails (Scoring).
-    static func noMove(outcome: ScanOutcome, answer: ScanAnswer, startFen: String, flagCall: Bool, ms: Int) -> ScanFeedback {
+    static func noMove(outcome: ScanOutcome, answer: ScanAnswer, startFen: String, step: ScanTimedStep, ms: Int) -> ScanFeedback {
         let best = bestMove(answer).map { Board.sanFor(startFen, $0) ?? $0.text }
         let note = outcome.detail.failReason == .missedFlag ? "Missed the Flag." : nil
         return ScanFeedback(verdict: .fail, title: "Time's Up", reason: best.map { "Best: \($0)." } ?? "", note: note,
-                            time: timeText(ms, .move(flagCall: flagCall), limited: true))
+                            time: timeText(ms, step, limited: true))
     }
 
     /// The same feedback for a step played under a hard limit: the time line names the limit, and

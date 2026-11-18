@@ -73,6 +73,11 @@ import XCTest
 
     // MARK: Helpers
 
+    override func launch(_ route: String? = nil, seeded: Bool = true, offline: Bool = false, extra: [String] = [],
+                         file: StaticString = #filePath, line: UInt = #line) {
+        super.launch(route, seeded: seeded, offline: offline, extra: ["-MotifScanAutoAdvanceMs", "3000"] + extra, file: file, line: line)
+    }
+
     private func start() { let start = button("scan-start"); wait(start); start.tap() }
 
     /// After 3…Nf6: the knight attacks e4. Flag; the full scan's targets (e4 red, e5 and f7
@@ -82,23 +87,24 @@ import XCTest
         tap("e4"); expect(square("e4"), "label ENDSWITH 'marked'"); capture("scan-quick-scan")
         button("scan-flag").tap()
         expectFeedback("Clean Scan"); capture("scan-quick-scan-feedback")
-        button("scan-continue").tap()
+        moveOn()
         let next = button("scan-next"); wait(next)
+        // The quick scan's mark stays, dimmed, under the targets.
+        expect(square("e4"), "label ENDSWITH 'from the step before'")
+        tap(square("e4"), until: "label ENDSWITH 'as often as defended'")
         tap(square("e4"), until: "label ENDSWITH 'loses material'")
-        for name in ["e5", "f7"] {
-            tap(square(name), until: "label ENDSWITH 'loses material'")
-            tap(square(name), until: "label ENDSWITH 'as often as defended'")
-        }
+        for name in ["e5", "f7"] { tap(square(name), until: "label ENDSWITH 'as often as defended'") }
         tap(square("e7"), until: "label ENDSWITH 'dot'"); capture("scan-targets")
         next.tap(); expectFeedback("All Targets Found", orSlow: true); capture("scan-targets-feedback")
-        button("scan-continue").tap()
+        moveOn()
         wait(next)
+        expect(square("e5"), "label CONTAINS 'as often as defended, from the step before'")
         square("f6").press(forDuration: 0.1, thenDragTo: square("e4")); wait(button("scan-arrow-f6e4"))
         tap(square("f3"), until: "isSelected == true")
         tap(square("g5"), until: "isSelected == false", on: square("f3"))
         wait(button("scan-arrow-f3g5")); capture("scan-arrows")
         next.tap(); expectFeedback("All Arrows Found", orSlow: true); capture("scan-arrows-feedback")
-        button("scan-continue").tap()
+        moveOn()
         // The final check (S08): Take Back, then d3 again and Play It.
         wait(app.descendants(matching: .any)["scan-prompt"]); move("d2", "d3")
         let takeBack = button("scan-take-back"); wait(takeBack)
@@ -114,10 +120,20 @@ import XCTest
     private func playQuiet(best: Bool = false) {
         button("scan-no-flag").tap()
         expectFeedback("Clean Scan")
-        button("scan-continue").tap()
+        moveOn()
         wait(app.descendants(matching: .any)["scan-prompt"]); if best { move("f1", "b5"); expectFeedback("Passed") }
         else { move("b1", "a3"); expectFeedback("Mistake"); capture("scan-move-mistake") }
         button("scan-continue").tap()
+    }
+
+    /// A clean step moves on by itself (after the launch's 3 s, so its feedback can be checked
+    /// first); anything else waits for Continue.
+    /// Only feedback that waits is asked about, as a clean one can go at any moment.
+    private func moveOn() {
+        let waiting = app.descendants(matching: .any).matching(NSPredicate(format:
+            "identifier == 'scan-feedback' AND NOT (label BEGINSWITH 'Clean Scan' OR label BEGINSWITH 'All Targets Found' OR label BEGINSWITH 'All Arrows Found')"))
+        if waiting.count > 0 { button("scan-continue").tap() }
+        else { expect(app.descendants(matching: .any)["scan-feedback"], "exists == false") }
     }
 
     /// `orSlow`: a step with a lot of taps can run past its target on a slow simulator, which

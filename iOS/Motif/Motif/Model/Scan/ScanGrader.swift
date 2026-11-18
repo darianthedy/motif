@@ -21,9 +21,10 @@ enum ScanGrader {
         }
     }
 
-    /// Targets (v2): a piece counts when it has the right colour, an empty
-    /// square when it has a dot (king zone and fork look the same). Nil when
-    /// the puzzle has no targets, so the step is skipped.
+    /// Targets (v2): a red or orange target, piece or empty king-zone square (v3),
+    /// counts when it has the right colour (a wrong colour or a dot is a miss);
+    /// a `kingZone` or `fork` square when it has a dot (they look the same). Nil
+    /// when the puzzle has no targets, so the step is skipped.
     static func gradeTargets(red: Set<String>, orange: Set<String>, dots: Set<String>,
                              answer: ScanAnswer) -> ScanMarkGrade? {
         guard let targets = answer.targets else { return nil }

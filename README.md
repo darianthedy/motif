@@ -198,9 +198,11 @@ taps and moves with it. See `samples/scan-sample.json`:
           "bestLine": ["d2d3"],
           "source": "lichess", "sourceId": "00sHx" } ] }
 
-- `version` (the file's): the format version, 2 for now. A newer version than
-  the app knows is rejected whole. Version 1 files still import: everything
-  below except the full-scan rules, and their Flag puzzles skip the full scan.
+- `version` (the file's): the format version, 3 for now. A newer version than
+  the app knows is rejected whole. Version 3 lets an empty king-zone square be
+  `red` or `orange`; version 2 files keep pieces-only colours. Version 1 files
+  still import: everything below except the full-scan rules, and their Flag
+  puzzles skip the full scan.
 - `fenBefore`, `lastMove` (UCI): the position *before* the opponent's move,
   and that move. The solver is the side to move after it.
 - `flagged`: the maker's call, Flag or No flag. Required.
@@ -219,8 +221,11 @@ taps and moves with it. See `samples/scan-sample.json`:
   `"lichess"`.
 - `targets`: what the full scan's first step should mark, as square lists.
   `red` (loses material) and `orange` (attacked as often as defended) are
-  pieces of either side; `kingZone` and `fork` are empty squares. A square is
-  in one list at most. Lists may be left out or empty.
+  pieces of either side or, from version 3, empty king-zone squares (next to
+  either king) counted the same way: more attackers than defenders is red,
+  1–1 or 2–2 is orange. `kingZone` (king-zone squares that are neither, shown
+  as dots) and `fork` are empty squares. A square is in one list at most.
+  Lists may be left out or empty.
 - `arrows`: the checks, captures and threats aimed at them, each `from`,
   `to`, `side` (`own` for the solver's piece, `theirs` for the opponent's)
   and `kind` (`check`, `capture` or `threat`). One move deep: `from`-`to`
@@ -237,7 +242,7 @@ piece, `moves` misses a legal move or lists an illegal one or has no move at 0,
 `bestLine` isn't playable, `flagged` is missing, or the solver has no move
 (the last move mated). From version 2 also when a Flag puzzle lacks `targets`
 or `arrows`, or a target or arrow breaks the rules above (a red target on an
-empty square, an arrow whose side isn't its piece's, a "capture" that
+empty square away from both kings, an arrow whose side isn't its piece's, a "capture" that
 captures nothing, …). Identity is the position (without move counters) plus
 the last move, so sending a puzzle again updates its answer and keeps its
 progress.

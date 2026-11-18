@@ -23,7 +23,7 @@ Train the check-before-moving habit in Motif puzzles, not only finding the best 
 1. **Last move** plays and stays highlighted. Timer starts.
 2. **Quick scan + flag call:** 10 s.
 3. **No flag → move:** 5 s.
-4. **Flag → targets:** 20 s. Red before orange, own pieces before theirs. Empty squares only for king-zone and fork squares.
+4. **Flag → targets:** 20 s. Red before orange, own pieces before theirs. Empty squares only for king-zone and fork squares; a king-zone square is coloured like a piece (red when attackers outnumber defenders, orange at 1–1 or 2–2), otherwise a dot.
 5. **Flag → checks, captures, threats:** 15 s. Arrows from a piece to a target, both sides, one move deep.
 6. **Flag → move + final check:** 10 s. Before it's played: "their checks after this? What does this piece stop guarding?"
 7. **Feedback** after each step. The engine grades the move.

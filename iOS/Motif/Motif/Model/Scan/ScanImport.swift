@@ -9,8 +9,10 @@ enum ScanImport {
     /// The newest format version this app understands. Version 2 adds the full
     /// scan: a Flag puzzle must carry `targets` and `arrows`, and both are
     /// checked against the position (`fullScanProblem`). Version 1 files still
-    /// import; their Flag puzzles skip the full scan.
-    static let version = 2
+    /// import; their Flag puzzles skip the full scan. Version 3 lets a red or
+    /// orange target be an empty king-zone square (next to either king);
+    /// version 2 files keep the pieces-only rule.
+    static let version = 3
 
     struct Result: Equatable, Sendable {
         /// File order, each puzzle once: a puzzle listed twice keeps its first
@@ -20,7 +22,7 @@ enum ScanImport {
         var rejected: [ImportRejection] = []
     }
 
-    /// Reads `{"version": 2, "scan": [ ... ]}`.
+    /// Reads `{"version": 3, "scan": [ ... ]}`.
     static func read(_ text: String) -> Result {
         var result = Result()
         let parsed: Any
@@ -86,7 +88,7 @@ enum ScanImport {
         for arrow in answer.arrows ?? [] where Board.pieceAt(start, arrow.from) == nil {
             return "Arrow \(arrow.from)-\(arrow.to) does not start on a piece"
         }
-        if content.version >= 2, let problem = fullScanProblem(answer, start: start) { return problem }
+        if content.version >= 2, let problem = fullScanProblem(answer, start: start, version: content.version) { return problem }
 
         let legal = Board.legalUcis(start)
         guard !legal.isEmpty else { return "The solver has no legal move" }
@@ -136,10 +138,21 @@ enum ScanImport {
 
     // MARK: The full scan (version 2)
 
+    /// The king zone: a square next to either king.
+    private static func nextToAKing(_ square: String, _ fen: String) -> Bool {
+        guard let file = square.first?.asciiValue, let rank = square.last?.wholeNumberValue else { return false }
+        for df in -1...1 { for dr in -1...1 where df != 0 || dr != 0 {
+            let f = Int(file) + df, r = rank + dr
+            guard (97...104).contains(f), (1...8).contains(r) else { continue }
+            if Board.pieceAt(fen, "\(Character(UnicodeScalar(UInt8(f))))\(r)")?.type == .king { return true }
+        } }
+        return false
+    }
+
     /// What a version 2 puzzle's full scan must hold, so every target and arrow
     /// the solver is graded against can be marked or drawn on the board. Version
     /// 1 content isn't held to it: rows already stored keep loading.
-    private static func fullScanProblem(_ answer: ScanAnswer, start: String) -> String? {
+    private static func fullScanProblem(_ answer: ScanAnswer, start: String, version: Int) -> String? {
         if answer.flagged {
             guard answer.targets != nil else { return #"Flag puzzle is missing "targets""# }
             guard answer.arrows != nil else { return #"Flag puzzle is missing "arrows""# }
@@ -150,8 +163,12 @@ enum ScanImport {
                 return "Target \(square) is listed twice"
             }
             // Requirements › Puzzle flow: "Empty squares only for king-zone and fork squares."
+            // From v3 an empty king-zone square can be red or orange, counted like a piece.
             for square in targets.red + targets.orange where Board.pieceAt(start, square) == nil {
-                return "Red or orange target \(square) is not a piece"
+                if version < 3 { return "Red or orange target \(square) is not a piece" }
+                if !nextToAKing(square, start) {
+                    return "Red or orange target \(square) is neither a piece nor next to a king"
+                }
             }
             for square in targets.kingZone + targets.fork where Board.pieceAt(start, square) != nil {
                 return "King-zone or fork square \(square) is not empty"

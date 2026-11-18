@@ -13,7 +13,9 @@ struct BoardOverlay: View {
         Canvas { context, _ in
             for (square, mark) in annotations.tints {
                 guard let rect = Self.rect(square, orientation, size) else { continue }
-                drawTint(mark, in: rect, context: faded(square, context))
+                // A carried quick-scan notch keeps its full violet: with no fill under it, a dimmed
+                // notch would read pink, like a red target's tint.
+                drawTint(mark, in: rect, context: mark == .quickScan ? context : faded(square, context))
             }
             for square in annotations.dots {
                 guard let rect = Self.rect(square, orientation, size) else { continue }
@@ -25,7 +27,17 @@ struct BoardOverlay: View {
                 guard let rect = Self.rect(square, orientation, size) else { continue }
                 drawRing(ring, in: rect, context: context)
             }
-            // A mark's badge goes over the feedback ring, so a graded target still shows its colour's symbol.
+            for arrow in annotations.arrows { drawArrow(arrow, context: context) }
+            // Badges go last, over rings and arrows: an arrowhead ending on a target never hides its
+            // symbol, and a graded target still shows its colour's.
+            for (square, ring) in annotations.rings {
+                guard let rect = Self.rect(square, orientation, size) else { continue }
+                switch ring {
+                case .correct: cornerBadge(.correct, in: rect, bottomLeading: true, context: context)
+                case .extra: cornerBadge(.extra, in: rect, bottomLeading: true, context: context)
+                case .missed: break
+                }
+            }
             for (square, mark) in annotations.tints {
                 guard let rect = Self.rect(square, orientation, size) else { continue }
                 switch mark {
@@ -34,7 +46,6 @@ struct BoardOverlay: View {
                 case .orange: cornerBadge(.orange, in: rect, context: faded(square, context))
                 }
             }
-            for arrow in annotations.arrows { drawArrow(arrow, context: context) }
         } symbols: {
             Badge(systemImage: "exclamationmark", fill: BoardPalette.markRed, foreground: .white, size: badgeSize).tag(Symbol.red)
             Badge(systemImage: "equal", fill: BoardPalette.markOrange, foreground: .black, size: badgeSize).tag(Symbol.orange)
@@ -92,19 +103,18 @@ struct BoardOverlay: View {
             context.stroke(Path(rect.insetBy(dx: width / 2, dy: width / 2)), with: .color(BoardPalette.markOrange), lineWidth: width)
         }
     }
+    /// The ring alone; its badge is drawn with the others, above the arrows.
     private func drawRing(_ ring: RingStyle, in rect: CGRect, context: GraphicsContext) {
         let width = max(2, size * 0.07)
         let circle = Path(ellipseIn: rect.insetBy(dx: width / 2 + size * 0.04, dy: width / 2 + size * 0.04))
         switch ring {
         case .correct:
             context.stroke(circle, with: .color(BoardPalette.ringCorrect), lineWidth: width)
-            cornerBadge(.correct, in: rect, bottomLeading: true, context: context)
         case .missed:
             context.stroke(circle, with: .color(BoardPalette.ringMissed),
                            style: StrokeStyle(lineWidth: width, lineCap: .round, dash: [size * 0.1, size * 0.09]))
         case .extra:
             context.stroke(circle, with: .color(BoardPalette.ringExtra), lineWidth: width)
-            cornerBadge(.extra, in: rect, bottomLeading: true, context: context)
         }
     }
     private func drawArrow(_ arrow: BoardArrow, context: GraphicsContext) {

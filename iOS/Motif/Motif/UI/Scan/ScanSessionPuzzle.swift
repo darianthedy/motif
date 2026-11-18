@@ -12,13 +12,14 @@ struct ScanSessionPuzzle: View {
     @Environment(\.accessibilitySwitchControlEnabled) private var switchControl
     let puzzle: ScanPuzzle
     let run: Run
-    let progress: RunProgress
+    /// Serves done out of the total, retries included: moves after every pass or fail.
+    let progress: RunPosition
     @Binding var measured: SessionMeasurements
     @State private var model: ScanSolveModel
     @State private var recording = false
     /// A promotion waiting for its piece, answered by the row in the column.
     @State private var pending: BoardPending?
-    init(puzzle: ScanPuzzle, run: Run, progress: RunProgress, limits: ScanLimits = ScanLimits(),
+    init(puzzle: ScanPuzzle, run: Run, progress: RunPosition, limits: ScanLimits = ScanLimits(),
          measured: Binding<SessionMeasurements>) {
         self.puzzle = puzzle; self.run = run; self.progress = progress; _measured = measured
         _model = State(initialValue: ScanSolveModel(puzzle, limits: limits, autoAdvanceMs: ScanSolveModel.configuredAutoAdvanceMs))
@@ -86,7 +87,7 @@ struct ScanSessionPuzzle: View {
     /// moves). Both draw themselves from the step's start and deadline: the model never ticks.
     private func header(_ layout: BoardLayout) -> some View {
         HStack(spacing: 12) {
-            ProgressView(value: progress.progress).tint(.motifAccent).accessibilityLabel("Session progress")
+            ProgressView(value: progress.fraction).tint(.motifAccent).accessibilityLabel("Session progress")
             Group {
                 if let started = model.stepStarted, let deadline = model.deadline, started < deadline {
                     Text(timerInterval: started...deadline, countsDown: true).accessibilityLabel("Time left")

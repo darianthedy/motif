@@ -2334,9 +2334,525 @@
    ]
   },
   {
-   "name": "a newer format version",
+   "name": "version 2: an empty red target stays rejected",
+   "file": {
+    "version": 2,
+    "scan": [
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {
+       "red": [
+        "e4",
+        "f1"
+       ],
+       "orange": [],
+       "kingZone": [],
+       "fork": []
+      },
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "own",
+        "kind": "threat"
+       },
+       {
+        "from": "c4",
+        "to": "f7",
+        "side": "own",
+        "kind": "check"
+       },
+       {
+        "from": "f6",
+        "to": "e4",
+        "side": "theirs",
+        "kind": "capture"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     }
+    ]
+   },
+   "accepted": [],
+   "rejected": [
+    {
+     "index": 0,
+     "reason": "Red or orange target f1 is not a piece"
+    }
+   ]
+  },
+  {
+   "name": "version 3: empty king-zone squares can be red or orange",
    "file": {
     "version": 3,
+    "scan": [
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {
+       "red": [
+        "e4",
+        "f1"
+       ],
+       "orange": [
+        "e5",
+        "f7",
+        "e7"
+       ],
+       "kingZone": [],
+       "fork": []
+      },
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "own",
+        "kind": "threat"
+       },
+       {
+        "from": "c4",
+        "to": "f7",
+        "side": "own",
+        "kind": "check"
+       },
+       {
+        "from": "f6",
+        "to": "e4",
+        "side": "theirs",
+        "kind": "capture"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     }
+    ]
+   },
+   "accepted": [
+    {
+     "key": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq -/g8f6",
+     "flagged": true
+    }
+   ],
+   "rejected": []
+  },
+  {
+   "name": "version 3: an empty red or orange target must be next to a king",
+   "file": {
+    "version": 3,
+    "scan": [
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {
+       "red": [
+        "e4",
+        "e3"
+       ],
+       "orange": [],
+       "kingZone": [],
+       "fork": []
+      },
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "own",
+        "kind": "threat"
+       },
+       {
+        "from": "c4",
+        "to": "f7",
+        "side": "own",
+        "kind": "check"
+       },
+       {
+        "from": "f6",
+        "to": "e4",
+        "side": "theirs",
+        "kind": "capture"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {
+       "red": [
+        "e4"
+       ],
+       "orange": [
+        "e7"
+       ],
+       "kingZone": [
+        "e7"
+       ],
+       "fork": []
+      },
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "own",
+        "kind": "threat"
+       },
+       {
+        "from": "c4",
+        "to": "f7",
+        "side": "own",
+        "kind": "check"
+       },
+       {
+        "from": "f6",
+        "to": "e4",
+        "side": "theirs",
+        "kind": "capture"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {
+       "red": [
+        "e4"
+       ],
+       "orange": [],
+       "kingZone": [
+        "f7"
+       ],
+       "fork": []
+      },
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "own",
+        "kind": "threat"
+       },
+       {
+        "from": "c4",
+        "to": "f7",
+        "side": "own",
+        "kind": "check"
+       },
+       {
+        "from": "f6",
+        "to": "e4",
+        "side": "theirs",
+        "kind": "capture"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     },
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "e4",
+        "kind": "attacked"
+       }
+      ],
+      "targets": {
+       "red": [
+        "e4"
+       ],
+       "orange": [],
+       "kingZone": [],
+       "fork": [
+        "c6"
+       ]
+      },
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "own",
+        "kind": "threat"
+       },
+       {
+        "from": "c4",
+        "to": "f7",
+        "side": "own",
+        "kind": "check"
+       },
+       {
+        "from": "f6",
+        "to": "e4",
+        "side": "theirs",
+        "kind": "capture"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      }
+     }
+    ]
+   },
+   "accepted": [],
+   "rejected": [
+    {
+     "index": 0,
+     "reason": "Red or orange target e3 is neither a piece nor next to a king"
+    },
+    {
+     "index": 1,
+     "reason": "Target e7 is listed twice"
+    },
+    {
+     "index": 2,
+     "reason": "King-zone or fork square f7 is not empty"
+    },
+    {
+     "index": 3,
+     "reason": "King-zone or fork square c6 is not empty"
+    }
+   ]
+  },
+  {
+   "name": "a newer format version",
+   "file": {
+    "version": 4,
     "scan": [
      {
       "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
@@ -2385,7 +2901,7 @@
    "rejected": [
     {
      "index": -1,
-     "reason": "Format version 3 is newer than this app understands (2)"
+     "reason": "Format version 4 is newer than this app understands (3)"
     }
    ]
   },

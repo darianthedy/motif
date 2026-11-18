@@ -37,7 +37,7 @@ struct ScanBoardSampleView: View {
             case .targets:
                 BoardView(fen: Self.fen, orientation: .white, mode: .markTargets, annotations: marks.annotations,
                           onSquare: { cycle([$0]) }, onSquares: cycle)
-                Text("Tap or drag: pieces red, orange, clear; empty squares a dot").foregroundStyle(.motifSecondary)
+                Text("Tap or drag: orange, red, clear; empty squares then a dot").foregroundStyle(.motifSecondary)
             case .arrows:
                 BoardView(fen: Self.fen, orientation: .white, mode: .drawArrows, annotations: marks.annotations,
                           onArrow: { from, to in

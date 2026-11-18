@@ -18,10 +18,11 @@ struct ScanSessionView: View {
                     let progress = scanProgressOf(library, run)
                     if let puzzle = library.scanPuzzles.first(where: { $0.id == progress.current }) {
                         // Fixed when the puzzle starts: a change to the switch applies from the next.
-                        ScanSessionPuzzle(puzzle: puzzle, run: run, progress: progress, limits: limits(library),
+                        let position = scanPositionOf(library, run)
+                        ScanSessionPuzzle(puzzle: puzzle, run: run, progress: position, limits: limits(library),
                                           measured: $measured)
                             .id("\(puzzle.id):\(progress.played)")
-                            .navigationSubtitle("Puzzle \(number(progress)) of \(progress.queue.count)")
+                            .navigationSubtitle("Puzzle \(position.number) of \(position.total)")
                     } else {
                         SessionComplete(progress: progress, solvedLabel: "Passed", failedLabel: "Failed") { dismiss() }
                             .navigationTitle(scope == SCOPE_REVIEW ? "Review Mistakes" : "Scan")
@@ -41,9 +42,5 @@ struct ScanSessionView: View {
     private func limits(_ library: Library) -> ScanLimits {
         let enabled = ScanTimeLimitsPreference.enabled(stored: timeLimitsStored, voiceOver: voiceOver, switchControl: switchControl)
         return ScanTiming.limits(library.scanAttempts, now: epochMilliseconds(), enabled: enabled)
-    }
-    /// Retries keep `remaining` up, so the count stays inside the queue.
-    private func number(_ progress: RunProgress) -> Int {
-        min(max(progress.queue.count - progress.remaining + 1, 1), max(progress.queue.count, 1))
     }
 }

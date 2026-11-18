@@ -288,7 +288,8 @@ From version 2, also if:
 
 - a Flag puzzle has no `targets` or no `arrows` (empty is fine);
 - a square is in two target lists, a `red` or `orange` target isn't a
-  piece, or a `kingZone` or `fork` square isn't empty ("Empty squares only
+  piece (from version 3: isn't a piece or an empty square next to either
+  king), or a `kingZone` or `fork` square isn't empty ("Empty squares only
   for king-zone and fork squares");
 - an arrow is listed twice, its `side` isn't the side of the piece it starts
   on, it isn't a legal move of that piece with its side to move ("one move

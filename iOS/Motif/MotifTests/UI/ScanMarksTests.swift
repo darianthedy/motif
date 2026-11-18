@@ -3,10 +3,10 @@ import XCTest
 
 /// Scan plan S07: what one tap, one drag or one arrow does to the step's marks.
 final class ScanMarksTests: XCTestCase {
-    func testAPieceGoesRedOrangeClearAndAnEmptySquareTakesADot() {
+    func testAPieceGoesOrangeRedClearAndAnEmptySquareTakesADot() {
         var marks = ScanMarks()
-        marks.cycleTarget("e4", piece: true); XCTAssertEqual(marks.red, ["e4"])
-        marks.cycleTarget("e4", piece: true); XCTAssertEqual(marks.orange, ["e4"]); XCTAssertEqual(marks.red, [])
+        marks.cycleTarget("e4", piece: true); XCTAssertEqual(marks.orange, ["e4"])
+        marks.cycleTarget("e4", piece: true); XCTAssertEqual(marks.red, ["e4"]); XCTAssertEqual(marks.orange, [])
         marks.cycleTarget("e4", piece: true); XCTAssertEqual(marks.targets, [:])
         marks.cycleTarget("g7", piece: false); XCTAssertEqual(marks.dots, ["g7"])
         marks.cycleTarget("g7", piece: false); XCTAssertEqual(marks.dots, [])
@@ -25,5 +25,12 @@ final class ScanMarksTests: XCTestCase {
         XCTAssertEqual(marks.arrows, [BoardArrow(from: "f6", to: "e4", side: .theirs)])
         marks.removeArrow(at: 3); marks.removeArrow(at: 0)
         XCTAssertEqual(marks.arrows, [])
+    }
+    func testArrowLabelsReadAsMoves() {
+        let fen = "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4"
+        XCTAssertEqual(ScanArrowList.text(BoardArrow(from: "f6", to: "e4", side: .theirs), fen: fen), "Nxe4")
+        XCTAssertEqual(ScanArrowList.text(BoardArrow(from: "c4", to: "f7", side: .own), fen: fen), "Bxf7+")
+        XCTAssertEqual(ScanArrowList.text(BoardArrow(from: "f3", to: "g5", side: .own), fen: fen), "Ng5")
+        XCTAssertEqual(ScanImport.arrowSans(fen, from: "f2", to: "g5"), [], "no pawn move: the arrow step refuses it")
     }
 }

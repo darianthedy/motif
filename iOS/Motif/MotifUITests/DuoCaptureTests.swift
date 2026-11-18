@@ -54,7 +54,8 @@ import XCTest
             for attempt in 1...2 {
                 missing = nil
                 // `capture` always sets a fixture, so the Analysis view's toggles reset each launch.
-                launch(route, seeded: seeded, offline: offline, extra: ["-MotifFixture", fixtures] + textSize)
+                // A clean scan step's feedback stays until Continue, so it can be captured.
+                launch(route, seeded: seeded, offline: offline, extra: ["-MotifFixture", fixtures, "-MotifScanAutoAdvanceMs", "0"] + textSize)
                 continueAfterFailure = true
                 reach()
                 if missing == nil || attempt == 2 { break }
@@ -473,11 +474,9 @@ import XCTest
         func targets() {
             quickScan(); tapButton("scan-flag"); tapButton("scan-continue"); wait(button("scan-next"))
             guard missing == nil else { return }
+            tap(square("e4"), until: "label ENDSWITH 'as often as defended'")
             tap(square("e4"), until: "label ENDSWITH 'loses material'")
-            for name in ["e5", "f7"] {
-                tap(square(name), until: "label ENDSWITH 'loses material'")
-                tap(square(name), until: "label ENDSWITH 'as often as defended'")
-            }
+            for name in ["e5", "f7"] { tap(square(name), until: "label ENDSWITH 'as often as defended'") }
             tap(square("e7"), until: "label ENDSWITH 'dot'")
         }
         func arrows() {

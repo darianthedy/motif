@@ -13,7 +13,7 @@ struct ScanArrowList: View {
             FlowLayout(spacing: 8) {
                 ForEach(Array(arrows.enumerated()), id: \.element) { index, arrow in
                     Button { remove(index) } label: {
-                        Label(text(arrow), systemImage: "xmark.circle.fill")
+                        Label(Self.text(arrow, fen: fen), systemImage: "xmark.circle.fill")
                             .labelStyle(.titleAndIcon)
                     }
                     .buttonStyle(.bordered).buttonBorderShape(.capsule).controlSize(.small)
@@ -29,8 +29,9 @@ struct ScanArrowList: View {
             .accessibilityLabel("Arrows")
         }
     }
-    /// "Nf3 → g5": the piece's letter, as in move notation, and the squares.
-    private func text(_ arrow: BoardArrow) -> String {
+    /// The arrow as the move it is ("Nxe4", "Bxf7+"); "Nf3 → g5" for one that isn't a move.
+    static func text(_ arrow: BoardArrow, fen: String) -> String {
+        if let san = ScanImport.arrowSans(fen, from: arrow.from, to: arrow.to).first { return san }
         let piece = Board.pieceAt(fen, arrow.from).map { $0.type == .pawn ? "" : $0.type.rawValue.uppercased() } ?? ""
         return "\(piece)\(arrow.from) → \(arrow.to)"
     }

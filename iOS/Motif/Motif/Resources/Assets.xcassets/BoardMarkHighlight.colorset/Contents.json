@@ -3,76 +3,34 @@
     {
       "color": {
         "color-space": "srgb",
-        "components": {
-          "alpha": "1.000",
-          "red": "0.430",
-          "green": "0.670",
-          "blue": "0.280"
-        }
+        "components": { "alpha": "1.000", "red": "0.560", "green": "0.330", "blue": "0.860" }
       },
       "idiom": "universal"
     },
     {
-      "appearances": [
-        {
-          "appearance": "luminosity",
-          "value": "dark"
-        }
-      ],
+      "appearances": [ { "appearance": "luminosity", "value": "dark" } ],
       "color": {
         "color-space": "srgb",
-        "components": {
-          "alpha": "1.000",
-          "red": "0.500",
-          "green": "0.750",
-          "blue": "0.330"
-        }
+        "components": { "alpha": "1.000", "red": "0.690", "green": "0.500", "blue": "0.960" }
       },
       "idiom": "universal"
     },
     {
-      "appearances": [
-        {
-          "appearance": "contrast",
-          "value": "high"
-        }
-      ],
+      "appearances": [ { "appearance": "contrast", "value": "high" } ],
       "color": {
         "color-space": "srgb",
-        "components": {
-          "alpha": "1.000",
-          "red": "0.240",
-          "green": "0.480",
-          "blue": "0.120"
-        }
+        "components": { "alpha": "1.000", "red": "0.420", "green": "0.180", "blue": "0.720" }
       },
       "idiom": "universal"
     },
     {
-      "appearances": [
-        {
-          "appearance": "luminosity",
-          "value": "dark"
-        },
-        {
-          "appearance": "contrast",
-          "value": "high"
-        }
-      ],
+      "appearances": [ { "appearance": "luminosity", "value": "dark" }, { "appearance": "contrast", "value": "high" } ],
       "color": {
         "color-space": "srgb",
-        "components": {
-          "alpha": "1.000",
-          "red": "0.600",
-          "green": "0.850",
-          "blue": "0.400"
-        }
+        "components": { "alpha": "1.000", "red": "0.800", "green": "0.660", "blue": "1.000" }
       },
       "idiom": "universal"
     }
   ],
-  "info": {
-    "author": "xcode",
-    "version": 1
-  }
+  "info": { "author": "xcode", "version": 1 }
 }

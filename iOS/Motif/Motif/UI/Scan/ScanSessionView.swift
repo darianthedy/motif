@@ -23,7 +23,7 @@ struct ScanSessionView: View {
                             .id("\(puzzle.id):\(progress.played)")
                             .navigationSubtitle("Puzzle \(number(progress)) of \(progress.queue.count)")
                     } else {
-                        SessionComplete(progress: progress, solvedLabel: "Passed") { dismiss() }
+                        SessionComplete(progress: progress, solvedLabel: "Passed", failedLabel: "Failed") { dismiss() }
                             .navigationTitle(scope == SCOPE_REVIEW ? "Review Mistakes" : "Scan")
                     }
                 } else { Color.clear.onAppear { dismiss() } }

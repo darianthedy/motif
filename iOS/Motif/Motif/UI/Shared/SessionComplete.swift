@@ -7,6 +7,9 @@ struct SessionComplete: View {
     let progress: RunProgress
     /// The first tile's label: "Solved cleanly" for puzzles, "Passed" for scans.
     var solvedLabel = "Solved cleanly"
+    /// The second tile's: "Missed" for puzzles, "Failed" for scans, where a miss is a soft one
+    /// that still passes.
+    var failedLabel = "Missed"
     let done: () -> Void
     @State private var container: CGSize = .zero
     @State private var division: CGRect?
@@ -33,7 +36,7 @@ struct SessionComplete: View {
                 // Stacked at accessibility sizes, where two tiles leave no room for their labels.
                 RowStack(spacing: 12) {
                     tile(progress.solved, solvedLabel, .motifAccentStrong)
-                    tile(progress.failed, "Missed", .orange)
+                    tile(progress.failed, failedLabel, .orange)
                 }.padding(.horizontal)
                 Spacer()
                 Button(action: done) { Text("Done").frame(maxWidth: .infinity) }

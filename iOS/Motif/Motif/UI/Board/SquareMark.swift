@@ -2,7 +2,7 @@ import SwiftUI
 
 /// A tint on a square. Each has a shape as well as a colour, always (§4: never colour alone).
 enum SquareMark: Equatable, Sendable {
-    /// Quick scan: accent tint plus a corner notch.
+    /// Quick scan: violet tint plus a corner notch (not green, which is the found ring's).
     case quickScan
     /// A piece that loses material: filled red tint plus `exclamationmark` in the corner.
     case red

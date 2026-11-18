@@ -104,7 +104,7 @@ struct CaptureFixture: Sendable {
                                                           missed: n.isMultiple(of: 3) ? answer.quickScan.prefix(1).map(\.square) : []))
             if flagCall, answer.hasFullScan, let targets = answer.targets, let arrows = answer.arrows {
                 steps.targets = ScanMarkStep(ms: 16_000, missed: Array(targets.orange.suffix(n.isMultiple(of: 2) ? 1 : 0)))
-                steps.arrows = ScanMarkStep(ms: 12_000, missed: n % 4 == 0 ? arrows.suffix(1).map(\.line) : [])
+                steps.arrows = ScanMarkStep(ms: 12_000, missed: n % 4 == 0 ? arrows.filter { !$0.optional }.suffix(1).map(\.line) : [])
             }
             let bad = n % 5 == 1, worst = answer.moves.max { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value }
             let best = answer.moves.filter { $0.value == 0 }.keys.sorted().first

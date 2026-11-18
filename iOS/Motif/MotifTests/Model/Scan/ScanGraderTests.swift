@@ -23,12 +23,12 @@ final class ScanGraderTests: XCTestCase {
         XCTAssertEqual(ScanGrader.gradeFlag(called: true, answer: answer(flagged: false)), .softMiss)
     }
 
-    func testTargetsNeedTheRightColourAndDotsCoverKingZoneAndFork() {
-        let targets = ScanTargets(red: ["f7"], orange: ["e5"], kingZone: ["g7"], fork: ["d5"])
+    func testTargetsNeedTheRightColourAndDotsCoverForkOnly() {
+        let targets = ScanTargets(red: ["f7"], orange: ["e5"], fork: ["d5"])
         let a = answer(targets: targets)
-        XCTAssertEqual(ScanGrader.gradeTargets(red: ["f7"], orange: ["e5"], dots: ["g7", "d5"], answer: a), ScanMarkGrade())
+        XCTAssertEqual(ScanGrader.gradeTargets(red: ["f7"], orange: ["e5"], dots: ["d5"], answer: a), ScanMarkGrade())
         // Wrong colour is a miss, not an extra; a stray dot is an extra.
-        XCTAssertEqual(ScanGrader.gradeTargets(red: ["e5"], orange: ["f7"], dots: ["g7", "a3"], answer: a),
+        XCTAssertEqual(ScanGrader.gradeTargets(red: ["e5"], orange: ["f7"], dots: ["a3"], answer: a),
                        ScanMarkGrade(missed: ["f7", "e5", "d5"], extra: ["a3"]))
         XCTAssertNil(ScanGrader.gradeTargets(red: [], orange: [], dots: [], answer: answer()))
     }
@@ -39,6 +39,35 @@ final class ScanGraderTests: XCTestCase {
         XCTAssertEqual(ScanGrader.gradeArrows(drawn: ["f3g5", "a1a8"], answer: answer(arrows: arrows)),
                        ScanMarkGrade(missed: ["f6e4"], extra: ["a1a8"]))
         XCTAssertNil(ScanGrader.gradeArrows(drawn: ["f3g5"], answer: answer()))
+    }
+
+    /// v4: `kingZone` is always empty; an older row's king-zone square is neither asked for nor
+    /// counted as found, so a dot on it is an extra like any stray dot.
+    func testKingZoneSquaresAreIgnored() {
+        let a = answer(targets: ScanTargets(red: ["f7"], kingZone: ["g7"]))
+        XCTAssertEqual(ScanGrader.gradeTargets(red: ["f7"], orange: [], dots: [], answer: a), ScanMarkGrade())
+        XCTAssertEqual(ScanGrader.gradeTargets(red: ["f7"], orange: [], dots: ["g7"], answer: a),
+                       ScanMarkGrade(extra: ["g7"]))
+    }
+
+    /// v4: an optional arrow counts when drawn and isn't missed when left out; required arrows
+    /// still must be drawn, and an arrow not in the list is still extra.
+    func testOptionalArrowsAreNeverMissed() {
+        let arrows = [ScanArrow(from: "f3", to: "g5", side: .own, kind: .threat, optional: true),
+                      ScanArrow(from: "f6", to: "e4", side: .theirs, kind: .capture)]
+        let a = answer(arrows: arrows)
+        XCTAssertEqual(ScanGrader.gradeArrows(drawn: ["f6e4"], answer: a), ScanMarkGrade())
+        XCTAssertEqual(ScanGrader.gradeArrows(drawn: ["f6e4", "f3g5"], answer: a), ScanMarkGrade())
+        XCTAssertEqual(ScanGrader.gradeArrows(drawn: ["f3g5", "a1a8"], answer: a),
+                       ScanMarkGrade(missed: ["f6e4"], extra: ["a1a8"]))
+    }
+
+    func testOptionalRoundTripsAndDefaultsToRequired() throws {
+        let optional = ScanArrow(from: "f3", to: "g5", side: .own, kind: .threat, optional: true)
+        let required = ScanArrow(from: "f6", to: "e4", side: .theirs, kind: .capture)
+        let data = try JSONEncoder().encode([optional, required])
+        XCTAssertEqual(try JSONDecoder().decode([ScanArrow].self, from: data), [optional, required])
+        XCTAssertFalse(String(decoding: try JSONEncoder().encode(required), as: UTF8.self).contains("optional"))
     }
 
     func testMovePassesWithinHalfAPawn() {

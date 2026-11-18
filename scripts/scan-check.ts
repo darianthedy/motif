@@ -11,9 +11,10 @@ import { Chess } from 'chess.js';
 
 /**
  * The newest format version the app understands. 2 adds the full scan; 3 lets a
- * red or orange target be an empty king-zone square (next to either king).
+ * red or orange target be an empty king-zone square (next to either king); 4 adds
+ * the quick-scan kind `unpinned`, optional arrows, and quick-scan squares must be pieces.
  */
-export const SCAN_VERSION = 3;
+export const SCAN_VERSION = 4;
 
 export interface ScanRejection {
   /** Index into the file's `scan` array; -1 for the whole file. */
@@ -33,7 +34,7 @@ export interface ScanReadResult {
   rejected: ScanRejection[];
 }
 
-const QUICK_SCAN_KINDS = ['attacked', 'opened', 'undefended'];
+const QUICK_SCAN_KINDS = ['attacked', 'opened', 'undefended', 'unpinned'];
 const ARROW_SIDES = ['own', 'theirs'];
 const ARROW_KINDS = ['check', 'capture', 'threat'];
 
@@ -201,6 +202,9 @@ export function scanProblem(entry: unknown, version: number): string | null {
       if (typeof item.kind !== 'string' || !ARROW_KINDS.includes(item.kind)) {
         return `Unknown arrow kind for ${item.from}-${item.to}`;
       }
+      if (!absent(item.optional) && typeof item.optional !== 'boolean') {
+        return `Malformed "optional" for arrow ${item.from}-${item.to}`;
+      }
       arrows.push({ from: item.from, to: item.to, side: item.side, kind: item.kind });
     }
   }
@@ -241,6 +245,12 @@ export function scanProblem(entry: unknown, version: number): string | null {
       return `Arrow ${arrow.from}-${arrow.to} does not start on a piece`;
     }
   }
+  // Quick scan flags name pieces, never empty squares (v4).
+  if (version >= 4) {
+    for (const item of entry.quickScan as Raw[]) {
+      if (!chess.get(item.square as Square)) return `Quick-scan square ${item.square} is not a piece`;
+    }
+  }
   if (version >= 2) {
     const problem = fullScanProblem(entry, arrows, chess, version);
     if (problem) return problem;
@@ -273,7 +283,7 @@ export function scanProblem(entry: unknown, version: number): string | null {
   return null;
 }
 
-/** Reads `{"version": 3, "scan": [ ... ]}` as the app's import does. */
+/** Reads `{"version": 4, "scan": [ ... ]}` as the app's import does. */
 export function readScan(text: string): ScanReadResult {
   const result: ScanReadResult = { puzzles: [], rejected: [] };
   let parsed: unknown;

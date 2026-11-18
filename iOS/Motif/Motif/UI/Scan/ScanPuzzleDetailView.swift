@@ -79,7 +79,8 @@ struct ScanPuzzleDetailView: View {
         if let targets = answer.targets {
             for square in targets.red { annotations.tints[square] = .red }
             for square in targets.orange { annotations.tints[square] = .orange }
-            annotations.dots = Set(targets.kingZone + targets.fork)
+            // No king-zone dots: `kingZone` is always empty from v4.
+            annotations.dots = Set(targets.fork)
         }
         annotations.arrows = (answer.arrows ?? []).map { BoardArrow(from: $0.from, to: $0.to, side: $0.side == .own ? .own : .theirs) }
         return annotations

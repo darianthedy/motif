@@ -11,8 +11,10 @@ enum ScanImport {
     /// checked against the position (`fullScanProblem`). Version 1 files still
     /// import; their Flag puzzles skip the full scan. Version 3 lets a red or
     /// orange target be an empty king-zone square (next to either king);
-    /// version 2 files keep the pieces-only rule.
-    static let version = 3
+    /// version 2 files keep the pieces-only rule. Version 4 adds the quick-scan
+    /// kind `unpinned`, arrows marked `"optional": true`, and holds quick-scan
+    /// squares to pieces; `targets.kingZone` is always empty and is ignored.
+    static let version = 4
 
     struct Result: Equatable, Sendable {
         /// File order, each puzzle once: a puzzle listed twice keeps its first
@@ -22,7 +24,7 @@ enum ScanImport {
         var rejected: [ImportRejection] = []
     }
 
-    /// Reads `{"version": 3, "scan": [ ... ]}`.
+    /// Reads `{"version": 4, "scan": [ ... ]}`.
     static func read(_ text: String) -> Result {
         var result = Result()
         let parsed: Any
@@ -87,6 +89,10 @@ enum ScanImport {
         }
         for arrow in answer.arrows ?? [] where Board.pieceAt(start, arrow.from) == nil {
             return "Arrow \(arrow.from)-\(arrow.to) does not start on a piece"
+        }
+        // Quick scan flags name pieces, never empty squares (v4).
+        if content.version >= 4, let empty = answer.quickScan.first(where: { Board.pieceAt(start, $0.square) == nil }) {
+            return "Quick-scan square \(empty.square) is not a piece"
         }
         if content.version >= 2, let problem = fullScanProblem(answer, start: start, version: content.version) { return problem }
 
@@ -289,7 +295,14 @@ enum ScanImport {
                 guard let kind = (item["kind"] as? String).flatMap(ScanArrow.Kind.init(rawValue:)) else {
                     return fail("Unknown arrow kind for \(from)-\(to)")
                 }
-                parsed.append(.init(from: from, to: to, side: side, kind: kind))
+                var optional = false
+                if let rawOptional = item["optional"], !(rawOptional is NSNull) {
+                    guard let flag = rawOptional as? Bool, isBool(rawOptional) else {
+                        return fail("Malformed \"optional\" for arrow \(from)-\(to)")
+                    }
+                    optional = flag
+                }
+                parsed.append(.init(from: from, to: to, side: side, kind: kind, optional: optional))
             }
             arrows = parsed
         }

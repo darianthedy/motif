@@ -20,6 +20,7 @@ enum ScanMissCategory: Hashable, Sendable, CaseIterable {
         case .quickScan(.attacked): "Attacked squares"
         case .quickScan(.opened): "Opened lines"
         case .quickScan(.undefended): "Undefended pieces"
+        case .quickScan(.unpinned): "Unpinned pieces"
         case .target(.red): "Red targets"
         case .target(.orange): "Orange targets"
         case .target(.kingZone): "King-zone squares"

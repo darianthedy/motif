@@ -51,8 +51,7 @@ struct ScanFeedback: Equatable, Sendable {
         if !grade.missed.isEmpty, let targets = answer.targets {
             let title = grade.missed.count == 1 ? "Missed a Target" : "Missed \(grade.missed.count) Targets"
             let items = grade.missed.map { square in
-                let what = targets.red.contains(square) ? "red" : targets.orange.contains(square) ? "orange"
-                    : targets.kingZone.contains(square) ? "king zone" : "fork"
+                let what = targets.red.contains(square) ? "red" : targets.orange.contains(square) ? "orange" : "fork"
                 return "\(squareName(square, startFen)) \(what)"
             }
             return ScanFeedback(verdict: .softMiss, title: title, reason: list(items), time: time)
@@ -61,7 +60,7 @@ struct ScanFeedback: Equatable, Sendable {
         return ScanFeedback(verdict: .pass, title: "All Targets Found", reason: "", time: time)
     }
 
-    /// The arrow step. Misses are soft; extra arrows aren't graded.
+    /// The arrow step. Misses are soft and only required arrows can be missed; extra arrows aren't graded.
     static func arrows(_ grade: ScanMarkGrade, answer: ScanAnswer, startFen: String, ms: Int) -> ScanFeedback {
         let time = timeText(ms, .arrows)
         let missed = grade.missed.compactMap { line in answer.arrows?.first { $0.line == line } }
@@ -138,9 +137,7 @@ struct ScanFeedback: Equatable, Sendable {
         list(missed.map { square in
             let why: String
             switch answer.quickScan.first(where: { $0.square == square })?.kind {
-            case .attacked?: why = "attacked"
-            case .opened?: why = "opened"
-            case .undefended?: why = "undefended"
+            case let kind?: why = kind.label.lowercased()
             case nil: why = "changed"
             }
             return "\(squareName(square, startFen)) \(why)"

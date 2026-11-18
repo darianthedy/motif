@@ -11,4 +11,7 @@ struct ScanTargets: Hashable, Codable, Sendable {
     var fork: [String] = []
 
     var allSquares: [String] { red + orange + kingZone + fork }
+    /// What the target step grades and shows: king-zone dots are gone (v3; always empty in
+    /// v4), so an older row's `kingZone` squares are neither asked for nor drawn.
+    var gradedSquares: [String] { red + orange + fork }
 }

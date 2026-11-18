@@ -64,7 +64,8 @@ import XCTest
                                 arrows: [ScanArrow(from: "f3", to: "g5", side: .own, kind: .threat)], moves: [:])
         let marks = ScanPuzzleDetailView.annotations(answer)
         XCTAssertEqual(marks.tints, ["e4": .quickScan, "f7": .red, "e5": .orange])
-        XCTAssertEqual(marks.dots, ["g7", "d5"]); XCTAssertEqual(marks.arrows, [BoardArrow(from: "f3", to: "g5", side: .own)])
+        // No king-zone dots (v4): g7 isn't drawn.
+        XCTAssertEqual(marks.dots, ["d5"]); XCTAssertEqual(marks.arrows, [BoardArrow(from: "f3", to: "g5", side: .own)])
     }
     func testStartAndReviewOpenRunsThroughTheOutbox() async {
         var library = Library()

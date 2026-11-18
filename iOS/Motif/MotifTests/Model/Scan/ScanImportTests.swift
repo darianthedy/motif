@@ -86,11 +86,32 @@ final class ScanImportTests: XCTestCase {
         XCTAssertNil(ScanImport.problem(puzzle))
 
         var newer = puzzle
-        newer.version = 4
-        XCTAssertEqual(ScanImport.problem(newer), "Format version 4 is newer than this app understands (3)")
+        newer.version = 5
+        XCTAssertEqual(ScanImport.problem(newer), "Format version 5 is newer than this app understands (4)")
         var gap = puzzle
         gap.answer.moves.removeValue(forKey: "d2d3")
         XCTAssertEqual(ScanImport.problem(gap), "Moves are missing 1 legal move: d2d3")
+    }
+
+    /// A version 4 `scan_puzzles` row: the `unpinned` kind, an optional arrow and a free-text
+    /// source all load, and the optional flag survives the round trip through the database.
+    func testAVersion4StoredRowLoads() throws {
+        let puzzle = try XCTUnwrap(ScanImport.read(sampleText()).puzzles.first)
+        var answer = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(puzzle.answer)) as? [String: Any])
+        answer["flagged"] = true
+        answer["quickScan"] = [["square": "e4", "kind": "unpinned"]]
+        answer["targets"] = ["red": ["e4"], "orange": [], "kingZone": [], "fork": []]
+        answer["arrows"] = [["from": "f3", "to": "g5", "side": "own", "kind": "threat", "optional": true],
+                            ["from": "c4", "to": "f7", "side": "own", "kind": "check"]]
+        let stored = try ScanImport.stored(fenBefore: puzzle.fenBefore, lastMove: puzzle.lastMove.text, answer: answer,
+                                           version: 4, source: "external", sourceId: "Book p. 41, diagram 3")
+        XCTAssertEqual(stored.version, 4)
+        XCTAssertEqual(stored.source, "external"); XCTAssertEqual(stored.sourceId, "Book p. 41, diagram 3")
+        XCTAssertEqual(stored.answer.quickScan, [.init(square: "e4", kind: .unpinned)])
+        XCTAssertEqual(stored.answer.arrows?.map(\.optional), [true, false])
+        let again = try JSONSerialization.jsonObject(with: JSONEncoder().encode(stored.answer))
+        XCTAssertEqual(try ScanImport.stored(fenBefore: puzzle.fenBefore, lastMove: puzzle.lastMove.text, answer: again,
+                                             version: 4, source: "external", sourceId: nil).answer, stored.answer)
     }
 
     /// A version 1 Flag puzzle stays loadable without a full scan; the same

@@ -9,6 +9,12 @@ struct ScanSquare: Hashable, Codable, Sendable {
         case opened
         /// No longer defended after the last move.
         case undefended
+        /// The solver's piece the opponent can now profitably capture, though it couldn't before
+        /// the last move (v4): a broken pin or a removed counter-tactic. Tapped like the others.
+        case unpinned
+
+        /// The kind as the app names it ("Unpinned").
+        var label: String { rawValue.capitalized }
     }
 
     var square: String

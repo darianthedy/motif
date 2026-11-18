@@ -152,7 +152,7 @@ import XCTest
     /// Black's king threatens d7, White's d2.
     private func fullScan() -> ScanPuzzle {
         ScanPuzzle(id: "f", content: testScanContent(flagged: true, quickScan: ["d1"], scores: ["e8f7": 300],
-                                                     targets: ScanTargets(red: ["d1"], kingZone: ["d7"]),
+                                                     targets: ScanTargets(red: ["d1"], fork: ["d7"]),
                                                      arrows: [ScanArrow(from: "e8", to: "d7", side: .own, kind: .threat),
                                                               ScanArrow(from: "d1", to: "d2", side: .theirs, kind: .threat)]),
                    addedAt: 0)
@@ -384,6 +384,10 @@ import XCTest
         let scan = ScanAnswer(flagged: true, quickScan: [ScanSquare(square: "d1", kind: .undefended)], moves: [:])
         let missed = ScanFeedback.quickScan(ScanMarkGrade(missed: ["d1"]), flag: .pass, answer: scan, startFen: fen, ms: 1000)
         XCTAssertEqual(missed.reason, "Qd1 undefended.")
+        let unpinned = ScanAnswer(flagged: true, quickScan: [ScanSquare(square: "d1", kind: .unpinned)], moves: [:])
+        XCTAssertEqual(ScanFeedback.quickScan(ScanMarkGrade(missed: ["d1"]), flag: .pass, answer: unpinned, startFen: fen, ms: 1000).reason,
+                       "Qd1 unpinned.")
+        XCTAssertEqual(ScanSquare.Kind.unpinned.label, "Unpinned")
     }
 
     // MARK: Hard limits (S09)

@@ -176,7 +176,7 @@ import XCTest
     func testFlagWithAFullScanRunsArrowsThenTheMove() async throws {
         let clock = TestClock(), model = await atArrows(clock)
         XCTAssertEqual(model.step, .arrows); XCTAssertEqual(model.step.title, "Checks, Captures, Threats")
-        XCTAssertEqual(model.boardMode, .drawArrows); XCTAssertEqual(model.tool, .arrows)
+        XCTAssertEqual(model.boardMode, .drawArrows)
         XCTAssertEqual(model.annotations.tints, ["d1": .quickScan], "the quick scan's mark stays")
         XCTAssertEqual(model.annotations.faded, ["d1"], "dimmed: it isn't the arrows' input"); XCTAssertNotNil(model.stepStarted)
         XCTAssertEqual(model.annotations.dots, [], "no fork or king-zone hints")
@@ -202,32 +202,28 @@ import XCTest
         XCTAssertEqual(attempt.detail.softMisses, [.arrowsMissed])
     }
 
-    /// v6: target marks are a thinking aid in the CCT step: red / orange on the board, never
-    /// graded, stored or compared, and the arrow tool is untouched by them.
+    /// v6: target marks are a thinking aid in the CCT step: a tap marks red / orange, a drag draws
+    /// an arrow, with no tool to switch. Marks are never graded, stored or compared.
     func testTargetMarksAreAnUngradedAidInTheArrowsStep() async throws {
         let model = await atArrows()
-        model.tap("d1"); XCTAssertEqual(model.current.targets, [:], "a tap with the arrow tool marks nothing")
-        model.use(.targets)
-        XCTAssertEqual(model.boardMode, .markTargets); XCTAssertEqual(model.prompt, "Mark targets. Not graded.")
+        XCTAssertEqual(model.boardMode, .drawArrows); XCTAssertEqual(model.prompt, "Both sides. Tap to mark targets.")
         model.tap("d1"); model.tap("d1")       // red first, then orange
-        model.markTargets(["e8"])
+        model.tap("e8")
         XCTAssertEqual(model.current.targets, ["d1": .orange, "e8": .red])
         XCTAssertEqual(model.annotations.tints, ["d1": .orange, "e8": .red])
         XCTAssertEqual(model.annotations.faded, [], "the step's own mark replaces the carried one")
-        model.drawArrow(from: "e8", to: "d7"); XCTAssertEqual(model.current.arrows, [], "no arrows with the target tool")
-        model.use(.arrows); XCTAssertEqual(model.boardMode, .drawArrows)
-        model.markTargets(["a3"]); XCTAssertNil(model.current.targets["a3"], "no marks with the arrow tool")
         model.drawArrow(from: "e8", to: "d7"); model.drawArrow(from: "d1", to: "d2")
+        XCTAssertEqual(model.current.lines, ["e8d7", "d1d2"], "drawn from marked pieces too")
         model.undo(); model.undo()
         XCTAssertEqual(model.current.arrows, [], "Undo goes back through the arrows")
         model.undo(); XCTAssertEqual(model.current.targets, ["d1": .orange], "and then the marks")
         model.drawArrow(from: "e8", to: "d7"); model.drawArrow(from: "d1", to: "d2")
-        model.use(.targets); model.finishStep()
+        model.finishStep()
         XCTAssertEqual(model.feedback?.verdict, .pass); XCTAssertEqual(model.feedback?.title, "All Arrows Found")
         XCTAssertEqual(model.annotations.rings, [:], "marks get no rings: nothing compares them")
         XCTAssertEqual(model.annotations.tints, ["d1": .orange], "they stay as made")
-        model.use(.arrows); XCTAssertEqual(model.tool, .targets, "no switching once graded")
-        model.proceed(); XCTAssertEqual(model.tool, .arrows); XCTAssertTrue(model.annotations.isEmpty, "not carried to the move")
+        model.tap("a3"); XCTAssertNil(model.current.targets["a3"], "no marks once graded")
+        model.proceed(); XCTAssertTrue(model.annotations.isEmpty, "not carried to the move")
         model.play(kd8); model.confirm()
         let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
         XCTAssertNil(attempt.detail.steps.targets)
@@ -363,7 +359,7 @@ import XCTest
     func testADragOfTargetsIsOneUndo() async {
         let manager = UndoManager(); manager.groupsByEvent = false
         let model = await atArrows()
-        model.attach(manager); model.use(.targets)
+        model.attach(manager)
         manager.beginUndoGrouping(); model.markTargets(["d7", "c7", "d1"]); manager.endUndoGrouping()
         XCTAssertEqual(manager.undoActionName, "Marks")
         model.undo(); XCTAssertEqual(model.current.targets, [:]); XCTAssertFalse(model.canUndo)
@@ -371,15 +367,12 @@ import XCTest
 
     func testInputOutsideItsMarkingStepIsIgnored() async {
         let model = await atArrows()
-        model.use(.targets)
-        model.drawArrow(from: "e8", to: "d7"); model.toggle("d7"); model.removeArrow(at: 0)
-        XCTAssertEqual(model.current, ScanMarks(), "no arrows or quick-scan marks with the target tool")
-        model.use(.arrows)
-        model.markTargets(["d7"]); model.tap("d1"); model.toggle("d7")
-        XCTAssertEqual(model.current, ScanMarks(), "no targets or quick-scan marks with the arrow tool")
+        model.toggle("d7"); model.removeArrow(at: 0)
+        XCTAssertEqual(model.current, ScanMarks(), "no quick-scan marks in the arrows step")
         let quick = await started(fullScan(), TestClock())
-        quick.use(.targets); XCTAssertEqual(quick.tool, .arrows, "the tool is the arrows step's only")
-        quick.markTargets(["d7"]); XCTAssertEqual(quick.current.targets, [:])
+        quick.markTargets(["d7"]); quick.drawArrow(from: "e8", to: "d7")
+        XCTAssertEqual(quick.current.targets, [:], "no target marks in the quick scan")
+        XCTAssertEqual(quick.current.arrows, [], "nor arrows")
         let scanning = await started(fullScan(), TestClock())
         scanning.finishStep(); XCTAssertNil(scanning.feedback, "the quick scan ends with a call, not Next")
     }

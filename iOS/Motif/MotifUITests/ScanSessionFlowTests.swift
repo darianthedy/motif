@@ -87,7 +87,7 @@ import XCTest
         if !square("f6").label.lowercased().contains("knight") { button("scan-skip").tap(); wait(button("scan-flag")) }
         tap("e4"); button("scan-flag").tap(); expectFeedback("Clean Scan", orSlow: true); moveOn()
         let next = button("scan-next"); wait(next)
-        XCTAssertTrue(app.segmentedControls["scan-tool"].exists, "the arrows step, with its tool switch")
+        XCTAssertFalse(app.segmentedControls["scan-tool"].exists, "no tool switch: tap marks, drag draws")
         next.tap()
         expectFeedback("Missed 2 Arrows")
         // The card reads as one element: each line is its type's name, then its moves.
@@ -112,16 +112,12 @@ import XCTest
         let next = button("scan-next"); wait(next)
         // The quick scan's mark stays, dimmed, under the arrows.
         expect(square("e4"), "label ENDSWITH 'from the step before'")
-        // The target tool: red first (playtest 3), a second tap for orange. Not graded.
-        let tool = app.segmentedControls["scan-tool"]; wait(tool)
-        tool.buttons["Targets"].tap()
+        // A tap marks a target: red first (playtest 3), a second tap for orange. Not graded.
         tap(square("e4"), until: "label ENDSWITH 'loses material'")
         tap(square("f7"), until: "label ENDSWITH 'loses material'")
         tap(square("f7"), until: "label ENDSWITH 'as often as defended'"); capture("scan-targets-aid")
-        tool.buttons["Arrows"].tap()
         square("f6").press(forDuration: 0.1, thenDragTo: square("e4")); wait(button("scan-arrow-f6e4"))
-        tap(square("f3"), until: "isSelected == true")
-        tap(square("g5"), until: "isSelected == false", on: square("f3"))
+        square("f3").press(forDuration: 0.1, thenDragTo: square("g5"))
         wait(button("scan-arrow-f3g5")); capture("scan-arrows")
         next.tap(); expectFeedback("All Arrows Found", orSlow: true); capture("scan-arrows-feedback")
         moveOn()

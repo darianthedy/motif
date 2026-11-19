@@ -129,8 +129,7 @@ struct ScanSessionPuzzle: View {
         BoardView(fen: model.fen, orientation: model.solver, interactive: model.boardInteractive,
                   highlight: model.highlight, onMove: { model.play($0) }, pending: $pending,
                   mode: model.boardMode, annotations: model.annotations, onSquare: { model.tap($0) },
-                  onSquares: { model.markTargets($0) }, onArrow: { model.drawArrow(from: $0, to: $1) },
-                  onArrowTap: { model.removeArrow(at: $0) })
+                  onSquares: { model.markTargets($0) }, onArrow: { model.drawArrow(from: $0, to: $1) })
     }
 
     /// The step's prompt, the promotion row, or the feedback. Scrolls only when the text is too
@@ -149,14 +148,6 @@ struct ScanSessionPuzzle: View {
                 // The drawn arrows come first: on a short column (the iPhone Duo's cover screen) the
                 // prompt, already read, is what scrolls away, not the buttons that delete arrows.
                 if model.step == .arrows {
-                    // Target marks are an ungraded aid in the CCT step (spec v6): one tool at a
-                    // time, so a tap on a piece never means both "start an arrow" and "mark it".
-                    Picker("Tool", selection: Binding(get: { model.tool }, set: { model.use($0) })) {
-                        Text("Arrows").tag(ScanSolveModel.CCTTool.arrows)
-                        Text("Targets").tag(ScanSolveModel.CCTTool.targets)
-                    }
-                    .pickerStyle(.segmented).frame(maxWidth: ResultCard.maxWidth)
-                    .accessibilityIdentifier("scan-tool")
                     ScanArrowList(arrows: model.current.arrows, fen: model.fen) { model.removeArrow(at: $0) }
                         .frame(maxWidth: ResultCard.maxWidth, alignment: layout.sideBySide ? .leading : .center)
                 }

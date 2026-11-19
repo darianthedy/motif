@@ -37,13 +37,13 @@ struct ScanBoardSampleView: View {
             case .targets:
                 BoardView(fen: Self.fen, orientation: .white, mode: .markTargets, annotations: marks.annotations,
                           onSquare: { cycle([$0]) }, onSquares: cycle)
-                Text("Tap or drag: orange, red, clear; empty squares then a dot").foregroundStyle(.motifSecondary)
+                Text("Tap or drag: red, orange, clear; empty squares then a dot").foregroundStyle(.motifSecondary)
             case .arrows:
                 BoardView(fen: Self.fen, orientation: .white, mode: .drawArrows, annotations: marks.annotations,
-                          onArrow: { from, to in
+                          onSquare: { cycle([$0]) }, onArrow: { from, to in
                               let side: BoardArrow.Side = Board.pieceAt(Self.fen, from)?.color == .white ? .own : .theirs
                               marks.drawArrow(from: from, to: to, side: side)
-                          }, onArrowTap: { marks.removeArrow(at: $0) })
+                          })
                 ScanArrowList(arrows: marks.arrows, fen: Self.fen) { marks.removeArrow(at: $0) }
             case .shapes:
                 BoardView(fen: Self.fen, orientation: .white, interactive: false, mode: .markSquares, annotations: Self.shapes)

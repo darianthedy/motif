@@ -51,28 +51,30 @@ final class ScanBoardFlowTests: FlowTestCase {
         XCTAssertEqual(square("g5").label, "g5, empty")
         capture("scan-board-targets")
     }
-    func testArrowsByDragOrTwoTapsDeletedByTapOrList() {
+    /// Arrows are drawn by drag only and deleted from the list; a tap marks a target (v6).
+    func testArrowsByDragDeletedByListTapMarks() {
         launch("scan-board:arrows")
         let arrow = button("scan-arrow-f3g5")
         slowDrag("f3", "g5"); wait(arrow)
         XCTAssertTrue(arrow.label.hasSuffix("yours"), arrow.label)
         XCTAssertTrue(square("f3").label.hasPrefix("f3, White Knight")); XCTAssertEqual(square("g5").label, "g5, empty")
-        // A tap on the shaft, between the two squares, deletes it.
+        // A tap on the shaft, between the two squares, no longer deletes it.
         let from = square("f3").frame, to = square("g5").frame
         // From the square, not the app: the app's coordinates don't follow a landscape window (iPhone Duo, IL).
         square("f3").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .withOffset(CGVector(dx: (to.midX - from.midX) / 2, dy: (to.midY - from.midY) / 2)).tap()
-        expect(arrow, "exists == false")
-        // Two taps draw the same arrow; the list deletes it.
-        tap(square("f3"), until: "isSelected == true")
-        tap(square("g5"), until: "isSelected == false", on: square("f3"))
-        wait(arrow); XCTAssertTrue(square("f3").label.hasPrefix("f3, White Knight"))
+        XCTAssertTrue(arrow.exists, "the shaft takes no taps")
+        // A tap on a piece marks it red, then orange; no arrow starts.
+        tap(square("f3"), until: "label ENDSWITH 'loses material'")
+        tap(square("f3"), until: "label ENDSWITH 'as often as defended'")
+        XCTAssertFalse(square("f3").label.contains("selected"))
         capture("scan-board-arrows")
+        // The list deletes it.
         arrow.tap(); expect(arrow, "exists == false")
         // Black's knight draws their arrow; an empty square starts none.
         slowDrag("f6", "e4")
         let theirs = button("scan-arrow-f6e4"); wait(theirs); XCTAssertTrue(theirs.label.hasSuffix("theirs"), theirs.label)
-        tap("d3"); XCTAssertFalse(square("d3").isSelected)
+        slowDrag("d3", "d5"); XCTAssertEqual(button("scan-arrow-d3d5").exists, false, "an empty square starts none")
     }
     /// Slow enough that the drag reports every square it crosses.
     private func slowDrag(_ from: String, _ to: String) {

@@ -6,9 +6,8 @@ import Observation
 /// The last move plays, the quick scan ends with Flag or No Flag, feedback; on a flagged puzzle
 /// with a full scan the CCT arrows, feedback (after a wrong No Flag too: the puzzle has failed,
 /// but the scan it skipped is still drilled); then the move, held ghosted for the final check
-/// after a full scan, and its feedback. While drawing arrows the solver can switch to the target
-/// tool and mark pieces red or orange: a thinking aid only, never graded, stored or compared with
-/// anything (spec v6). The quick scan's marks stay on the board, dimmed, through the arrows. Nothing is saved until the view records `outcome`.
+/// after a full scan, and its feedback. While drawing arrows (by drag) a tap marks a target red or
+/// orange: a thinking aid only, never graded, stored or compared with anything (spec v6). The quick scan's marks stay on the board, dimmed, through the arrows. Nothing is saved until the view records `outcome`.
 /// A step with a hard limit (`ScanLimits`) ends as it stands when the limit runs out: missing
 /// marks are soft misses, and a quick scan with no call or no move in time fails the puzzle.
 @Observable @MainActor final class ScanSolveModel {
@@ -20,9 +19,6 @@ import Observation
     private(set) var highlight: (from: String, to: String)?
     /// What the step on screen has marked: squares, or arrows and target marks.
     private(set) var current = ScanMarks()
-    /// What a tap or drag does in the arrows step: draw arrows, or put down target marks.
-    private(set) var tool = CCTTool.arrows
-    enum CCTTool: Equatable, Sendable { case arrows, targets }
     /// What the earlier marking steps left, shown dimmed and read-only under the step's own.
     private(set) var carried = ScanMarks()
     private(set) var flagCall: Bool?
@@ -93,7 +89,7 @@ import Observation
     var boardMode: BoardMode {
         switch step {
         case .quickScan: .markSquares
-        case .arrows: tool == .targets ? .markTargets : .drawArrows
+        case .arrows: .drawArrows
         default: .play
         }
     }
@@ -110,7 +106,7 @@ import Observation
         switch step {
         case .lastMove: "Their move."
         case .quickScan: "Last move: \(lastMoveSan)"
-        case .arrows: tool == .targets ? "Mark targets. Not graded." : "Both sides."
+        case .arrows: "Both sides. Tap to mark targets."
         case .move: "Your move."
         case .finalCheck: "Play \(candidateSan ?? "this move")?"
         default: ""
@@ -199,16 +195,9 @@ import Observation
     func tap(_ square: String) {
         switch step {
         case .quickScan: toggle(square)
-        case .arrows where tool == .targets: markTargets([square])
+        case .arrows: markTargets([square])
         default: break
         }
-    }
-
-    /// Switches the arrows step between drawing arrows and marking targets. Both kinds of mark
-    /// stay on the board, and Undo goes back through both.
-    func use(_ tool: CCTTool) {
-        guard canMark, step == .arrows else { return }
-        self.tool = tool
     }
 
     /// Marks or clears a square in the quick scan, undoable through the window's `UndoManager`.
@@ -218,9 +207,9 @@ import Observation
     }
 
     /// Target marks for each square in turn, as one tap each: a drag over several is one undo.
-    /// Ungraded: they're only ever drawn.
+    /// Ungraded: they're only ever drawn. Undo goes back through marks and arrows alike.
     func markTargets(_ squares: [String]) {
-        guard canMark, step == .arrows, tool == .targets, !squares.isEmpty else { return }
+        guard canMark, step == .arrows, !squares.isEmpty else { return }
         change(squares.count == 1 ? "Mark" : "Marks") { marks in
             for square in squares { marks.cycleTarget(square, .init(square, fen: fen)) }
         }
@@ -231,12 +220,12 @@ import Observation
     /// Only a move of that piece, one move deep as the answer's arrows are (an arrow no piece
     /// could play is refused, never graded).
     func drawArrow(from: String, to: String) {
-        guard canMark, step == .arrows, tool == .arrows, let piece = Board.pieceAt(fen, from),
+        guard canMark, step == .arrows, let piece = Board.pieceAt(fen, from),
               !ScanImport.arrowSans(fen, from: from, to: to).isEmpty else { return }
         change("Arrow") { $0.drawArrow(from: from, to: to, side: piece.color == solver ? .own : .theirs) }
     }
 
-    /// A tapped arrow, or one deleted from the list under the board.
+    /// An arrow deleted from the list under the board.
     func removeArrow(at index: Int) {
         guard canMark, step == .arrows else { return }
         change("Arrow") { $0.removeArrow(at: index) }
@@ -406,7 +395,7 @@ import Observation
         // The quick scan's squares carry on, dimmed, under the arrows. Arrows end the marking,
         // so neither they nor the target marks made with them are carried.
         carried.squares.formUnion(current.squares)
-        step = next; feedback = nil; history = []; current = ScanMarks(); tool = .arrows
+        step = next; feedback = nil; history = []; current = ScanMarks()
         startedAt = clock.now; stepStarted = now()
         deadline = nil
         guard let timed = timedStep(next), let limit = limits.limitMs(timed), let started = stepStarted else { return }

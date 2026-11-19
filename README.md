@@ -180,8 +180,8 @@ reasons rather than being silently dropped.
 Scan puzzles train the check before moving: the opponent's last move plays,
 the solver taps what it attacks or opened, calls **Flag** or **No flag**, then
 moves. On a Flag puzzle a full scan comes first: draw the checks, captures and
-threats for both sides (30 s), with an ungraded tool to mark targets red or
-orange while thinking, then move (10 s) and confirm at a final check. Motif doesn't make them or work anything out: the puzzle maker
+threats for both sides (30 s) by dragging, tapping pieces to mark targets red
+or orange while thinking (ungraded), then move (10 s) and confirm at a final check. Motif doesn't make them or work anything out: the puzzle maker
 (Caïssa) precomputes every answer with python-chess and Stockfish, and Motif
 checks what it receives against the rules of chess, stores it, and compares
 taps and moves with it. See `samples/scan-sample.json`:

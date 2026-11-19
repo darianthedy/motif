@@ -198,18 +198,24 @@ taps and moves with it. See `samples/scan-sample.json`:
           "bestLine": ["d2d3"],
           "source": "lichess", "sourceId": "00sHx" } ] }
 
-- `version` (the file's): the format version, 3 for now. A newer version than
+- `version` (the file's): the format version, 5 for now. A newer version than
   the app knows is rejected whole. Version 3 lets an empty king-zone square be
-  `red` or `orange`; version 2 files keep pieces-only colours. Version 1 files
-  still import: everything below except the full-scan rules, and their Flag
-  puzzles skip the full scan.
+  `red` or `orange`; version 2 files keep pieces-only colours. Version 4 adds
+  the `unpinned` kind and optional arrows, and quick-scan squares must be
+  pieces; version 5 adds the `hanging` kind. Version 1 files still import:
+  everything below except the full-scan rules, and their Flag puzzles skip the
+  full scan. From version 5 the format version bumps only when Motif must
+  change (a new field, `kind` or structure).
+- `spec` (optional, top level): the maker's rule version. Motif ignores it, so
+  a rules-only change is a regenerated pool, not an app build.
 - `fenBefore`, `lastMove` (UCI): the position *before* the opponent's move,
   and that move. The solver is the side to move after it.
 - `flagged`: the maker's call, Flag or No flag. Required.
 - `quickScan`: the squares the quick scan should find, each with a `kind`:
   `attacked` (new attacks from the to-square), `opened` (lines opened through
-  the from-square) or `undefended` (no longer defended). Empty for a quiet
-  position.
+  the from-square), `undefended` (no longer defended), `unpinned` (a solver
+  piece the opponent can now profitably capture) or `hanging` (an opponent
+  piece the solver can now profitably capture). Empty for a quiet position.
 - `moves`: **every** legal move of the solver, with how many centipawns worse
   it is than the best: best = 0, a move that throws away a forced mate =
   100000. Promotions are listed once per piece (`b7b8q`, `b7b8n`, …). The app

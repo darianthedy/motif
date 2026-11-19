@@ -54,7 +54,7 @@ struct ScanBoardSampleView: View {
             .onChange(of: page) { marks = ScanMarks(); tapped = []; graded = nil }
     }
     private func cycle(_ squares: [String]) {
-        for square in squares { marks.cycleTarget(square, piece: Board.pieceAt(Self.fen, square) != nil) }
+        for square in squares { marks.cycleTarget(square, .init(square, fen: Self.fen)) }
     }
     private func toggle(_ square: String) {
         if tapped.contains(square) { tapped.remove(square) } else { tapped.insert(square) }

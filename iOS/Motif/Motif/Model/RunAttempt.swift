@@ -12,6 +12,12 @@ protocol RunAttempt {
     var playedAt: Int64 { get }
     /// Counted into `PuzzleRecord.mistakes`.
     var mistakes: Int { get }
+    /// Leaves the puzzle in To review (`PuzzleRecord.status` failed) once it's the latest.
+    var needsReview: Bool { get }
+}
+
+extension RunAttempt {
+    var needsReview: Bool { result == .failed }
 }
 
 extension Attempt: RunAttempt {}

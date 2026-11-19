@@ -474,9 +474,11 @@ import XCTest
         func targets() {
             quickScan(); tapButton("scan-flag"); tapButton("scan-continue"); wait(button("scan-next"))
             guard missing == nil else { return }
-            tap(square("e4"), until: "label ENDSWITH 'as often as defended'")
             tap(square("e4"), until: "label ENDSWITH 'loses material'")
-            for name in ["e5", "f7"] { tap(square(name), until: "label ENDSWITH 'as often as defended'") }
+            for name in ["e5", "f7"] {
+                tap(square(name), until: "label ENDSWITH 'loses material'")
+                tap(square(name), until: "label ENDSWITH 'as often as defended'")
+            }
             tap(square("e7"), until: "label ENDSWITH 'dot'")
         }
         func arrows() {

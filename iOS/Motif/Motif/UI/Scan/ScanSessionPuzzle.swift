@@ -33,8 +33,11 @@ struct ScanSessionPuzzle: View {
         let stack = layout.sideBySide
             ? AnyLayout(HStackLayout(alignment: .top, spacing: layout.spacing))
             : AnyLayout(VStackLayout(alignment: .center, spacing: layout.spacing))
+        // Side by side (IL, iPad landscape) the header and the actions move into the column, so the
+        // board takes the whole height: it was capped by them, with the column beside it mostly
+        // empty (playtest 3). Stacked, they stay above and under everything.
         VStack(spacing: 0) {
-            header(layout)
+            if !layout.sideBySide { header(layout) }
             stack {
                 board.frame(width: layout.board, height: layout.board).accessibilitySortPriority(2)
                 column(layout).accessibilitySortPriority(1)
@@ -46,7 +49,9 @@ struct ScanSessionPuzzle: View {
         }
         .accessibilityElement(children: .contain)
         .motifOfferedSize(changing(\.container))
-        .safeAreaInset(edge: .bottom) { actions.padding(.horizontal, layout.padding.leading).padding(.bottom, 8) }
+        .safeAreaInset(edge: .bottom) {
+            if !layout.sideBySide { actions.padding(.horizontal, layout.padding.leading).padding(.bottom, 8) }
+        }
         .navigationTitle(model.step.title)
         .toolbar {
             ToolbarItem(placement: .bottomBar) {
@@ -92,7 +97,8 @@ struct ScanSessionPuzzle: View {
     /// padding, so the header is the same height with or without one and the board never
     /// moves). Both draw themselves from the step's start and deadline: the model never ticks.
     private func header(_ layout: BoardLayout) -> some View {
-        HStack(spacing: 12) {
+        let inset = layout.sideBySide ? EdgeInsets() : EdgeInsets(top: 0, leading: layout.padding.leading, bottom: 0, trailing: layout.padding.trailing)
+        return HStack(spacing: 12) {
             ProgressView(value: progress.fraction).tint(.motifAccent).accessibilityLabel("Session progress")
             Group {
                 if let started = model.stepStarted, let deadline = model.deadline, started < deadline {
@@ -106,14 +112,14 @@ struct ScanSessionPuzzle: View {
             .font(.subheadline.monospacedDigit()).foregroundStyle(.motifSecondary)
             .accessibilityIdentifier("scan-timer")
         }
-        .padding(.leading, layout.padding.leading).padding(.trailing, layout.padding.trailing).padding(.vertical, 6)
+        .padding(.leading, inset.leading).padding(.trailing, inset.trailing).padding(.vertical, 6)
         .overlay(alignment: .bottom) {
             if let started = model.stepStarted, let deadline = model.deadline, started < deadline {
                 ProgressView(timerInterval: started...deadline, countsDown: true) { EmptyView() } currentValueLabel: { EmptyView() }
                     .tint(.orange)
                     .accessibilityLabel("Time limit")
                     .accessibilityIdentifier("scan-limit")
-                    .padding(.leading, layout.padding.leading).padding(.trailing, layout.padding.trailing)
+                    .padding(.leading, inset.leading).padding(.trailing, inset.trailing)
             }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { if measured.progressHeight != $0 { measured.progressHeight = $0 } }
@@ -149,12 +155,18 @@ struct ScanSessionPuzzle: View {
                 SolvePrompt(side: model.solver, guidance: model.prompt).accessibilityIdentifier("scan-prompt")
             }
         }
-        return ViewThatFits(in: .vertical) {
+        let scrolling = ViewThatFits(in: .vertical) {
             content
             ScrollView { content }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: layout.sideBySide ? .topLeading : .top)
         .animation(.smooth, value: model.feedback)
+        return VStack(spacing: 12) {
+            if layout.sideBySide { header(layout) }
+            scrolling
+            if layout.sideBySide { actions.frame(maxWidth: ResultCard.maxWidth) }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     /// Flag / No Flag while scanning, Next on the targets and arrows, Take Back / Play It on the
@@ -198,7 +210,7 @@ struct ScanSessionPuzzle: View {
 
     @ViewBuilder private var calls: some View {
         Button { model.call(false) } label: { Label("No Flag", systemImage: "flag.slash").frame(maxWidth: .infinity) }
-            .buttonStyle(.glass).controlSize(.large).accessibilityIdentifier("scan-no-flag")
+            .buttonStyle(.glass).controlSize(.large).disabled(!model.canCallNoFlag).accessibilityIdentifier("scan-no-flag")
         Button { model.call(true) } label: { Label("Flag", systemImage: "flag.fill").frame(maxWidth: .infinity) }
             .buttonStyle(.glass).controlSize(.large).accessibilityIdentifier("scan-flag")
     }
@@ -239,12 +251,9 @@ struct ScanSessionPuzzle: View {
         Binding(get: { measured[keyPath: path] }, set: { if measured[keyPath: path] != $0 { measured[keyPath: path] = $0 } })
     }
 
-    /// As `SessionPuzzle`'s: beside the column the header comes off the board's height first.
+    /// As `SessionPuzzle`'s, but beside the column the header and the actions are in the column,
+    /// so nothing comes off the board's height.
     private var boardLayout: BoardLayout {
-        let compact = sizeClass == .compact
-        let full = BoardLayout(container: measured.container, compact: compact, evalBar: false, division: measured.division)
-        guard full.sideBySide else { return full }
-        let below = CGSize(width: measured.container.width, height: max(0, measured.container.height - measured.progressHeight))
-        return BoardLayout(container: below, compact: compact, evalBar: false, division: measured.division)
+        BoardLayout(container: measured.container, compact: sizeClass == .compact, evalBar: false, division: measured.division)
     }
 }

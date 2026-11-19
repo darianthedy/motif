@@ -62,12 +62,22 @@ import XCTest
 
     func testNoFlagOnAFlaggedPositionFailsWhateverTheMove() async throws {
         let model = await started(puzzle(flagged: true), TestClock())
-        model.toggle("d7"); model.call(false)
+        model.call(false)
         XCTAssertEqual(model.feedback?.verdict, .fail); XCTAssertEqual(model.feedback?.title, "Missed the Flag")
         model.proceed(); model.play(kd8)
         let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
         XCTAssertEqual(attempt.result, .failed); XCTAssertEqual(attempt.detail.failReason, .missedFlag)
         XCTAssertEqual(model.feedback?.title, "Good Move, Puzzle Failed"); XCTAssertNotNil(model.feedback?.note)
+    }
+
+    /// Playtest 3: No Flag says nothing changed, so it's off while a square is marked.
+    func testNoFlagIsOffWhileASquareIsMarked() async {
+        let model = await started(puzzle(flagged: true), TestClock())
+        XCTAssertTrue(model.canCallNoFlag)
+        model.toggle("d7"); XCTAssertFalse(model.canCallNoFlag)
+        model.call(false); XCTAssertNil(model.feedback, "ignored with a mark on the board")
+        model.toggle("d7"); XCTAssertTrue(model.canCallNoFlag)
+        model.call(false); XCTAssertEqual(model.feedback?.title, "Missed the Flag")
     }
 
     func testFlagOnAQuietPositionIsASoftMiss() async throws {
@@ -170,8 +180,9 @@ import XCTest
         XCTAssertEqual(model.annotations.tints, ["d1": .quickScan], "the quick scan's mark stays")
         XCTAssertEqual(model.annotations.faded, ["d1"], "dimmed: it isn't the targets' input"); XCTAssertNotNil(model.stepStarted)
         XCTAssertEqual(model.current, ScanMarks())
-        model.tap("d1")                        // orange first
-        for _ in 0..<3 { model.markTargets(["d7", "a3"]) }  // three drags: orange, red, then two dots
+        model.tap("d1"); model.tap("d1")       // red first, then orange
+        // Three drags: d7, by the king, goes red, orange, dot; a3, away from the kings, dot, clear, dot.
+        for _ in 0..<3 { model.markTargets(["d7", "a3"]) }
         XCTAssertEqual(model.current.targets, ["d1": .orange, "d7": .dot, "a3": .dot])
         XCTAssertEqual(model.annotations.tints, ["d1": .orange]); XCTAssertEqual(model.annotations.dots, ["d7", "a3"])
         XCTAssertEqual(model.annotations.faded, [], "the step's own mark replaces the carried one")
@@ -184,8 +195,9 @@ import XCTest
 
         model.proceed()
         XCTAssertEqual(model.step, .arrows); XCTAssertEqual(model.boardMode, .drawArrows)
-        XCTAssertEqual(model.annotations.tints, ["d1": .orange], "the targets stay for the arrows to aim at")
-        XCTAssertEqual(model.annotations.dots, ["d7", "a3"]); XCTAssertEqual(model.annotations.faded, ["d1", "d7", "a3"])
+        // Playtest 3: the answer's targets carry, not the marks: d1 is red, the extra a3 dot is gone.
+        XCTAssertEqual(model.annotations.tints, ["d1": .red], "the true targets stay for the arrows to aim at")
+        XCTAssertEqual(model.annotations.dots, ["d7"]); XCTAssertEqual(model.annotations.faded, ["d1", "d7"])
         XCTAssertEqual(model.annotations.rings, [:], "but not their feedback")
         model.drawArrow(from: "e8", to: "d7"); model.drawArrow(from: "d1", to: "c2")
         model.drawArrow(from: "a4", to: "a5")  // from an empty square: nothing
@@ -218,7 +230,7 @@ import XCTest
         let before = model.fen
         clock.advance(by: .seconds(2)); model.play(kf7)
         XCTAssertEqual(model.step, .finalCheck); XCTAssertEqual(model.step.title, "Final Check")
-        XCTAssertEqual(model.candidate, kf7); XCTAssertEqual(model.candidateSan, "Kf7")
+        XCTAssertEqual(model.candidate, kf7); XCTAssertEqual(model.candidateSan, "Kf7"); XCTAssertEqual(model.prompt, "Play Kf7?")
         XCTAssertNil(model.outcome); XCTAssertNil(model.feedback); XCTAssertNotNil(model.stepStarted, "the clock keeps running")
         XCTAssertFalse(model.canMove); XCTAssertFalse(model.boardInteractive)
         XCTAssertEqual(model.fen, Board.applyUci(before, kf7)); XCTAssertEqual(model.highlight?.to, "f7")
@@ -249,7 +261,7 @@ import XCTest
 
     func testAFullScanFoundCleanly() async {
         let model = await atTargets()
-        model.tap("d1"); model.tap("d1"); for _ in 0..<3 { model.tap("d7") }; model.finishStep()  // orange, then red; d7 orange, red, dot
+        model.tap("d1"); for _ in 0..<3 { model.tap("d7") }; model.finishStep()  // orange, then red; d7 orange, red, dot
         XCTAssertEqual(model.feedback?.verdict, .pass); XCTAssertEqual(model.feedback?.title, "All Targets Found")
         XCTAssertEqual(model.annotations.rings, ["d1": .correct, "d7": .correct])
         model.proceed()
@@ -272,7 +284,7 @@ import XCTest
         XCTAssertEqual(model.feedback?.title, "Missed the Flag"); XCTAssertNil(model.outcome, "the puzzle goes on")
         XCTAssertTrue(model.runsFullScan)
         model.proceed(); XCTAssertEqual(model.step, .targets)
-        model.tap("d1"); model.tap("d1"); for _ in 0..<3 { model.tap("d7") }; model.finishStep()
+        model.tap("d1"); for _ in 0..<3 { model.tap("d7") }; model.finishStep()
         XCTAssertEqual(model.feedback?.title, "All Targets Found")
         model.proceed(); XCTAssertEqual(model.step, .arrows)
         model.drawArrow(from: "e8", to: "d7"); model.finishStep(); model.proceed()
@@ -389,6 +401,33 @@ import XCTest
         XCTAssertEqual(ScanFeedback.quickScan(ScanMarkGrade(missed: ["d1"]), flag: .pass, answer: unpinned, startFen: fen, ms: 1000).misses,
                        [ScanMissGroup(type: .quickScan(.unpinned), items: ["Qd1"])])
         XCTAssertEqual(ScanSquare.Kind.unpinned.label, "Unpinned")
+        XCTAssertEqual(ScanSquare.Kind.hanging.label, "Hanging")
+        XCTAssertEqual(ScanMissCategory.quickScan(.hanging).title, "Hanging pieces")
+    }
+
+    /// Playtest 3: a slow quick scan, then a move in time, said "Passed, Slow" over the move's
+    /// "2.8 / 5 s". The label names the slow step unless the move itself was slow.
+    func testASlowLabelNamesTheSlowStep() {
+        let answer = testScanContent().answer, start = testScanContent().startFen!
+        func title(_ soft: [ScanSoftMiss]) -> String {
+            ScanFeedback.move(kd8, grade: ScanMoveGrade(passed: true, lossCp: 0),
+                              outcome: ScanOutcome(result: .solved, detail: ScanAttemptDetail(softMisses: soft)),
+                              answer: answer, startFen: start, step: .quietMove, ms: 2800).title
+        }
+        XCTAssertEqual(title([.quickScanSlow]), "Passed, Slow Quick Scan")
+        XCTAssertEqual(title([.targetsSlow]), "Passed, Slow Targets")
+        XCTAssertEqual(title([.arrowsSlow]), "Passed, Slow Arrows")
+        XCTAssertEqual(title([.targetsSlow, .arrowsSlow]), "Passed, Slow Scan")
+        XCTAssertEqual(title([.moveSlow]), "Passed, Slow")
+        XCTAssertEqual(title([.quickScanSlow, .moveSlow]), "Passed, Slow")
+        XCTAssertEqual(title([.targetsMissed]), "Passed with Misses")
+    }
+
+    /// Playtest 3: "Last move: Re5", not "After Re5?", and "Play Nd6?", not "Nd6?": a bare "?"
+    /// after a move reads as the annotation for a mistake.
+    func testPromptsNeverPutAQuestionMarkStraightAfterAMove() async {
+        let model = await started(fullScan(), TestClock())
+        XCTAssertEqual(model.prompt, "Last move: \(model.lastMoveSan)")
     }
 
     /// One line per type in order of first appearance, every miss listed (no "+2"), arrows as SAN.
@@ -480,7 +519,7 @@ import XCTest
 
     func testTargetsAndArrowsEndAsTheyStand() async throws {
         let clock = TestClock(), model = await atTargets(clock, limits: allLimits)
-        model.tap("d1"); model.tap("d1")
+        model.tap("d1")  // red: right
         clock.advance(by: .seconds(20)); await settle { model.feedback != nil }
         XCTAssertEqual(model.feedback?.title, "Time's Up"); XCTAssertEqual(model.feedback?.verdict, .softMiss)
         model.proceed()

@@ -20,9 +20,9 @@ struct ScanMarks: Equatable, Sendable {
         if squares.contains(square) { squares.remove(square) } else { squares.insert(square) }
     }
 
-    /// One tap in the target step; `piece` says whether the square holds one.
-    mutating func cycleTarget(_ square: String, piece: Bool) {
-        targets[square] = ScanTargetMark.next(after: targets[square], piece: piece)
+    /// One tap in the target step; `kind` says what the square can be marked.
+    mutating func cycleTarget(_ square: String, _ kind: ScanTargetMark.Square) {
+        targets[square] = ScanTargetMark.next(after: targets[square], on: kind)
     }
 
     /// An arrow from `from` to `to`. Drawing one that's already there takes it away again, as on

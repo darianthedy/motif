@@ -13,6 +13,17 @@ struct ScanFeedbackView: View {
                 Text(feedback.reason).font(.body).fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("scan-feedback-reason")
             }
+            ForEach(feedback.misses, id: \.type) { group in
+                // One line per type: the icon once, then its misses; a long list wraps under itself.
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    ScanMissIcon(type: group.type).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
+                    Text(group.items.joined(separator: ", ")).font(.body.weight(.medium)).monospacedDigit()
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(group.spoken)
+                .accessibilityIdentifier("scan-feedback-miss")
+            }
             if let note = feedback.note {
                 Text(note).font(.body.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
             }

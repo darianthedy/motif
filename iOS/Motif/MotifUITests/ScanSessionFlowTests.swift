@@ -78,6 +78,28 @@ import XCTest
         super.launch(route, seeded: seeded, offline: offline, extra: ["-MotifScanAutoAdvanceMs", "3000"] + extra, file: file, line: line)
     }
 
+    /// Missed targets and arrows list one line per type (an icon, then the squares or moves),
+    /// and ⓘ opens the Legend for the icons.
+    func testMissesAndLegend() {
+        launch("scan"); start()
+        // The flagged sample (Black's knight on f6) has a full scan; skip the quiet one.
+        wait(button("scan-flag"))
+        if !square("f6").label.lowercased().contains("knight") { button("scan-skip").tap(); wait(button("scan-flag")) }
+        tap("e4"); button("scan-flag").tap(); expectFeedback("Clean Scan", orSlow: true); moveOn()
+        let next = button("scan-next"); wait(next); next.tap()
+        expectFeedback("Missed 3 Targets")
+        // The card reads as one element: each line is its type's name, then its squares.
+        expect(app.descendants(matching: .any)["scan-feedback"], "label CONTAINS 'Red target: e4' AND label CONTAINS 'Orange target: e5, f7'")
+        capture("scan-targets-missed")
+        let legend = button("scan-legend"); legend.tap()
+        wait(app.descendants(matching: .any)["scan-legend-sheet"]); capture("scan-legend")
+        button("scan-legend-done").tap()
+        button("scan-continue").tap(); wait(next); next.tap()
+        expectFeedback("Missed 2 Arrows")
+        expect(app.descendants(matching: .any)["scan-feedback"], "label CONTAINS 'Their capture: Nxe4'")
+        capture("scan-arrows-missed")
+    }
+
     private func start() { let start = button("scan-start"); wait(start); start.tap() }
 
     /// After 3…Nf6: the knight attacks e4. Flag; the full scan's targets (e4 red, e5 and f7

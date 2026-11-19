@@ -1,0 +1,172 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<title>Motif — miss-type icons mockup</title>
+<style>
+  :root { --bg:#000; --card:#1c1c1e; --sec:#8e8e93; --orange:#ff9e1e; --red:#ff4d45; --own:#4c8cff; --their:#ff9326;
+          --dot:#8c9eff; --hl:#af7ff4; --green:#33bf59; }
+  * { box-sizing:border-box; margin:0; }
+  body { background:#111; font-family:-apple-system, "SF Pro Text", system-ui, sans-serif; color:#fff; padding:28px; }
+  h1 { font-size:22px; margin-bottom:4px; } .sub { color:var(--sec); font-size:14px; margin-bottom:22px; }
+  .row { display:flex; gap:28px; align-items:flex-start; }
+  .phone { width:466px; background:var(--bg); border-radius:36px; overflow:hidden; border:1px solid #2a2a2a; position:relative; }
+  .shot { height:432px; background-size:466px auto; background-repeat:no-repeat; background-position:0 0; }
+  .bottom { padding:10px 16px 22px; display:grid; grid-template-columns:1fr 50px; gap:10px 14px; }
+  .card { background:var(--card); border-radius:22px; padding:16px 16px 14px; }
+  .title { display:flex; align-items:center; gap:9px; color:var(--orange); font-weight:600; font-size:19px; margin-bottom:10px; }
+  .title .v { width:20px; height:20px; border-radius:50%; background:var(--orange); color:#000; font-weight:800; font-size:14px; display:grid; place-items:center; }
+  .miss { display:grid; grid-template-columns:24px auto 1fr; align-items:center; gap:10px; padding:5px 0; }
+  .miss + .miss { border-top:0.5px solid #333; }
+  .miss .what { color:var(--sec); font-size:15px; white-space:nowrap; }
+  .miss .where { font-size:17px; font-weight:500; text-align:right; font-variant-numeric:tabular-nums; }
+  .chips { display:flex; flex-direction:column; gap:7px; }
+  .grp { display:flex; align-items:flex-start; gap:8px; } .grp .sqs { font-size:16px; font-weight:500; line-height:20px; font-variant-numeric:tabular-nums; }
+  .grp svg { width:20px; height:20px; flex:none; }
+  .sq { font-size:16px; font-weight:500; font-variant-numeric:tabular-nums; }
+  .sq + .sq { margin-left:4px; }
+  .time { color:var(--sec); font-size:15px; margin-top:8px; font-variant-numeric:tabular-nums; }
+  .side { display:flex; flex-direction:column; justify-content:flex-end; gap:12px; }
+  .round { width:48px; height:48px; border-radius:50%; background:#1c1c1e; border:1px solid #333; display:grid; place-items:center; color:#666; font-size:22px; }
+  .cont { grid-column:1; background:#6a9e45; border-radius:24px; height:50px; display:grid; place-items:center; font-size:18px; }
+  .round.info { color:#d1d1d6; font:italic 600 22px Georgia, serif; border-color:#48484a; }
+  .round.info.on { background:#3a3a3c; color:#fff; }
+  .dim { position:absolute; inset:0; background:rgba(0,0,0,.55); }
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:#1c1c1e; border-radius:28px 28px 0 0; padding:8px 20px 26px; }
+  .grab { width:38px; height:5px; border-radius:3px; background:#5a5a5e; margin:0 auto 12px; }
+  .sh-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .sh-head b { font-size:19px; } .sh-x { width:30px; height:30px; border-radius:50%; background:#2c2c2e; color:#aaa; display:grid; place-items:center; font-size:15px; }
+  .sh-sec { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--sec); margin:14px 0 6px; }
+  .sh-sec.now { color:var(--orange); }
+  .sh-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px 12px; }
+  .sh-item { display:flex; align-items:center; gap:9px; font-size:15px; }
+  .sh-item svg { width:22px; height:22px; flex:none; }
+  .caption { color:var(--sec); font-size:13px; padding:10px 18px 16px; }
+  /* legend */
+  .legend { width:520px; background:#000; border-radius:28px; border:1px solid #2a2a2a; padding:22px 22px 10px; }
+  .legend h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--sec); margin:16px 0 6px; }
+  .legend h2:first-child { margin-top:0; }
+  .lg { display:grid; grid-template-columns:28px 150px 1fr; align-items:center; gap:10px; padding:7px 0; border-bottom:0.5px solid #222; font-size:15px; }
+  .lg .n { font-weight:600; } .lg .d { color:var(--sec); font-size:13px; }
+  .rule { color:var(--sec); font-size:13px; line-height:1.45; margin:14px 0 8px; }
+  svg { display:block; }
+</style></head>
+<body>
+<h1>Miss-type icons — feedback card mockup</h1>
+<div class="sub">No wording: the icon is the label. One line per miss type: its icon, then every miss of that type, comma-separated. Arrows are written as plain SAN (Nb5, Bxf7, Qe7+). Icon shape = step, colour = list/side, glyph = kind. Board crops are the real screenshots; only the card and the ⓘ button are new. ⓘ (above undo, next to the card) opens the Legend sheet.</div>
+
+<div class="row">
+  <div class="phone"><div class="shot" style="background-image:url(src-arrows-1.png)"></div>
+    <div class="bottom"><div class="card" id="c1"></div><div class="side"><div class="round info">i</div><div class="round">↺</div></div>
+      <div class="cont">→&nbsp; Continue</div><div class="side"><div class="round" style="color:#6a9e45">▶▶</div></div></div></div>
+
+  <div class="phone"><div class="shot" style="background-image:url(src-arrows-2.png)"></div>
+    <div class="bottom"><div class="card" id="c2"></div><div class="side"><div class="round info">i</div><div class="round">↺</div></div>
+      <div class="cont">→&nbsp; Continue</div><div class="side"><div class="round" style="color:#6a9e45">▶▶</div></div></div></div>
+
+  <div class="phone"><div class="shot" style="background-image:url(src-targets.png)"></div>
+    <div class="bottom"><div class="card" id="c3"></div><div class="side"><div class="round info">i</div><div class="round">↺</div></div>
+      <div class="cont">→&nbsp; Continue</div><div class="side"><div class="round" style="color:#6a9e45">▶▶</div></div></div></div>
+</div>
+
+<div class="row" style="margin-top:28px">
+  <div class="phone"><div class="shot" style="background-image:url(src-targets.png)"></div>
+    <div class="bottom"><div class="card" id="c7"></div><div class="side"><div class="round info on">i</div><div class="round">↺</div></div>
+      <div class="cont">→&nbsp; Continue</div><div class="side"><div class="round" style="color:#6a9e45">▶▶</div></div></div>
+    <div class="dim"></div>
+    <div class="sheet" id="sheet"></div></div>
+  <div class="phone" style="align-self:flex-start"><div class="bottom" style="padding-top:18px"><div class="card" id="c4"></div><div></div>
+    <div class="card" id="c5"></div><div></div>
+    <div class="card" id="c6"></div><div></div></div>
+    <div class="caption">No board: mixed arrows, a quick-scan miss, and a worst case of 11 target misses. 11 misses on three lines, one per type, nothing cut off.</div></div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<script>
+const C = { red:'#ff4d45', orange:'#ff9e1e', own:'#4c8cff', their:'#ff9326', dot:'#8c9eff', hl:'#af7ff4' };
+const svg = (inner) => `<svg width="24" height="24" viewBox="0 0 24 24">${inner}</svg>`;
+
+// Glyphs (24-box, centered on 12,12)
+const G = {
+  check:  c => `<path d="M12 6.5v11M6.5 12h11" stroke="${c}" stroke-width="2.6" stroke-linecap="round"/>`,
+  capture:c => `<path d="M7.5 7.5l9 9M16.5 7.5l-9 9" stroke="${c}" stroke-width="2.6" stroke-linecap="round"/>`,
+  threat: c => `<circle cx="12" cy="12" r="4.6" fill="none" stroke="${c}" stroke-width="2"/><circle cx="12" cy="12" r="1.4" fill="${c}"/>
+                <path d="M12 4.6v2.6M12 16.8v2.6M4.6 12h2.6M16.8 12h2.6" stroke="${c}" stroke-width="2" stroke-linecap="round"/>`,
+  attacked:c => `<path d="M13.2 5L7.6 13h4l-1 6 5.8-8.2h-4.1z" fill="${c}"/>`,
+  opened: c => `<path d="M7 17L17 7M17 7h-4.6M17 7v4.6M7 17h4.6M7 17v-4.6" stroke="${c}" stroke-width="2" stroke-linecap="round" fill="none"/>`,
+  undefended:c => `<path d="M12 5.5l5.5 2v4.2c0 3.3-2.3 5.6-5.5 6.8-3.2-1.2-5.5-3.5-5.5-6.8V7.5z" fill="none" stroke="${c}" stroke-width="1.8" stroke-linejoin="round"/>
+                   <path d="M6 18.5L18.5 6" stroke="${c}" stroke-width="2" stroke-linecap="round"/>`,
+  unpinned:c => `<circle cx="12" cy="9" r="3.2" fill="none" stroke="${c}" stroke-width="1.9"/><path d="M12 12.2v6.3" stroke="${c}" stroke-width="1.9" stroke-linecap="round"/>
+                 <path d="M6 18.5L18.5 6" stroke="${c}" stroke-width="2" stroke-linecap="round"/>`,
+};
+
+// Targets: circles, same badges as the board.
+const target = {
+  red:    svg(`<circle cx="12" cy="12" r="11" fill="${C.red}"/><path d="M12 6.5v7" stroke="#fff" stroke-width="2.8" stroke-linecap="round"/><circle cx="12" cy="17.3" r="1.6" fill="#fff"/>`),
+  orange: svg(`<circle cx="12" cy="12" r="11" fill="${C.orange}"/><path d="M7.5 9.8h9M7.5 14.2h9" stroke="#000" stroke-width="2.6" stroke-linecap="round"/>`),
+  fork:   svg(`<circle cx="12" cy="12" r="10" fill="none" stroke="${C.dot}" stroke-width="2.2" stroke-dasharray="3.4 2.6"/><circle cx="12" cy="12" r="4.2" fill="${C.dot}"/>`),
+  kingZone: svg(`<circle cx="12" cy="12" r="10" fill="none" stroke="${C.dot}" stroke-width="2.2" stroke-dasharray="3.4 2.6"/><path d="M7.5 15.5h9l-.9-6.3-2.5 2.3L12 7.4l-1.1 4.1-2.5-2.3z" fill="${C.dot}"/>`),
+};
+// Arrows: rounded squares. Yours = solid blue, theirs = dashed orange outline (as the board's arrows).
+const arrow = (side, kind) => side === 'own'
+  ? svg(`<rect x="1" y="1" width="22" height="22" rx="6.5" fill="${C.own}"/>${G[kind]('#fff')}`)
+  : svg(`<rect x="1.6" y="1.6" width="20.8" height="20.8" rx="6" fill="rgba(255,147,38,.14)" stroke="${C.their}" stroke-width="2" stroke-dasharray="3.6 2.4"/>${G[kind](C.their)}`);
+// Quick scan: a square tile with the board's purple corner notch.
+const quick = kind => svg(`<rect x="1.3" y="1.3" width="21.4" height="21.4" rx="3.5" fill="#2c2c2e" stroke="#48484a" stroke-width="1"/>
+  <path d="M15 1.3h4.2a3.5 3.5 0 0 1 3.5 3.5V9z" fill="${C.hl}"/>${G[kind]('#fff')}`);
+
+const card = (id, title, rows, time) => {
+  // One icon per miss type, then every square/arrow of that type after it.
+  const merged = [];
+  for (const [icon, , where] of rows) {
+    const items = where.split(' · ');
+    const g = merged.find(g => g.icon === icon);
+    g ? g.items.push(...items) : merged.push({ icon, items });
+  }
+  document.getElementById(id).innerHTML = `<div class="title"><span class="v">!</span>${title}</div><div class="chips">` +
+    merged.map(g => `<span class="grp">${g.icon}<span class="sqs">${g.items.join(', ')}</span></span>`).join('') +
+    `</div>` + (time ? `<div class="time">${time}</div>` : '');
+};
+
+card('c1', 'Missed 2 Arrows', [[arrow('their','threat'), 'Their threat', 'Nb5'], [arrow('their','threat'), 'Their threat', 'Bh8']], '18.2 / 15 s');
+card('c2', 'Missed 2 Arrows', [[arrow('their','threat'), 'Their threat', 'g6'], [arrow('their','threat'), 'Their threat', 'Kh8']], '11.5 / 15 s');
+card('c3', 'Missed 5 Targets', [[target.orange, 'Orange', 'f6 · a1 · b2 · Qd2'], [target.fork, 'Fork square', 'd5']], '45.5 / 20 s');
+card('c4', 'Missed 5 Arrows', [[arrow('own','check'), '', 'Rd8+'], [arrow('own','check'), 'Your check', 'Qe7+'], [arrow('own','capture'), 'Your capture', 'Bxf7'],
+                               [arrow('their','capture'), 'Their capture', 'Qxh2'], [arrow('their','check'), 'Their check', 'Qe1+']], '9.8 / 15 s');
+card('c6', 'Missed 11 Targets', [[target.red,'','e4 · Qd2 · Nf3'], [target.orange,'','f6 · a1 · b2 · h7 · c5'], [target.fork,'','d5 · g4 · e6']], '58.3 / 20 s');
+card('c5', 'Missed 3 Squares', [[quick('attacked'), 'Attacked', 'Ne4'], [quick('undefended'), 'Undefended', 'c6'], [quick('unpinned'), 'Unpinned', 'Bg5']], '6.1 / 10 s');
+
+card('c7', 'Missed 5 Targets', [[target.orange, '', 'f6 · a1 · b2 · Qd2'], [target.fork, '', 'd5']], '45.5 / 20 s');
+const L = [
+  ['Quick scan — square tile + purple notch', [
+    [quick('attacked'), 'Attacked', 'quickScan(.attacked) · bolt'],
+    [quick('opened'), 'Opened line', 'quickScan(.opened) · diagonal ↔'],
+    [quick('undefended'), 'Undefended', 'quickScan(.undefended) · shield.slash'],
+    [quick('unpinned'), 'Unpinned', 'quickScan(.unpinned) · pin.slash'] ]],
+  ['Targets — circle, same badge as the board', [
+    [target.red, 'Red target', 'target(.red) · exclamationmark'],
+    [target.orange, 'Orange target', 'target(.orange) · equal'],
+    [target.fork, 'Fork square', 'target(.fork) · dashed ring + dot'],
+    [target.kingZone, 'King-zone square', 'target(.kingZone) · unused since v4'] ]],
+  ['Arrows — rounded square; solid blue = yours, dashed orange = theirs', [
+    [arrow('own','check'), 'Your check', 'arrow(.check, .own) · plus (SAN +)'],
+    [arrow('own','capture'), 'Your capture', 'arrow(.capture, .own) · × (SAN x)'],
+    [arrow('own','threat'), 'Your threat', 'arrow(.threat, .own) · scope'],
+    [arrow('their','check'), 'Their check', 'arrow(.check, .their)'],
+    [arrow('their','capture'), 'Their capture', 'arrow(.capture, .their)'],
+    [arrow('their','threat'), 'Their threat', 'arrow(.threat, .their)'] ]],
+];
+document.getElementById('legend').innerHTML = L.map(([h, items]) => `<h2>${h}</h2>` +
+  items.map(([i, n, d]) => `<div class="lg">${i}<span class="n">${n}</span><span class="d">${d}</span></div>`).join('')).join('') +
+  `<div class="rule">Never colour alone: shape tells the step, glyph tells the kind, solid vs dashed tells the side — so it survives greyscale and colour-blindness. VoiceOver still reads the full name from this legend ("Their threat, knight b5"). No "+2" truncation any more: every miss is listed.</div>`;
+
+// The sheet: this step's icons first (highlighted), the other steps below. King zone left out (unused).
+const S = [
+  ['Targets · this step', true, [[target.red,'Red target'],[target.orange,'Orange target'],[target.fork,'Fork square']]],
+  ['Arrows', false, [[arrow('own','check'),'Your check'],[arrow('their','check'),'Their check'],[arrow('own','capture'),'Your capture'],
+                     [arrow('their','capture'),'Their capture'],[arrow('own','threat'),'Your threat'],[arrow('their','threat'),'Their threat']]],
+  ['Quick scan', false, [[quick('attacked'),'Attacked'],[quick('opened'),'Opened line'],[quick('undefended'),'Undefended'],[quick('unpinned'),'Unpinned']]],
+];
+document.getElementById('sheet').innerHTML = `<div class="grab"></div><div class="sh-head"><b>Legend</b><span class="sh-x">✕</span></div>` +
+  S.map(([h, now, items]) => `<div class="sh-sec${now ? ' now' : ''}">${h}</div><div class="sh-grid">` +
+    items.map(([i, n]) => `<div class="sh-item">${i}<span>${n}</span></div>`).join('') + `</div>`).join('');
+</script>
+</body></html>

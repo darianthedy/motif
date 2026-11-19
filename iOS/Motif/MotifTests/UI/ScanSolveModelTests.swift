@@ -101,7 +101,8 @@ import XCTest
         XCTAssertEqual(model.annotations.rings, ["d7": .correct, "a5": .extra, "c2": .missed])
         XCTAssertEqual(model.annotations.tints, ["d7": .quickScan, "a5": .quickScan])
         XCTAssertEqual(model.feedback?.verdict, .softMiss); XCTAssertEqual(model.feedback?.title, "Missed a Square")
-        XCTAssertEqual(model.feedback?.reason, "c2 attacked.")
+        XCTAssertEqual(model.feedback?.misses, [ScanMissGroup(type: .quickScan(.attacked), items: ["c2"])])
+        XCTAssertEqual(model.feedback?.spokenReason, "Attacked: c2")
     }
 
     func testOverTheTargetTimeIsASoftMiss() async throws {
@@ -176,7 +177,7 @@ import XCTest
         XCTAssertEqual(model.annotations.faded, [], "the step's own mark replaces the carried one")
         clock.advance(by: .seconds(8)); model.finishStep()
         XCTAssertEqual(model.feedback?.verdict, .softMiss); XCTAssertEqual(model.feedback?.title, "Missed a Target")
-        XCTAssertEqual(model.feedback?.reason, "Kd1 red.")
+        XCTAssertEqual(model.feedback?.misses, [ScanMissGroup(type: .target(.red), items: ["Kd1"])])
         XCTAssertEqual(model.feedback?.time, "8.0 / 20 s")
         XCTAssertEqual(model.annotations.rings, ["d1": .missed, "d7": .correct, "a3": .extra])
         XCTAssertFalse(model.canMark); model.tap("h1"); XCTAssertNil(model.current.targets["h1"])
@@ -192,7 +193,7 @@ import XCTest
         XCTAssertEqual(model.current.arrows, [BoardArrow(from: "e8", to: "d7", side: .own), BoardArrow(from: "d1", to: "c2", side: .theirs)])
         clock.advance(by: .seconds(5)); model.finishStep()
         XCTAssertEqual(model.feedback?.title, "Missed an Arrow")
-        XCTAssertEqual(model.feedback?.reason, "Kd1–d2 their threat.")
+        XCTAssertEqual(model.feedback?.misses, [ScanMissGroup(type: .arrow(.threat, .theirs), items: ["Kd2"])], "in SAN")
         XCTAssertEqual(model.annotations.arrows, [BoardArrow(from: "e8", to: "d7", side: .own, style: .correct),
                                                   BoardArrow(from: "d1", to: "c2", side: .theirs),
                                                   BoardArrow(from: "d1", to: "d2", side: .theirs, style: .missed)])
@@ -383,11 +384,35 @@ import XCTest
         let fen = "4k3/8/8/8/8/8/8/3QK3 w - - 0 1"
         let scan = ScanAnswer(flagged: true, quickScan: [ScanSquare(square: "d1", kind: .undefended)], moves: [:])
         let missed = ScanFeedback.quickScan(ScanMarkGrade(missed: ["d1"]), flag: .pass, answer: scan, startFen: fen, ms: 1000)
-        XCTAssertEqual(missed.reason, "Qd1 undefended.")
+        XCTAssertEqual(missed.misses, [ScanMissGroup(type: .quickScan(.undefended), items: ["Qd1"])]); XCTAssertEqual(missed.reason, "")
         let unpinned = ScanAnswer(flagged: true, quickScan: [ScanSquare(square: "d1", kind: .unpinned)], moves: [:])
-        XCTAssertEqual(ScanFeedback.quickScan(ScanMarkGrade(missed: ["d1"]), flag: .pass, answer: unpinned, startFen: fen, ms: 1000).reason,
-                       "Qd1 unpinned.")
+        XCTAssertEqual(ScanFeedback.quickScan(ScanMarkGrade(missed: ["d1"]), flag: .pass, answer: unpinned, startFen: fen, ms: 1000).misses,
+                       [ScanMissGroup(type: .quickScan(.unpinned), items: ["Qd1"])])
         XCTAssertEqual(ScanSquare.Kind.unpinned.label, "Unpinned")
+    }
+
+    /// One line per type in order of first appearance, every miss listed (no "+2"), arrows as SAN.
+    func testMissesAreGroupedByType() {
+        let fen = "4k3/8/8/8/8/8/8/3QK3 w - - 0 1"
+        let targets = ScanTargets(red: ["d1", "e1"], orange: ["a1", "b1", "c1", "f1"], fork: ["d5"])
+        let answer = ScanAnswer(flagged: true, quickScan: [], targets: targets, moves: [:])
+        let feedback = ScanFeedback.targets(ScanMarkGrade(missed: ["a1", "d1", "b1", "d5", "c1", "e1", "f1"]), marked: [:],
+                                            answer: answer, startFen: fen, ms: 1000)
+        XCTAssertEqual(feedback.title, "Missed 7 Targets"); XCTAssertEqual(feedback.reason, "")
+        XCTAssertEqual(feedback.misses, [ScanMissGroup(type: .target(.orange), items: ["a1", "b1", "c1", "f1"]),
+                                         ScanMissGroup(type: .target(.red), items: ["Qd1", "Ke1"]),
+                                         ScanMissGroup(type: .target(.fork), items: ["d5"])])
+        let arrows = ScanAnswer(flagged: true, quickScan: [], arrows: [
+            ScanArrow(from: "d1", to: "d8", side: .own, kind: .check),
+            ScanArrow(from: "e8", to: "f7", side: .theirs, kind: .threat),
+            ScanArrow(from: "d1", to: "a4", side: .own, kind: .check)], moves: [:])
+        let missed = ScanFeedback.arrows(ScanMarkGrade(missed: ["d1d8", "e8f7", "d1a4"]), answer: arrows, startFen: fen, ms: 1000)
+        XCTAssertEqual(missed.misses, [ScanMissGroup(type: .arrow(.check, .own), items: ["Qd8+", "Qa4+"]),
+                                       ScanMissGroup(type: .arrow(.threat, .theirs), items: ["Kf7"])])
+        XCTAssertEqual(missed.spokenReason, "Your check: Qd8+, Qa4+. Their threat: Kf7")
+        // Not a legal move (d8 is covered): still written as one.
+        XCTAssertEqual(ScanFeedback.san(ScanArrow(from: "e8", to: "d8", side: .theirs, kind: .threat), fen), "Kd8")
+        XCTAssertEqual(ScanFeedback.san(ScanArrow(from: "e8", to: "d1", side: .theirs, kind: .capture), fen), "Kxd1")
     }
 
     // MARK: Hard limits (S09)

@@ -24,6 +24,14 @@ struct ScanFeedback: Equatable, Sendable {
     var note: String?
     /// "7.4 / 10 s" ("… s limit" under a hard limit), or nil for a step without a target.
     var time: String?
+    /// What was missed, one line per type (an icon, then the squares or moves), for the
+    /// quick-scan, target and arrow steps; empty when nothing was, and for the move.
+    var misses: [ScanMissGroup] = []
+
+    /// The reason and the misses as VoiceOver reads them: "Their threat: Nb5, Bh8".
+    var spokenReason: String {
+        ([reason] + misses.map(\.spoken)).filter { !$0.isEmpty }.joined(separator: ". ")
+    }
 
     /// The quick scan and flag call, graded together when Flag or No Flag ends the step. Short on
     /// purpose: the step's title and the rings on the board already say where things stand.
@@ -31,14 +39,16 @@ struct ScanFeedback: Equatable, Sendable {
                           startFen: String, ms: Int) -> ScanFeedback {
         let time = timeText(ms, .quickScan)
         if flag == .fail {
-            return ScanFeedback(verdict: .fail, title: "Missed the Flag", reason: missedText(grade.missed, answer, startFen), time: time)
+            return ScanFeedback(verdict: .fail, title: "Missed the Flag", reason: "", time: time,
+                                misses: missedSquares(grade.missed, answer, startFen))
         }
         if flag == .softMiss {
             return ScanFeedback(verdict: .softMiss, title: "No Flag Needed", reason: "", time: time)
         }
         if !grade.missed.isEmpty {
             let title = grade.missed.count == 1 ? "Missed a Square" : "Missed \(grade.missed.count) Squares"
-            return ScanFeedback(verdict: .softMiss, title: title, reason: missedText(grade.missed, answer, startFen), time: time)
+            return ScanFeedback(verdict: .softMiss, title: title, reason: "", time: time,
+                                misses: missedSquares(grade.missed, answer, startFen))
         }
         if ScanTiming.isOverTarget(ms, .quickScan) { return ScanFeedback(verdict: .softMiss, title: "Right, but Slow", reason: "", time: time) }
         return ScanFeedback(verdict: .pass, title: "Clean Scan", reason: "", time: time)
@@ -50,11 +60,12 @@ struct ScanFeedback: Equatable, Sendable {
         let time = timeText(ms, .targets)
         if !grade.missed.isEmpty, let targets = answer.targets {
             let title = grade.missed.count == 1 ? "Missed a Target" : "Missed \(grade.missed.count) Targets"
-            let items = grade.missed.map { square in
-                let what = targets.red.contains(square) ? "red" : targets.orange.contains(square) ? "orange" : "fork"
-                return "\(squareName(square, startFen)) \(what)"
-            }
-            return ScanFeedback(verdict: .softMiss, title: title, reason: list(items), time: time)
+            let misses = ScanMissGroup.grouped(grade.missed.map { square in
+                let list: ScanMissCategory.Target = targets.red.contains(square) ? .red : targets.orange.contains(square) ? .orange
+                    : targets.kingZone.contains(square) ? .kingZone : .fork
+                return (.target(list), squareName(square, startFen))
+            })
+            return ScanFeedback(verdict: .softMiss, title: title, reason: "", time: time, misses: misses)
         }
         if ScanTiming.isOverTarget(ms, .targets) { return ScanFeedback(verdict: .softMiss, title: "Right, but Slow", reason: "", time: time) }
         return ScanFeedback(verdict: .pass, title: "All Targets Found", reason: "", time: time)
@@ -66,10 +77,10 @@ struct ScanFeedback: Equatable, Sendable {
         let missed = grade.missed.compactMap { line in answer.arrows?.first { $0.line == line } }
         if !missed.isEmpty {
             let title = missed.count == 1 ? "Missed an Arrow" : "Missed \(missed.count) Arrows"
-            let items = missed.map { arrow in
-                "\(squareName(arrow.from, startFen))–\(arrow.to) \(arrow.side == .own ? "your" : "their") \(arrow.kind.rawValue)"
-            }
-            return ScanFeedback(verdict: .softMiss, title: title, reason: list(items), time: time)
+            let misses = ScanMissGroup.grouped(missed.map { arrow in
+                (.arrow(arrow.kind, arrow.side), san(arrow, startFen))
+            })
+            return ScanFeedback(verdict: .softMiss, title: title, reason: "", time: time, misses: misses)
         }
         if ScanTiming.isOverTarget(ms, .arrows) { return ScanFeedback(verdict: .softMiss, title: "Right, but Slow", reason: "", time: time) }
         return ScanFeedback(verdict: .pass, title: "All Arrows Found", reason: "", time: time)
@@ -132,29 +143,27 @@ struct ScanFeedback: Equatable, Sendable {
         return answer.moves.filter { $0.value == 0 }.keys.sorted().first.flatMap(Uci.parse)
     }
 
-    /// "Ne4 attacked, c6 undefended"; empty for none.
-    private static func missedText(_ missed: [String], _ answer: ScanAnswer, _ startFen: String) -> String {
-        list(missed.map { square in
-            let why: String
-            switch answer.quickScan.first(where: { $0.square == square })?.kind {
-            case let kind?: why = kind.label.lowercased()
-            case nil: why = "changed"
-            }
-            return "\(squareName(square, startFen)) \(why)"
+    /// The missed quick-scan squares by kind ("Ne4" attacked, "c6" undefended).
+    private static func missedSquares(_ missed: [String], _ answer: ScanAnswer, _ startFen: String) -> [ScanMissGroup] {
+        ScanMissGroup.grouped(missed.map { square in
+            (.quickScan(answer.quickScan.first(where: { $0.square == square })?.kind), squareName(square, startFen))
         })
+    }
+
+    /// The arrow as the move it is ("Nb5", "Bxf7+"), for either side. One that isn't a legal move
+    /// (a pinned piece's threat) is still written as one, from the piece and the squares.
+    static func san(_ arrow: ScanArrow, _ fen: String) -> String {
+        if let san = ScanImport.arrowSans(fen, from: arrow.from, to: arrow.to).first { return san }
+        let piece = Board.pieceAt(fen, arrow.from)
+        let takes = Board.pieceAt(fen, arrow.to) != nil
+        let name = piece.map { $0.type == .pawn ? (takes ? String(arrow.from.prefix(1)) : "") : $0.type.rawValue.uppercased() } ?? ""
+        return name + (takes ? "x" : "") + arrow.to + (arrow.kind == .check ? "+" : "")
     }
 
     /// The piece and its square as in SAN ("Ne4", "e4" for a pawn), or the bare square when empty.
     private static func squareName(_ square: String, _ fen: String) -> String {
         guard let piece = Board.pieceAt(fen, square), piece.type != .pawn else { return square }
         return piece.type.rawValue.uppercased() + square
-    }
-
-    /// "a, b, c." up to three, then "+2".
-    private static func list(_ items: [String]) -> String {
-        guard !items.isEmpty else { return "" }
-        let shown = items.prefix(3).joined(separator: ", ")
-        return shown + (items.count > 3 ? " +\(items.count - 3)" : "") + "."
     }
 
     static func pawns(_ cp: Int) -> String { String(format: "%.1f", Double(cp) / 100) }

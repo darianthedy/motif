@@ -19,6 +19,8 @@ struct ScanSessionPuzzle: View {
     @State private var recording = false
     /// A promotion waiting for its piece, answered by the row in the column.
     @State private var pending: BoardPending?
+    /// The Legend sheet: what each miss icon means.
+    @State private var showsLegend = false
     init(puzzle: ScanPuzzle, run: Run, progress: RunPosition, limits: ScanLimits = ScanLimits(),
          measured: Binding<SessionMeasurements>) {
         self.puzzle = puzzle; self.run = run; self.progress = progress; _measured = measured
@@ -48,6 +50,9 @@ struct ScanSessionPuzzle: View {
         .navigationTitle(model.step.title)
         .toolbar {
             ToolbarItem(placement: .bottomBar) {
+                Button("Legend", systemImage: "info") { showsLegend = true }.accessibilityIdentifier("scan-legend")
+            }
+            ToolbarItem(placement: .bottomBar) {
                 Button("Undo", systemImage: "arrow.uturn.backward") { model.undo() }
                     .disabled(!model.canUndo).accessibilityIdentifier("scan-undo")
             }
@@ -58,6 +63,7 @@ struct ScanSessionPuzzle: View {
                     .disabled(recording || model.outcome != nil).accessibilityIdentifier("scan-skip")
             }.motifHighVisibilityPriority()
         }
+        .sheet(isPresented: $showsLegend) { ScanLegendSheet(step: model.step) }
         .sensoryFeedback(trigger: model.feedback) { _, next in
             switch next?.verdict {
             case .pass?: .success
@@ -68,7 +74,7 @@ struct ScanSessionPuzzle: View {
         }
         .onChange(of: model.feedback) { _, next in
             guard let next else { return }
-            AccessibilityNotification.Announcement([next.title, next.reason].filter { !$0.isEmpty }.joined(separator: ". ")).post()
+            AccessibilityNotification.Announcement([next.title, next.spokenReason].filter { !$0.isEmpty }.joined(separator: ". ")).post()
         }
         // A limit that runs out mid-promotion ends the move: the piece row goes with it.
         .onChange(of: model.step) { pending = nil }

@@ -47,6 +47,9 @@ struct SessionMeasurements: Equatable {
     var division: CGRect?
     /// The progress bar with its padding, which the board beside the column leaves out of its height.
     var progressHeight: CGFloat = 0
+    /// Scan: the actions band across the bottom (Flag / No Flag, Next, Continue), last measured
+    /// while it was there; beside the column the actions move into it.
+    var actionsHeight: CGFloat = 0
 }
 private struct SessionPuzzle: View {
     @Environment(AppState.self) private var app

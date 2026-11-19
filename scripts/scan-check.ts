@@ -12,9 +12,11 @@ import { Chess } from 'chess.js';
 /**
  * The newest format version the app understands. 2 adds the full scan; 3 lets a
  * red or orange target be an empty king-zone square (next to either king); 4 adds
- * the quick-scan kind `unpinned`, optional arrows, and quick-scan squares must be pieces.
+ * the quick-scan kind `unpinned`, optional arrows, and quick-scan squares must be pieces;
+ * 5 adds the quick-scan kind `hanging`. A top-level `spec` (the maker's rules version)
+ * is ignored, as any other extra key.
  */
-export const SCAN_VERSION = 4;
+export const SCAN_VERSION = 5;
 
 export interface ScanRejection {
   /** Index into the file's `scan` array; -1 for the whole file. */
@@ -34,7 +36,7 @@ export interface ScanReadResult {
   rejected: ScanRejection[];
 }
 
-const QUICK_SCAN_KINDS = ['attacked', 'opened', 'undefended', 'unpinned'];
+const QUICK_SCAN_KINDS = ['attacked', 'opened', 'undefended', 'unpinned', 'hanging'];
 const ARROW_SIDES = ['own', 'theirs'];
 const ARROW_KINDS = ['check', 'capture', 'threat'];
 
@@ -283,7 +285,7 @@ export function scanProblem(entry: unknown, version: number): string | null {
   return null;
 }
 
-/** Reads `{"version": 4, "scan": [ ... ]}` as the app's import does. */
+/** Reads `{"version": 5, "scan": [ ... ]}` as the app's import does. */
 export function readScan(text: string): ScanReadResult {
   const result: ScanReadResult = { puzzles: [], rejected: [] };
   let parsed: unknown;

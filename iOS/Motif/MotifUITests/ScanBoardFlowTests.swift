@@ -33,20 +33,22 @@ final class ScanBoardFlowTests: FlowTestCase {
     func testTargetsTapAndDragMarkAndNeverMovePieces() {
         launch("scan-board:targets")
         let e4 = square("e4")
-        tap(e4, until: "label == 'e4, White Pawn, marked orange, attacked as often as defended'")
+        // Red first (playtest 3): a piece goes red → orange → clear.
         tap(e4, until: "label == 'e4, White Pawn, marked red, loses material'")
+        tap(e4, until: "label == 'e4, White Pawn, marked orange, attacked as often as defended'")
         tap(e4, until: "label == 'e4, White Pawn'")
-        // An empty square: orange → red → dot → clear (a king-zone square can be coloured).
+        // An empty king-zone square: red → orange → dot → clear (it can be coloured).
         let e7 = square("e7")
-        tap(e7, until: "label == 'e7, empty, marked orange, attacked as often as defended'")
         tap(e7, until: "label == 'e7, empty, marked red, loses material'")
+        tap(e7, until: "label == 'e7, empty, marked orange, attacked as often as defended'")
         tap(e7, until: "label == 'e7, empty, dot'")
-        // One drag along the third rank: the same as tapping each square it crosses.
+        // One drag along the third rank: the same as tapping each square it crosses. Empty
+        // squares away from the kings can only be dots, so their first tap is one.
         slowDrag("d3", "h3")
-        expect(square("g3"), "label == 'g3, empty, marked orange, attacked as often as defended'")
-        XCTAssertEqual(square("d3").label, "d3, empty, marked orange, attacked as often as defended")
-        XCTAssertEqual(square("f3").label, "f3, White Knight, marked orange, attacked as often as defended")
-        XCTAssertEqual(square("h3").label, "h3, empty, marked orange, attacked as often as defended")
+        expect(square("g3"), "label == 'g3, empty, dot'")
+        XCTAssertEqual(square("d3").label, "d3, empty, dot")
+        XCTAssertEqual(square("f3").label, "f3, White Knight, marked red, loses material")
+        XCTAssertEqual(square("h3").label, "h3, empty, dot")
         XCTAssertEqual(square("g5").label, "g5, empty")
         capture("scan-board-targets")
     }

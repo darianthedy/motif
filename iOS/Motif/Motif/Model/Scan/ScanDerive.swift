@@ -8,7 +8,19 @@ func scanPool(_ library: Library) -> [ScanPuzzle] {
     library.scanPuzzles.sorted { $0.addedAt == $1.addedAt ? $0.id < $1.id : $0.addedAt < $1.addedAt }
 }
 
-func scanRecords(_ library: Library) -> [String: PuzzleRecord] { puzzleRecords(library.scanAttempts) }
+/// A puzzle's status goes by `needsReview`: a pass with a target or arrow miss reads as a fail,
+/// so it lands in To Review and Review Mistakes. Runs, retries and Stats still go by the result.
+func scanRecords(_ library: Library) -> [String: PuzzleRecord] { puzzleRecords(library.scanAttempts.map(ScanReviewAttempt.init)) }
+
+/// An attempt as the puzzle's status reads it.
+private struct ScanReviewAttempt: RunAttempt {
+    let id: String, puzzleId: String, runId: String?, result: AttemptResult, playedAt: Int64, mistakes: Int
+    init(_ attempt: ScanAttempt) {
+        id = attempt.id; puzzleId = attempt.puzzleId; runId = attempt.runId; playedAt = attempt.playedAt
+        mistakes = attempt.mistakes
+        result = attempt.result == .skipped ? .skipped : attempt.needsReview ? .failed : .solved
+    }
+}
 
 /// The Solved / To review / New card for the whole pool.
 func scanStats(_ library: Library) -> Stats {

@@ -78,6 +78,22 @@ final class ScanDeriveTests: XCTestCase {
         XCTAssertEqual(Set(scanQueue(lib, .reviewMistakes)), ["s0", "s3"])
     }
 
+    /// Playtest 3: "Passed with Misses" counted as Solved. A pass that missed a target or an arrow
+    /// goes to To Review; a quick-scan miss or a slow step doesn't, and the run still counts it solved.
+    func testAPassWithTargetOrArrowMissesGoesToReview() {
+        var lib = library(4); let r = run(["s0", "s1", "s2", "s3"]); lib.scanRuns = [r]
+        func passed(_ id: String, _ misses: [ScanSoftMiss]) -> ScanAttempt {
+            var played = attempt(id, .solved); played.detail.softMisses = misses; return played
+        }
+        lib.scanAttempts = [passed("s0", [.targetsMissed]), passed("s1", [.arrowsMissed, .moveSlow]),
+                            passed("s2", [.quickScanMissed, .quickScanSlow]), passed("s3", [])]
+        XCTAssertEqual(scanReviewIds(lib), ["s0", "s1"])
+        XCTAssertEqual(scanStats(lib), Stats(total: 4, solved: 2, failed: 2, unseen: 0))
+        XCTAssertEqual(Set(scanQueue(lib, .reviewMistakes)), ["s0", "s1"])
+        XCTAssertEqual(scanProgressOf(lib, r).solved, 4, "the run goes by the result"); XCTAssertNil(scanProgressOf(lib, r).current)
+        lib.scanAttempts.append(passed("s0", [])); XCTAssertEqual(scanReviewIds(lib), ["s1"], "a clean pass clears it")
+    }
+
     func testTheWholePoolDrawPutsRecentPuzzlesLast() {
         var lib = library(4); lib.scanAttempts = [attempt("s1", .solved)]
         let queue = scanQueue(lib, .randomGlobal)

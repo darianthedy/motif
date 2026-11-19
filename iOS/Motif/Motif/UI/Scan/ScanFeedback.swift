@@ -105,9 +105,23 @@ struct ScanFeedback: Equatable, Sendable {
             // Only over time: no square, target or arrow missed. Says so, so it doesn't read as a
             // miss in the summary's sense (a failed puzzle).
             let slowOnly = outcome.detail.softMisses.allSatisfy(\.isSlow)
-            title = verdict == .pass ? "Passed" : slowOnly ? "Passed, Slow" : "Passed with Misses"
+            title = verdict == .pass ? "Passed" : slowOnly ? slowTitle(outcome.detail.softMisses) : "Passed with Misses"
         }
         return ScanFeedback(verdict: verdict, title: title, reason: reason, note: note, time: timeText(ms, step))
+    }
+
+    /// A pass where only time was missed. The card's time line is the move's, so a plain "Slow"
+    /// means the move; an earlier step over its target is named (playtest 3: "Passed, Slow" sat
+    /// over "2.8 / 5 s" when the quick scan was the slow one).
+    private static func slowTitle(_ softMisses: [ScanSoftMiss]) -> String {
+        if softMisses.contains(.moveSlow) { return "Passed, Slow" }
+        let steps: [(ScanSoftMiss, String)] = [(.quickScanSlow, "Quick Scan"), (.targetsSlow, "Targets"), (.arrowsSlow, "Arrows")]
+        let slow = steps.filter { softMisses.contains($0.0) }.map { $0.1 }
+        switch slow.count {
+        case 0: return "Passed"
+        case 1: return "Passed, Slow \(slow[0])"
+        default: return "Passed, Slow Scan"
+        }
     }
 
     /// The quick scan's limit ran out before a call: the puzzle fails on any position.
@@ -153,11 +167,16 @@ struct ScanFeedback: Equatable, Sendable {
     /// The arrow as the move it is ("Nb5", "Bxf7+"), for either side. One that isn't a legal move
     /// (a pinned piece's threat) is still written as one, from the piece and the squares.
     static func san(_ arrow: ScanArrow, _ fen: String) -> String {
-        if let san = ScanImport.arrowSans(fen, from: arrow.from, to: arrow.to).first { return san }
-        let piece = Board.pieceAt(fen, arrow.from)
-        let takes = Board.pieceAt(fen, arrow.to) != nil
-        let name = piece.map { $0.type == .pawn ? (takes ? String(arrow.from.prefix(1)) : "") : $0.type.rawValue.uppercased() } ?? ""
-        return name + (takes ? "x" : "") + arrow.to + (arrow.kind == .check ? "+" : "")
+        san(from: arrow.from, to: arrow.to, fen, check: arrow.kind == .check)
+    }
+
+    /// Any arrow in SAN, so the card and the arrow chips write moves one way (playtest 3).
+    static func san(from: String, to: String, _ fen: String, check: Bool = false) -> String {
+        if let san = ScanImport.arrowSans(fen, from: from, to: to).first { return san }
+        let piece = Board.pieceAt(fen, from)
+        let takes = Board.pieceAt(fen, to) != nil
+        let name = piece.map { $0.type == .pawn ? (takes ? String(from.prefix(1)) : "") : $0.type.rawValue.uppercased() } ?? ""
+        return name + (takes ? "x" : "") + to + (check ? "+" : "")
     }
 
     /// The piece and its square as in SAN ("Ne4", "e4" for a pawn), or the bare square when empty.

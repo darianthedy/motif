@@ -86,11 +86,27 @@ final class ScanImportTests: XCTestCase {
         XCTAssertNil(ScanImport.problem(puzzle))
 
         var newer = puzzle
-        newer.version = 5
-        XCTAssertEqual(ScanImport.problem(newer), "Format version 5 is newer than this app understands (4)")
+        newer.version = ScanImport.version + 1
+        XCTAssertEqual(ScanImport.problem(newer), "Format version 6 is newer than this app understands (5)")
         var gap = puzzle
         gap.answer.moves.removeValue(forKey: "d2d3")
         XCTAssertEqual(ScanImport.problem(gap), "Moves are missing 1 legal move: d2d3")
+    }
+
+    /// A version 5 `scan_puzzles` row: the `hanging` kind names the opponent's piece (the knight
+    /// that just moved to f6) and loads, with its stats name.
+    func testAVersion5StoredRowLoads() throws {
+        let puzzle = try XCTUnwrap(ScanImport.read(sampleText()).puzzles.first)
+        var answer = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(puzzle.answer)) as? [String: Any])
+        answer["flagged"] = false  // a quiet one, so it needs no full scan
+        answer["quickScan"] = [["square": "f6", "kind": "hanging"]]
+        let stored = try ScanImport.stored(fenBefore: puzzle.fenBefore, lastMove: puzzle.lastMove.text, answer: answer,
+                                           version: 5, source: nil, sourceId: nil)
+        XCTAssertEqual(stored.answer.quickScan, [.init(square: "f6", kind: .hanging)])
+        XCTAssertEqual(ScanSquare.Kind.hanging.label, "Hanging")
+        XCTAssertEqual(ScanMissCategory.quickScan(.hanging).title, "Hanging pieces")
+        XCTAssertThrowsError(try ScanImport.stored(fenBefore: puzzle.fenBefore, lastMove: puzzle.lastMove.text, answer: answer,
+                                                   version: 6, source: nil, sourceId: nil))
     }
 
     /// A version 4 `scan_puzzles` row: the `unpinned` kind, an optional arrow and a free-text

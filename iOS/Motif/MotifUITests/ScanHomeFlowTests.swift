@@ -35,11 +35,12 @@ import XCTest
         launch("scan"); let stats = button("scan-stats"); wait(stats); stats.tap()
         wait(app.staticTexts["No Results Yet"]); XCTAssertFalse(button("scan-stats-export").exists)
         launch("scan-stats", extra: ["-MotifFixture", "scan-history"])
-        wait(app.descendants(matching: .any)["scan-stats-chart"]); capture("scan-stats")
-        XCTAssertTrue(shown("Median Quick Scan").exists); XCTAssertTrue(shown("Flag Accuracy").exists)
-        XCTAssertTrue(shown("24 puzzles played").exists)
+        // The fixture records its 24 attempts one by one after launch, and the chart shows with the
+        // first: wait for the last before reading the figures (a slow CI simulator read 1 of 24).
+        wait(app.descendants(matching: .any)["scan-stats-chart"]); wait(shown("24 puzzles played")); capture("scan-stats")
+        XCTAssertTrue(shown("Median Quick Scan").exists, "Median Quick Scan"); XCTAssertTrue(shown("Flag Accuracy").exists, "Flag Accuracy")
         app.buttons["Flag Calls"].tap(); wait(app.descendants(matching: .any)["scan-stats-chart"])
-        let export = button("scan-stats-export"); XCTAssertTrue(export.isEnabled); export.tap()
+        let export = button("scan-stats-export"); expect(export, "isEnabled == true"); export.tap()
         let share = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Copy' OR label == 'Save to Files'")).firstMatch
         wait(share); capture("scan-stats-export")
     }

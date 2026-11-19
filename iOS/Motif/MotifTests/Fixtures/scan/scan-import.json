@@ -783,7 +783,7 @@
       "quickScan": [
        {
         "square": "e4",
-        "kind": "hanging"
+        "kind": "overloaded"
        }
       ],
       "moves": {

@@ -509,7 +509,11 @@ import XCTest
             if !matches(any("scan-feedback"), "exists == true", timeout: 20) { missing = "scan-feedback" }
         }
         // S10: Stats over six weeks of history, and the empty state before any play.
-        shot("S18k", "scan-stats", fixture: "scan-history") { wait(any("scan-stats-chart")) }
+        // All 24 fixture attempts, not just the first that brings the chart up.
+        shot("S18k", "scan-stats", fixture: "scan-history") {
+            wait(any("scan-stats-chart"))
+            wait(app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS '24 puzzles played'")).firstMatch)
+        }
         shot("S18l", "scan-stats") { wait(app.staticTexts["No Results Yet"]) }
     }
     func testS17Banners() {

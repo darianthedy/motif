@@ -2947,6 +2947,108 @@
    "rejected": []
   },
   {
+   "name": "version 5: hanging, and the spec number is ignored",
+   "file": {
+    "version": 5,
+    "spec": 7,
+    "scan": [
+     {
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "lastMove": "g8f6",
+      "flagged": true,
+      "quickScan": [
+       {
+        "square": "f6",
+        "kind": "hanging"
+       },
+       {
+        "square": "e4",
+        "kind": "unpinned"
+       }
+      ],
+      "targets": {
+       "red": [
+        "e4",
+        "f1"
+       ],
+       "orange": [
+        "e5",
+        "f7",
+        "e7"
+       ],
+       "kingZone": [],
+       "fork": []
+      },
+      "arrows": [
+       {
+        "from": "f3",
+        "to": "g5",
+        "side": "own",
+        "kind": "threat",
+        "optional": true
+       },
+       {
+        "from": "c4",
+        "to": "f7",
+        "side": "own",
+        "kind": "check"
+       },
+       {
+        "from": "f6",
+        "to": "e4",
+        "side": "theirs",
+        "kind": "capture"
+       }
+      ],
+      "moves": {
+       "c4b5": 0,
+       "c4a6": 101,
+       "c4d5": 102,
+       "c4e6": 103,
+       "c4f7": 104,
+       "c4d3": 105,
+       "c4e2": 106,
+       "c4f1": 107,
+       "c4b3": 108,
+       "f3d4": 109,
+       "f3e5": 110,
+       "f3g5": 111,
+       "f3h4": 112,
+       "f3g1": 113,
+       "a2a3": 114,
+       "a2a4": 115,
+       "b2b3": 116,
+       "b2b4": 117,
+       "c2c3": 118,
+       "d2d3": 119,
+       "d2d4": 120,
+       "g2g3": 121,
+       "g2g4": 122,
+       "h2h3": 123,
+       "h2h4": 124,
+       "b1a3": 125,
+       "b1c3": 126,
+       "d1e2": 127,
+       "e1e2": 128,
+       "e1f1": 129,
+       "h1g1": 130,
+       "h1f1": 131,
+       "e1g1": 132
+      },
+      "source": "external",
+      "sourceId": "Book p. 41, diagram 3"
+     }
+    ]
+   },
+   "accepted": [
+    {
+     "key": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq -/g8f6",
+     "flagged": true
+    }
+   ],
+   "rejected": []
+  },
+  {
    "name": "version 4: every new rejection reason, one per puzzle",
    "file": {
     "version": 4,
@@ -3229,7 +3331,7 @@
   {
    "name": "a newer format version",
    "file": {
-    "version": 5,
+    "version": 6,
     "scan": [
      {
       "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
@@ -3278,7 +3380,7 @@
    "rejected": [
     {
      "index": -1,
-     "reason": "Format version 5 is newer than this app understands (4)"
+     "reason": "Format version 6 is newer than this app understands (5)"
     }
    ]
   },

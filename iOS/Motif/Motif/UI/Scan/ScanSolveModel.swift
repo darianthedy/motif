@@ -87,6 +87,8 @@ import Observation
     /// Flag and v1 puzzles play at once.
     var needsFinalCheck: Bool { runsFullScan }
     var canUndo: Bool { canMark && !history.isEmpty }
+    /// No Flag says nothing changed, so it waits until every quick-scan mark is cleared.
+    var canCallNoFlag: Bool { canMark && step == .quickScan && marks.isEmpty }
     var boardMode: BoardMode {
         switch step {
         case .quickScan: .markSquares
@@ -106,11 +108,12 @@ import Observation
     var prompt: String {
         switch step {
         case .lastMove: "Their move."
-        case .quickScan: "After \(lastMoveSan)?"
+        // No "?" after a move: in chess notation it marks a mistake (playtest 3).
+        case .quickScan: "Last move: \(lastMoveSan)"
         case .targets: "Red, orange, dots."
         case .arrows: "Both sides."
         case .move: "Your move."
-        case .finalCheck: "\(candidateSan ?? "This move")?"
+        case .finalCheck: candidateSan.map { "Play \($0)?" } ?? "Play this move?"
         default: ""
         }
     }
@@ -224,8 +227,15 @@ import Observation
     func markTargets(_ squares: [String]) {
         guard canMark, step == .targets, !squares.isEmpty else { return }
         change(squares.count == 1 ? "Mark" : "Marks") { marks in
-            for square in squares { marks.cycleTarget(square, piece: Board.pieceAt(fen, square) != nil) }
+            for square in squares { marks.cycleTarget(square, on: targetSquare(square)) }
         }
+    }
+
+    /// What a square holds for the target step's tap order: a piece, an empty square next to a
+    /// king, or any other empty square, which can only take a dot.
+    private func targetSquare(_ square: String) -> ScanTargetMark.Square {
+        if Board.pieceAt(fen, square) != nil { return .piece }
+        return ScanImport.nextToAKing(square, fen) ? .kingZone : .empty
     }
 
     /// An arrow from a piece, either side's: own when the piece is the solver's. Drawing the same
@@ -252,8 +262,12 @@ import Observation
         else if let before = history.popLast() { current = before }
     }
 
-    /// Flag or No Flag: grades the quick scan and the call, and shows feedback.
-    func call(_ flag: Bool) { endQuickScan(flag, timedOut: false) }
+    /// Flag or No Flag: grades the quick scan and the call, and shows feedback. No Flag is
+    /// refused while a square is marked.
+    func call(_ flag: Bool) {
+        guard flag || canCallNoFlag else { return }
+        endQuickScan(flag, timedOut: false)
+    }
 
     /// Next on the targets or the arrows: grades the step and shows its feedback.
     func finishStep() { finishStep(timedOut: false) }
@@ -409,9 +423,12 @@ import Observation
 
     private func start(_ next: ScanStep) {
         // The finished step's marks carry on, dimmed: the targets build on the quick scan and
-        // the arrows aim at the targets. Arrows end the marking, so none are carried.
+        // the arrows aim at the targets. Arrows end the marking, so none are carried. The
+        // arrows aim at the true targets, so they get the answer key, not the solver's marks
+        // (playtest 3: a wrong red stayed red).
         carried.squares.formUnion(current.squares)
         carried.targets.merge(current.targets) { _, new in new }
+        if next == .arrows, let key = puzzle.answer.targets { carried.targets = Self.answerMarks(key) }
         step = next; feedback = nil; history = []; current = ScanMarks()
         startedAt = clock.now; stepStarted = now()
         deadline = nil
@@ -424,6 +441,15 @@ import Observation
             guard !Task.isCancelled else { return }
             self?.timeUp()
         }
+    }
+
+    /// The answer's targets as the target step marks them: king-zone dots are never drawn (v3).
+    static func answerMarks(_ targets: ScanTargets) -> [String: ScanTargetMark] {
+        var marks: [String: ScanTargetMark] = [:]
+        for square in targets.fork { marks[square] = .dot }
+        for square in targets.orange { marks[square] = .orange }
+        for square in targets.red { marks[square] = .red }
+        return marks
     }
 
     /// The timed step a step is played under; nil for the last move and the result.

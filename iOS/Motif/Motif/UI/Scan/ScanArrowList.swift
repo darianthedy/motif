@@ -29,10 +29,8 @@ struct ScanArrowList: View {
             .accessibilityLabel("Arrows")
         }
     }
-    /// The arrow as the move it is ("Nxe4", "Bxf7+"); "Nf3 → g5" for one that isn't a move.
+    /// The arrow as the move it is ("Nxe4", "Bxf7+"), in SAN as on the feedback card.
     static func text(_ arrow: BoardArrow, fen: String) -> String {
-        if let san = ScanImport.arrowSans(fen, from: arrow.from, to: arrow.to).first { return san }
-        let piece = Board.pieceAt(fen, arrow.from).map { $0.type == .pawn ? "" : $0.type.rawValue.uppercased() } ?? ""
-        return "\(piece)\(arrow.from) → \(arrow.to)"
+        ScanFeedback.san(from: arrow.from, to: arrow.to, fen)
     }
 }

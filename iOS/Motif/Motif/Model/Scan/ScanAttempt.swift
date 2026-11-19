@@ -17,6 +17,13 @@ struct ScanAttempt: Equatable, Codable, Sendable, RunAttempt {
     /// A failed scan is one mistake; soft misses aren't mistakes.
     var mistakes: Int { result == .failed ? 1 : 0 }
 
+    /// A fail, or a pass that missed a target or an arrow: either needs another look, so the
+    /// puzzle goes to To Review (playtest 3: "Passed with Misses" was counted as Solved).
+    /// Quick-scan misses and slow steps don't.
+    var needsReview: Bool {
+        result == .failed || (result == .solved && detail.softMisses.contains { $0 == .targetsMissed || $0 == .arrowsMissed })
+    }
+
     init(id: String = newID(), puzzleId: String, runId: String?, result: AttemptResult,
          flagCall: Bool?, detail: ScanAttemptDetail, playedAt: Int64) {
         self.id = id; self.puzzleId = puzzleId; self.runId = runId; self.result = result

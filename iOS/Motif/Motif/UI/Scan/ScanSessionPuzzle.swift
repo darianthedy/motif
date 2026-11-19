@@ -45,8 +45,17 @@ struct ScanSessionPuzzle: View {
             .motifDivision(changing(\.division))
         }
         .accessibilityElement(children: .contain)
+        // Under the board the actions are a band across the bottom; beside it (IL, the iPad, a
+        // book fold) they sit at the foot of the column, so the board takes the full height.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !layout.sideBySide {
+                actions.padding(.horizontal, layout.padding.leading).padding(.bottom, 8)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { if measured.actionsHeight != $0 { measured.actionsHeight = $0 } }
+            }
+        }
+        // Measured with the actions band, so where the actions go never changes the size the
+        // layout is chosen from (a band that came and went with the panes could flip them back).
         .motifOfferedSize(changing(\.container))
-        .safeAreaInset(edge: .bottom) { actions.padding(.horizontal, layout.padding.leading).padding(.bottom, 8) }
         .navigationTitle(model.step.title)
         .toolbar {
             ToolbarItem(placement: .bottomBar) {
@@ -149,12 +158,15 @@ struct ScanSessionPuzzle: View {
                 SolvePrompt(side: model.solver, guidance: model.prompt).accessibilityIdentifier("scan-prompt")
             }
         }
-        return ViewThatFits(in: .vertical) {
-            content
-            ScrollView { content }
+        return VStack(alignment: .leading, spacing: 12) {
+            ViewThatFits(in: .vertical) {
+                content
+                ScrollView { content }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: layout.sideBySide ? .topLeading : .top)
+            .animation(.smooth, value: model.feedback)
+            if layout.sideBySide { actions.frame(maxWidth: ResultCard.maxWidth) }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: layout.sideBySide ? .topLeading : .top)
-        .animation(.smooth, value: model.feedback)
     }
 
     /// Flag / No Flag while scanning, Next on the targets and arrows, Take Back / Play It on the
@@ -197,8 +209,9 @@ struct ScanSessionPuzzle: View {
     }
 
     @ViewBuilder private var calls: some View {
+        // No Flag says nothing changed: off while a square is marked (playtest 3).
         Button { model.call(false) } label: { Label("No Flag", systemImage: "flag.slash").frame(maxWidth: .infinity) }
-            .buttonStyle(.glass).controlSize(.large).accessibilityIdentifier("scan-no-flag")
+            .buttonStyle(.glass).controlSize(.large).disabled(!model.canCallNoFlag).accessibilityIdentifier("scan-no-flag")
         Button { model.call(true) } label: { Label("Flag", systemImage: "flag.fill").frame(maxWidth: .infinity) }
             .buttonStyle(.glass).controlSize(.large).accessibilityIdentifier("scan-flag")
     }
@@ -239,12 +252,25 @@ struct ScanSessionPuzzle: View {
         Binding(get: { measured[keyPath: path] }, set: { if measured[keyPath: path] != $0 { measured[keyPath: path] = $0 } })
     }
 
-    /// As `SessionPuzzle`'s: beside the column the header comes off the board's height first.
+    /// What the column beside the board keeps: the feedback card and the stacked buttons, less
+    /// than the Puzzles column's move list needs (`BoardLayout.minColumnWidth`).
+    static let minColumnWidth: CGFloat = 240
+
+    /// The container includes the actions band (see `body`). Under the board the band comes off
+    /// the height, as `SessionPuzzle`'s column does. Beside the column the actions move into it,
+    /// so the board takes the height under the header and grows into the width the column
+    /// doesn't need (playtest 3: on the Duo's open display 40 % of the width stood empty).
     private var boardLayout: BoardLayout {
         let compact = sizeClass == .compact
-        let full = BoardLayout(container: measured.container, compact: compact, evalBar: false, division: measured.division)
-        guard full.sideBySide else { return full }
-        let below = CGSize(width: measured.container.width, height: max(0, measured.container.height - measured.progressHeight))
-        return BoardLayout(container: below, compact: compact, evalBar: false, division: measured.division)
+        let size = measured.container
+        func layout(_ height: CGFloat, minColumnWidth: CGFloat = BoardLayout.minColumnWidth) -> BoardLayout {
+            BoardLayout(container: CGSize(width: size.width, height: max(0, height)), compact: compact, evalBar: false,
+                        minColumnWidth: minColumnWidth, division: measured.division)
+        }
+        let stacked = layout(size.height - measured.actionsHeight)
+        guard stacked.sideBySide else { return stacked }
+        let beside = layout(size.height - measured.progressHeight, minColumnWidth: Self.minColumnWidth)
+        // Taller without the band, a nearly square container can come out stacked: it stays beside.
+        return beside.sideBySide ? beside : layout(size.height - measured.actionsHeight - measured.progressHeight)
     }
 }

@@ -6,15 +6,27 @@ import Foundation
 enum ScanTargetMark: Equatable, Sendable {
     case red, orange, dot
 
-    /// A tap on a piece goes orange → red → clear (orange, the more common target, takes one tap);
-    /// on an empty square, orange → red → dot → clear (a king-zone square is coloured by its count,
-    /// AdviceCabinet's rule; a fork or check square is a dot).
-    static func next(after mark: ScanTargetMark?, piece: Bool) -> ScanTargetMark? {
-        switch mark {
-        case nil: return .orange
-        case .orange: return .red
-        case .red: return piece ? nil : .dot
-        case .dot: return nil
+    /// What a tapped square holds, which decides the marks it can take.
+    enum Square: Equatable, Sendable {
+        /// A piece: red or orange.
+        case piece
+        /// An empty square next to either king: red or orange by its count (AdviceCabinet's
+        /// rule), or a dot.
+        case kingZone
+        /// Any other empty square: only a dot (a fork or check square).
+        case empty
+    }
+
+    /// Red first, as the scan looks for red first: a piece goes red → orange → clear, an empty
+    /// king-zone square red → orange → dot → clear, and any other empty square dot → clear.
+    static func next(after mark: ScanTargetMark?, on square: Square) -> ScanTargetMark? {
+        switch (mark, square) {
+        case (nil, .empty): return .dot
+        case (nil, _): return .red
+        case (.red, _): return .orange
+        case (.orange, .kingZone): return .dot
+        case (.orange, _): return nil
+        case (.dot, _): return nil
         }
     }
 }

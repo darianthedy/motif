@@ -4,9 +4,9 @@ import XCTest
 final class ScanGraderTests: XCTestCase {
     private func answer(flagged: Bool = true, quickScan: [String] = ["e4", "c6"],
                         moves: [String: Int] = ["f3g5": 0, "d2d3": 50, "b1c3": 51, "c4f7": 310],
-                        targets: ScanTargets? = nil, arrows: [ScanArrow]? = nil) -> ScanAnswer {
+                        arrows: [ScanArrow]? = nil) -> ScanAnswer {
         ScanAnswer(flagged: flagged, quickScan: quickScan.map { ScanSquare(square: $0, kind: .attacked) },
-                   targets: targets, arrows: arrows, moves: moves, bestLine: nil)
+                   arrows: arrows, moves: moves, bestLine: nil)
     }
     private func move(_ text: String) -> Uci { Uci.parse(text)! }
 
@@ -23,31 +23,12 @@ final class ScanGraderTests: XCTestCase {
         XCTAssertEqual(ScanGrader.gradeFlag(called: true, answer: answer(flagged: false)), .softMiss)
     }
 
-    func testTargetsNeedTheRightColourAndDotsCoverForkOnly() {
-        let targets = ScanTargets(red: ["f7"], orange: ["e5"], fork: ["d5"])
-        let a = answer(targets: targets)
-        XCTAssertEqual(ScanGrader.gradeTargets(red: ["f7"], orange: ["e5"], dots: ["d5"], answer: a), ScanMarkGrade())
-        // Wrong colour is a miss, not an extra; a stray dot is an extra.
-        XCTAssertEqual(ScanGrader.gradeTargets(red: ["e5"], orange: ["f7"], dots: ["a3"], answer: a),
-                       ScanMarkGrade(missed: ["f7", "e5", "d5"], extra: ["a3"]))
-        XCTAssertNil(ScanGrader.gradeTargets(red: [], orange: [], dots: [], answer: answer()))
-    }
-
     func testArrowsCompareFromAndToAndSkipWithoutAnswer() {
         let arrows = [ScanArrow(from: "f3", to: "g5", side: .own, kind: .threat),
                       ScanArrow(from: "f6", to: "e4", side: .theirs, kind: .capture)]
         XCTAssertEqual(ScanGrader.gradeArrows(drawn: ["f3g5", "a1a8"], answer: answer(arrows: arrows)),
                        ScanMarkGrade(missed: ["f6e4"], extra: ["a1a8"]))
         XCTAssertNil(ScanGrader.gradeArrows(drawn: ["f3g5"], answer: answer()))
-    }
-
-    /// v4: `kingZone` is always empty; an older row's king-zone square is neither asked for nor
-    /// counted as found, so a dot on it is an extra like any stray dot.
-    func testKingZoneSquaresAreIgnored() {
-        let a = answer(targets: ScanTargets(red: ["f7"], kingZone: ["g7"]))
-        XCTAssertEqual(ScanGrader.gradeTargets(red: ["f7"], orange: [], dots: [], answer: a), ScanMarkGrade())
-        XCTAssertEqual(ScanGrader.gradeTargets(red: ["f7"], orange: [], dots: ["g7"], answer: a),
-                       ScanMarkGrade(extra: ["g7"]))
     }
 
     /// v4: an optional arrow counts when drawn and isn't missed when left out; required arrows
@@ -117,9 +98,21 @@ final class ScanGraderTests: XCTestCase {
 
     func testFullScanSoftMisses() {
         var s = steps()
-        s.targets = ScanMarkStep(ms: 20_001, missed: ["f7"]); s.arrows = ScanMarkStep(ms: 1000, missed: ["f3g5"])
+        s.arrows = ScanMarkStep(ms: 30_001, missed: ["f3g5"])
         XCTAssertEqual(ScanGrader.result(of: s, flagCall: true, answer: answer()).detail.softMisses,
-                       [.targetsMissed, .targetsSlow, .arrowsMissed])
+                       [.arrowsMissed, .arrowsSlow])
+        s.arrows = ScanMarkStep(ms: 30_000)
+        XCTAssertEqual(ScanGrader.result(of: s, flagCall: true, answer: answer()).detail.softMisses, [], "30 s is in time")
+    }
+
+    /// v6: there is no target step, so nothing about targets is ever given, even for a step an
+    /// older attempt recorded (`steps.targets`).
+    func testNoTargetMissesOrTimes() {
+        var s = steps()
+        s.targets = ScanMarkStep(ms: 25_000, missed: ["f7"]); s.arrows = ScanMarkStep(ms: 1000)
+        let outcome = ScanGrader.result(of: s, flagCall: true, answer: answer())
+        XCTAssertEqual(outcome.detail.softMisses, [])
+        XCTAssertEqual(outcome.result, .solved)
     }
 
     func testTheMoveTargetFollowsTheCall() {
@@ -129,7 +122,7 @@ final class ScanGraderTests: XCTestCase {
     }
 
     func testTargetTimes() {
-        XCTAssertEqual(ScanTimedStep.allCases.map(ScanTiming.targetMs), [10_000, 5_000, 20_000, 15_000, 10_000])
+        XCTAssertEqual(ScanTimedStep.allCases.map(ScanTiming.targetMs), [10_000, 5_000, 30_000, 10_000])
         XCTAssertEqual(ScanTimedStep.allCases.compactMap(ScanLimits().limitMs), [], "no limits by default")
         XCTAssertFalse(ScanTiming.isOverTarget(10_000, .quickScan)); XCTAssertTrue(ScanTiming.isOverTarget(10_001, .quickScan))
     }
@@ -137,9 +130,9 @@ final class ScanGraderTests: XCTestCase {
     /// S09: a step the limit cut off is over its target, even at exactly the limit.
     func testATimedOutStepIsSlow() {
         var s = steps(quickMs: 10_000, played: nil, moveMs: 10_000)
-        s.targets = ScanMarkStep(ms: 20_000, limitMs: 20_000, timedOut: true)
+        s.arrows = ScanMarkStep(ms: 30_000, limitMs: 30_000, timedOut: true)
         let outcome = ScanGrader.result(of: s, flagCall: true, answer: answer())
-        XCTAssertEqual(outcome.detail.softMisses, [.targetsSlow, .moveSlow])
+        XCTAssertEqual(outcome.detail.softMisses, [.arrowsSlow, .moveSlow])
         XCTAssertEqual(outcome.detail.failReason, .noMove)
     }
 

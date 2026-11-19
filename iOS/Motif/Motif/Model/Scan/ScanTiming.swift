@@ -15,8 +15,7 @@ enum ScanTiming {
         switch step {
         case .quickScan: 10_000
         case .quietMove: 5_000
-        case .targets: 20_000
-        case .arrows: 15_000
+        case .arrows: 30_000
         case .flaggedMove: 10_000
         }
     }
@@ -68,7 +67,6 @@ enum ScanTiming {
         let steps = attempt.detail.steps
         var out: [(ScanTimedStep, Int)] = []
         if let step = steps.quickScan { out.append((.quickScan, step.ms)) }
-        if let step = steps.targets { out.append((.targets, step.ms)) }
         if let step = steps.arrows { out.append((.arrows, step.ms)) }
         if let step = steps.move, let flagCall = attempt.flagCall { out.append((.move(flagCall: flagCall, steps: steps), step.ms)) }
         return out

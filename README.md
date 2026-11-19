@@ -179,30 +179,31 @@ reasons rather than being silently dropped.
 
 Scan puzzles train the check before moving: the opponent's last move plays,
 the solver taps what it attacks or opened, calls **Flag** or **No flag**, then
-moves. On a Flag puzzle a full scan comes first: mark the targets, then draw
-the checks, captures and threats aimed at them. Motif doesn't make them or work anything out: the puzzle maker
+moves. On a Flag puzzle a full scan comes first: draw the checks, captures and
+threats for both sides (30 s), with an ungraded tool to mark targets red or
+orange while thinking, then move (10 s) and confirm at a final check. Motif doesn't make them or work anything out: the puzzle maker
 (Caïssa) precomputes every answer with python-chess and Stockfish, and Motif
 checks what it receives against the rules of chess, stores it, and compares
 taps and moves with it. See `samples/scan-sample.json`:
 
-    { "version": 2,
+    { "version": 6, "spec": 6,
       "scan": [
         { "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
           "lastMove": "g8f6",
           "flagged": true,
           "quickScan": [ { "square": "e4", "kind": "attacked" } ],
-          "targets": { "red": ["e4"], "orange": ["e5", "f7"], "kingZone": ["e7"], "fork": [] },
           "arrows": [ { "from": "f6", "to": "e4", "side": "theirs", "kind": "capture" },
                       { "from": "f3", "to": "g5", "side": "own", "kind": "threat" } ],
           "moves": { "d2d3": 0, "f3g5": 12, "c4f7": 552, ... },
           "bestLine": ["d2d3"],
           "source": "lichess", "sourceId": "00sHx" } ] }
 
-- `version` (the file's): the format version, 5 for now. A newer version than
+- `version` (the file's): the format version, 6 for now. A newer version than
   the app knows is rejected whole. Version 3 lets an empty king-zone square be
   `red` or `orange`; version 2 files keep pieces-only colours. Version 4 adds
   the `unpinned` kind and optional arrows, and quick-scan squares must be
-  pieces; version 5 adds the `hanging` kind. Version 1 files still import:
+  pieces; version 5 adds the `hanging` kind; version 6 drops `targets` (see
+below). Version 1 files still import:
   everything below except the full-scan rules, and their Flag puzzles skip the
   full scan. From version 5 the format version bumps only when Motif must
   change (a new field, `kind` or structure).
@@ -225,31 +226,26 @@ taps and moves with it. See `samples/scan-sample.json`:
   `lastMove`.
 - `source`, `sourceId` (optional): the maker's labels, e.g. `"own game"`,
   `"lichess"`.
-- `targets`: what the full scan's first step should mark, as square lists.
-  `red` (loses material) and `orange` (attacked as often as defended) are
-  pieces of either side or, from version 3, empty king-zone squares (next to
-  either king) counted the same way: more attackers than defenders is red,
-  1–1 or 2–2 is orange. `kingZone` (king-zone squares that are neither, shown
-  as dots) and `fork` are empty squares. A square is in one list at most.
-  Lists may be left out or empty.
-- `arrows`: the checks, captures and threats aimed at them, each `from`,
+- `targets`: gone in version 6 (the graded target step was removed). It is
+  ignored in every version, unread and unchecked, so older files and rows
+  that still carry it keep loading; nothing is graded or drawn from it.
+- `arrows`: the checks, captures and threats, each `from`,
   `to`, `side` (`own` for the solver's piece, `theirs` for the opponent's)
   and `kind` (`check`, `capture` or `threat`). One move deep: `from`-`to`
   must be a legal move of that piece if its side were to move, a `capture`
   must capture and a `check` must give check. Each line once. Extra arrows
   the solver draws aren't graded.
-- **Required on every Flag puzzle** (version 2): `targets` and `arrows`, even
-  if empty. A No flag puzzle has no full scan; it may leave both out, and
-  they're checked if present but never shown.
+- **Required on every Flag puzzle** (version 2): `arrows`, even if empty. A
+  No flag puzzle has no full scan; it may leave it out, and it's checked if
+  present but never shown.
 
 A puzzle is rejected, with its reason, when the FEN isn't legal, the last move
 isn't legal in it, a square isn't on the board, an arrow doesn't start on a
 piece, `moves` misses a legal move or lists an illegal one or has no move at 0,
 `bestLine` isn't playable, `flagged` is missing, or the solver has no move
-(the last move mated). From version 2 also when a Flag puzzle lacks `targets`
-or `arrows`, or a target or arrow breaks the rules above (a red target on an
-empty square away from both kings, an arrow whose side isn't its piece's, a "capture" that
-captures nothing, …). Identity is the position (without move counters) plus
+(the last move mated). From version 2 also when a Flag puzzle lacks
+`arrows`, or an arrow breaks the rules above (an arrow whose side isn't its
+piece's, a "capture" that captures nothing, …). Identity is the position (without move counters) plus
 the last move, so sending a puzzle again updates its answer and keeps its
 progress.
 

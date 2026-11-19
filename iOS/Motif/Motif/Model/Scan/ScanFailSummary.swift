@@ -9,7 +9,7 @@ struct ScanFailSummary: Equatable, Sendable {
     var lastMove: String
     /// "Missed the flag", "Bxf7 lost 3.1", "No move in time", "No call in time".
     var reason: String
-    /// What was missed, step by step: "quick scan c6 (undefended)", "targets f7 (red)".
+    /// What was missed, step by step: "quick scan c6 (undefended)", "arrows f3g5 (threat)".
     var missed: [String]
 
     init(_ attempt: ScanAttempt, _ puzzle: ScanPuzzle) {
@@ -42,8 +42,9 @@ struct ScanFailSummary: Equatable, Sendable {
             let kinds = Dictionary(answer.quickScan.map { ($0.square, $0.kind.rawValue) }, uniquingKeysWith: { a, _ in a })
             out.append("quick scan " + step.missed.map { labelled($0, kinds[$0]) }.joined(separator: ", "))
         }
+        // An attempt from before v6: its target misses, unlabelled now the answer has no targets.
         if let step = steps.targets, !step.missed.isEmpty {
-            out.append("targets " + step.missed.map { labelled($0, ScanStats.targetList($0, answer.targets)?.rawValue) }.joined(separator: ", "))
+            out.append("targets " + step.missed.joined(separator: ", "))
         }
         if let step = steps.arrows, !step.missed.isEmpty {
             let kinds = Dictionary((answer.arrows ?? []).map { ($0.line, $0.kind.rawValue) }, uniquingKeysWith: { a, _ in a })

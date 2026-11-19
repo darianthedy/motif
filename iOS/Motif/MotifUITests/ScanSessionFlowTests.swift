@@ -78,55 +78,47 @@ import XCTest
         super.launch(route, seeded: seeded, offline: offline, extra: ["-MotifScanAutoAdvanceMs", "3000"] + extra, file: file, line: line)
     }
 
-    /// Missed targets and arrows list one line per type (an icon, then the squares or moves),
-    /// and ⓘ opens the Legend for the icons.
+    /// Missed arrows list one line per type (an icon, then the moves), and ⓘ opens the Legend
+    /// for the icons. No target step (v6): Flag goes straight to the arrows.
     func testMissesAndLegend() {
         launch("scan"); start()
         // The flagged sample (Black's knight on f6) has a full scan; skip the quiet one.
         wait(button("scan-flag"))
         if !square("f6").label.lowercased().contains("knight") { button("scan-skip").tap(); wait(button("scan-flag")) }
         tap("e4"); button("scan-flag").tap(); expectFeedback("Clean Scan", orSlow: true); moveOn()
-        let next = button("scan-next"); wait(next); next.tap()
-        expectFeedback("Missed 3 Targets")
-        // The card reads as one element: each line is its type's name, then its squares.
-        expect(app.descendants(matching: .any)["scan-feedback"], "label CONTAINS 'Red target: e4' AND label CONTAINS 'Orange target: e5, f7'")
-        capture("scan-targets-missed")
-        let legend = button("scan-legend"); legend.tap()
-        wait(app.descendants(matching: .any)["scan-legend-sheet"]); capture("scan-legend")
-        button("scan-legend-done").tap()
-        button("scan-continue").tap(); wait(next); next.tap()
+        let next = button("scan-next"); wait(next)
+        XCTAssertTrue(app.segmentedControls["scan-tool"].exists, "the arrows step, with its tool switch")
+        next.tap()
         expectFeedback("Missed 2 Arrows")
+        // The card reads as one element: each line is its type's name, then its moves.
         expect(app.descendants(matching: .any)["scan-feedback"], "label CONTAINS 'Their capture: Nxe4'")
         capture("scan-arrows-missed")
+        let legend = button("scan-legend"); legend.tap()
+        wait(app.descendants(matching: .any)["scan-legend-sheet"]); capture("scan-legend")
+        XCTAssertFalse(app.staticTexts["Red target"].exists, "no target types in the legend")
+        button("scan-legend-done").tap()
     }
 
     private func start() { let start = button("scan-start"); wait(start); start.tap() }
 
-    /// After 3…Nf6: the knight attacks e4. Flag; the full scan's targets (e4 red, e5 and f7
-    /// orange, a dot on e7) and arrows (Nxe4 theirs, Ng5 yours); then d3, the best move, taken
-    /// back once at the final check and then played.
+    /// After 3…Nf6: the knight attacks e4. Flag; the CCT arrows (Nxe4 theirs, Ng5 yours), with
+    /// e4 marked red and f7 orange on the way as an ungraded aid (v6); then d3, the best move,
+    /// taken back once at the final check and then played.
     private func playFlagged() {
         tap("e4"); expect(square("e4"), "label ENDSWITH 'marked'"); capture("scan-quick-scan")
         button("scan-flag").tap()
         expectFeedback("Clean Scan"); capture("scan-quick-scan-feedback")
         moveOn()
         let next = button("scan-next"); wait(next)
-        // The quick scan's mark stays, dimmed, under the targets.
+        // The quick scan's mark stays, dimmed, under the arrows.
         expect(square("e4"), "label ENDSWITH 'from the step before'")
-        // Red first (playtest 3): one tap for red, two for orange.
+        // The target tool: red first (playtest 3), a second tap for orange. Not graded.
+        let tool = app.segmentedControls["scan-tool"]; wait(tool)
+        tool.buttons["Targets"].tap()
         tap(square("e4"), until: "label ENDSWITH 'loses material'")
-        for name in ["e5", "f7"] {
-            tap(square(name), until: "label ENDSWITH 'loses material'")
-            tap(square(name), until: "label ENDSWITH 'as often as defended'")
-        }
-        // An empty square next to a king goes red → orange → dot, as it can be coloured.
-        tap(square("e7"), until: "label ENDSWITH 'loses material'")
-        tap(square("e7"), until: "label ENDSWITH 'as often as defended'")
-        tap(square("e7"), until: "label ENDSWITH 'dot'"); capture("scan-targets")
-        next.tap(); expectFeedback("All Targets Found", orSlow: true); capture("scan-targets-feedback")
-        moveOn()
-        wait(next)
-        expect(square("e5"), "label CONTAINS 'as often as defended, from the step before'")
+        tap(square("f7"), until: "label ENDSWITH 'loses material'")
+        tap(square("f7"), until: "label ENDSWITH 'as often as defended'"); capture("scan-targets-aid")
+        tool.buttons["Arrows"].tap()
         square("f6").press(forDuration: 0.1, thenDragTo: square("e4")); wait(button("scan-arrow-f6e4"))
         tap(square("f3"), until: "isSelected == true")
         tap(square("g5"), until: "isSelected == false", on: square("f3"))
@@ -159,7 +151,7 @@ import XCTest
     /// Only feedback that waits is asked about, as a clean one can go at any moment.
     private func moveOn() {
         let waiting = app.descendants(matching: .any).matching(NSPredicate(format:
-            "identifier == 'scan-feedback' AND NOT (label BEGINSWITH 'Clean Scan' OR label BEGINSWITH 'All Targets Found' OR label BEGINSWITH 'All Arrows Found')"))
+            "identifier == 'scan-feedback' AND NOT (label BEGINSWITH 'Clean Scan' OR label BEGINSWITH 'All Arrows Found')"))
         if waiting.count > 0 { button("scan-continue").tap() }
         else { expect(app.descendants(matching: .any)["scan-feedback"], "exists == false") }
     }

@@ -461,7 +461,7 @@ import XCTest
     }
     /// The banners on three hosts: a list, the session and the Analysis view.
     /// Scan Training's session (Scan plan S07–S09): the flagged sample through the quick scan, the
-    /// full scan's targets and arrows, and the move, each step and its feedback; then a hard
+    /// CCT arrows (with the ungraded target marks), and the move, each step and its feedback; then a hard
     /// limit's countdown and a quick scan that ran out; Stats (S10). The queue is
     /// drawn at random, so a quiet first puzzle is skipped to reach the flagged one.
     func testS18Scan() {
@@ -471,19 +471,19 @@ import XCTest
             wait(button("scan-flag"))
         }
         func quickScan() { flagged(); tap(square("e4"), until: "label ENDSWITH 'marked'") }
+        /// The arrows step with the target tool: e4 red, f7 orange (an ungraded aid, v6).
         func targets() {
             quickScan(); tapButton("scan-flag"); tapButton("scan-continue"); wait(button("scan-next"))
             guard missing == nil else { return }
+            app.segmentedControls["scan-tool"].buttons["Targets"].tap()
             tap(square("e4"), until: "label ENDSWITH 'loses material'")
-            for name in ["e5", "f7"] {
-                tap(square(name), until: "label ENDSWITH 'loses material'")
-                tap(square(name), until: "label ENDSWITH 'as often as defended'")
-            }
-            tap(square("e7"), until: "label ENDSWITH 'dot'")
+            tap(square("f7"), until: "label ENDSWITH 'loses material'")
+            tap(square("f7"), until: "label ENDSWITH 'as often as defended'")
         }
         func arrows() {
-            targets(); tapButton("scan-next"); tapButton("scan-continue"); wait(button("scan-next"))
+            targets()
             guard missing == nil else { return }
+            app.segmentedControls["scan-tool"].buttons["Arrows"].tap()
             square("f6").press(forDuration: 0.1, thenDragTo: square("e4")); wait(button("scan-arrow-f6e4"))
             tap(square("f3"), until: "isSelected == true")
             tap(square("g5"), until: "isSelected == false", on: square("f3")); wait(button("scan-arrow-f3g5"))
@@ -491,7 +491,6 @@ import XCTest
         shot("S18a", "scan", quickScan)
         shot("S18b", "scan") { quickScan(); tapButton("scan-flag"); wait(any("scan-feedback")) }
         shot("S18c", "scan", targets)
-        shot("S18d", "scan") { targets(); tapButton("scan-next"); wait(any("scan-feedback")) }
         shot("S18e", "scan", arrows)
         shot("S18f", "scan") { arrows(); tapButton("scan-next"); wait(any("scan-feedback")) }
         func finalCheck() {

@@ -1,9 +1,8 @@
 import SwiftUI
 
 /// A miss type's icon. The shape says the step (a square tile with the board's purple notch for
-/// the quick scan, a circle for targets, a rounded square for arrows), the colour the list or the
-/// side, the glyph the kind. Never colour alone: your arrows are solid, theirs dashed, as on the
-/// board, and targets wear the board's own badges.
+/// the quick scan, a rounded square for arrows), the colour the side, the glyph the kind. Never
+/// colour alone: your arrows are solid, theirs dashed, as on the board.
 struct ScanMissIcon: View {
     let type: ScanMissType
     @ScaledMetric(relativeTo: .body) private var size: CGFloat = 20
@@ -26,19 +25,6 @@ struct ScanMissIcon: View {
                 Notch().fill(BoardPalette.markHighlight).frame(width: size * 0.36, height: size * 0.36)
                     .clipShape(UnevenRoundedRectangle(topTrailingRadius: size * 0.16))
             }
-        case .target(.red):
-            badge("exclamationmark", fill: BoardPalette.markRed, foreground: .white)
-        case .target(.orange):
-            badge("equal", fill: BoardPalette.markOrange, foreground: .black)
-        case .target(let list):
-            ZStack {
-                Circle().strokeBorder(BoardPalette.markDot, style: StrokeStyle(lineWidth: size * 0.1, dash: [size * 0.15, size * 0.11]))
-                if list == .kingZone {
-                    Image(systemName: "crown.fill").font(.system(size: size * 0.42, weight: .bold)).foregroundStyle(BoardPalette.markDot)
-                } else {
-                    Circle().fill(BoardPalette.markDot).frame(width: size * 0.38, height: size * 0.38)
-                }
-            }
         case let .arrow(kind, side):
             let color = side == .own ? BoardPalette.arrowOwn : BoardPalette.arrowTheirs
             let shape = RoundedRectangle(cornerRadius: size * 0.28)
@@ -54,14 +40,6 @@ struct ScanMissIcon: View {
                     .foregroundStyle(side == .own ? .white : color)
             }
         }
-    }
-
-    private func badge(_ systemImage: String, fill: Color, foreground: Color) -> some View {
-        Image(systemName: systemImage)
-            .font(.system(size: size * 0.55, weight: .heavy))
-            .foregroundStyle(foreground)
-            .frame(width: size, height: size)
-            .background(fill, in: .circle)
     }
 
     /// Chess notation's own signs for check and capture; a crosshair for a threat.

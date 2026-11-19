@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// One scan puzzle: the position the solver scans with the last move highlighted and the maker's
-/// quick-scan squares and targets marked, then the answer and labels. Delete needs a connection.
+/// quick-scan squares and arrows marked, then the answer and labels. Delete needs a connection.
 struct ScanPuzzleDetailView: View {
     @Environment(AppState.self) private var app
     @Environment(\.dismiss) private var dismiss
@@ -72,16 +72,11 @@ struct ScanPuzzleDetailView: View {
             Button("Delete Puzzle", role: .destructive) { Task { _ = await app.edit { try await $0.deleteScanPuzzle(puzzle.id) } } }
         } message: { Text("Its results are deleted with it.") }
     }
-    /// The maker's answer as marks: quick-scan squares highlighted, targets red / orange / dots.
+    /// The maker's answer as marks: quick-scan squares highlighted, and the arrows. No targets
+    /// (gone in v6; an older row's are ignored), so no red, orange or fork dots.
     static func annotations(_ answer: ScanAnswer) -> BoardAnnotations {
         var annotations = BoardAnnotations()
         for square in answer.quickScan { annotations.tints[square.square] = .quickScan }
-        if let targets = answer.targets {
-            for square in targets.red { annotations.tints[square] = .red }
-            for square in targets.orange { annotations.tints[square] = .orange }
-            // No king-zone dots: `kingZone` is always empty from v4.
-            annotations.dots = Set(targets.fork)
-        }
         annotations.arrows = (answer.arrows ?? []).map { BoardArrow(from: $0.from, to: $0.to, side: $0.side == .own ? .own : .theirs) }
         return annotations
     }

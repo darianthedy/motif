@@ -21,21 +21,7 @@ enum ScanGrader {
         }
     }
 
-    /// Targets (v2): a red or orange target, piece or empty king-zone square (v3),
-    /// counts when it has the right colour (a wrong colour or a dot is a miss);
-    /// a `fork` square when it has a dot. `kingZone` is ignored (always empty
-    /// from v4; no king-zone dots). Nil when the puzzle has no targets, so the
-    /// step is skipped.
-    static func gradeTargets(red: Set<String>, orange: Set<String>, dots: Set<String>,
-                             answer: ScanAnswer) -> ScanMarkGrade? {
-        guard let targets = answer.targets else { return nil }
-        let missed = targets.red.filter { !red.contains($0) }
-            + targets.orange.filter { !orange.contains($0) }
-            + targets.fork.filter { !dots.contains($0) }
-        let extra = red.union(orange).union(dots).subtracting(targets.gradedSquares)
-        return ScanMarkGrade(missed: unique(missed), extra: extra.sorted())
-    }
-
+    /// Target marks made during the arrows (v6) are a thinking aid: never passed here, never graded.
     /// Arrows (v2), as from + to squares ("f3g5"). Every required arrow must be
     /// drawn; an optional one (v4) counts when drawn and isn't missed when left
     /// out. An arrow not in the list is extra. Nil when the puzzle has no
@@ -82,10 +68,6 @@ enum ScanGrader {
         if let step = steps.quickScan {
             if !step.missed.isEmpty { soft.append(.quickScanMissed) }
             if step.timedOut == true || ScanTiming.isOverTarget(step.ms, .quickScan) { soft.append(.quickScanSlow) }
-        }
-        if let step = steps.targets {
-            if !step.missed.isEmpty { soft.append(.targetsMissed) }
-            if step.timedOut == true || ScanTiming.isOverTarget(step.ms, .targets) { soft.append(.targetsSlow) }
         }
         if let step = steps.arrows {
             if !step.missed.isEmpty { soft.append(.arrowsMissed) }

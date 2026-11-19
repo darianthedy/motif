@@ -7,17 +7,18 @@ struct ScanAnswer: Equatable, Codable, Sendable {
     /// means "needs a look".
     var flagged: Bool
     var quickScan: [ScanSquare]
-    var targets: ScanTargets?
+    /// Checks, captures and threats for the full scan; present on a Flag puzzle from v2. There are
+    /// no targets: the graded target step went in v6, and an older row's `targets` is ignored.
     var arrows: [ScanArrow]?
     /// Every legal move of the solver, keyed by UCI, with how many centipawns
     /// worse it is than the best (best = 0, a thrown-away mate = 100000).
     var moves: [String: Int]
     var bestLine: [Uci]?
 
-    /// Whether the Flag branch runs the full scan (targets, then arrows).
-    /// Version 2 requires both on a Flag puzzle; a version 1 Flag puzzle
-    /// without them goes straight to the move.
-    var hasFullScan: Bool { flagged && targets != nil && arrows != nil }
+    /// Whether the Flag branch runs the full scan (CCT arrows, then the move and final check).
+    /// Version 2 on requires arrows on a Flag puzzle; a version 1 Flag puzzle without them goes
+    /// straight to the move.
+    var hasFullScan: Bool { flagged && arrows != nil }
 
     /// A thrown-away forced mate, as the maker scores it.
     static let lostMateCp = 100_000

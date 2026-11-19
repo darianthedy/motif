@@ -75,7 +75,8 @@ struct ScanStats: Equatable, Sendable {
     }
 
     /// Counts what each step played had to find, and what it missed, by the answer's labels.
-    /// A missed square the answer no longer has (the puzzle was re-sent since) isn't counted.
+    /// A missed square the answer no longer has (the puzzle was re-sent since) isn't counted. An
+    /// older attempt's target step isn't counted: targets aren't graded since v6.
     private static func tally(_ steps: ScanSteps, _ answer: ScanAnswer, into tallies: inout [ScanMissCategory: ScanMissTally]) {
         func add(_ category: ScanMissCategory, expected: Int = 0, missed: Int = 0) {
             tallies[category, default: ScanMissTally(category: category, expected: 0, missed: 0)].expected += expected
@@ -86,29 +87,10 @@ struct ScanStats: Equatable, Sendable {
             let kinds = Dictionary(answer.quickScan.map { ($0.square, $0.kind) }, uniquingKeysWith: { a, _ in a })
             for square in step.missed { if let kind = kinds[square] { add(.quickScan(kind), missed: 1) } }
         }
-        if let step = steps.targets, let targets = answer.targets {
-            for list in ScanMissCategory.Target.allCases { add(.target(list), expected: squares(list, targets).count) }
-            for square in step.missed { if let list = targetList(square, targets) { add(.target(list), missed: 1) } }
-        }
         if let step = steps.arrows, let arrows = answer.arrows {
             for arrow in arrows { add(.arrow(arrow.kind), expected: 1) }
             let kinds = Dictionary(arrows.map { ($0.line, $0.kind) }, uniquingKeysWith: { a, _ in a })
             for line in step.missed { if let kind = kinds[line] { add(.arrow(kind), missed: 1) } }
         }
-    }
-
-    static func squares(_ list: ScanMissCategory.Target, _ targets: ScanTargets) -> [String] {
-        switch list {
-        case .red: targets.red
-        case .orange: targets.orange
-        case .kingZone: targets.kingZone
-        case .fork: targets.fork
-        }
-    }
-
-    /// Which target list a square is on; the format keeps the lists apart (§3.3).
-    static func targetList(_ square: String, _ targets: ScanTargets?) -> ScanMissCategory.Target? {
-        guard let targets else { return nil }
-        return ScanMissCategory.Target.allCases.first { squares($0, targets).contains(square) }
     }
 }

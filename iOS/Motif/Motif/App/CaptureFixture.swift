@@ -102,9 +102,8 @@ struct CaptureFixture: Sendable {
             let flagCall = wrongCall ? !answer.flagged : answer.flagged
             var steps = ScanSteps(quickScan: ScanMarkStep(ms: 12_000 - weekIndex * 1_100 + (n % 4) * 400,
                                                           missed: n.isMultiple(of: 3) ? answer.quickScan.prefix(1).map(\.square) : []))
-            if flagCall, answer.hasFullScan, let targets = answer.targets, let arrows = answer.arrows {
-                steps.targets = ScanMarkStep(ms: 16_000, missed: Array(targets.orange.suffix(n.isMultiple(of: 2) ? 1 : 0)))
-                steps.arrows = ScanMarkStep(ms: 12_000, missed: n % 4 == 0 ? arrows.filter { !$0.optional }.suffix(1).map(\.line) : [])
+            if flagCall, answer.hasFullScan, let arrows = answer.arrows {
+                steps.arrows = ScanMarkStep(ms: 22_000 + (n % 3) * 4_000, missed: n % 4 == 0 ? arrows.filter { !$0.optional }.suffix(1).map(\.line) : [])
             }
             let bad = n % 5 == 1, worst = answer.moves.max { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value }
             let best = answer.moves.filter { $0.value == 0 }.keys.sorted().first

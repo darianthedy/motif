@@ -159,52 +159,33 @@ import XCTest
         model.proceed(); model.play(Uci.parse("e8e6")!); XCTAssertEqual(model.step, .move, "illegal moves are ignored")
     }
 
-    /// The kings' position with a full scan: the white king on d1 is red, d7 a king-zone square;
-    /// Black's king threatens d7, White's d2.
+    /// The kings' position with a full scan: Black's king threatens d7, White's d2.
     private func fullScan() -> ScanPuzzle {
         ScanPuzzle(id: "f", content: testScanContent(flagged: true, quickScan: ["d1"], scores: ["e8f7": 300],
-                                                     targets: ScanTargets(red: ["d1"], fork: ["d7"]),
                                                      arrows: [ScanArrow(from: "e8", to: "d7", side: .own, kind: .threat),
                                                               ScanArrow(from: "d1", to: "d2", side: .theirs, kind: .threat)]),
                    addedAt: 0)
     }
-    private func atTargets(_ clock: TestClock = TestClock(), limits: ScanLimits = ScanLimits()) async -> ScanSolveModel {
+    private func atArrows(_ clock: TestClock = TestClock(), limits: ScanLimits = ScanLimits()) async -> ScanSolveModel {
         let model = await started(fullScan(), clock, limits: limits)
         model.toggle("d1"); model.call(true); model.proceed()
         return model
     }
 
-    func testFlagWithAFullScanRunsTargetsThenArrowsThenTheMove() async throws {
-        let clock = TestClock(), model = await atTargets(clock)
-        XCTAssertEqual(model.step, .targets); XCTAssertEqual(model.boardMode, .markTargets)
+    /// v6: Flag runs the CCT arrows straight after the quick scan (no target step), then the move.
+    func testFlagWithAFullScanRunsArrowsThenTheMove() async throws {
+        let clock = TestClock(), model = await atArrows(clock)
+        XCTAssertEqual(model.step, .arrows); XCTAssertEqual(model.step.title, "Checks, Captures, Threats")
+        XCTAssertEqual(model.boardMode, .drawArrows); XCTAssertEqual(model.tool, .arrows)
         XCTAssertEqual(model.annotations.tints, ["d1": .quickScan], "the quick scan's mark stays")
-        XCTAssertEqual(model.annotations.faded, ["d1"], "dimmed: it isn't the targets' input"); XCTAssertNotNil(model.stepStarted)
-        XCTAssertEqual(model.current, ScanMarks())
-        model.tap("d1"); model.tap("d1")       // red first, then orange
-        // Three drags: d7, by the king, goes red, orange, dot; a3, away from the kings, dot, clear, dot.
-        for _ in 0..<3 { model.markTargets(["d7", "a3"]) }
-        XCTAssertEqual(model.current.targets, ["d1": .orange, "d7": .dot, "a3": .dot])
-        XCTAssertEqual(model.annotations.tints, ["d1": .orange]); XCTAssertEqual(model.annotations.dots, ["d7", "a3"])
-        XCTAssertEqual(model.annotations.faded, [], "the step's own mark replaces the carried one")
-        clock.advance(by: .seconds(8)); model.finishStep()
-        XCTAssertEqual(model.feedback?.verdict, .softMiss); XCTAssertEqual(model.feedback?.title, "Missed a Target")
-        XCTAssertEqual(model.feedback?.misses, [ScanMissGroup(type: .target(.red), items: ["Kd1"])])
-        XCTAssertEqual(model.feedback?.time, "8.0 / 20 s")
-        XCTAssertEqual(model.annotations.rings, ["d1": .missed, "d7": .correct, "a3": .extra])
-        XCTAssertFalse(model.canMark); model.tap("h1"); XCTAssertNil(model.current.targets["h1"])
-
-        model.proceed()
-        XCTAssertEqual(model.step, .arrows); XCTAssertEqual(model.boardMode, .drawArrows)
-        // Playtest 3: the answer's targets carry, not the marks: d1 is red, the extra a3 dot is gone.
-        XCTAssertEqual(model.annotations.tints, ["d1": .red], "the true targets stay for the arrows to aim at")
-        XCTAssertEqual(model.annotations.dots, ["d7"]); XCTAssertEqual(model.annotations.faded, ["d1", "d7"])
-        XCTAssertEqual(model.annotations.rings, [:], "but not their feedback")
+        XCTAssertEqual(model.annotations.faded, ["d1"], "dimmed: it isn't the arrows' input"); XCTAssertNotNil(model.stepStarted)
+        XCTAssertEqual(model.annotations.dots, [], "no fork or king-zone hints")
         model.drawArrow(from: "e8", to: "d7"); model.drawArrow(from: "d1", to: "c2")
         model.drawArrow(from: "a4", to: "a5")  // from an empty square: nothing
         model.drawArrow(from: "e8", to: "e6")  // no king move: refused
         XCTAssertEqual(model.current.arrows, [BoardArrow(from: "e8", to: "d7", side: .own), BoardArrow(from: "d1", to: "c2", side: .theirs)])
-        clock.advance(by: .seconds(5)); model.finishStep()
-        XCTAssertEqual(model.feedback?.title, "Missed an Arrow")
+        clock.advance(by: .seconds(25)); model.finishStep()
+        XCTAssertEqual(model.feedback?.title, "Missed an Arrow"); XCTAssertEqual(model.feedback?.time, "25.0 / 30 s")
         XCTAssertEqual(model.feedback?.misses, [ScanMissGroup(type: .arrow(.threat, .theirs), items: ["Kd2"])], "in SAN")
         XCTAssertEqual(model.annotations.arrows, [BoardArrow(from: "e8", to: "d7", side: .own, style: .correct),
                                                   BoardArrow(from: "d1", to: "c2", side: .theirs),
@@ -216,16 +197,49 @@ import XCTest
         model.confirm()
         let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
         XCTAssertEqual(attempt.result, .solved)
-        XCTAssertEqual(attempt.detail.steps.targets, ScanMarkStep(ms: 8000, limitMs: nil, missed: ["d1"], extra: ["a3"]))
-        XCTAssertEqual(attempt.detail.steps.arrows, ScanMarkStep(ms: 5000, limitMs: nil, missed: ["d1d2"], extra: ["d1c2"]))
-        XCTAssertEqual(attempt.detail.softMisses, [.targetsMissed, .arrowsMissed])
+        XCTAssertNil(attempt.detail.steps.targets, "no target step is recorded")
+        XCTAssertEqual(attempt.detail.steps.arrows, ScanMarkStep(ms: 25_000, limitMs: nil, missed: ["d1d2"], extra: ["d1c2"]))
+        XCTAssertEqual(attempt.detail.softMisses, [.arrowsMissed])
+    }
+
+    /// v6: target marks are a thinking aid in the CCT step: red / orange on the board, never
+    /// graded, stored or compared, and the arrow tool is untouched by them.
+    func testTargetMarksAreAnUngradedAidInTheArrowsStep() async throws {
+        let model = await atArrows()
+        model.tap("d1"); XCTAssertEqual(model.current.targets, [:], "a tap with the arrow tool marks nothing")
+        model.use(.targets)
+        XCTAssertEqual(model.boardMode, .markTargets); XCTAssertEqual(model.prompt, "Mark targets. Not graded.")
+        model.tap("d1"); model.tap("d1")       // red first, then orange
+        model.markTargets(["e8"])
+        XCTAssertEqual(model.current.targets, ["d1": .orange, "e8": .red])
+        XCTAssertEqual(model.annotations.tints, ["d1": .orange, "e8": .red])
+        XCTAssertEqual(model.annotations.faded, [], "the step's own mark replaces the carried one")
+        model.drawArrow(from: "e8", to: "d7"); XCTAssertEqual(model.current.arrows, [], "no arrows with the target tool")
+        model.use(.arrows); XCTAssertEqual(model.boardMode, .drawArrows)
+        model.markTargets(["a3"]); XCTAssertNil(model.current.targets["a3"], "no marks with the arrow tool")
+        model.drawArrow(from: "e8", to: "d7"); model.drawArrow(from: "d1", to: "d2")
+        model.undo(); model.undo()
+        XCTAssertEqual(model.current.arrows, [], "Undo goes back through the arrows")
+        model.undo(); XCTAssertEqual(model.current.targets, ["d1": .orange], "and then the marks")
+        model.drawArrow(from: "e8", to: "d7"); model.drawArrow(from: "d1", to: "d2")
+        model.use(.targets); model.finishStep()
+        XCTAssertEqual(model.feedback?.verdict, .pass); XCTAssertEqual(model.feedback?.title, "All Arrows Found")
+        XCTAssertEqual(model.annotations.rings, [:], "marks get no rings: nothing compares them")
+        XCTAssertEqual(model.annotations.tints, ["d1": .orange], "they stay as made")
+        model.use(.arrows); XCTAssertEqual(model.tool, .targets, "no switching once graded")
+        model.proceed(); XCTAssertEqual(model.tool, .arrows); XCTAssertTrue(model.annotations.isEmpty, "not carried to the move")
+        model.play(kd8); model.confirm()
+        let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
+        XCTAssertNil(attempt.detail.steps.targets)
+        XCTAssertEqual(attempt.detail.steps.arrows?.extra, [], "marks aren't arrows")
+        XCTAssertEqual(attempt.detail.softMisses, [])
     }
 
     /// S08: after a full scan the move waits, ghosted, for Play It or Take Back; its time runs
     /// through the final check and take-backs are recorded.
     func testTheFinalCheckHoldsTheMoveGhosted() async throws {
-        let clock = TestClock(), model = await atTargets(clock)
-        model.finishStep(); model.proceed(); model.finishStep(); model.proceed()
+        let clock = TestClock(), model = await atArrows(clock)
+        model.finishStep(); model.proceed()
         XCTAssertEqual(model.step, .move); XCTAssertTrue(model.needsFinalCheck)
         let before = model.fen
         clock.advance(by: .seconds(2)); model.play(kf7)
@@ -259,21 +273,11 @@ import XCTest
         XCTAssertEqual(v1.step, .done, "a v1 Flag puzzle plays at once")
     }
 
-    func testAFullScanFoundCleanly() async {
-        let model = await atTargets()
-        model.tap("d1"); for _ in 0..<3 { model.tap("d7") }; model.finishStep()  // orange, then red; d7 orange, red, dot
-        XCTAssertEqual(model.feedback?.verdict, .pass); XCTAssertEqual(model.feedback?.title, "All Targets Found")
-        XCTAssertEqual(model.annotations.rings, ["d1": .correct, "d7": .correct])
-        model.proceed()
-        model.drawArrow(from: "d1", to: "d2"); model.drawArrow(from: "e8", to: "d7"); model.finishStep()
-        XCTAssertEqual(model.feedback?.title, "All Arrows Found"); XCTAssertEqual(model.feedback?.reason, "")
-    }
-
     func testAQuietNoFlagOrNoFullScanGoesStraightToTheMove() async {
         let quiet = await started(puzzle(flagged: false, quickScan: []), TestClock())
         quiet.call(false); quiet.proceed(); XCTAssertEqual(quiet.step, .move, "a right No Flag skips the full scan")
         let v1 = await started(puzzle(flagged: true), TestClock())
-        v1.call(true); v1.proceed(); XCTAssertEqual(v1.step, .move, "a puzzle without targets and arrows skips it")
+        v1.call(true); v1.proceed(); XCTAssertEqual(v1.step, .move, "a puzzle without arrows skips it")
     }
 
     /// Playtest: a wrong No Flag used to skip the scan it most needed; now it runs it, the puzzle
@@ -283,9 +287,6 @@ import XCTest
         model.call(false)
         XCTAssertEqual(model.feedback?.title, "Missed the Flag"); XCTAssertNil(model.outcome, "the puzzle goes on")
         XCTAssertTrue(model.runsFullScan)
-        model.proceed(); XCTAssertEqual(model.step, .targets)
-        model.tap("d1"); for _ in 0..<3 { model.tap("d7") }; model.finishStep()
-        XCTAssertEqual(model.feedback?.title, "All Targets Found")
         model.proceed(); XCTAssertEqual(model.step, .arrows)
         model.drawArrow(from: "e8", to: "d7"); model.finishStep(); model.proceed()
         XCTAssertEqual(model.step, .move); XCTAssertTrue(model.needsFinalCheck)
@@ -296,7 +297,7 @@ import XCTest
         let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
         XCTAssertEqual(attempt.result, .failed); XCTAssertEqual(attempt.detail.failReason, .missedFlag)
         XCTAssertEqual(attempt.flagCall, false)
-        XCTAssertEqual(attempt.detail.steps.targets?.missed, []); XCTAssertEqual(attempt.detail.steps.arrows?.missed, ["d1d2"])
+        XCTAssertNil(attempt.detail.steps.targets); XCTAssertEqual(attempt.detail.steps.arrows?.missed, ["d1d2"])
         XCTAssertFalse(attempt.detail.softMisses.contains(.moveSlow), "7 s is inside the flagged move's 10")
     }
 
@@ -342,8 +343,7 @@ import XCTest
 
     func testArrowUndoAndRedrawing() async {
         let manager = UndoManager(); manager.groupsByEvent = false
-        let model = await atTargets()
-        model.finishStep(); model.proceed()
+        let model = await atArrows()
         model.attach(manager)
         manager.beginUndoGrouping(); model.drawArrow(from: "e8", to: "d7"); manager.endUndoGrouping()
         manager.beginUndoGrouping(); model.drawArrow(from: "d1", to: "d2"); manager.endUndoGrouping()
@@ -362,20 +362,24 @@ import XCTest
 
     func testADragOfTargetsIsOneUndo() async {
         let manager = UndoManager(); manager.groupsByEvent = false
-        let model = await atTargets()
-        model.attach(manager)
+        let model = await atArrows()
+        model.attach(manager); model.use(.targets)
         manager.beginUndoGrouping(); model.markTargets(["d7", "c7", "d1"]); manager.endUndoGrouping()
         XCTAssertEqual(manager.undoActionName, "Marks")
         model.undo(); XCTAssertEqual(model.current.targets, [:]); XCTAssertFalse(model.canUndo)
     }
 
     func testInputOutsideItsMarkingStepIsIgnored() async {
-        let model = await atTargets()
+        let model = await atArrows()
+        model.use(.targets)
         model.drawArrow(from: "e8", to: "d7"); model.toggle("d7"); model.removeArrow(at: 0)
-        XCTAssertEqual(model.current, ScanMarks(), "no arrows or quick-scan marks in the targets")
-        model.finishStep(); model.proceed()
-        model.markTargets(["d7"]); model.tap("d1")
-        XCTAssertEqual(model.current, ScanMarks(), "no targets in the arrows")
+        XCTAssertEqual(model.current, ScanMarks(), "no arrows or quick-scan marks with the target tool")
+        model.use(.arrows)
+        model.markTargets(["d7"]); model.tap("d1"); model.toggle("d7")
+        XCTAssertEqual(model.current, ScanMarks(), "no targets or quick-scan marks with the arrow tool")
+        let quick = await started(fullScan(), TestClock())
+        quick.use(.targets); XCTAssertEqual(quick.tool, .arrows, "the tool is the arrows step's only")
+        quick.markTargets(["d7"]); XCTAssertEqual(quick.current.targets, [:])
         let scanning = await started(fullScan(), TestClock())
         scanning.finishStep(); XCTAssertNil(scanning.feedback, "the quick scan ends with a call, not Next")
     }
@@ -415,12 +419,11 @@ import XCTest
                               answer: answer, startFen: start, step: .quietMove, ms: 2800).title
         }
         XCTAssertEqual(title([.quickScanSlow]), "Passed, Slow Quick Scan")
-        XCTAssertEqual(title([.targetsSlow]), "Passed, Slow Targets")
         XCTAssertEqual(title([.arrowsSlow]), "Passed, Slow Arrows")
-        XCTAssertEqual(title([.targetsSlow, .arrowsSlow]), "Passed, Slow Scan")
+        XCTAssertEqual(title([.quickScanSlow, .arrowsSlow]), "Passed, Slow Scan")
         XCTAssertEqual(title([.moveSlow]), "Passed, Slow")
         XCTAssertEqual(title([.quickScanSlow, .moveSlow]), "Passed, Slow")
-        XCTAssertEqual(title([.targetsMissed]), "Passed with Misses")
+        XCTAssertEqual(title([.arrowsMissed]), "Passed with Misses")
     }
 
     /// Playtest 3: "Last move: Re5", not "After Re5?", and "Play Nd6?", not "Nd6?": a bare "?"
@@ -433,14 +436,6 @@ import XCTest
     /// One line per type in order of first appearance, every miss listed (no "+2"), arrows as SAN.
     func testMissesAreGroupedByType() {
         let fen = "4k3/8/8/8/8/8/8/3QK3 w - - 0 1"
-        let targets = ScanTargets(red: ["d1", "e1"], orange: ["a1", "b1", "c1", "f1"], fork: ["d5"])
-        let answer = ScanAnswer(flagged: true, quickScan: [], targets: targets, moves: [:])
-        let feedback = ScanFeedback.targets(ScanMarkGrade(missed: ["a1", "d1", "b1", "d5", "c1", "e1", "f1"]), marked: [:],
-                                            answer: answer, startFen: fen, ms: 1000)
-        XCTAssertEqual(feedback.title, "Missed 7 Targets"); XCTAssertEqual(feedback.reason, "")
-        XCTAssertEqual(feedback.misses, [ScanMissGroup(type: .target(.orange), items: ["a1", "b1", "c1", "f1"]),
-                                         ScanMissGroup(type: .target(.red), items: ["Qd1", "Ke1"]),
-                                         ScanMissGroup(type: .target(.fork), items: ["d5"])])
         let arrows = ScanAnswer(flagged: true, quickScan: [], arrows: [
             ScanArrow(from: "d1", to: "d8", side: .own, kind: .check),
             ScanArrow(from: "e8", to: "f7", side: .theirs, kind: .threat),
@@ -517,26 +512,22 @@ import XCTest
         XCTAssertNil(attempt.detail.steps.move?.played); XCTAssertEqual(attempt.detail.softMisses, [.moveSlow])
     }
 
-    func testTargetsAndArrowsEndAsTheyStand() async throws {
-        let clock = TestClock(), model = await atTargets(clock, limits: allLimits)
-        model.tap("d1")  // red: right
-        clock.advance(by: .seconds(20)); await settle { model.feedback != nil }
-        XCTAssertEqual(model.feedback?.title, "Time's Up"); XCTAssertEqual(model.feedback?.verdict, .softMiss)
-        model.proceed()
+    func testArrowsEndAsTheyStand() async throws {
+        let clock = TestClock(), model = await atArrows(clock, limits: allLimits)
+        XCTAssertEqual(model.deadline?.timeIntervalSince(try XCTUnwrap(model.stepStarted)), 30, "CCT gets 30 s")
         model.drawArrow(from: "e8", to: "d7"); model.drawArrow(from: "d1", to: "d2")
-        clock.advance(by: .seconds(15)); await settle { model.feedback != nil }
+        clock.advance(by: .seconds(30)); await settle { model.feedback != nil }
         XCTAssertEqual(model.feedback?.title, "Time's Up"); XCTAssertEqual(model.feedback?.verdict, .softMiss, "all found, but out of time")
         model.proceed(); model.play(kd8); model.confirm()
         let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
         XCTAssertEqual(attempt.result, .solved)
-        XCTAssertEqual(attempt.detail.steps.targets, ScanMarkStep(ms: 20_000, limitMs: 20_000, missed: ["d7"], extra: [], timedOut: true))
-        XCTAssertEqual(attempt.detail.steps.arrows?.timedOut, true)
-        XCTAssertEqual(attempt.detail.softMisses, [.targetsMissed, .targetsSlow, .arrowsSlow])
+        XCTAssertEqual(attempt.detail.steps.arrows, ScanMarkStep(ms: 30_000, limitMs: 30_000, missed: [], extra: [], timedOut: true))
+        XCTAssertEqual(attempt.detail.softMisses, [.arrowsSlow])
     }
 
     func testTheMoveLimitRunsThroughTheFinalCheck() async throws {
-        let clock = TestClock(), model = await atTargets(clock, limits: allLimits)
-        model.finishStep(); model.proceed(); model.finishStep(); model.proceed()
+        let clock = TestClock(), model = await atArrows(clock, limits: allLimits)
+        model.finishStep(); model.proceed()
         let before = model.fen
         clock.advance(by: .seconds(4)); model.play(kd8); XCTAssertEqual(model.step, .finalCheck)
         clock.advance(by: .seconds(3)); model.takeBack(); model.play(kd8)
@@ -556,7 +547,7 @@ import XCTest
     }
 
     func testRecordOnlyStepsHaveNoDeadline() async {
-        let model = await started(puzzle(flagged: true), TestClock(), limits: ScanLimits(on: [.targets]))
+        let model = await started(puzzle(flagged: true), TestClock(), limits: ScanLimits(on: [.arrows]))
         XCTAssertNil(model.deadline); XCTAssertNotNil(model.stepStarted)
     }
 }

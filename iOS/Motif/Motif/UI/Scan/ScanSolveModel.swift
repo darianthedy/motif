@@ -4,10 +4,11 @@ import Observation
 /// One scan puzzle, step by step (Scan plan §5): the board, the marks, the step's time and the
 /// attempt being built. Grading is `ScanGrader`'s; this model only collects input and times it.
 /// The last move plays, the quick scan ends with Flag or No Flag, feedback; on a flagged puzzle
-/// with a full scan the targets, feedback, the arrows, feedback (after a wrong No Flag too: the
-/// puzzle has failed, but the scan it skipped is still drilled); then the move, held ghosted for
-/// the final check after a full scan, and its feedback. Each step's marks stay on the board,
-/// dimmed, through the steps after it. Nothing is saved until the view records `outcome`.
+/// with a full scan the CCT arrows, feedback (after a wrong No Flag too: the puzzle has failed,
+/// but the scan it skipped is still drilled); then the move, held ghosted for the final check
+/// after a full scan, and its feedback. While drawing arrows the solver can switch to the target
+/// tool and mark pieces red or orange: a thinking aid only, never graded, stored or compared with
+/// anything (spec v6). The quick scan's marks stay on the board, dimmed, through the arrows. Nothing is saved until the view records `outcome`.
 /// A step with a hard limit (`ScanLimits`) ends as it stands when the limit runs out: missing
 /// marks are soft misses, and a quick scan with no call or no move in time fails the puzzle.
 @Observable @MainActor final class ScanSolveModel {
@@ -17,8 +18,11 @@ import Observation
     private(set) var step = ScanStep.lastMove
     private(set) var fen: String
     private(set) var highlight: (from: String, to: String)?
-    /// What the step on screen has marked: squares, targets or arrows.
+    /// What the step on screen has marked: squares, or arrows and target marks.
     private(set) var current = ScanMarks()
+    /// What a tap or drag does in the arrows step: draw arrows, or put down target marks.
+    private(set) var tool = CCTTool.arrows
+    enum CCTTool: Equatable, Sendable { case arrows, targets }
     /// What the earlier marking steps left, shown dimmed and read-only under the step's own.
     private(set) var carried = ScanMarks()
     private(set) var flagCall: Bool?
@@ -37,7 +41,6 @@ import Observation
     /// The step's marks before each change, newest last: what Undo goes back to.
     private(set) var history: [ScanMarks] = []
     @ObservationIgnored private(set) var quickScanGrade: ScanMarkGrade?
-    @ObservationIgnored private(set) var targetsGrade: ScanMarkGrade?
     @ObservationIgnored private(set) var arrowsGrade: ScanMarkGrade?
     @ObservationIgnored private var steps = ScanSteps()
     @ObservationIgnored private let clock: any AnalysisClock
@@ -77,10 +80,10 @@ import Observation
 
     /// The quick scan's marked squares.
     var marks: Set<String> { current.squares }
-    /// A marking step (quick scan, targets, arrows) is open for input.
-    var canMark: Bool { [.quickScan, .targets, .arrows].contains(step) && feedback == nil }
+    /// A marking step (quick scan, arrows) is open for input.
+    var canMark: Bool { [.quickScan, .arrows].contains(step) && feedback == nil }
     var canMove: Bool { step == .move }
-    /// A flagged puzzle with targets and arrows runs them after the quick scan, whatever the call:
+    /// A flagged puzzle with arrows runs them after the quick scan, whatever the call:
     /// a wrong No Flag has already failed it, but the scan is the part most worth drilling.
     var runsFullScan: Bool { flagCall != nil && puzzle.answer.hasFullScan }
     /// A move is held for the final check only after the full scan (Puzzle flow 6); a quiet No
@@ -90,8 +93,7 @@ import Observation
     var boardMode: BoardMode {
         switch step {
         case .quickScan: .markSquares
-        case .targets: .markTargets
-        case .arrows: .drawArrows
+        case .arrows: tool == .targets ? .markTargets : .drawArrows
         default: .play
         }
     }
@@ -108,8 +110,7 @@ import Observation
         switch step {
         case .lastMove: "Their move."
         case .quickScan: "Last move: \(lastMoveSan)"
-        case .targets: "Red, orange, dots."
-        case .arrows: "Both sides."
+        case .arrows: tool == .targets ? "Mark targets. Not graded." : "Both sides."
         case .move: "Your move."
         case .finalCheck: "Play \(candidateSan ?? "this move")?"
         default: ""
@@ -117,28 +118,16 @@ import Observation
     }
 
     /// Marks while a step is played; once it's graded, rings for found, missed and extra squares
-    /// (a missed target shows the answer's mark) and the missed arrows in outline; after a failed
-    /// move, an arrow for the best one.
+    /// and the missed arrows in outline (target marks stay as made: nothing compares them); after
+    /// a failed move, an arrow for the best one.
     var annotations: BoardAnnotations {
         var annotations = current.annotations
-        if [.targets, .arrows].contains(step) { carry(into: &annotations) }
+        if step == .arrows { carry(into: &annotations) }
         switch step {
         case .quickScan:
             if let grade = quickScanGrade, feedback != nil {
                 for square in marks { annotations.rings[square] = grade.extra.contains(square) ? .extra : .correct }
                 for square in grade.missed { annotations.rings[square] = .missed }
-            }
-        case .targets:
-            guard let grade = targetsGrade, feedback != nil, let targets = puzzle.answer.targets else { break }
-            let missed = Set(grade.missed), extra = Set(grade.extra)
-            for square in current.targets.keys {
-                annotations.rings[square] = missed.contains(square) ? .missed : extra.contains(square) ? .extra : .correct
-            }
-            for square in grade.missed where current.targets[square] == nil {
-                annotations.rings[square] = .missed
-                if targets.red.contains(square) { annotations.tints[square] = .red }
-                else if targets.orange.contains(square) { annotations.tints[square] = .orange }
-                else { annotations.dots.insert(square) }
             }
         case .arrows:
             guard let grade = arrowsGrade, feedback != nil, let answer = puzzle.answer.arrows else { break }
@@ -210,9 +199,16 @@ import Observation
     func tap(_ square: String) {
         switch step {
         case .quickScan: toggle(square)
-        case .targets: markTargets([square])
+        case .arrows where tool == .targets: markTargets([square])
         default: break
         }
+    }
+
+    /// Switches the arrows step between drawing arrows and marking targets. Both kinds of mark
+    /// stay on the board, and Undo goes back through both.
+    func use(_ tool: CCTTool) {
+        guard canMark, step == .arrows else { return }
+        self.tool = tool
     }
 
     /// Marks or clears a square in the quick scan, undoable through the window's `UndoManager`.
@@ -222,8 +218,9 @@ import Observation
     }
 
     /// Target marks for each square in turn, as one tap each: a drag over several is one undo.
+    /// Ungraded: they're only ever drawn.
     func markTargets(_ squares: [String]) {
-        guard canMark, step == .targets, !squares.isEmpty else { return }
+        guard canMark, step == .arrows, tool == .targets, !squares.isEmpty else { return }
         change(squares.count == 1 ? "Mark" : "Marks") { marks in
             for square in squares { marks.cycleTarget(square, .init(square, fen: fen)) }
         }
@@ -234,7 +231,7 @@ import Observation
     /// Only a move of that piece, one move deep as the answer's arrows are (an arrow no piece
     /// could play is refused, never graded).
     func drawArrow(from: String, to: String) {
-        guard canMark, step == .arrows, let piece = Board.pieceAt(fen, from),
+        guard canMark, step == .arrows, tool == .arrows, let piece = Board.pieceAt(fen, from),
               !ScanImport.arrowSans(fen, from: from, to: to).isEmpty else { return }
         change("Arrow") { $0.drawArrow(from: from, to: to, side: piece.color == solver ? .own : .theirs) }
     }
@@ -262,7 +259,7 @@ import Observation
         endQuickScan(flag, timedOut: false)
     }
 
-    /// Next on the targets or the arrows: grades the step and shows its feedback.
+    /// Next on the arrows: grades the step and shows its feedback.
     func finishStep() { finishStep(timedOut: false) }
 
     /// Ends the quick scan with a call, or with none when its limit ran out: then the puzzle
@@ -291,16 +288,8 @@ import Observation
         guard canMark else { return }
         let ms = elapsedMs(timedOut: timedOut), out: Bool? = timedOut ? true : nil
         switch step {
-        case .targets:
-            guard let grade = ScanGrader.gradeTargets(red: current.red, orange: current.orange, dots: current.dots,
-                                                      answer: puzzle.answer) else { return }
-            steps.targets = ScanMarkStep(ms: ms, limitMs: limits.limitMs(.targets), missed: grade.missed, extra: grade.extra, timedOut: out)
-            targetsGrade = grade
-            endStep()
-            feedback = .targets(grade, marked: current.targets, answer: puzzle.answer, startFen: startFen, ms: ms)
-                .limited(limits.limitMs(.targets), timedOut: timedOut)
-            scheduleAdvance()
         case .arrows:
+            // Only the arrows are graded; the target marks aren't read.
             guard let grade = ScanGrader.gradeArrows(drawn: current.lines, answer: puzzle.answer) else { return }
             steps.arrows = ScanMarkStep(ms: ms, limitMs: limits.limitMs(.arrows), missed: grade.missed, extra: grade.extra, timedOut: out)
             arrowsGrade = grade
@@ -317,7 +306,7 @@ import Observation
         guard feedback == nil else { return }
         switch step {
         case .quickScan: endQuickScan(nil, timedOut: true)
-        case .targets, .arrows: finishStep(timedOut: true)
+        case .arrows: finishStep(timedOut: true)
         case .move, .finalCheck:
             // A move held at the final check wasn't played: the board goes back to before it.
             if candidate != nil { candidate = nil; fen = startFen; highlight = (moveFrom(puzzle.lastMove), moveTo(puzzle.lastMove)) }
@@ -332,8 +321,7 @@ import Observation
         guard feedback != nil, outcome == nil else { return }
         advanceTask?.cancel(); advanceTask = nil
         switch step {
-        case .quickScan: start(runsFullScan ? .targets : .move)
-        case .targets: start(.arrows)
+        case .quickScan: start(runsFullScan ? .arrows : .move)
         case .arrows: start(.move)
         default: return
         }
@@ -415,17 +403,10 @@ import Observation
     // MARK: Private
 
     private func start(_ next: ScanStep) {
-        // The finished step's marks carry on, dimmed: the targets build on the quick scan and
-        // the arrows aim at the targets. Arrows end the marking, so none are carried.
-        // The targets carry as the answer has them, not as marked: the arrows aim at the true
-        // targets, so a wrong colour or a missed one isn't left on the board (playtest 3).
+        // The quick scan's squares carry on, dimmed, under the arrows. Arrows end the marking,
+        // so neither they nor the target marks made with them are carried.
         carried.squares.formUnion(current.squares)
-        if step == .targets, let targets = puzzle.answer.targets {
-            carried.targets = Self.marks(targets)
-        } else {
-            carried.targets.merge(current.targets) { _, new in new }
-        }
-        step = next; feedback = nil; history = []; current = ScanMarks()
+        step = next; feedback = nil; history = []; current = ScanMarks(); tool = .arrows
         startedAt = clock.now; stepStarted = now()
         deadline = nil
         guard let timed = timedStep(next), let limit = limits.limitMs(timed), let started = stepStarted else { return }
@@ -439,20 +420,10 @@ import Observation
         }
     }
 
-    /// The answer's targets as target marks: red, orange, and a dot on each fork square.
-    private static func marks(_ targets: ScanTargets) -> [String: ScanTargetMark] {
-        var marks: [String: ScanTargetMark] = [:]
-        for square in targets.fork { marks[square] = .dot }
-        for square in targets.orange { marks[square] = .orange }
-        for square in targets.red { marks[square] = .red }
-        return marks
-    }
-
     /// The timed step a step is played under; nil for the last move and the result.
     private func timedStep(_ step: ScanStep) -> ScanTimedStep? {
         switch step {
         case .quickScan: .quickScan
-        case .targets: .targets
         case .arrows: .arrows
         case .move, .finalCheck: flagCall == nil ? nil : moveStep
         default: nil

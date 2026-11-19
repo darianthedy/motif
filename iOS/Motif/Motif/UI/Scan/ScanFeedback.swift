@@ -25,7 +25,7 @@ struct ScanFeedback: Equatable, Sendable {
     /// "7.4 / 10 s" ("… s limit" under a hard limit), or nil for a step without a target.
     var time: String?
     /// What was missed, one line per type (an icon, then the squares or moves), for the
-    /// quick-scan, target and arrow steps; empty when nothing was, and for the move.
+    /// quick-scan and arrow steps; empty when nothing was, and for the move.
     var misses: [ScanMissGroup] = []
 
     /// The reason and the misses as VoiceOver reads them: "Their threat: Nb5, Bh8".
@@ -52,23 +52,6 @@ struct ScanFeedback: Equatable, Sendable {
         }
         if ScanTiming.isOverTarget(ms, .quickScan) { return ScanFeedback(verdict: .softMiss, title: "Right, but Slow", reason: "", time: time) }
         return ScanFeedback(verdict: .pass, title: "Clean Scan", reason: "", time: time)
-    }
-
-    /// The target step. Misses are soft (Scoring); extra marks are never counted against.
-    static func targets(_ grade: ScanMarkGrade, marked: [String: ScanTargetMark], answer: ScanAnswer,
-                        startFen: String, ms: Int) -> ScanFeedback {
-        let time = timeText(ms, .targets)
-        if !grade.missed.isEmpty, let targets = answer.targets {
-            let title = grade.missed.count == 1 ? "Missed a Target" : "Missed \(grade.missed.count) Targets"
-            let misses = ScanMissGroup.grouped(grade.missed.map { square in
-                let list: ScanMissCategory.Target = targets.red.contains(square) ? .red : targets.orange.contains(square) ? .orange
-                    : targets.kingZone.contains(square) ? .kingZone : .fork
-                return (.target(list), squareName(square, startFen))
-            })
-            return ScanFeedback(verdict: .softMiss, title: title, reason: "", time: time, misses: misses)
-        }
-        if ScanTiming.isOverTarget(ms, .targets) { return ScanFeedback(verdict: .softMiss, title: "Right, but Slow", reason: "", time: time) }
-        return ScanFeedback(verdict: .pass, title: "All Targets Found", reason: "", time: time)
     }
 
     /// The arrow step. Misses are soft and only required arrows can be missed; extra arrows aren't graded.
@@ -102,7 +85,7 @@ struct ScanFeedback: Equatable, Sendable {
         case (.failed, false): title = "Mistake"
         case (.failed, true): title = "Good Move, Puzzle Failed"
         default:
-            // Only over time: no square, target or arrow missed. Says so, so it doesn't read as a
+            // Only over time: no square or arrow missed. Says so, so it doesn't read as a
             // miss in the summary's sense (a failed puzzle).
             let misses = outcome.detail.softMisses
             title = verdict == .pass ? "Passed" : misses.allSatisfy(\.isSlow) ? slowTitle(misses) : "Passed with Misses"
@@ -118,7 +101,6 @@ struct ScanFeedback: Equatable, Sendable {
         let steps: [String] = misses.compactMap {
             switch $0 {
             case .quickScanSlow: "Quick Scan"
-            case .targetsSlow: "Targets"
             case .arrowsSlow: "Arrows"
             default: nil
             }

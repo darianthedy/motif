@@ -1,30 +1,24 @@
 import Foundation
 
-/// What a missed square, target or arrow was, as the feedback card's icon shows it: the shape
-/// says the step, the colour the list or side, the glyph the kind (Legend). Unlike
+/// What a missed square or arrow was, as the feedback card's icon shows it: the shape says the
+/// step, the colour the side, the glyph the kind (Legend). Targets aren't graded (v6), so none. Unlike
 /// `ScanMissCategory` an arrow keeps its side, since yours and theirs look different.
 enum ScanMissType: Hashable, Sendable {
     /// A quick-scan square; nil when the square is missed but not in the answer's list.
     case quickScan(ScanSquare.Kind?)
-    case target(ScanMissCategory.Target)
     case arrow(ScanArrow.Kind, ScanArrow.Side)
 
-    /// "Attacked", "Red target", "Their threat": the legend's name and what VoiceOver reads.
+    /// "Attacked", "Their threat": the legend's name and what VoiceOver reads.
     var label: String {
         switch self {
         case .quickScan(let kind?): kind == .opened ? "Opened line" : kind.label
         case .quickScan(nil): "Changed"
-        case .target(.red): "Red target"
-        case .target(.orange): "Orange target"
-        case .target(.kingZone): "King-zone square"
-        case .target(.fork): "Fork square"
         case let .arrow(kind, side): (side == .own ? "Your " : "Their ") + kind.rawValue
         }
     }
 
-    /// Every type the legend lists, by step; king-zone squares are left out (none since v4).
+    /// Every type the legend lists, by step.
     static let quickScanTypes: [ScanMissType] = ScanSquare.Kind.allCases.map { .quickScan($0) }
-    static let targetTypes: [ScanMissType] = [.target(.red), .target(.orange), .target(.fork)]
     /// Yours and theirs side by side, kind by kind, so the two columns read as the two sides.
     static let arrowTypes: [ScanMissType] = ScanArrow.Kind.allCases.flatMap { [.arrow($0, .own), .arrow($0, .theirs)] }
 }

@@ -8,13 +8,13 @@ let scanTestFen = "4k3/8/8/8/8/8/8/4K3 w - - 0 1"
 /// overriding the default 0.
 func testScanContent(_ lastMove: String = "e1d1", flagged: Bool = true, quickScan: [String] = ["d7"],
                      scores: [String: Int] = [:], source: String? = nil,
-                     targets: ScanTargets? = nil, arrows: [ScanArrow]? = nil) -> ScanPuzzleContent {
+                     arrows: [ScanArrow]? = nil) -> ScanPuzzleContent {
     let move = Uci.parse(lastMove)!
     let start = Board.applyUci(scanTestFen, move)!
     var moves: [String: Int] = [:]
     for legal in Board.legalUcis(start) { moves[legal.text] = scores[legal.text] ?? 0 }
     let answer = ScanAnswer(flagged: flagged, quickScan: quickScan.map { ScanSquare(square: $0, kind: .attacked) },
-                            targets: targets, arrows: arrows, moves: moves, bestLine: nil)
+                            arrows: arrows, moves: moves, bestLine: nil)
     return ScanPuzzleContent(fenBefore: scanTestFen, lastMove: move, answer: answer, version: 1,
                              source: source, sourceId: nil)
 }

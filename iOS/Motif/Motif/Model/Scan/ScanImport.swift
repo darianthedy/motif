@@ -17,7 +17,10 @@ enum ScanImport {
     /// Version 5 adds the quick-scan kind `hanging`. From 5 on the format version bumps only
     /// when the app must change (a field, a `kind`, a structure); the file's top-level `spec`
     /// is the maker's rule version and is ignored here, as any extra top-level key is.
-    static let version = 5
+    /// Version 6 drops `targets`: the graded target step is gone, so a Flag puzzle needs only
+    /// `arrows`. `targets` is ignored, unread and unchecked, in every version, so rows and files
+    /// written before v6 that still carry it keep loading.
+    static let version = 6
 
     struct Result: Equatable, Sendable {
         /// File order, each puzzle once: a puzzle listed twice keeps its first
@@ -27,7 +30,7 @@ enum ScanImport {
         var rejected: [ImportRejection] = []
     }
 
-    /// Reads `{"version": 5, "spec": 5, "scan": [ ... ]}`.
+    /// Reads `{"version": 6, "spec": 6, "scan": [ ... ]}`.
     static func read(_ text: String) -> Result {
         var result = Result()
         let parsed: Any
@@ -85,7 +88,6 @@ enum ScanImport {
         let answer = content.answer
 
         var squares = answer.quickScan.map(\.square)
-        squares += answer.targets?.allSquares ?? []
         squares += (answer.arrows ?? []).flatMap { [$0.from, $0.to] }
         if let bad = squares.first(where: { !isSquare($0) }) {
             return "Square \(bad) is not on the board"
@@ -97,7 +99,7 @@ enum ScanImport {
         if content.version >= 4, let empty = answer.quickScan.first(where: { Board.pieceAt(start, $0.square) == nil }) {
             return "Quick-scan square \(empty.square) is not a piece"
         }
-        if content.version >= 2, let problem = fullScanProblem(answer, start: start, version: content.version) { return problem }
+        if content.version >= 2, let problem = fullScanProblem(answer, start: start) { return problem }
 
         let legal = Board.legalUcis(start)
         guard !legal.isEmpty else { return "The solver has no legal move" }
@@ -147,7 +149,7 @@ enum ScanImport {
 
     // MARK: The full scan (version 2)
 
-    /// The king zone: a square next to either king.
+    /// The king zone: a square next to either king. The target marks (an ungraded aid) use it.
     static func nextToAKing(_ square: String, _ fen: String) -> Bool {
         guard let file = square.first?.asciiValue, let rank = square.last?.wholeNumberValue else { return false }
         for df in -1...1 { for dr in -1...1 where df != 0 || dr != 0 {
@@ -158,31 +160,11 @@ enum ScanImport {
         return false
     }
 
-    /// What a version 2 puzzle's full scan must hold, so every target and arrow
-    /// the solver is graded against can be marked or drawn on the board. Version
-    /// 1 content isn't held to it: rows already stored keep loading.
-    private static func fullScanProblem(_ answer: ScanAnswer, start: String, version: Int) -> String? {
-        if answer.flagged {
-            guard answer.targets != nil else { return #"Flag puzzle is missing "targets""# }
-            guard answer.arrows != nil else { return #"Flag puzzle is missing "arrows""# }
-        }
-        if let targets = answer.targets {
-            var seen = Set<String>()
-            for square in targets.allSquares where !seen.insert(square).inserted {
-                return "Target \(square) is listed twice"
-            }
-            // Requirements › Puzzle flow: "Empty squares only for king-zone and fork squares."
-            // From v3 an empty king-zone square can be red or orange, counted like a piece.
-            for square in targets.red + targets.orange where Board.pieceAt(start, square) == nil {
-                if version < 3 { return "Red or orange target \(square) is not a piece" }
-                if !nextToAKing(square, start) {
-                    return "Red or orange target \(square) is neither a piece nor next to a king"
-                }
-            }
-            for square in targets.kingZone + targets.fork where Board.pieceAt(start, square) != nil {
-                return "King-zone or fork square \(square) is not empty"
-            }
-        }
+    /// What a version 2 puzzle's full scan must hold, so every arrow the solver
+    /// is graded against can be drawn on the board. Version 1 content isn't held
+    /// to it: rows already stored keep loading.
+    private static func fullScanProblem(_ answer: ScanAnswer, start: String) -> String? {
+        if answer.flagged, answer.arrows == nil { return #"Flag puzzle is missing "arrows""# }
         guard let arrows = answer.arrows, let solver = Board.turnOf(start) else { return nil }
         var lines = Set<String>()
         for arrow in arrows {
@@ -267,21 +249,7 @@ enum ScanImport {
             quickScan.append(.init(square: square, kind: kind))
         }
 
-        var targets: ScanTargets?
-        if let rawTargets = raw["targets"], !(rawTargets is NSNull) {
-            guard let rawTargets = rawTargets as? [String: Any] else { return fail("Malformed \"targets\"") }
-            func list(_ key: String) -> [String]? {
-                guard let value = rawTargets[key], !(value is NSNull) else { return [] }
-                guard let items = value as? [Any] else { return nil }
-                let squares = items.compactMap { $0 as? String }
-                return squares.count == items.count ? squares : nil
-            }
-            guard let red = list("red"), let orange = list("orange"),
-                  let kingZone = list("kingZone"), let fork = list("fork") else {
-                return fail("Malformed \"targets\"")
-            }
-            targets = ScanTargets(red: red, orange: orange, kingZone: kingZone, fork: fork)
-        }
+        // `targets` (before v6) is ignored: nothing grades or shows it any more.
 
         var arrows: [ScanArrow]?
         if let rawArrows = raw["arrows"], !(rawArrows is NSNull) {
@@ -326,7 +294,7 @@ enum ScanImport {
             bestLine = line
         }
 
-        let answer = ScanAnswer(flagged: flagged, quickScan: quickScan, targets: targets,
+        let answer = ScanAnswer(flagged: flagged, quickScan: quickScan,
                                 arrows: arrows, moves: moves, bestLine: bestLine)
         return .success(ScanPuzzleContent(
             fenBefore: fen, lastMove: lastMove, answer: answer, version: version,

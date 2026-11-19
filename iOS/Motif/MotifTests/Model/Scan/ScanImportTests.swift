@@ -69,7 +69,6 @@ final class ScanImportTests: XCTestCase {
         XCTAssertEqual(puzzle.sourceId, "42")
         XCTAssertEqual(puzzle.startFen, "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4")
         XCTAssertEqual(puzzle.answer.quickScan, [.init(square: "e4", kind: .attacked), .init(square: "c6", kind: .undefended)])
-        XCTAssertEqual(puzzle.answer.targets, ScanTargets(red: ["f7"], orange: ["e5"], kingZone: ["g7"], fork: []))
         XCTAssertEqual(puzzle.answer.arrows, [ScanArrow(from: "f3", to: "g5", side: .own, kind: .threat)])
         XCTAssertEqual(puzzle.answer.bestLine, [testMove("f3g5"), testMove("d7d5")])
         XCTAssertEqual(puzzle.answer.lossCp(testMove("d2d3")), 0)
@@ -86,8 +85,8 @@ final class ScanImportTests: XCTestCase {
         XCTAssertNil(ScanImport.problem(puzzle))
 
         var newer = puzzle
-        newer.version = 6
-        XCTAssertEqual(ScanImport.problem(newer), "Format version 6 is newer than this app understands (5)")
+        newer.version = 7
+        XCTAssertEqual(ScanImport.problem(newer), "Format version 7 is newer than this app understands (6)")
         var gap = puzzle
         gap.answer.moves.removeValue(forKey: "d2d3")
         XCTAssertEqual(ScanImport.problem(gap), "Moves are missing 1 legal move: d2d3")
@@ -123,8 +122,6 @@ final class ScanImportTests: XCTestCase {
         XCTAssertFalse(puzzle.answer.hasFullScan)
 
         puzzle.version = 2
-        XCTAssertEqual(ScanImport.problem(puzzle), #"Flag puzzle is missing "targets""#)
-        puzzle.answer.targets = ScanTargets(red: ["e4"], orange: ["e5"], kingZone: ["e7"])
         XCTAssertEqual(ScanImport.problem(puzzle), #"Flag puzzle is missing "arrows""#)
         puzzle.answer.arrows = []
         XCTAssertNil(ScanImport.problem(puzzle))

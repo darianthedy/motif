@@ -68,7 +68,7 @@ final class ScanTimingTests: XCTestCase {
     func testTheSwitchTurnsLimitsOff() {
         let fast = [attempt(0, quick: 2000)]
         XCTAssertEqual(ScanTiming.limits(fast, now: 20 * day).limitMs(.quickScan), 10_000)
-        XCTAssertNil(ScanTiming.limits(fast, now: 20 * day).limitMs(.targets))
+        XCTAssertNil(ScanTiming.limits(fast, now: 20 * day).limitMs(.arrows))
         XCTAssertEqual(ScanTiming.limits(fast, now: 20 * day, enabled: false), ScanLimits())
     }
 

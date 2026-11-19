@@ -13,6 +13,15 @@
 > compares taps, arrows and moves with the stored answers. `BoardView` gets
 > annotation modes and one `Canvas` overlay, and a new `ScanSolveModel` runs
 > the steps, timers and grading.
+>
+> **Spec v6 / format 6 (2026-11-19):** the graded Targets step is gone. The
+> full path is Quick Scan (10 s) → CCT arrows (30 s) → move (10 s) → final
+> check; the quick path is unchanged. Red / orange target marking stays as an
+> ungraded tool inside the arrows step (an Arrows | Targets switch): marks are
+> never checked, scored, stored or compared on review. Answers have no
+> `targets`; an older row's is ignored, and nothing is drawn from it. Older
+> attempts' target steps still read, but count for nothing in Stats or
+> Review. Sections below that describe the target step are history.
 
 ---
 
@@ -162,8 +171,8 @@ Stats (v2) read only this, so nothing in it is a summary that can go stale.
   random with recently seen puzzles at the back (`orderForGlobalDraw`,
   `RECENT_MEMORY`), so quiet and flagged positions come in no fixed pattern
   (§1.5); **Review Mistakes** takes the puzzles whose latest result is
-  failed, or a pass that missed a target or an arrow (playtest 3: the full
-  scan is what's drilled). Such a pass is still a pass in its run and in the
+  failed, or a pass that missed an arrow (playtest 3: the full scan is
+  what's drilled; target misses on pre-v6 attempts no longer count). Such a pass is still a pass in its run and in the
   stats; it just shows as *to review* until a clean pass.
 - **Failed puzzles come back sooner** in two ways, both from Puzzles: once
   more in the same run after `RETRY_GAP` (3) others, at most `MAX_RETRIES`
@@ -263,7 +272,8 @@ logged, never shown half-working.
 - `quickScan`: the squares the quick scan should find, each with a `kind`
   (`attacked`, `opened`, `undefended`; `unpinned` from v4, `hanging` from
   v5) used in the feedback reason.
-- `targets`, `arrows` (v2): what the full scan should find. Arrow `kind` is
+- `arrows` (v2): what the full scan should find (`targets`, v2–v5, is
+  ignored from v6). Arrow `kind` is
   `check`, `capture` or `threat`; `side` is `own` or `theirs`. Extra arrows
   aren't graded.
 - `moves`: every legal move of the solver, with how many centipawns worse
@@ -289,11 +299,8 @@ and the loader, with unit tests. A puzzle is rejected, with the reason, if:
 
 From version 2, also if:
 
-- a Flag puzzle has no `targets` or no `arrows` (empty is fine);
-- a square is in two target lists, a `red` or `orange` target isn't a
-  piece (from version 3: isn't a piece or an empty square next to either
-  king), or a `kingZone` or `fork` square isn't empty ("Empty squares only
-  for king-zone and fork squares");
+- a Flag puzzle has no `arrows` (empty is fine; `targets` is no longer
+  required or checked, v6);
 - an arrow is listed twice, its `side` isn't the side of the piece it starts
   on, it isn't a legal move of that piece with its side to move ("one move
   deep", for both sides), a `capture` captures nothing, or a `check` gives no
@@ -398,13 +405,14 @@ beside. Every `@Observable` class is `@MainActor`; model types are
 - `Model/Scan/ScanGrader.swift`: pure functions, no state.
   `gradeQuickScan(tapped:answer:)` → missed and extra squares.
   `gradeFlag(called:answer:)` → pass, fail or soft miss.
-  `gradeTargets`, `gradeArrows` → missed and extra, extras never counted
+  `gradeArrows` → missed and extra (no `gradeTargets` since v6), extras never counted
   against. `gradeMove(_:answer:margin:)` → pass/fail plus `lossCp`.
   `result(of:)` folds the steps into pass/fail and soft misses (Scoring).
 - No scan-only queue code: what comes next is `runProgress` over the scan
   run and its attempts (§2.3), queues are built with the existing
   `makeQueue` and `orderForGlobalDraw`.
-- `Model/Scan/ScanTiming.swift`: per-step targets (10 / 5 / 20 / 15 / 10 s).
+- `Model/Scan/ScanTiming.swift`: per-step targets (quick scan 10 / quiet move 5 / arrows 30 / flagged
+  move 10 s; v6 dropped the 20 s targets step and gave the arrows 30 s).
   Record-only until 14 days after the first scan attempt; after that a
   step's hard limit switches on once that step's median over the last 50
   attempts is under its target, and stays on. A **Time limits** switch in
@@ -425,14 +433,14 @@ beside. Every `@Observable` class is `@MainActor`; model types are
 - `UI/Scan/ScanStep.swift`:
 
 ```swift
-enum ScanStep: Equatable { case lastMove, quickScan, targets, arrows, move, finalCheck, done }
+enum ScanStep: Equatable { case lastMove, quickScan, arrows, move, finalCheck, done }
 ```
 
 - `UI/Scan/ScanSolveModel.swift`: `@Observable @MainActor`, beside
   `SolveModel`. It owns the step, the board FEN, the annotations, the step's
   start time and limit, and the attempt being built. The step order comes
   from the Puzzle flow: `lastMove` → `quickScan` → (No flag) `move` / (Flag)
-  `targets` → `arrows` → `move` → `finalCheck`, with `feedback` after each
+  `arrows` → `move` → `finalCheck`, with `feedback` after each
   step, shown in the step's own view state rather than as a separate step.
   In v1 the Flag branch goes straight to `move`.
   - **Time** comes from the injected clock in `Engine/Analyzer.swift`
@@ -480,7 +488,7 @@ layout automatically").
   `@State`; finishing a puzzle records its attempt through the outbox,
   then `runProgress` names the next.
 - **`ScanSessionView` layout.**
-  - Navigation bar: the step as the title ("Quick scan", "Targets", "Checks,
+  - Navigation bar: the step as the title ("Quick scan", "Checks,
     captures, threats", "Move", "Final check") and a **Done** button
     (`.cancellationAction`, `Button("Done", systemImage: "xmark")`) that ends
     the session; finished attempts are already saved.
@@ -517,6 +525,10 @@ layout automatically").
     empty square for a dot; drag to mark several. Next ends the step. The
     arrows step then shows the answer's targets, dimmed, not the marks.
   - *Checks, captures, threats:* `.drawArrows`. Tap an arrow to delete it.
+    From v6 an **Arrows | Targets** switch above the arrow list turns the
+    board to `.markTargets` (the old Targets step's taps, as a thinking aid):
+    the marks are drawn only, never graded or stored, get no rings on the
+    feedback and aren't carried to the move. Undo covers both.
   - *Move:* `.play`. After a full scan (v2) the move isn't played at once:
     the board shows the position after it with the moved piece see-through,
     and the action row offers only **Take Back** (`.glass`) and **Play It**
@@ -564,7 +576,7 @@ review and the `swiftui-pro` rules:
 
 `ScanStatsView`, pushed from the Scan tab, computed on the device from
 `scanAttempts`: median quick-scan time, flag accuracy (calls right / all),
-the most-missed category (quick-scan kind, target colour, arrow kind), and a
+the most-missed category (quick-scan kind, arrow kind; target colours went with v6), and a
 weekly trend line in Swift Charts with an accessibility chart descriptor, and the share of Flag puzzles in the content.
 **Export for Caïssa** shares a short Markdown summary of the same numbers
 plus the 10 most recent fails (FEN, last move, what was missed) through
@@ -582,7 +594,8 @@ a **Stats** row under All Puzzles):
 - **Missed** counts, per category, the squares or arrows each step played had to find and how
   many were missed, by the answer's labels (`ScanMissCategory`). A missed square the answer no
   longer has (the puzzle was re-sent) isn't counted. Most missed = most misses, then the higher
-  rate, then the plan's order. A No Flag call has no targets or arrows to miss.
+  rate, then the plan's order. A No Flag call has no arrows to miss. A pre-v6 attempt's target step isn't
+  counted.
 - **By week**: calendar weeks with play, the last 12, one metric at a time (Quick Scan, Flag
   Calls, Solved) on a single line, the 10 s target as a dashed rule; touching a point shows its
   week. VoiceOver gets an `AXChartDescriptor` with a summary.

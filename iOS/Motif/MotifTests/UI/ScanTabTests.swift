@@ -58,14 +58,18 @@ import XCTest
         let quiet = ScanPuzzleSummary(ScanPuzzle(id: "q", content: puzzles[1], addedAt: 0), index: 1)
         XCTAssertEqual(quiet.call, "No Flag"); XCTAssertEqual(quiet.quickScan, "Nothing")
     }
-    func testDetailMarksTheMakersAnswer() {
-        let answer = ScanAnswer(flagged: true, quickScan: [ScanSquare(square: "e4", kind: .attacked)],
-                                targets: ScanTargets(red: ["f7"], orange: ["e5"], kingZone: ["g7"], fork: ["d5"]),
-                                arrows: [ScanArrow(from: "f3", to: "g5", side: .own, kind: .threat)], moves: [:])
-        let marks = ScanPuzzleDetailView.annotations(answer)
-        XCTAssertEqual(marks.tints, ["e4": .quickScan, "f7": .red, "e5": .orange])
-        // No king-zone dots (v4): g7 isn't drawn.
-        XCTAssertEqual(marks.dots, ["d5"]); XCTAssertEqual(marks.arrows, [BoardArrow(from: "f3", to: "g5", side: .own)])
+    /// v6: no targets, so no red, orange or fork dots, even for an older row that has them.
+    func testDetailMarksTheMakersAnswer() throws {
+        let sample = try String(contentsOf: try XCTUnwrap(Bundle.main.url(forResource: "sample-scan", withExtension: "json")), encoding: .utf8)
+        let puzzle = try XCTUnwrap(ScanImport.read(sample).puzzles.first)
+        var row = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(puzzle.answer)) as? [String: Any])
+        row["targets"] = ["red": ["e4"], "orange": ["e5", "f7"], "kingZone": [], "fork": ["d5"]]
+        let old = try ScanImport.stored(fenBefore: puzzle.fenBefore, lastMove: puzzle.lastMove.text, answer: row,
+                                        version: 5, source: nil, sourceId: nil)
+        XCTAssertEqual(old.answer, puzzle.answer, "the old row's targets are dropped on load")
+        let marks = ScanPuzzleDetailView.annotations(old.answer)
+        XCTAssertEqual(marks.tints, ["e4": .quickScan]); XCTAssertEqual(marks.dots, [])
+        XCTAssertEqual(marks.arrows.count, puzzle.answer.arrows?.count)
     }
     func testStartAndReviewOpenRunsThroughTheOutbox() async {
         var library = Library()

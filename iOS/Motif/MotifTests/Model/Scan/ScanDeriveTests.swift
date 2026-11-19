@@ -15,21 +15,22 @@ final class ScanDeriveTests: XCTestCase {
     }
     private func run(_ ids: [String]) -> Run { Run(id: "run", scope: SCOPE_ALL, mode: .randomGlobal, queue: ids, startedAt: 0) }
 
-    /// Playtest 3: a pass that missed a target or an arrow goes to To review, not Solved; a pass
-    /// with only a quick-scan miss or a slow step stays solved. It isn't retried in the run.
-    func testAPassWithTargetOrArrowMissesIsToReview() {
+    /// Playtest 3: a pass that missed an arrow goes to To review, not Solved; a pass with only a
+    /// quick-scan miss or a slow step stays solved, and so does an older pass whose only misses
+    /// were targets (no longer graded, v6). It isn't retried in the run.
+    func testAPassWithArrowMissesIsToReview() {
         var lib = library(5); let r = run((0..<5).map { "s\($0)" }); lib.scanRuns = [r]
         func passed(_ id: String, _ soft: [ScanSoftMiss]) -> ScanAttempt {
             var a = attempt(id, .solved); a.detail.softMisses = soft; return a
         }
         lib.scanAttempts = [passed("s0", [.targetsMissed]), passed("s1", [.arrowsMissed, .moveSlow]),
                             passed("s2", [.quickScanMissed]), passed("s3", [.quickScanSlow]), attempt("s4", .failed)]
-        XCTAssertEqual(scanReviewIds(lib), ["s0", "s1", "s4"])
-        XCTAssertEqual(scanStats(lib), Stats(total: 5, solved: 2, failed: 3, unseen: 0))
+        XCTAssertEqual(scanReviewIds(lib), ["s1", "s4"])
+        XCTAssertEqual(scanStats(lib), Stats(total: 5, solved: 3, failed: 2, unseen: 0))
         XCTAssertEqual(lib.scanAttempts.map(\.mistakes), [0, 0, 0, 0, 1], "still not a mistake")
         XCTAssertEqual(scanProgressOf(lib, r).solved, 4, "a pass is a pass in the run")
-        lib.scanAttempts.append(attempt("s0", .solved))
-        XCTAssertEqual(scanReviewIds(lib), ["s1", "s4"], "a clean pass clears it")
+        lib.scanAttempts.append(attempt("s1", .solved))
+        XCTAssertEqual(scanReviewIds(lib), ["s4"], "a clean pass clears it")
     }
 
     func testResumesWhereTheRunGotToFromItsAttempts() {

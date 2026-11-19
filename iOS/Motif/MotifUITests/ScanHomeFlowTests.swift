@@ -9,9 +9,9 @@ import XCTest
         row.tap(); wait(app.descendants(matching: .any)["scan-detail-list"])
         // LabeledContent can read as one element ("Last Move, 3... Nf6"), so match on the text inside.
         wait(shown("3... Nf6")); XCTAssertTrue(shown("e4 attacked").exists)
-        // The sample's full scan (format v2): e4 is a quick-scan square and a red target, red shows.
-        XCTAssertTrue(square("e4").label.contains("marked red"), square("e4").label)
-        XCTAssertTrue(square("f7").label.contains("marked orange"), square("f7").label); capture("scan-detail")
+        // v6: the quick-scan square is marked; no targets, so nothing red or orange.
+        XCTAssertTrue(square("e4").label.hasSuffix("marked"), square("e4").label)
+        XCTAssertFalse(square("f7").label.contains("orange"), square("f7").label); capture("scan-detail")
     }
     private func shown(_ value: String) -> XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", value, value)).firstMatch

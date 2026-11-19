@@ -54,7 +54,6 @@ struct ScanLegendSheet: View {
     private var sections: [Section] {
         let all = [
             Section(title: "Quick Scan", types: ScanMissType.quickScanTypes, current: step == .quickScan || step == .lastMove),
-            Section(title: "Targets", types: ScanMissType.targetTypes, current: step == .targets),
             Section(title: "Arrows", types: ScanMissType.arrowTypes, current: step == .arrows),
         ]
         return all.filter(\.current) + all.filter { !$0.current }

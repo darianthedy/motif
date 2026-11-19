@@ -13,12 +13,11 @@ final class ScanStatsTests: XCTestCase {
     /// Monday 2026-11-02 00:00 UTC.
     private let monday: Int64 = 1_793_577_600_000
 
-    /// A flagged puzzle with a full scan: every quick-scan kind, every target list, every arrow kind.
+    /// A flagged puzzle with a full scan: several quick-scan kinds and arrow kinds.
     private func fullPuzzle(_ id: String = "full") -> ScanPuzzle {
         var content = testScanContent("e1d1", scores: ["e8e7": 250])
         content.answer.quickScan = [ScanSquare(square: "d1", kind: .attacked), ScanSquare(square: "d8", kind: .opened),
                                     ScanSquare(square: "e8", kind: .undefended)]
-        content.answer.targets = ScanTargets(red: ["e8"], orange: ["d1"], kingZone: ["d7", "e7"], fork: ["c6"])
         content.answer.arrows = [ScanArrow(from: "d1", to: "d2", side: .theirs, kind: .threat),
                                  ScanArrow(from: "e8", to: "d8", side: .own, kind: .check)]
         return ScanPuzzle(id: id, content: content, addedAt: 0)
@@ -62,7 +61,7 @@ final class ScanStatsTests: XCTestCase {
 
     func testMissesCountByTheAnswersLabelsInStepsPlayed() {
         let full = ScanSteps(quickScan: quick(5000, missed: ["e8", "d8"]),
-                             targets: ScanMarkStep(ms: 9000, missed: ["d7", "c6", "h8"]),   // h8 isn't in the answer
+                             targets: ScanMarkStep(ms: 9000, missed: ["d7", "c6"]),   // Before v6: not counted
                              arrows: ScanMarkStep(ms: 9000, missed: ["d1d2"]))
         let attempts = [
             attempt("a", "full", steps: full),
@@ -72,13 +71,12 @@ final class ScanStatsTests: XCTestCase {
         let tallies = Dictionary(uniqueKeysWithValues: stats.misses.map { ($0.category, ($0.missed, $0.expected)) })
         XCTAssertEqual(tallies[.quickScan(.undefended)]?.0, 2); XCTAssertEqual(tallies[.quickScan(.undefended)]?.1, 2)
         XCTAssertEqual(tallies[.quickScan(.opened)]?.0, 1); XCTAssertEqual(tallies[.quickScan(.attacked)]?.0, 0)
-        XCTAssertEqual(tallies[.target(.kingZone)]?.0, 1); XCTAssertEqual(tallies[.target(.kingZone)]?.1, 2)
-        XCTAssertEqual(tallies[.target(.fork)]?.0, 1); XCTAssertEqual(tallies[.target(.red)]?.1, 1)
         XCTAssertEqual(tallies[.arrow(.threat)]?.0, 1); XCTAssertEqual(tallies[.arrow(.check)]?.0, 0)
         XCTAssertEqual(stats.mostMissed?.category, .quickScan(.undefended))
         // Same misses: the higher rate first (1 of 1 before 1 of 2), then the plan's order.
         let ones = stats.misses.filter { $0.missed == 1 }.map(\.category)
-        XCTAssertEqual(ones, [.target(.fork), .arrow(.threat), .quickScan(.opened), .target(.kingZone)])
+        XCTAssertEqual(ones, [.arrow(.threat), .quickScan(.opened)])
+        XCTAssertFalse(stats.misses.contains { $0.category.step == "Targets" })
     }
 
     func testWeeksGroupByCalendarWeekAndKeepTheLastTwelve() {
@@ -99,6 +97,7 @@ final class ScanStatsTests: XCTestCase {
         XCTAssertEqual(stats.weeks.first?.start, Date(timeIntervalSince1970: TimeInterval(monday + 3 * week) / 1000))
     }
 
+    /// An attempt from before v6 still lists its target misses, unlabelled now the answer has none.
     func testRecentFailsNewestFirstWithWhatWentWrong() {
         var attempts = (0..<12).map { attempt("f\($0)", "full", .failed, flagCall: false, at: Int64($0), failReason: .missedFlag) }
         attempts.append(attempt("bad", "full", .failed, at: 100,
@@ -111,7 +110,7 @@ final class ScanStatsTests: XCTestCase {
         let newest = stats.recentFails[0]
         XCTAssertEqual(newest.reason, "Ke7 lost 2.5")
         XCTAssertEqual(newest.lastMove, "1. Kd1 (e1d1)")
-        XCTAssertEqual(newest.missed, ["quick scan e8 (undefended)", "targets d1 (orange)", "arrows e8d8 (check)"])
+        XCTAssertEqual(newest.missed, ["quick scan e8 (undefended)", "targets d1", "arrows e8d8 (check)"])
         XCTAssertEqual(stats.recentFails[1].reason, "No Flag on a flagged position")
         XCTAssertEqual(stats.recentFails.last?.playedAt, monday + 3, "the two oldest drop out")
     }

@@ -13,9 +13,11 @@ import { Chess } from 'chess.js';
  * The newest format version the app understands. 2 adds the full scan; 3 lets a
  * red or orange target be an empty king-zone square (next to either king); 4 adds
  * the quick-scan kind `unpinned`, optional arrows, and quick-scan squares must be pieces; 5
- * adds the quick-scan kind `hanging` (the top-level `spec`, the maker's rule version, is ignored).
+ * adds the quick-scan kind `hanging` (the top-level `spec`, the maker's rule version, is ignored); 6
+ * drops `targets`: a Flag puzzle needs only `arrows`, and `targets` is ignored (unread, unchecked) in
+ * every version.
  */
-export const SCAN_VERSION = 5;
+export const SCAN_VERSION = 6;
 
 export interface ScanRejection {
   /** Index into the file's `scan` array; -1 for the whole file. */
@@ -45,7 +47,6 @@ const isObject = (value: unknown): value is Raw =>
 const isSquare = (text: string) => /^[a-h][1-8]$/.test(text);
 const absent = (value: unknown) => value === undefined || value === null;
 type Square = Parameters<Chess['get']>[0];
-const TARGET_LISTS = ['red', 'orange', 'kingZone', 'fork'] as const;
 
 function parseUci(text: string): string | null {
   const lower = text.trim().toLowerCase();
@@ -98,46 +99,9 @@ interface Arrow {
   kind: string;
 }
 
-/** The king zone: a square next to either king (ScanImport.nextToAKing). */
-function nextToAKing(square: string, chess: Chess): boolean {
-  const file = square.charCodeAt(0);
-  const rank = Number(square[1]);
-  for (let df = -1; df <= 1; df++) {
-    for (let dr = -1; dr <= 1; dr++) {
-      if (!df && !dr) continue;
-      const f = file + df;
-      const r = rank + dr;
-      if (f < 97 || f > 104 || r < 1 || r > 8) continue;
-      if (chess.get(`${String.fromCharCode(f)}${r}` as Square)?.type === 'k') return true;
-    }
-  }
-  return false;
-}
-
 /** Version 2: what the full scan must hold (ScanImport.fullScanProblem). */
-function fullScanProblem(entry: Raw, arrows: Arrow[] | null, chess: Chess, version: number): string | null {
-  const targets = isObject(entry.targets) ? entry.targets : null;
-  if (entry.flagged) {
-    if (!targets) return 'Flag puzzle is missing "targets"';
-    if (!arrows) return 'Flag puzzle is missing "arrows"';
-  }
-  if (targets) {
-    const list = (name: string) => (targets[name] as string[] | undefined | null) ?? [];
-    const seen = new Set<string>();
-    for (const square of TARGET_LISTS.flatMap(list)) {
-      if (seen.has(square)) return `Target ${square} is listed twice`;
-      seen.add(square);
-    }
-    // From v3 an empty king-zone square can be red or orange, counted like a piece.
-    for (const square of [...list('red'), ...list('orange')]) {
-      if (chess.get(square as Square)) continue;
-      if (version < 3) return `Red or orange target ${square} is not a piece`;
-      if (!nextToAKing(square, chess)) return `Red or orange target ${square} is neither a piece nor next to a king`;
-    }
-    for (const square of [...list('kingZone'), ...list('fork')]) {
-      if (chess.get(square as Square)) return `King-zone or fork square ${square} is not empty`;
-    }
-  }
+function fullScanProblem(entry: Raw, arrows: Arrow[] | null, chess: Chess): string | null {
+  if (entry.flagged && !arrows) return 'Flag puzzle is missing "arrows"';
   if (!arrows) return null;
   const start = chess.fen();
   const solver = chess.turn();
@@ -181,14 +145,7 @@ export function scanProblem(entry: unknown, version: number): string | null {
     }
     squares.push(item.square);
   }
-  if (!absent(entry.targets)) {
-    if (!isObject(entry.targets)) return 'Malformed "targets"';
-    for (const name of TARGET_LISTS) {
-      const list = entry.targets[name];
-      if (absent(list)) continue;
-      if (!Array.isArray(list) || !list.every((s) => typeof s === 'string')) return 'Malformed "targets"';
-    }
-  }
+  // `targets` (before v6) is ignored: nothing grades or shows it any more.
   let arrows: Arrow[] | null = null;
   if (!absent(entry.arrows)) {
     arrows = [];
@@ -233,11 +190,6 @@ export function scanProblem(entry: unknown, version: number): string | null {
   if (!play(chess, lastMove)) return `Last move ${lastMove} is illegal`;
   const start = chess.fen();
 
-  if (isObject(entry.targets)) {
-    for (const name of TARGET_LISTS) {
-      squares.push(...((entry.targets[name] as string[] | undefined | null) ?? []));
-    }
-  }
   squares.push(...(arrows ?? []).flatMap((a) => [a.from, a.to]));
   const bad = squares.find((s) => !isSquare(s));
   if (bad) return `Square ${bad} is not on the board`;
@@ -253,7 +205,7 @@ export function scanProblem(entry: unknown, version: number): string | null {
     }
   }
   if (version >= 2) {
-    const problem = fullScanProblem(entry, arrows, chess, version);
+    const problem = fullScanProblem(entry, arrows, chess);
     if (problem) return problem;
   }
 
@@ -284,7 +236,7 @@ export function scanProblem(entry: unknown, version: number): string | null {
   return null;
 }
 
-/** Reads `{"version": 5, "spec": 5, "scan": [ ... ]}` as the app's import does. */
+/** Reads `{"version": 6, "spec": 6, "scan": [ ... ]}` as the app's import does. */
 export function readScan(text: string): ScanReadResult {
   const result: ScanReadResult = { puzzles: [], rejected: [] };
   let parsed: unknown;

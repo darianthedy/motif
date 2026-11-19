@@ -104,10 +104,26 @@ struct ScanFeedback: Equatable, Sendable {
         default:
             // Only over time: no square, target or arrow missed. Says so, so it doesn't read as a
             // miss in the summary's sense (a failed puzzle).
-            let slowOnly = outcome.detail.softMisses.allSatisfy(\.isSlow)
-            title = verdict == .pass ? "Passed" : slowOnly ? "Passed, Slow" : "Passed with Misses"
+            let misses = outcome.detail.softMisses
+            title = verdict == .pass ? "Passed" : misses.allSatisfy(\.isSlow) ? slowTitle(misses) : "Passed with Misses"
         }
         return ScanFeedback(verdict: verdict, title: title, reason: reason, note: note, time: timeText(ms, step))
+    }
+
+    /// "Passed, Slow" when the move itself was slow (the time line under it is the move's);
+    /// otherwise the slow step by name ("Passed, Slow Quick Scan"), so the label never reads
+    /// against the move's time (playtest 3). Several slow scan steps: "Passed, Slow Scan".
+    private static func slowTitle(_ misses: [ScanSoftMiss]) -> String {
+        if misses.contains(.moveSlow) { return "Passed, Slow" }
+        let steps: [String] = misses.compactMap {
+            switch $0 {
+            case .quickScanSlow: "Quick Scan"
+            case .targetsSlow: "Targets"
+            case .arrowsSlow: "Arrows"
+            default: nil
+            }
+        }
+        return steps.count == 1 ? "Passed, Slow \(steps[0])" : "Passed, Slow Scan"
     }
 
     /// The quick scan's limit ran out before a call: the puzzle fails on any position.

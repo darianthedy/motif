@@ -15,7 +15,7 @@ func scanStats(_ library: Library) -> Stats {
     statsFor(scanPool(library).map(\.id), scanRecords(library))
 }
 
-/// Puzzles whose latest result is a fail, in pool order.
+/// Puzzles whose latest result is a fail, or a pass with target or arrow misses, in pool order.
 func scanReviewIds(_ library: Library) -> [String] {
     reviewIds(scanPool(library).map(\.id), scanRecords(library))
 }

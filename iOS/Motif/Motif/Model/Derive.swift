@@ -7,7 +7,7 @@ private func chronological<A: RunAttempt>(_ attempts: [A]) -> [A] {
 }
 
 struct PuzzleRecord: Equatable, Codable, Sendable {
-    /// Latest non-skip result.
+    /// Latest non-skip result; failed too for a pass that still `needsReview`.
     var status: PuzzleStatus
     /// Played attempts, skips excluded.
     var attempts: Int
@@ -23,7 +23,7 @@ func puzzleRecords<A: RunAttempt>(_ attempts: [A]) -> [String: PuzzleRecord] {
             ?? PuzzleRecord(status: .unseen, attempts: 0, mistakes: 0, lastPlayedAt: attempt.playedAt)
         record.lastPlayedAt = attempt.playedAt
         if attempt.result != .skipped {
-            record.status = attempt.result == .solved ? .solved : .failed
+            record.status = attempt.needsReview ? .failed : .solved
             record.attempts += 1
             record.mistakes += attempt.mistakes
         }

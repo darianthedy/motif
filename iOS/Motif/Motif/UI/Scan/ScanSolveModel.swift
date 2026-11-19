@@ -102,15 +102,16 @@ import Observation
     /// The move under final check in SAN ("Nxe5"), for the prompt.
     var candidateSan: String? { candidate.map { Board.sanFor(startFen, $0) ?? $0.text } }
 
-    /// The step's one line of guidance.
+    /// The step's one line of guidance. No bare "Re5?": a "?" after a move reads as the chess
+    /// annotation for a mistake (playtest 3).
     var prompt: String {
         switch step {
         case .lastMove: "Their move."
-        case .quickScan: "After \(lastMoveSan)?"
+        case .quickScan: "Last move: \(lastMoveSan)"
         case .targets: "Red, orange, dots."
         case .arrows: "Both sides."
         case .move: "Your move."
-        case .finalCheck: "\(candidateSan ?? "This move")?"
+        case .finalCheck: "Play \(candidateSan ?? "this move")?"
         default: ""
         }
     }
@@ -224,7 +225,7 @@ import Observation
     func markTargets(_ squares: [String]) {
         guard canMark, step == .targets, !squares.isEmpty else { return }
         change(squares.count == 1 ? "Mark" : "Marks") { marks in
-            for square in squares { marks.cycleTarget(square, piece: Board.pieceAt(fen, square) != nil) }
+            for square in squares { marks.cycleTarget(square, .init(square, fen: fen)) }
         }
     }
 
@@ -252,8 +253,14 @@ import Observation
         else if let before = history.popLast() { current = before }
     }
 
+    /// No Flag says nothing changed, so it's off while any square is marked (playtest 3).
+    var canCallNoFlag: Bool { marks.isEmpty }
+
     /// Flag or No Flag: grades the quick scan and the call, and shows feedback.
-    func call(_ flag: Bool) { endQuickScan(flag, timedOut: false) }
+    func call(_ flag: Bool) {
+        guard flag || canCallNoFlag else { return }
+        endQuickScan(flag, timedOut: false)
+    }
 
     /// Next on the targets or the arrows: grades the step and shows its feedback.
     func finishStep() { finishStep(timedOut: false) }
@@ -410,8 +417,14 @@ import Observation
     private func start(_ next: ScanStep) {
         // The finished step's marks carry on, dimmed: the targets build on the quick scan and
         // the arrows aim at the targets. Arrows end the marking, so none are carried.
+        // The targets carry as the answer has them, not as marked: the arrows aim at the true
+        // targets, so a wrong colour or a missed one isn't left on the board (playtest 3).
         carried.squares.formUnion(current.squares)
-        carried.targets.merge(current.targets) { _, new in new }
+        if step == .targets, let targets = puzzle.answer.targets {
+            carried.targets = Self.marks(targets)
+        } else {
+            carried.targets.merge(current.targets) { _, new in new }
+        }
         step = next; feedback = nil; history = []; current = ScanMarks()
         startedAt = clock.now; stepStarted = now()
         deadline = nil
@@ -424,6 +437,15 @@ import Observation
             guard !Task.isCancelled else { return }
             self?.timeUp()
         }
+    }
+
+    /// The answer's targets as target marks: red, orange, and a dot on each fork square.
+    private static func marks(_ targets: ScanTargets) -> [String: ScanTargetMark] {
+        var marks: [String: ScanTargetMark] = [:]
+        for square in targets.fork { marks[square] = .dot }
+        for square in targets.orange { marks[square] = .orange }
+        for square in targets.red { marks[square] = .red }
+        return marks
     }
 
     /// The timed step a step is played under; nil for the last move and the result.

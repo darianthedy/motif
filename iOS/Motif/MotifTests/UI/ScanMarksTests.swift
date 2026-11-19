@@ -3,15 +3,26 @@ import XCTest
 
 /// Scan plan S07: what one tap, one drag or one arrow does to the step's marks.
 final class ScanMarksTests: XCTestCase {
-    func testAPieceGoesOrangeRedClearAndAnEmptySquareOrangeRedDotClear() {
+    /// Playtest 3: red first, as the scan looks for red first; an empty square away from the
+    /// kings can only be a dot, so its first tap is one.
+    func testAPieceGoesRedOrangeClearAKingZoneSquareRedOrangeDotClearAndOtherEmptySquaresDotClear() {
         var marks = ScanMarks()
-        marks.cycleTarget("e4", piece: true); XCTAssertEqual(marks.orange, ["e4"])
-        marks.cycleTarget("e4", piece: true); XCTAssertEqual(marks.red, ["e4"]); XCTAssertEqual(marks.orange, [])
-        marks.cycleTarget("e4", piece: true); XCTAssertEqual(marks.targets, [:])
-        marks.cycleTarget("g7", piece: false); XCTAssertEqual(marks.orange, ["g7"])
-        marks.cycleTarget("g7", piece: false); XCTAssertEqual(marks.red, ["g7"])
-        marks.cycleTarget("g7", piece: false); XCTAssertEqual(marks.dots, ["g7"]); XCTAssertEqual(marks.red, [])
-        marks.cycleTarget("g7", piece: false); XCTAssertEqual(marks.targets, [:])
+        marks.cycleTarget("e4", .piece); XCTAssertEqual(marks.red, ["e4"])
+        marks.cycleTarget("e4", .piece); XCTAssertEqual(marks.orange, ["e4"]); XCTAssertEqual(marks.red, [])
+        marks.cycleTarget("e4", .piece); XCTAssertEqual(marks.targets, [:])
+        marks.cycleTarget("g7", .kingZone); XCTAssertEqual(marks.red, ["g7"])
+        marks.cycleTarget("g7", .kingZone); XCTAssertEqual(marks.orange, ["g7"])
+        marks.cycleTarget("g7", .kingZone); XCTAssertEqual(marks.dots, ["g7"]); XCTAssertEqual(marks.orange, [])
+        marks.cycleTarget("g7", .kingZone); XCTAssertEqual(marks.targets, [:])
+        marks.cycleTarget("d5", .empty); XCTAssertEqual(marks.dots, ["d5"])
+        marks.cycleTarget("d5", .empty); XCTAssertEqual(marks.targets, [:])
+    }
+    func testASquareIsAPieceAKingZoneSquareOrEmpty() {
+        let fen = "4k3/8/8/8/4P3/8/8/4K3 w - - 0 1"
+        XCTAssertEqual(ScanTargetMark.Square("e4", fen: fen), .piece)
+        XCTAssertEqual(ScanTargetMark.Square("d7", fen: fen), .kingZone)
+        XCTAssertEqual(ScanTargetMark.Square("f2", fen: fen), .kingZone)
+        XCTAssertEqual(ScanTargetMark.Square("d5", fen: fen), .empty)
     }
     /// Playtest 2: a carried quick-scan mark drops its fill (dimmed violet read as pink, like red),
     /// keeping only its notch; carried targets keep a dimmed fill.

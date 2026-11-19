@@ -162,7 +162,9 @@ Stats (v2) read only this, so nothing in it is a summary that can go stale.
   random with recently seen puzzles at the back (`orderForGlobalDraw`,
   `RECENT_MEMORY`), so quiet and flagged positions come in no fixed pattern
   (§1.5); **Review Mistakes** takes the puzzles whose latest result is
-  failed.
+  failed, or a pass that missed a target or an arrow (playtest 3: the full
+  scan is what's drilled). Such a pass is still a pass in its run and in the
+  stats; it just shows as *to review* until a clean pass.
 - **Failed puzzles come back sooner** in two ways, both from Puzzles: once
   more in the same run after `RETRY_GAP` (3) others, at most `MAX_RETRIES`
   (10) waiting; and in Review until solved.
@@ -259,7 +261,8 @@ logged, never shown half-working.
   that move. The solver is the side to move after it.
 - `flagged`: the maker's call, Flag or No flag. Motif never works it out.
 - `quickScan`: the squares the quick scan should find, each with a `kind`
-  (`attacked`, `opened`, `undefended`) used in the feedback reason.
+  (`attacked`, `opened`, `undefended`; `unpinned` from v4, `hanging` from
+  v5) used in the feedback reason.
 - `targets`, `arrows` (v2): what the full scan should find. Arrow `kind` is
   `check`, `capture` or `threat`; `side` is `own` or `theirs`. Extra arrows
   aren't graded.
@@ -507,9 +510,12 @@ layout automatically").
 - **Per step.**
   - *Last move:* the board starts at `fen_before`; the move plays after
     450 ms (`REPLY_MS`) and stays highlighted. The timer starts.
-  - *Quick scan:* `.markSquares`. Flag / No flag end the step.
-  - *Targets:* `.markTargets`. Tap a piece for red → orange → clear, tap an
-    empty square for a dot, drag to mark several. Next ends the step.
+  - *Quick scan:* `.markSquares`, prompt "Last move: Re5". Flag / No flag
+    end the step; No Flag is disabled while any square is marked.
+  - *Targets:* `.markTargets`. Tap a piece for red → orange → clear, an
+    empty square next to a king for red → orange → dot → clear, any other
+    empty square for a dot; drag to mark several. Next ends the step. The
+    arrows step then shows the answer's targets, dimmed, not the marks.
   - *Checks, captures, threats:* `.drawArrows`. Tap an arrow to delete it.
   - *Move:* `.play`. After a full scan (v2) the move isn't played at once:
     the board shows the position after it with the moved piece see-through,

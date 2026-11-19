@@ -113,12 +113,15 @@ import XCTest
         let next = button("scan-next"); wait(next)
         // The quick scan's mark stays, dimmed, under the targets.
         expect(square("e4"), "label ENDSWITH 'from the step before'")
-        tap(square("e4"), until: "label ENDSWITH 'as often as defended'")
+        // Red first (playtest 3): one tap for red, two for orange.
         tap(square("e4"), until: "label ENDSWITH 'loses material'")
-        for name in ["e5", "f7"] { tap(square(name), until: "label ENDSWITH 'as often as defended'") }
-        // An empty square goes orange → red → dot, as a king-zone square can be coloured.
-        tap(square("e7"), until: "label ENDSWITH 'as often as defended'")
+        for name in ["e5", "f7"] {
+            tap(square(name), until: "label ENDSWITH 'loses material'")
+            tap(square(name), until: "label ENDSWITH 'as often as defended'")
+        }
+        // An empty square next to a king goes red → orange → dot, as it can be coloured.
         tap(square("e7"), until: "label ENDSWITH 'loses material'")
+        tap(square("e7"), until: "label ENDSWITH 'as often as defended'")
         tap(square("e7"), until: "label ENDSWITH 'dot'"); capture("scan-targets")
         next.tap(); expectFeedback("All Targets Found", orSlow: true); capture("scan-targets-feedback")
         moveOn()

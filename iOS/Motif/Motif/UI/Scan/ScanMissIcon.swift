@@ -80,6 +80,7 @@ struct ScanMissIcon: View {
         case .opened?: "arrow.up.left.and.arrow.down.right"
         case .undefended?: "shield.slash"
         case .unpinned?: "pin.slash"
+        case .hanging?: "exclamationmark.triangle"
         case nil: nil
         }
     }

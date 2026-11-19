@@ -14,7 +14,10 @@ enum ScanImport {
     /// version 2 files keep the pieces-only rule. Version 4 adds the quick-scan
     /// kind `unpinned`, arrows marked `"optional": true`, and holds quick-scan
     /// squares to pieces; `targets.kingZone` is always empty and is ignored.
-    static let version = 4
+    /// Version 5 adds the quick-scan kind `hanging`. From 5 on the format version bumps only
+    /// when the app must change (a field, a `kind`, a structure); the file's top-level `spec`
+    /// is the maker's rule version and is ignored here, as any extra top-level key is.
+    static let version = 5
 
     struct Result: Equatable, Sendable {
         /// File order, each puzzle once: a puzzle listed twice keeps its first
@@ -24,7 +27,7 @@ enum ScanImport {
         var rejected: [ImportRejection] = []
     }
 
-    /// Reads `{"version": 4, "scan": [ ... ]}`.
+    /// Reads `{"version": 5, "spec": 5, "scan": [ ... ]}`.
     static func read(_ text: String) -> Result {
         var result = Result()
         let parsed: Any
@@ -145,7 +148,7 @@ enum ScanImport {
     // MARK: The full scan (version 2)
 
     /// The king zone: a square next to either king.
-    private static func nextToAKing(_ square: String, _ fen: String) -> Bool {
+    static func nextToAKing(_ square: String, _ fen: String) -> Bool {
         guard let file = square.first?.asciiValue, let rank = square.last?.wholeNumberValue else { return false }
         for df in -1...1 { for dr in -1...1 where df != 0 || dr != 0 {
             let f = Int(file) + df, r = rank + dr

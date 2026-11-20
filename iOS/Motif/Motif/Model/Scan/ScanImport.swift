@@ -20,7 +20,10 @@ enum ScanImport {
     /// Version 6 drops `targets`: the graded target step is gone, so a Flag puzzle needs only
     /// `arrows`. `targets` is ignored, unread and unchecked, in every version, so rows and files
     /// written before v6 that still carry it keep loading.
-    static let version = 6
+    /// Version 7 plays the line out: a Flag puzzle may carry `solutions` (lines of UCI moves for
+    /// both sides, from the solver's first move, as normal puzzles), and any puzzle `bestCp`, the
+    /// best move's eval for the solver (mate = 100000). Both are read only from version 7.
+    static let version = 7
 
     struct Result: Equatable, Sendable {
         /// File order, each puzzle once: a puzzle listed twice keeps its first
@@ -30,7 +33,7 @@ enum ScanImport {
         var rejected: [ImportRejection] = []
     }
 
-    /// Reads `{"version": 6, "spec": 6, "scan": [ ... ]}`.
+    /// Reads `{"version": 7, "spec": 7, "scan": [ ... ]}`.
     static func read(_ text: String) -> Result {
         var result = Result()
         let parsed: Any
@@ -121,6 +124,7 @@ enum ScanImport {
            let illegal = Board.firstIllegalMove(start, [line]) {
             return "Best line move \(illegal.move.text) is illegal at ply \(illegal.ply + 1)"
         }
+        if let problem = lineProblem(answer, start: start) { return problem }
         return nil
     }
 
@@ -145,6 +149,23 @@ enum ScanImport {
     /// The first four FEN fields and the move, so move counters don't matter.
     static func contentKey(fenBefore: String, lastMove: Uci) -> String {
         "\(normalizeFen(fenBefore))/\(lastMove.text)"
+    }
+
+    // MARK: The line (version 7)
+
+    /// What a version 7 line must hold so every move of it can be played: only on a Flag
+    /// puzzle, at least one line, no empty line, every move legal from the start position.
+    private static func lineProblem(_ answer: ScanAnswer, start: String) -> String? {
+        guard let solutions = answer.solutions else { return nil }
+        guard answer.flagged else { return #"No flag puzzle has "solutions""# }
+        guard !solutions.isEmpty else { return #""solutions" has no lines"# }
+        for (index, line) in solutions.enumerated() {
+            guard !line.isEmpty else { return "Line \(index + 1) is empty" }
+            if let illegal = Board.firstIllegalMove(start, [line]) {
+                return "Line \(index + 1) move \(illegal.move.text) is illegal at ply \(illegal.ply + 1)"
+            }
+        }
+        return nil
     }
 
     // MARK: The full scan (version 2)
@@ -294,8 +315,30 @@ enum ScanImport {
             bestLine = line
         }
 
+        // The line and the best eval (v7); older versions never read them.
+        var solutions: [[Uci]]?
+        var bestCp: Int?
+        if version >= 7 {
+            if let rawSolutions = raw["solutions"], !(rawSolutions is NSNull) {
+                guard let lines = rawSolutions as? [Any] else { return fail(#"Malformed "solutions""#) }
+                var parsed: [[Uci]] = []
+                for (index, rawLine) in lines.enumerated() {
+                    guard let items = rawLine as? [Any] else { return fail("Line \(index + 1) is not a list of moves") }
+                    let line = items.compactMap { ($0 as? String).flatMap(Uci.parse) }
+                    guard line.count == items.count else { return fail("Line \(index + 1) contains a malformed move") }
+                    parsed.append(line)
+                }
+                solutions = parsed
+            }
+            if let rawBest = raw["bestCp"], !(rawBest is NSNull) {
+                guard let cp = integer(rawBest) else { return fail(#""bestCp" is not a whole number"#) }
+                bestCp = cp
+            }
+        }
+
         let answer = ScanAnswer(flagged: flagged, quickScan: quickScan,
-                                arrows: arrows, moves: moves, bestLine: bestLine)
+                                arrows: arrows, moves: moves, bestLine: bestLine,
+                                solutions: solutions, bestCp: bestCp)
         return .success(ScanPuzzleContent(
             fenBefore: fen, lastMove: lastMove, answer: answer, version: version,
             source: label(raw["source"]), sourceId: label(raw["sourceId"])))

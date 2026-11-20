@@ -15,9 +15,11 @@ import { Chess } from 'chess.js';
  * the quick-scan kind `unpinned`, optional arrows, and quick-scan squares must be pieces; 5
  * adds the quick-scan kind `hanging` (the top-level `spec`, the maker's rule version, is ignored); 6
  * drops `targets`: a Flag puzzle needs only `arrows`, and `targets` is ignored (unread, unchecked) in
- * every version.
+ * every version. 7 plays the line out: a Flag puzzle may carry `solutions` (lines of UCI moves, both
+ * sides, from the solver's first move) and any puzzle `bestCp` (the best move's eval, mate = 100000);
+ * both are read only from 7.
  */
-export const SCAN_VERSION = 6;
+export const SCAN_VERSION = 7;
 
 export interface ScanRejection {
   /** Index into the file's `scan` array; -1 for the whole file. */
@@ -183,6 +185,23 @@ export function scanProblem(entry: unknown, version: number): string | null {
     if (line.some((m) => m === null)) return 'Best line contains a malformed move';
     bestLine = line as string[];
   }
+  // The line and the best eval (v7); older versions never read them.
+  let solutions: string[][] | null = null;
+  if (version >= 7) {
+    if (!absent(entry.solutions)) {
+      if (!Array.isArray(entry.solutions)) return 'Malformed "solutions"';
+      solutions = [];
+      for (const [index, raw] of entry.solutions.entries()) {
+        if (!Array.isArray(raw)) return `Line ${index + 1} is not a list of moves`;
+        const line = raw.map((m) => (typeof m === 'string' ? parseUci(m) : null));
+        if (line.some((m) => m === null)) return `Line ${index + 1} contains a malformed move`;
+        solutions.push(line as string[]);
+      }
+    }
+    if (!absent(entry.bestCp) && (typeof entry.bestCp !== 'number' || !Number.isInteger(entry.bestCp))) {
+      return '"bestCp" is not a whole number';
+    }
+  }
 
   // Checking: against the rules of chess.
   const chess = load(fen);
@@ -233,10 +252,21 @@ export function scanProblem(entry: unknown, version: number): string | null {
       if (!play(replay, move)) return `Best line move ${move} is illegal at ply ${ply + 1}`;
     }
   }
+  if (solutions) {
+    if (!entry.flagged) return 'No flag puzzle has "solutions"';
+    if (!solutions.length) return '"solutions" has no lines';
+    for (const [index, line] of solutions.entries()) {
+      if (!line.length) return `Line ${index + 1} is empty`;
+      const replay = new Chess(start);
+      for (const [ply, move] of line.entries()) {
+        if (!play(replay, move)) return `Line ${index + 1} move ${move} is illegal at ply ${ply + 1}`;
+      }
+    }
+  }
   return null;
 }
 
-/** Reads `{"version": 6, "spec": 6, "scan": [ ... ]}` as the app's import does. */
+/** Reads `{"version": 7, "spec": 7, "scan": [ ... ]}` as the app's import does. */
 export function readScan(text: string): ScanReadResult {
   const result: ScanReadResult = { puzzles: [], rejected: [] };
   let parsed: unknown;

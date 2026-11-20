@@ -22,6 +22,14 @@
 > `targets`; an older row's is ignored, and nothing is drawn from it. Older
 > attempts' target steps still read, but count for nothing in Stats or
 > Review. Sections below that describe the target step are history.
+>
+> **Format 7 (2026-11-20): play the line out** (Puzzle flow 8). A Flag puzzle
+> may carry `solutions`, lines like a normal puzzle's, and any puzzle
+> `bestCp`. A first move on a line plays the line out: the opponent's reply,
+> then the solver's next move, until the line ends. A first move that passes
+> but isn't on a line ends the puzzle as a pass. When the best move is clearly
+> winning, a move is graded by the win chance it loses (§1.3). Puzzles without
+> these fields stay one move, graded as before.
 
 ---
 
@@ -47,6 +55,19 @@
    +0.9 passes, one at +0.4 fails. Motif applies the margin, so changing it
    needs no new content. The one-line feedback reason can then say
    "loses 2.3" for any move played.
+   **From format 7:** a first move that starts any of the puzzle's lines
+   (`solutions`) always passes, whatever its score. When the best move is
+   clearly winning (`bestCp` ≥ 300, Caïssa's "+3"), a move passes if it loses
+   **under 10 points of win chance** instead of within 50 cp. That is the same
+   formula and threshold as `caissa/tools/engine.py`: `win_pct(cp) = 50 + 50 ·
+   (2 / (1 + e^(−0.00368208·cp)) − 1)` (Lichess's curve), and `check` calls a
+   drop under 10 "fine" (10 is its INACCURACY line). Win chance lost =
+   `win_pct(bestCp) − win_pct(bestCp − loss)`. The 50 cp margin still passes
+   anything it passed before, and a move that keeps a forced mate still passes.
+   Example (book #241): at +8, Qb4 0.66 behind Qa4 loses 1.3 points and passes.
+   A move after the first is matched exactly against the lines that still fit
+   (the normal puzzles' `Model/Trie.swift`: `buildTrie`, `findEdge`; no second
+   matcher), so the table doesn't grade it.
 4. **iOS only.** The web app gets no Scan Training. The "web app is the spec"
    rule in `Motif - Tech Plan - iOS.md` doesn't apply to this feature: this
    plan is its spec.
@@ -281,7 +302,20 @@ logged, never shown half-working.
   100000). Every legal move must be present, so any move played can be
   graded.
 - `bestLine`: shown after the move, optional.
+- `solutions` (v7, optional, Flag puzzles only): `[[uci, ...], ...]`, one or
+  more lines as in normal puzzles. Each line alternates both sides' moves,
+  starting with the solver's first move after `lastMove`, and holds best
+  moves only. Only the solver's choices branch (the maker picks the engine's
+  top reply for the opponent), so a second line differs at a solver move. The
+  maker's rule for where a line ends is in the requirements (Line, Where the
+  line ends); Motif doesn't check it.
+- `bestCp` (v7, optional): the best move's eval in centipawns from the
+  solver's side, a forced mate = 100000. With `moves` it gives every move's
+  eval (`bestCp − loss`), so the phone can work out win chance (§1.3).
 - `source`, `sourceId`: the maker's labels, optional.
+
+Both v7 fields are read only from version 7. A puzzle without them is one
+move, graded as before.
 
 What the requirements say about content (own games one move before a
 blunder, Lichess puzzles started a move earlier, quiet positions within
@@ -306,8 +340,15 @@ From version 2, also if:
   deep", for both sides), a `capture` captures nothing, or a `check` gives no
   check.
 
+From version 7, also if:
+
+- `solutions` is on a No flag puzzle, has no lines, or has an empty line;
+- a line isn't legal from the start position (`fenBefore` + `lastMove`),
+  reported with the line, the move and the ply;
+- `solutions` or `bestCp` is malformed (`bestCp` must be a whole number).
+
 `ScanAnswer.hasFullScan` (Flag with both present) is what S07's step order
-reads.
+reads; `ScanAnswer.hasLine` says the move is played out.
 
 `scripts/validate-external.ts` gets a `--scan` mode that runs the same
 checks on a file, so Caïssa can test one before sending it.
@@ -406,8 +447,22 @@ beside. Every `@Observable` class is `@MainActor`; model types are
   `gradeQuickScan(tapped:answer:)` → missed and extra squares.
   `gradeFlag(called:answer:)` → pass, fail or soft miss.
   `gradeArrows` → missed and extra (no `gradeTargets` since v6), extras never counted
-  against. `gradeMove(_:answer:margin:)` → pass/fail plus `lossCp`.
-  `result(of:)` folds the steps into pass/fail and soft misses (Scoring).
+  against. `gradeMove(_:answer:margin:)` → pass/fail plus `lossCp`, and
+  `onLine` when it starts one of the lines (v7); `passes` adds the win-chance
+  rule (`winPct`, `winPctLost`, `clearlyWinningCp` 300, `maxWinPctLost` 10).
+  `gradeLineMove(_:at:)` matches a later move with `findEdge` on the lines'
+  trie; `shownLine(_:fitting:)` is the line the feedback shows.
+  `result(of:)` folds the steps into pass/fail and soft misses (Scoring); a
+  line left early fails with reason `offLine`.
+- **The line (v7).** `ScanStep.line` follows a first move on a line that has
+  more to play. The opponent's reply comes after `REPLY_MS`, through the
+  injected clock, and the board waits (`replying`). The solver's next move is
+  matched exactly. A move off every line isn't played: the puzzle fails, the
+  feedback says "The line was 1... Kd7 2. Ke1 …" and the result arrow shows
+  the line's move. Later moves have no final check and no hard limit. Their
+  time is recorded as `steps.line` (`ScanLineStep`: `ms`, the solver's
+  `played` moves, `offLine`). A first move that passes but isn't on a line
+  ends the puzzle: "Also works. The puzzle's line was …".
 - No scan-only queue code: what comes next is `runProgress` over the scan
   run and its attempts (§2.3), queues are built with the existing
   `makeQueue` and `orderForGlobalDraw`.
@@ -686,3 +741,10 @@ screenshots on iPhone and iPhone Duo, and its own PR.
    easy to see if it drifts.
 2. **Caïssa summary format.** Markdown via the share sheet is a guess at
    what Caïssa reads best.
+3. **"Clearly winning" (v7).** Neither the requirements nor `engine.py`
+   give a number, so Motif uses `bestCp` ≥ 300 (Caïssa's "+3 trigger").
+   Below it, 50 cp still decides; near 0 the two rules nearly agree anyway
+   (10 points of win chance ≈ 54 cp).
+4. **Line moves aren't timed against a target (v7).** Only the first move
+   has a target and limit. The line's time is recorded (`steps.line.ms`) but
+   isn't graded until the requirements give it a target.

@@ -543,4 +543,95 @@ import XCTest
         let model = await started(puzzle(flagged: true), TestClock(), limits: ScanLimits(on: [.arrows]))
         XCTAssertNil(model.deadline); XCTAssertNotNil(model.stepStarted)
     }
+
+    // MARK: Playing the line out (v7)
+
+    /// The flagged puzzle with two lines: Kd7 Ke1 Kd6 Kd1 Kd5, and Ke7 Kc1 Ke6. Kd8 (scored 0)
+    /// is on neither; Kf8 (30) passes the table, Kf7 (300) fails it.
+    private func linePuzzle() -> ScanPuzzle {
+        var content = testScanContent(flagged: true, scores: ["e8f7": 300, "e8f8": 30])
+        content.answer.solutions = [["e8d7", "d1e1", "d7d6", "e1d1", "d6d5"], ["e8e7", "d1c1", "e7e6"]].map { $0.map { Uci.parse($0)! } }
+        content.version = 7
+        return ScanPuzzle(id: "p", content: content, addedAt: 0)
+    }
+    private func atMove(_ clock: TestClock) async -> ScanSolveModel {
+        let model = await started(linePuzzle(), clock)
+        model.toggle("d7"); model.call(true); model.proceed()
+        return model
+    }
+    private func reply(_ model: ScanSolveModel, _ clock: TestClock) async {
+        while model.replying { clock.advance(by: .milliseconds(REPLY_MS)); await Task.yield() }
+    }
+    private func uci(_ text: String) -> Uci { Uci.parse(text)! }
+
+    func testAFirstMoveOnTheLinePlaysItOutToTheEnd() async throws {
+        let clock = TestClock(), model = await atMove(clock)
+        model.play(uci("e8d7"))
+        XCTAssertEqual(model.step, .line); XCTAssertTrue(model.replying); XCTAssertNil(model.outcome)
+        XCTAssertFalse(model.canMove, "the board waits for their reply")
+        XCTAssertEqual(model.prompt, "Their move.")
+        await reply(model, clock)
+        XCTAssertEqual(Board.pieceAt(model.fen, "e1")?.type, .king, "Ke1 was played")
+        XCTAssertTrue(model.canMove); XCTAssertEqual(model.prompt, "Keep going.")
+        model.play(uci("d7d6")); await reply(model, clock)
+        clock.advance(by: .seconds(2))
+        model.play(uci("d6d5"))
+        XCTAssertEqual(model.step, .done)
+        let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
+        XCTAssertEqual(attempt.result, .solved)
+        XCTAssertEqual(attempt.detail.steps.line?.played, [uci("d7d6"), uci("d6d5")])
+        XCTAssertNil(attempt.detail.steps.line?.offLine)
+        XCTAssertGreaterThanOrEqual(attempt.detail.steps.line?.ms ?? 0, 2000)
+        XCTAssertEqual(model.feedback?.verdict, .pass); XCTAssertEqual(model.feedback?.reason, "")
+        XCTAssertEqual(model.annotations.arrows, [])
+    }
+
+    func testTheSecondLineIsPlayedOutToo() async throws {
+        let clock = TestClock(), model = await atMove(clock)
+        model.play(uci("e8e7")); await reply(model, clock)
+        XCTAssertEqual(Board.pieceAt(model.fen, "c1")?.type, .king, "the second line's reply, Kc1")
+        model.play(uci("e7e6"))
+        XCTAssertEqual(try XCTUnwrap(model.attempt(runId: "r", playedAt: 1)).result, .solved)
+    }
+
+    func testAMoveOffTheLineFailsAndShowsTheLine() async throws {
+        let clock = TestClock(), model = await atMove(clock)
+        model.play(uci("e8d7")); await reply(model, clock)
+        let before = model.fen
+        model.play(uci("d7c6"))
+        XCTAssertEqual(model.step, .done)
+        XCTAssertEqual(model.fen, before, "the move off the line isn't played")
+        let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
+        XCTAssertEqual(attempt.result, .failed); XCTAssertEqual(attempt.detail.failReason, .offLine)
+        XCTAssertEqual(attempt.detail.steps.line?.played, [uci("d7c6")])
+        XCTAssertEqual(attempt.detail.steps.line?.offLine, true)
+        XCTAssertGreaterThanOrEqual(attempt.detail.steps.line?.ms ?? 0, REPLY_MS, "timed from the first move")
+        XCTAssertEqual(model.feedback?.verdict, .fail); XCTAssertEqual(model.feedback?.title, "Off the Line")
+        XCTAssertEqual(model.feedback?.reason, "The line was 1... Kd7 2. Ke1 Kd6 3. Kd1 Kd5.")
+        XCTAssertEqual(model.annotations.arrows, [BoardArrow(from: "d7", to: "d6", side: .own)])
+    }
+
+    func testAPassingFirstMoveOffTheLineEndsAsAPass() async throws {
+        let model = await atMove(TestClock())
+        model.play(uci("e8f8"))
+        XCTAssertEqual(model.step, .done)
+        let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
+        XCTAssertEqual(attempt.result, .solved); XCTAssertNil(attempt.detail.steps.line)
+        XCTAssertEqual(model.feedback?.reason, "Also works. The puzzle's line was 1... Kd7 2. Ke1 Kd6 3. Kd1 Kd5.")
+    }
+
+    func testAFailingFirstMoveOffTheLineFailsAsBefore() async throws {
+        let model = await atMove(TestClock())
+        model.play(kf7)
+        let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
+        XCTAssertEqual(attempt.result, .failed); XCTAssertEqual(attempt.detail.failReason, .badMove)
+        XCTAssertEqual(model.feedback?.title, "Mistake")
+    }
+
+    func testLeavingMidLineCancelsTheReply() async {
+        let clock = TestClock(), model = await atMove(clock)
+        model.play(uci("e8d7")); let fen = model.fen
+        model.cancel(); clock.advance(by: .milliseconds(REPLY_MS)); await Task.yield()
+        XCTAssertEqual(model.fen, fen); XCTAssertNil(model.outcome)
+    }
 }

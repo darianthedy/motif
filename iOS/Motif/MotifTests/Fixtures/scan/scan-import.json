@@ -2896,9 +2896,594 @@
    ]
   },
   {
-   "name": "a newer format version",
+   "name": "version 7: a line on a Flag puzzle, bestCp on any; older puzzles still one move",
    "file": {
     "version": 7,
+    "spec": 7,
+    "scan": [
+     {
+      "fenBefore": "r5k1/p4ppp/8/8/8/8/4RPPP/4R1K1 b - - 0 1",
+      "lastMove": "a7a6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "e2e8": 0,
+       "e2e7": 100000,
+       "e1b1": 100000,
+       "e2e4": 100000,
+       "e2a2": 100000,
+       "e2e5": 100000,
+       "g1f1": 100000,
+       "e2e3": 100000,
+       "e2c2": 100000,
+       "e1a1": 100000,
+       "e2b2": 100000,
+       "e2d2": 100000,
+       "e1f1": 100000,
+       "e1d1": 100000,
+       "e1c1": 100000,
+       "g1h1": 100000,
+       "f2f3": 100000,
+       "h2h4": 100000,
+       "g2g4": 100000,
+       "h2h3": 100000,
+       "f2f4": 100000,
+       "g2g3": 100000,
+       "e2e6": 100000
+      },
+      "bestCp": 100000,
+      "arrows": [],
+      "solutions": [
+       [
+        "e2e8",
+        "a8e8",
+        "e1e8"
+       ]
+      ]
+     },
+     {
+      "fenBefore": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+      "lastMove": "b8c6",
+      "flagged": false,
+      "quickScan": [],
+      "moves": {
+       "d2d4": 0,
+       "f1b5": 5,
+       "f1c4": 22,
+       "b1c3": 23,
+       "h2h3": 35,
+       "a2a4": 37,
+       "a2a3": 38,
+       "c2c3": 40,
+       "d2d3": 40,
+       "g2g3": 42,
+       "f1e2": 48,
+       "f1d3": 51,
+       "d1e2": 59,
+       "c2c4": 68,
+       "b2b3": 69,
+       "h2h4": 75,
+       "b1a3": 99,
+       "h1g1": 121,
+       "f3g1": 123,
+       "b2b4": 167,
+       "g2g4": 173,
+       "e1e2": 182,
+       "f3e5": 402,
+       "f1a6": 684,
+       "f3g5": 721,
+       "f3h4": 761,
+       "f3d4": 776
+      },
+      "bestCp": 33
+     }
+    ]
+   },
+   "accepted": [
+    {
+     "key": "r5k1/p4ppp/8/8/8/8/4RPPP/4R1K1 b - -/a7a6",
+     "flagged": true
+    },
+    {
+     "key": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq -/b8c6",
+     "flagged": false
+    }
+   ],
+   "rejected": []
+  },
+  {
+   "name": "version 7: every line rejection reason, one per puzzle",
+   "file": {
+    "version": 7,
+    "scan": [
+     {
+      "fenBefore": "r5k1/p4ppp/8/8/8/8/4RPPP/4R1K1 b - - 0 1",
+      "lastMove": "a7a6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "e2e8": 0,
+       "e1a1": 100000,
+       "e2e4": 100000,
+       "g1f1": 100000,
+       "e2e5": 100000,
+       "e2a2": 100000,
+       "e1f1": 100000,
+       "e2e3": 100000,
+       "e1c1": 100000,
+       "e2e7": 100000,
+       "e2c2": 100000,
+       "e1b1": 100000,
+       "e2d2": 100000,
+       "e2b2": 100000,
+       "e1d1": 100000,
+       "g1h1": 100000,
+       "g2g3": 100000,
+       "f2f3": 100000,
+       "h2h3": 100000,
+       "h2h4": 100000,
+       "g2g4": 100000,
+       "f2f4": 100000,
+       "e2e6": 100000
+      },
+      "bestCp": 100000,
+      "arrows": [],
+      "solutions": [
+       [
+        "e2e8",
+        "a8e8",
+        "g1g3"
+       ]
+      ]
+     },
+     {
+      "fenBefore": "r5k1/p4ppp/8/8/8/8/4RPPP/4R1K1 b - - 0 1",
+      "lastMove": "a7a6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "e2e8": 0,
+       "g1f1": 100000,
+       "e2a2": 100000,
+       "e2e3": 100000,
+       "e1a1": 100000,
+       "e2d2": 100000,
+       "e1b1": 100000,
+       "e1c1": 100000,
+       "e2e5": 100000,
+       "e2e4": 100000,
+       "e1f1": 100000,
+       "e2e7": 100000,
+       "e2b2": 100000,
+       "e2c2": 100000,
+       "g1h1": 100000,
+       "g2g3": 100000,
+       "e1d1": 100000,
+       "h2h3": 100000,
+       "g2g4": 100000,
+       "h2h4": 100000,
+       "f2f3": 100000,
+       "f2f4": 100000,
+       "e2e6": 100000
+      },
+      "bestCp": 100000,
+      "arrows": [],
+      "solutions": [
+       [
+        "e2e8",
+        "a8e8",
+        "e1e8"
+       ],
+       [
+        "e2e8",
+        "a8b8"
+       ]
+      ]
+     },
+     {
+      "fenBefore": "r5k1/p4ppp/8/8/8/8/4RPPP/4R1K1 b - - 0 1",
+      "lastMove": "a7a6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "e2e8": 0,
+       "e2e5": 100000,
+       "e1a1": 100000,
+       "e2a2": 100000,
+       "e1c1": 100000,
+       "e1b1": 100000,
+       "g1f1": 100000,
+       "e1d1": 100000,
+       "e2e7": 100000,
+       "e2d2": 100000,
+       "e2c2": 100000,
+       "e2e4": 100000,
+       "e1f1": 100000,
+       "e2b2": 100000,
+       "h2h4": 100000,
+       "e2e3": 100000,
+       "g1h1": 100000,
+       "g2g3": 100000,
+       "g2g4": 100000,
+       "f2f3": 100000,
+       "h2h3": 100000,
+       "f2f4": 100000,
+       "e2e6": 100000
+      },
+      "bestCp": 100000,
+      "arrows": [],
+      "solutions": [
+       [
+        "e2e8",
+        "a8e8",
+        "e1e8"
+       ],
+       []
+      ]
+     },
+     {
+      "fenBefore": "r5k1/p4ppp/8/8/8/8/4RPPP/4R1K1 b - - 0 1",
+      "lastMove": "a7a6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "e2e8": 0,
+       "g1f1": 100000,
+       "e2e4": 100000,
+       "e2a2": 100000,
+       "e2e7": 100000,
+       "e2e3": 100000,
+       "e1c1": 100000,
+       "e1f1": 100000,
+       "e1d1": 100000,
+       "e2d2": 100000,
+       "e2b2": 100000,
+       "e1a1": 100000,
+       "e2c2": 100000,
+       "e1b1": 100000,
+       "e2e5": 100000,
+       "g1h1": 100000,
+       "g2g4": 100000,
+       "g2g3": 100000,
+       "h2h4": 100000,
+       "h2h3": 100000,
+       "f2f3": 100000,
+       "f2f4": 100000,
+       "e2e6": 100000
+      },
+      "bestCp": 100000,
+      "arrows": [],
+      "solutions": []
+     },
+     {
+      "fenBefore": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+      "lastMove": "b8c6",
+      "flagged": false,
+      "quickScan": [],
+      "moves": {
+       "f1b5": 0,
+       "d2d4": 13,
+       "f1c4": 20,
+       "b1c3": 24,
+       "a2a3": 30,
+       "g2g3": 34,
+       "a2a4": 35,
+       "h2h3": 37,
+       "f1e2": 38,
+       "d2d3": 39,
+       "c2c3": 47,
+       "f1d3": 49,
+       "b2b3": 61,
+       "c2c4": 69,
+       "h2h4": 70,
+       "d1e2": 70,
+       "b1a3": 111,
+       "h1g1": 115,
+       "f3g1": 125,
+       "b2b4": 147,
+       "e1e2": 179,
+       "g2g4": 182,
+       "f3e5": 416,
+       "f1a6": 707,
+       "f3g5": 747,
+       "f3d4": 763,
+       "f3h4": 791
+      },
+      "bestCp": 35,
+      "solutions": [
+       [
+        "f1b5"
+       ]
+      ]
+     },
+     {
+      "fenBefore": "r5k1/p4ppp/8/8/8/8/4RPPP/4R1K1 b - - 0 1",
+      "lastMove": "a7a6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "e2e8": 0,
+       "e2e7": 100000,
+       "g1f1": 100000,
+       "f2f3": 100000,
+       "e2e4": 100000,
+       "e1a1": 100000,
+       "e2c2": 100000,
+       "g2g3": 100000,
+       "g2g4": 100000,
+       "e1d1": 100000,
+       "e2b2": 100000,
+       "e2d2": 100000,
+       "h2h4": 100000,
+       "e1b1": 100000,
+       "e2a2": 100000,
+       "e2e5": 100000,
+       "e2e3": 100000,
+       "e1c1": 100000,
+       "h2h3": 100000,
+       "e1f1": 100000,
+       "g1h1": 100000,
+       "f2f4": 100000,
+       "e2e6": 100000
+      },
+      "bestCp": 100000,
+      "arrows": [],
+      "solutions": [
+       [
+        "e2e8",
+        "zz"
+       ]
+      ]
+     },
+     {
+      "fenBefore": "r5k1/p4ppp/8/8/8/8/4RPPP/4R1K1 b - - 0 1",
+      "lastMove": "a7a6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "e2e8": 0,
+       "g1f1": 100000,
+       "e2e3": 100000,
+       "h2h3": 100000,
+       "h2h4": 100000,
+       "e2e4": 100000,
+       "e2e7": 100000,
+       "e2c2": 100000,
+       "g1h1": 100000,
+       "e1b1": 100000,
+       "e2b2": 100000,
+       "e1a1": 100000,
+       "e2e5": 100000,
+       "g2g3": 100000,
+       "g2g4": 100000,
+       "e1d1": 100000,
+       "e1c1": 100000,
+       "e1f1": 100000,
+       "e2d2": 100000,
+       "f2f3": 100000,
+       "e2a2": 100000,
+       "f2f4": 100000,
+       "e2e6": 100000
+      },
+      "bestCp": 100000,
+      "arrows": [],
+      "solutions": [
+       "e2e8"
+      ]
+     },
+     {
+      "fenBefore": "r5k1/p4ppp/8/8/8/8/4RPPP/4R1K1 b - - 0 1",
+      "lastMove": "a7a6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "e2e8": 0,
+       "g1f1": 100000,
+       "e2e7": 100000,
+       "g2g4": 100000,
+       "h2h4": 100000,
+       "e2e5": 100000,
+       "e2e4": 100000,
+       "e2e3": 100000,
+       "g2g3": 100000,
+       "f2f3": 100000,
+       "h2h3": 100000,
+       "e1c1": 100000,
+       "e1a1": 100000,
+       "e1b1": 100000,
+       "e2a2": 100000,
+       "e2b2": 100000,
+       "e1d1": 100000,
+       "e2c2": 100000,
+       "e2d2": 100000,
+       "e1f1": 100000,
+       "g1h1": 100000,
+       "f2f4": 100000,
+       "e2e6": 100000
+      },
+      "bestCp": 100000,
+      "arrows": [],
+      "solutions": "e2e8"
+     },
+     {
+      "fenBefore": "r5k1/p4ppp/8/8/8/8/4RPPP/4R1K1 b - - 0 1",
+      "lastMove": "a7a6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "e2e8": 0,
+       "e2e7": 100000,
+       "h2h4": 100000,
+       "g2g4": 100000,
+       "e2e4": 100000,
+       "e1a1": 100000,
+       "e2a2": 100000,
+       "g2g3": 100000,
+       "g1f1": 100000,
+       "e2b2": 100000,
+       "e2e3": 100000,
+       "e2d2": 100000,
+       "e2e5": 100000,
+       "f2f3": 100000,
+       "e1f1": 100000,
+       "e1b1": 100000,
+       "h2h3": 100000,
+       "e2c2": 100000,
+       "e1c1": 100000,
+       "g1h1": 100000,
+       "e1d1": 100000,
+       "f2f4": 100000,
+       "e2e6": 100000
+      },
+      "bestCp": 1.5,
+      "arrows": []
+     }
+    ]
+   },
+   "accepted": [],
+   "rejected": [
+    {
+     "index": 0,
+     "reason": "Line 1 move g1g3 is illegal at ply 3"
+    },
+    {
+     "index": 1,
+     "reason": "Line 2 move a8b8 is illegal at ply 2"
+    },
+    {
+     "index": 2,
+     "reason": "Line 2 is empty"
+    },
+    {
+     "index": 3,
+     "reason": "\"solutions\" has no lines"
+    },
+    {
+     "index": 4,
+     "reason": "No flag puzzle has \"solutions\""
+    },
+    {
+     "index": 5,
+     "reason": "Line 1 contains a malformed move"
+    },
+    {
+     "index": 6,
+     "reason": "Line 1 is not a list of moves"
+    },
+    {
+     "index": 7,
+     "reason": "Malformed \"solutions\""
+    },
+    {
+     "index": 8,
+     "reason": "\"bestCp\" is not a whole number"
+    }
+   ]
+  },
+  {
+   "name": "version 6: solutions and bestCp are not read, so a bad line still imports",
+   "file": {
+    "version": 6,
+    "scan": [
+     {
+      "fenBefore": "r5k1/p4ppp/8/8/8/8/4RPPP/4R1K1 b - - 0 1",
+      "lastMove": "a7a6",
+      "flagged": true,
+      "quickScan": [],
+      "moves": {
+       "e2e8": 0,
+       "e1a1": 100000,
+       "e2e4": 100000,
+       "g1f1": 100000,
+       "e2e5": 100000,
+       "e2a2": 100000,
+       "e1f1": 100000,
+       "e2e3": 100000,
+       "e1c1": 100000,
+       "e2e7": 100000,
+       "e2c2": 100000,
+       "e1b1": 100000,
+       "e2d2": 100000,
+       "e2b2": 100000,
+       "e1d1": 100000,
+       "g1h1": 100000,
+       "g2g3": 100000,
+       "f2f3": 100000,
+       "h2h3": 100000,
+       "h2h4": 100000,
+       "g2g4": 100000,
+       "f2f4": 100000,
+       "e2e6": 100000
+      },
+      "bestCp": 100000,
+      "arrows": [],
+      "solutions": [
+       [
+        "e2e8",
+        "a8e8",
+        "g1g3"
+       ]
+      ]
+     },
+     {
+      "fenBefore": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+      "lastMove": "b8c6",
+      "flagged": false,
+      "quickScan": [],
+      "moves": {
+       "f1b5": 0,
+       "d2d4": 13,
+       "f1c4": 20,
+       "b1c3": 24,
+       "a2a3": 30,
+       "g2g3": 34,
+       "a2a4": 35,
+       "h2h3": 37,
+       "f1e2": 38,
+       "d2d3": 39,
+       "c2c3": 47,
+       "f1d3": 49,
+       "b2b3": 61,
+       "c2c4": 69,
+       "h2h4": 70,
+       "d1e2": 70,
+       "b1a3": 111,
+       "h1g1": 115,
+       "f3g1": 125,
+       "b2b4": 147,
+       "e1e2": 179,
+       "g2g4": 182,
+       "f3e5": 416,
+       "f1a6": 707,
+       "f3g5": 747,
+       "f3d4": 763,
+       "f3h4": 791
+      },
+      "bestCp": 35,
+      "solutions": [
+       [
+        "f1b5"
+       ]
+      ]
+     }
+    ]
+   },
+   "accepted": [
+    {
+     "key": "r5k1/p4ppp/8/8/8/8/4RPPP/4R1K1 b - -/a7a6",
+     "flagged": true
+    },
+    {
+     "key": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq -/b8c6",
+     "flagged": false
+    }
+   ],
+   "rejected": []
+  },
+  {
+   "name": "a newer format version",
+   "file": {
+    "version": 8,
     "scan": [
      {
       "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
@@ -2947,7 +3532,7 @@
    "rejected": [
     {
      "index": -1,
-     "reason": "Format version 7 is newer than this app understands (6)"
+     "reason": "Format version 8 is newer than this app understands (7)"
     }
    ]
   },

@@ -9,4 +9,7 @@ struct ScanSteps: Equatable, Codable, Sendable {
     /// Arrows as from + to squares, e.g. "f3g5".
     var arrows: ScanMarkStep?
     var move: ScanMoveStep?
+    /// The line played out after the first move (v7); nil for a one-move puzzle, or when the
+    /// first move wasn't on the line.
+    var line: ScanLineStep? = nil
 }

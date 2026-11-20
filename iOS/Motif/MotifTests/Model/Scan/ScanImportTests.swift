@@ -85,8 +85,8 @@ final class ScanImportTests: XCTestCase {
         XCTAssertNil(ScanImport.problem(puzzle))
 
         var newer = puzzle
-        newer.version = 7
-        XCTAssertEqual(ScanImport.problem(newer), "Format version 7 is newer than this app understands (6)")
+        newer.version = 8
+        XCTAssertEqual(ScanImport.problem(newer), "Format version 8 is newer than this app understands (7)")
         var gap = puzzle
         gap.answer.moves.removeValue(forKey: "d2d3")
         XCTAssertEqual(ScanImport.problem(gap), "Moves are missing 1 legal move: d2d3")
@@ -137,6 +137,37 @@ final class ScanImportTests: XCTestCase {
 
         puzzle.answer.flagged = false
         XCTAssertFalse(puzzle.answer.hasFullScan, "No flag never runs the full scan")
+    }
+
+    /// v7: the line and the best eval are read and stored, so a row written straight to the
+    /// database plays the line out the same; a v6 row's are never read.
+    func testVersion7ReadsAndStoresTheLineAndBestCp() throws {
+        let fen = "r5k1/p4ppp/8/8/8/8/4RPPP/4R1K1 b - - 0 1"
+        let start = Board.applyUci(fen, Uci.parse("a7a6")!)!
+        let moves = Dictionary(uniqueKeysWithValues: Board.legalUcis(start).map { ($0.text, $0.text == "e2e8" ? 0 : 100_000) })
+        let movesText = String(decoding: try JSONSerialization.data(withJSONObject: moves), as: UTF8.self)
+        let entry = #"{"fenBefore": "\#(fen)", "lastMove": "a7a6", "flagged": true, "quickScan": [], "arrows": [], "moves": \#(movesText), "solutions": [["E2E8", "a8e8", "e1e8"]], "bestCp": 100000}"#
+        let content = try XCTUnwrap(ScanImport.read(#"{"version": 7, "scan": [\#(entry)]}"#).puzzles.first)
+        XCTAssertEqual(content.answer.solutions, [["e2e8", "a8e8", "e1e8"].map { Uci.parse($0)! }])
+        XCTAssertEqual(content.answer.bestCp, 100_000)
+        XCTAssertTrue(content.answer.hasLine)
+
+        let stored = try JSONSerialization.jsonObject(with: try JSONEncoder().encode(content.answer))
+        let row = try ScanImport.stored(fenBefore: fen, lastMove: "a7a6", answer: stored, version: 7, source: nil, sourceId: nil)
+        XCTAssertEqual(row.answer, content.answer)
+        let old = try ScanImport.stored(fenBefore: fen, lastMove: "a7a6", answer: stored, version: 6, source: nil, sourceId: nil)
+        XCTAssertNil(old.answer.solutions); XCTAssertNil(old.answer.bestCp)
+    }
+
+    /// The same checks reject a bad row written straight to the database.
+    func testAStoredRowWithABadLineIsRejected() throws {
+        var content = testScanContent(flagged: false, quickScan: [])
+        content.answer.solutions = [[Uci.parse("e8d7")!]]
+        let stored = try JSONSerialization.jsonObject(with: try JSONEncoder().encode(content.answer))
+        XCTAssertThrowsError(try ScanImport.stored(fenBefore: content.fenBefore, lastMove: "e1d1", answer: stored,
+                                                   version: 7, source: nil, sourceId: nil)) { error in
+            XCTAssertEqual((error as? DataFailure)?.message, #"No flag puzzle has "solutions""#)
+        }
     }
 
     func testTheSolversPromotionsAreFourMoves() {

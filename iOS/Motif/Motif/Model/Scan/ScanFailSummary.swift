@@ -7,7 +7,7 @@ struct ScanFailSummary: Equatable, Sendable {
     var fenBefore: String
     /// "3... Nf6 (g8f6)".
     var lastMove: String
-    /// "Missed the flag", "Bxf7 lost 3.1", "No move in time", "No call in time".
+    /// "Missed the flag", "Bxf7 lost 3.1", "No move in time", "No call in time", "Left the line on move 2".
     var reason: String
     /// What was missed, step by step: "quick scan c6 (undefended)", "arrows f3g5 (threat)".
     var missed: [String]
@@ -25,6 +25,10 @@ struct ScanFailSummary: Equatable, Sendable {
         case .missedFlag: return "No Flag on a flagged position"
         case .noCall: return "No call in time"
         case .noMove: return "No move in time"
+        case .offLine:
+            // The solver's moves are counted from the first: the one that left is the next.
+            let moves = (attempt.detail.steps.line?.played.count ?? 0) + 1
+            return "Left the line on move \(moves)"
         case .badMove, nil:
             guard let move = attempt.detail.steps.move, let played = move.played else { return "Failed" }
             let san = puzzle.startFen.flatMap { Board.sanFor($0, played) } ?? played.text

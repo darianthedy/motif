@@ -8,6 +8,8 @@ import Observation
 /// but the scan it skipped is still drilled); then the move, held ghosted for the final check
 /// after a full scan, and its feedback. While drawing arrows (by drag) a tap marks a target red or
 /// orange: a thinking aid only, never graded, stored or compared with anything (spec v6). The quick scan's marks stay on the board, dimmed, through the arrows. Nothing is saved until the view records `outcome`.
+/// A first move on the puzzle's line (v7) plays the line out: the opponent's reply after
+/// `REPLY_MS`, then the solver's next move, matched exactly, until the line ends or a move leaves it.
 /// A step with a hard limit (`ScanLimits`) ends as it stands when the limit runs out: missing
 /// marks are soft misses, and a quick scan with no call or no move in time fails the puzzle.
 @Observable @MainActor final class ScanSolveModel {
@@ -52,6 +54,19 @@ import Observation
     @ObservationIgnored private var limitTask: Task<Void, Never>?
     /// Moves on from a step found cleanly and in time, after `autoAdvanceMs`.
     @ObservationIgnored private var advanceTask: Task<Void, Never>?
+    /// While the line is played out: the solver's next move, matched against the lines still open.
+    @ObservationIgnored private var lineNode: TrieNode?
+    /// The line's moves so far, both sides, from the first move: what the feedback's line fits.
+    @ObservationIgnored private var lineSoFar: [Uci] = []
+    /// The solver's moves after the first, recorded with the line.
+    @ObservationIgnored private var linePlayed: [Uci] = []
+    @ObservationIgnored private var lineStartedAt = Duration.zero
+    /// The opponent's reply in the line, played after `REPLY_MS`; cancelled on leaving.
+    @ObservationIgnored private var replyTask: Task<Void, Never>?
+    /// The opponent is replying in the line: the board waits.
+    private(set) var replying = false
+    /// The line's move the solver should have played, once a move left it: drawn on the result.
+    private(set) var wanted: Uci?
     /// Off with VoiceOver or Switch Control, so the feedback is never cut short.
     var autoAdvance = true
     /// How long a clean step's feedback stays before the next step starts; 0 never moves on.
@@ -78,7 +93,7 @@ import Observation
     var marks: Set<String> { current.squares }
     /// A marking step (quick scan, arrows) is open for input.
     var canMark: Bool { [.quickScan, .arrows].contains(step) && feedback == nil }
-    var canMove: Bool { step == .move }
+    var canMove: Bool { step == .move || (step == .line && !replying) }
     /// A flagged puzzle with arrows runs them after the quick scan, whatever the call:
     /// a wrong No Flag has already failed it, but the scan is the part most worth drilling.
     var runsFullScan: Bool { flagCall != nil && puzzle.answer.hasFullScan }
@@ -109,6 +124,7 @@ import Observation
         case .arrows: "Both sides. Tap to mark targets."
         case .move: "Your move."
         case .finalCheck: "Play \(candidateSan ?? "this move")?"
+        case .line: replying ? "Their move." : "Keep going."
         default: ""
         }
     }
@@ -149,6 +165,11 @@ import Observation
     /// move. Then the best line's reply, dashed, when the line starts with the move shown.
     var resultArrows: [BoardArrow] {
         guard step == .done else { return [] }
+        // After the line, the board is where it ended: the move it wanted, if one left it.
+        if steps.line != nil {
+            guard let wanted else { return [] }
+            return [BoardArrow(from: moveFrom(wanted), to: moveTo(wanted), side: .own)]
+        }
         let played = steps.move?.played, best = ScanFeedback.bestMove(puzzle.answer)
         var arrows: [BoardArrow] = []
         let shown: Uci
@@ -319,6 +340,7 @@ import Observation
     /// The solver's move. After a full scan it's held ghosted for the final check; otherwise it's
     /// graded at once.
     func play(_ move: Uci) {
+        if step == .line { return playLine(move) }
         guard canMove, flagCall != nil, Board.isLegal(fen, move), let next = Board.applyUci(fen, move) else { return }
         guard needsFinalCheck else { return grade(move, next: next) }
         // The board shows the position after the move, the moved piece see-through; the step's
@@ -358,6 +380,12 @@ import Observation
         fen = next
         if let move { highlight = (moveFrom(move), moveTo(move)) }
         endStep()
+        // A first move on the line, with more to play: the line goes on before the result.
+        if let move, grade?.onLine == true, let solutions = puzzle.answer.solutions,
+           let edge = findEdge(buildTrie(solutions), move), edge.reply != nil || !isTerminal(edge.next) {
+            lineSoFar = [move]; lineStartedAt = clock.now
+            return continueLine(edge)
+        }
         self.outcome = outcome
         step = .done
         if let move, let grade {
@@ -367,6 +395,57 @@ import Observation
         } else {
             feedback = .noMove(outcome: outcome, answer: puzzle.answer, startFen: startFen, step: timed, ms: ms)
         }
+    }
+
+    // MARK: The line (v7)
+
+    /// The opponent's reply, after `REPLY_MS`; then the solver's move, or the end of the line.
+    private func continueLine(_ edge: TrieEdge) {
+        lineNode = edge.next
+        step = .line
+        guard let reply = edge.reply else { return finishLine() }
+        replying = true
+        let clock = clock, until = clock.now + .milliseconds(REPLY_MS)
+        replyTask = Task { [weak self] in
+            do { try await clock.sleep(until: until) } catch { return }
+            guard !Task.isCancelled, let self, let next = Board.applyUci(self.fen, reply) else { return }
+            self.fen = next
+            self.highlight = (moveFrom(reply), moveTo(reply))
+            self.lineSoFar.append(reply)
+            self.replying = false
+            if isTerminal(edge.next) { self.finishLine() }
+        }
+    }
+
+    /// The solver's later move: on a line it goes on, off every line the puzzle fails there. A move
+    /// off the line isn't played on the board; the result draws the line's move instead.
+    private func playLine(_ move: Uci) {
+        guard canMove, let node = lineNode, Board.isLegal(fen, move), let next = Board.applyUci(fen, move) else { return }
+        linePlayed.append(move)
+        guard let edge = ScanGrader.gradeLineMove(move, at: node) else {
+            wanted = node.preferredMove
+            return finishLine(offLine: true)
+        }
+        fen = next
+        highlight = (moveFrom(move), moveTo(move))
+        lineSoFar.append(move)
+        continueLine(edge)
+    }
+
+    /// The line ended, or a move left it: the puzzle's result, with the line in the feedback.
+    private func finishLine(offLine: Bool = false) {
+        guard let flagCall, let move = steps.move, let first = move.played else { return }
+        let ms = msSince(lineStartedAt)
+        steps.line = ScanLineStep(ms: ms, played: linePlayed, offLine: offLine ? true : nil)
+        lineNode = nil
+        let outcome = ScanGrader.result(of: steps, flagCall: flagCall, answer: puzzle.answer)
+        self.outcome = outcome
+        step = .done
+        let timed = moveStep
+        feedback = ScanFeedback.move(first, grade: ScanGrader.gradeMove(first, answer: puzzle.answer), outcome: outcome,
+                                     answer: puzzle.answer, startFen: startFen, step: timed, ms: move.ms,
+                                     line: ScanGrader.shownLine(puzzle.answer, fitting: lineSoFar))
+            .limited(limits.limitMs(timed), timedOut: false)
     }
 
     /// The attempt to record once the result is shown.
@@ -385,6 +464,7 @@ import Observation
     /// Leaving the puzzle: nothing of it is kept (plan §2.2).
     func cancel() {
         limitTask?.cancel(); limitTask = nil
+        replyTask?.cancel(); replyTask = nil
         advanceTask?.cancel(); advanceTask = nil
         undoManager?.removeAllActions(withTarget: self)
     }
@@ -444,7 +524,11 @@ import Observation
     /// The step's time. When the limit cut it off, the limit itself: the task wakes a little late.
     private func elapsedMs(timedOut: Bool = false) -> Int {
         if timedOut, let timed = timedStep(step), let limit = limits.limitMs(timed) { return limit }
-        let elapsed = clock.now - startedAt
+        return msSince(startedAt)
+    }
+
+    private func msSince(_ start: Duration) -> Int {
+        let elapsed = clock.now - start
         return Int(elapsed.components.seconds * 1000 + elapsed.components.attoseconds / 1_000_000_000_000_000)
     }
 

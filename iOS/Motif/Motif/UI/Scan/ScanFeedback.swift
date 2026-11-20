@@ -70,18 +70,31 @@ struct ScanFeedback: Equatable, Sendable {
     }
 
     /// The move, and with it the puzzle's result: a missed Flag fails the puzzle whatever the move.
+    /// On a puzzle with a line (v7), `line` is the one that fits what was played: a first move on
+    /// it says nothing of its score, one off it that still passes ends the puzzle ("Also works"),
+    /// and a later move off it fails with the line shown.
     static func move(_ move: Uci, grade: ScanMoveGrade, outcome: ScanOutcome, answer: ScanAnswer,
-                     startFen: String, step: ScanTimedStep, ms: Int) -> ScanFeedback {
+                     startFen: String, step: ScanTimedStep, ms: Int, line: [Uci]? = nil) -> ScanFeedback {
         let best = bestMove(answer).map { Board.sanFor(startFen, $0) ?? $0.text }
         let loss = grade.lossCp ?? 0
-        let reason: String
-        if loss == 0 { reason = "" }
-        else if grade.passed { reason = loss > ScanGrader.marginCp ? "Keeps the mate." : "−\(pawns(loss)). Best: \(best ?? "?")." }
+        let offLine = outcome.detail.steps.line?.offLine == true
+        let lineText = lineSan(line ?? ScanGrader.shownLine(answer, fitting: []), startFen)
+        var reason: String
+        if offLine { reason = "The line was \(lineText)." }
+        else if loss == 0 || grade.onLine { reason = "" }
+        else if grade.passed {
+            reason = loss > ScanGrader.marginCp && answer.moves.values.contains(ScanAnswer.lostMateCp)
+                ? "Keeps the mate." : "−\(pawns(loss)). Best: \(best ?? "?")."
+        }
         else { reason = (loss >= ScanAnswer.lostMateCp ? "Throws away the mate." : "−\(pawns(loss)).") + (best.map { " Best: \($0)." } ?? "") }
+        if grade.passed, !grade.onLine, answer.hasLine, !lineText.isEmpty {
+            reason = "Also works. The puzzle's line was \(lineText)."
+        }
         let note = outcome.detail.failReason == .missedFlag ? "Missed the Flag." : nil
         let verdict: Verdict = outcome.result == .failed ? .fail : outcome.detail.softMisses.isEmpty ? .pass : .softMiss
         let title: String
         switch (outcome.result, grade.passed) {
+        case _ where offLine: title = "Off the Line"
         case (.failed, false): title = "Mistake"
         case (.failed, true): title = "Good Move, Puzzle Failed"
         default:
@@ -162,6 +175,17 @@ struct ScanFeedback: Equatable, Sendable {
     private static func squareName(_ square: String, _ fen: String) -> String {
         guard let piece = Board.pieceAt(fen, square), piece.type != .pawn else { return square }
         return piece.type.rawValue.uppercased() + square
+    }
+
+    /// A line in SAN with move numbers, from the position after the last move: "1. Qa4 Kb8 2. Qxa7#".
+    static func lineSan(_ line: [Uci], _ startFen: String) -> String {
+        var parts: [String] = [], position = startFen
+        for (ply, step) in Board.replayLine(startFen, line).enumerated() {
+            if let number = moveNumber(position, ply == 0) { parts.append(number) }
+            parts.append(step.san)
+            position = step.fen
+        }
+        return parts.joined(separator: " ")
     }
 
     static func pawns(_ cp: Int) -> String { String(format: "%.1f", Double(cp) / 100) }

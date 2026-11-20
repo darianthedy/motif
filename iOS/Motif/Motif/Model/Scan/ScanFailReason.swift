@@ -10,4 +10,6 @@ enum ScanFailReason: String, Codable, CaseIterable, Sendable {
     case noMove
     /// The quick scan's limit ran out before Flag or No Flag: a fail on any position.
     case noCall
+    /// A later move of the line (v7) left every line the puzzle has.
+    case offLine
 }

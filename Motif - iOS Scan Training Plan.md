@@ -17,7 +17,7 @@
 > **Spec v6 / format 6 (2026-11-19):** the graded Targets step is gone. The
 > full path is Quick Scan (10 s) → CCT arrows (30 s) → move (10 s) → final
 > check; the quick path is unchanged. Red / orange target marking stays as an
-> ungraded tool inside the arrows step (an Arrows | Targets switch): marks are
+> ungraded aid inside the arrows step (tap marks, drag draws arrows): marks are
 > never checked, scored, stored or compared on review. Answers have no
 > `targets`; an older row's is ignored, and nothing is drawn from it. Older
 > attempts' target steps still read, but count for nothing in Stats or
@@ -524,11 +524,13 @@ layout automatically").
     empty square next to a king for red → orange → dot → clear, any other
     empty square for a dot; drag to mark several. Next ends the step. The
     arrows step then shows the answer's targets, dimmed, not the marks.
-  - *Checks, captures, threats:* `.drawArrows`. Tap an arrow to delete it.
-    From v6 an **Arrows | Targets** switch above the arrow list turns the
-    board to `.markTargets` (the old Targets step's taps, as a thinking aid):
-    the marks are drawn only, never graded or stored, get no rings on the
-    feedback and aren't carried to the move. Undo covers both.
+  - *Checks, captures, threats:* `.drawArrows`. Drag from a piece to draw; delete from the arrow list.
+    From v6 a **tap** marks a target (the old Targets step's cycle, as a
+    thinking aid) and arrows are drawn by **drag only**: no tap-tap arrows and
+    no tap-on-shaft delete (the arrow list deletes). Marks are drawn only,
+    never graded or stored, get no rings on the feedback and aren't carried to
+    the move. Undo covers both. The every-drag-has-a-tap rule (§4) is waived
+    here: VoiceOver isn't a target for this step.
   - *Move:* `.play`. After a full scan (v2) the move isn't played at once:
     the board shows the position after it with the moved piece see-through,
     and the action row offers only **Take Back** (`.glass`) and **Play It**

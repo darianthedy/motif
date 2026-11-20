@@ -7,7 +7,7 @@ struct ScanMarks: Equatable, Sendable {
     var squares: Set<String> = []
     /// Targets.
     var targets: [String: ScanTargetMark] = [:]
-    /// Checks, captures and threats, in the order drawn: `BoardView.onArrowTap` gives an index.
+    /// Checks, captures and threats, in the order drawn: the arrow list deletes by index.
     var arrows: [BoardArrow] = []
 
     var red: Set<String> { squares(marked: .red) }

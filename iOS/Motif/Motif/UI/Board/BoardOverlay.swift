@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Mark shapes, dots, rings and arrows in one `Canvas` pass above the squares (Scan plan §4). It
-/// takes no touches: the squares under it stay the buttons, and `arrowHit` finds a tapped arrow.
+/// takes no touches: the squares under it stay the buttons.
 /// Every mark has a shape as well as a colour, so none relies on colour alone. Tint fills sit
 /// under the pieces, in `BoardView`'s squares (`SquareMark.fill`).
 struct BoardOverlay: View {
@@ -134,24 +134,6 @@ struct BoardOverlay: View {
                            style: StrokeStyle(lineWidth: width, lineJoin: .round,
                                               dash: arrow.side == .own ? [] : [size * 0.12, size * 0.08]))
         }
-    }
-
-    /// The arrow a tap at `point` lands on, nearest first: within `tolerance` of its shaft (12 pt,
-    /// Scan plan §4), but not on the squares it joins, so their pieces stay tappable to start
-    /// another arrow. Nil when the tap is on no arrow.
-    static func arrowHit(_ point: CGPoint, arrows: [BoardArrow], orientation: Side, size: CGFloat,
-                         tolerance: CGFloat = 12) -> Int? {
-        var best: (index: Int, distance: CGFloat)?
-        for (index, arrow) in arrows.enumerated() {
-            guard let a = center(arrow.from, orientation, size), let b = center(arrow.to, orientation, size), a != b else { continue }
-            let dx = b.x - a.x, dy = b.y - a.y
-            let t = max(0, min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / (dx * dx + dy * dy)))
-            let distance = hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy))
-            let fromEnds = min(hypot(point.x - a.x, point.y - a.y), hypot(point.x - b.x, point.y - b.y))
-            guard distance <= tolerance + size * 0.075, fromEnds >= size * 0.35 else { continue }
-            if best.map({ distance < $0.distance }) ?? true { best = (index, distance) }
-        }
-        return best?.index
     }
 }
 

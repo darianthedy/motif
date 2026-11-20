@@ -20,10 +20,8 @@ struct BoardView: View {
     var onSquare: (String) -> Void = { _ in }
     /// `.markTargets`: one drag over several squares, in the order crossed.
     var onSquares: ([String]) -> Void = { _ in }
-    /// `.drawArrows`: an arrow drawn from a piece to a square, by drag or by two taps.
+    /// `.drawArrows`: an arrow dragged from a piece to a square.
     var onArrow: (String, String) -> Void = { _, _ in }
-    /// `.drawArrows`: a tap on the shaft of `annotations.arrows[index]`.
-    var onArrowTap: (Int) -> Void = { _ in }
     @State private var interaction: BoardInteraction
     @State private var dragging: String?
     /// Where the finger is, read only by the lifted piece: a drag frame redraws that piece,
@@ -36,8 +34,6 @@ struct BoardView: View {
     @State private var dropped: (from: String, to: String)?
     /// Counts marking taps, for the selection haptic.
     @State private var marked = 0
-    /// `.drawArrows`: the piece tapped first, waiting for the square the arrow goes to.
-    @State private var arrowStart: String?
     /// `.drawArrows`: the piece an arrow is being dragged from; the finger is `dragPoint`.
     @State private var arrowDrag: String?
     /// `.markTargets`: the squares a drag has crossed so far, shown until it ends.
@@ -49,12 +45,11 @@ struct BoardView: View {
          onMove: @escaping (Uci) -> Void = { _ in }, onPlace: @escaping (Placement) -> Void = { _ in },
          pending: Binding<BoardPending?>? = nil,
          mode: BoardMode = .play, annotations: BoardAnnotations = BoardAnnotations(), onSquare: @escaping (String) -> Void = { _ in },
-         onSquares: @escaping ([String]) -> Void = { _ in }, onArrow: @escaping (String, String) -> Void = { _, _ in },
-         onArrowTap: @escaping (Int) -> Void = { _ in }) {
+         onSquares: @escaping ([String]) -> Void = { _ in }, onArrow: @escaping (String, String) -> Void = { _, _ in }) {
         self.fen = fen; self.orientation = orientation; self.interactive = interactive; self.placing = placing
         self.highlight = highlight; self.highlightColor = highlightColor; self.shakeKey = shakeKey; self.coordinates = coordinates; self.onMove = onMove; self.onPlace = onPlace
         self.pending = pending; self.mode = mode; self.annotations = annotations; self.onSquare = onSquare
-        self.onSquares = onSquares; self.onArrow = onArrow; self.onArrowTap = onArrowTap
+        self.onSquares = onSquares; self.onArrow = onArrow
         _interaction = State(initialValue: BoardInteraction(fen: fen, interactive: interactive, placing: placing))
     }
     private static let whiteOrder = (1...8).reversed().flatMap { rank in "abcdefgh".map { "\($0)\(rank)" } }
@@ -104,7 +99,6 @@ struct BoardView: View {
             .sensoryFeedback(.impact(weight: .light), trigger: moved)
             .sensoryFeedback(.error, trigger: shakeKey)
             .sensoryFeedback(.selection, trigger: marked)
-            .sensoryFeedback(.selection, trigger: arrowStart)
             .onChange(of: fen) { old, next in
                 interaction.reset(next); dragging = nil; clearMarking()
                 let wasDropped = dropped; dropped = nil
@@ -128,7 +122,7 @@ struct BoardView: View {
             }
     }
     private func squareView(_ square: String, index: Int, size: CGFloat, piece: Board.Piece?, turn: Side?, target: Board.Target?) -> some View {
-        let selected = interaction.selected == square || interaction.pending == .placement(square) || arrowStart == square
+        let selected = interaction.selected == square || interaction.pending == .placement(square)
         let light = (index / 8 + index % 8) % 2 == 0
         return Button { tapped(square, piece: piece) } label: {
             ZStack {
@@ -162,8 +156,8 @@ struct BoardView: View {
                                 + (annotations.accessibilityDescription(square).map { ", " + $0 } ?? ""))
             .accessibilityAddTraits(selected || isMarked(square) ? .isSelected : [])
             .accessibilityHint(interactive ? hint(square, piece: piece) : "")
-            // In `.drawArrows` the drag takes every touch, taps too, so a tap knows where it landed
-            // (an arrow's shaft or the square); VoiceOver's activation still reaches the Button.
+            // In `.drawArrows` the drag takes every touch, taps too, so a tap that isn't an arrow
+            // marks the square; VoiceOver's activation still reaches the Button.
             .highPriorityGesture(DragGesture(minimumDistance: mode == .drawArrows ? 0 : 8, coordinateSpace: .named("motif-board"))
                 .onChanged { value in dragChanged(square, piece: piece, turn: turn, value: value, size: size) }
                 .onEnded { value in dragEnded(square, piece: piece, value: value, size: size) },
@@ -173,19 +167,18 @@ struct BoardView: View {
         // An earlier step's dimmed mark isn't this step's: not selected.
         guard !annotations.faded.contains(square) else { return false }
         switch mode {
-        case .play, .drawArrows: return false
+        case .play: return false
         case .markSquares: return annotations.tints[square] != nil
-        case .markTargets: return annotations.tints[square] != nil || annotations.dots.contains(square)
+        case .markTargets, .drawArrows: return annotations.tints[square] != nil || annotations.dots.contains(square)
         }
     }
     private func hint(_ square: String, piece: Board.Piece?) -> String {
         switch mode {
         case .play: ""
         case .markSquares: "Marks or unmarks the square."
-        case .markTargets: piece == nil ? "Marks the square orange, then red, then a dot, then clears it." : "Marks the piece orange, then red, then clears it."
+        case .markTargets: piece == nil ? "Marks the square red, then orange, then a dot, then clears it." : "Marks the piece red, then orange, then clears it."
         case .drawArrows:
-            if let arrowStart { arrowStart == square ? "Cancels the arrow." : "Ends the arrow from \(arrowStart) here." }
-            else { piece == nil ? "" : "Starts an arrow from this piece." }
+            piece == nil ? "Marks the square." : "Marks the piece red, then orange, then clears it. Drag to draw an arrow."
         }
     }
     private func square(at point: CGPoint, size: CGFloat) -> String? {
@@ -207,7 +200,7 @@ struct BoardView: View {
         case .drawArrows:
             // Under 8 pt it's still a tap.
             guard piece != nil, arrowDrag == square || hypot(value.translation.width, value.translation.height) >= 8 else { return }
-            if arrowDrag != square { arrowDrag = square; arrowStart = nil }
+            if arrowDrag != square { arrowDrag = square }
             dragPoint.value = value.location
         }
     }
@@ -234,26 +227,15 @@ struct BoardView: View {
             }
         }
     }
-    private func clearMarking() { arrowStart = nil; arrowDrag = nil; sweep = [] }
+    private func clearMarking() { arrowDrag = nil; sweep = [] }
     /// `.play` goes through `BoardInteraction`; any other mode only calls back, so no piece moves.
-    /// `point` is where a tap landed, in board space; VoiceOver's activation has none, so it never
-    /// lands on an arrow and takes the two-tap path (the arrow list deletes arrows instead).
+    /// In `.drawArrows` a tap marks the square, as in `.markTargets`: arrows are drawn by drag only.
     private func tapped(_ square: String, piece: Board.Piece?, at point: CGPoint? = nil, size: CGFloat = 0) {
         switch mode {
         case .play: dropped = nil; emit(interaction.tap(square))
-        case .markSquares, .markTargets:
+        case .markSquares, .markTargets, .drawArrows:
             guard interactive else { return }
             marked += 1; onSquare(square)
-        case .drawArrows:
-            guard interactive else { return }
-            if let start = arrowStart {
-                arrowStart = nil
-                if start != square { marked += 1; onArrow(start, square) }
-            } else if let point, let hit = BoardOverlay.arrowHit(point, arrows: annotations.arrows, orientation: orientation, size: size) {
-                marked += 1; onArrowTap(hit)
-            } else if piece != nil {
-                arrowStart = square
-            }
         }
     }
     private func emit(_ output: BoardOutput?) {

@@ -475,7 +475,6 @@ import XCTest
         func targets() {
             quickScan(); tapButton("scan-flag"); tapButton("scan-continue"); wait(button("scan-next"))
             guard missing == nil else { return }
-            app.segmentedControls["scan-tool"].buttons["Targets"].tap()
             tap(square("e4"), until: "label ENDSWITH 'loses material'")
             tap(square("f7"), until: "label ENDSWITH 'loses material'")
             tap(square("f7"), until: "label ENDSWITH 'as often as defended'")
@@ -483,10 +482,8 @@ import XCTest
         func arrows() {
             targets()
             guard missing == nil else { return }
-            app.segmentedControls["scan-tool"].buttons["Arrows"].tap()
             square("f6").press(forDuration: 0.1, thenDragTo: square("e4")); wait(button("scan-arrow-f6e4"))
-            tap(square("f3"), until: "isSelected == true")
-            tap(square("g5"), until: "isSelected == false", on: square("f3")); wait(button("scan-arrow-f3g5"))
+            square("f3").press(forDuration: 0.1, thenDragTo: square("g5")); wait(button("scan-arrow-f3g5"))
         }
         shot("S18a", "scan", quickScan)
         shot("S18b", "scan") { quickScan(); tapButton("scan-flag"); wait(any("scan-feedback")) }

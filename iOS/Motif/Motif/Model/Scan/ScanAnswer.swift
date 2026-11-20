@@ -14,13 +14,23 @@ struct ScanAnswer: Equatable, Codable, Sendable {
     /// worse it is than the best (best = 0, a thrown-away mate = 100000).
     var moves: [String: Int]
     var bestLine: [Uci]?
+    /// The line to play out (v7, Flag puzzles only): one or more lines of UCI moves for both
+    /// sides, each starting with the solver's first move, as a normal puzzle's `solutions`. Nil
+    /// for a one-move puzzle.
+    var solutions: [[Uci]]? = nil
+    /// The best move's eval in centipawns from the solver's side (v7; a forced mate = 100000),
+    /// so a clearly winning position is graded by win chance lost. Nil before v7.
+    var bestCp: Int? = nil
 
     /// Whether the Flag branch runs the full scan (CCT arrows, then the move and final check).
     /// Version 2 on requires arrows on a Flag puzzle; a version 1 Flag puzzle without them goes
     /// straight to the move.
     var hasFullScan: Bool { flagged && arrows != nil }
 
-    /// A thrown-away forced mate, as the maker scores it.
+    /// Whether the move is played out past the first move (v7).
+    var hasLine: Bool { !(solutions ?? []).isEmpty }
+
+    /// A thrown-away forced mate, as the maker scores it; also `bestCp` for a forced mate.
     static let lostMateCp = 100_000
 
     /// The centipawn loss of a move, or nil when it isn't listed.

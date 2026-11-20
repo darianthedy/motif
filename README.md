@@ -186,7 +186,7 @@ or orange while thinking (ungraded), then move (10 s) and confirm at a final che
 checks what it receives against the rules of chess, stores it, and compares
 taps and moves with it. See `samples/scan-sample.json`:
 
-    { "version": 6, "spec": 6,
+    { "version": 7, "spec": 7,
       "scan": [
         { "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
           "lastMove": "g8f6",
@@ -196,14 +196,15 @@ taps and moves with it. See `samples/scan-sample.json`:
                       { "from": "f3", "to": "g5", "side": "own", "kind": "threat" } ],
           "moves": { "d2d3": 0, "f3g5": 12, "c4f7": 552, ... },
           "bestLine": ["d2d3"],
+          "bestCp": 35,
           "source": "lichess", "sourceId": "00sHx" } ] }
 
-- `version` (the file's): the format version, 6 for now. A newer version than
+- `version` (the file's): the format version, 7 for now. A newer version than
   the app knows is rejected whole. Version 3 lets an empty king-zone square be
   `red` or `orange`; version 2 files keep pieces-only colours. Version 4 adds
   the `unpinned` kind and optional arrows, and quick-scan squares must be
   pieces; version 5 adds the `hanging` kind; version 6 drops `targets` (see
-below). Version 1 files still import:
+below); version 7 adds `solutions` and `bestCp` (see below). Version 1 files still import:
   everything below except the full-scan rules, and their Flag puzzles skip the
   full scan. From version 5 the format version bumps only when Motif must
   change (a new field, `kind` or structure).
@@ -224,6 +225,16 @@ below). Version 1 files still import:
   new content.
 - `bestLine` (optional): shown after the move, from the position after
   `lastMove`.
+- `solutions` (version 7, optional, Flag puzzles only): the line to play
+  out, as in normal puzzles: `[["e2e8", "a8e8", "e1e8"], ...]`, one or more
+  lines of UCI moves for both sides, each starting with the solver's first
+  move. A first move that starts any line always passes and the line is
+  played out, each later solver move matched exactly; a passing first move
+  on no line ends the puzzle as a pass. Without it the puzzle is one move.
+- `bestCp` (version 7, optional): the best move's eval in centipawns for the
+  solver, a forced mate = 100000. From +3 (300) a move is graded by the win
+  chance it loses (under 10 points passes, as `engine.py check`) instead of
+  the flat 50 cp.
 - `source`, `sourceId` (optional): the maker's labels, e.g. `"own game"`,
   `"lichess"`.
 - `targets`: gone in version 6 (the graded target step was removed). It is
@@ -243,7 +254,9 @@ A puzzle is rejected, with its reason, when the FEN isn't legal, the last move
 isn't legal in it, a square isn't on the board, an arrow doesn't start on a
 piece, `moves` misses a legal move or lists an illegal one or has no move at 0,
 `bestLine` isn't playable, `flagged` is missing, or the solver has no move
-(the last move mated). From version 2 also when a Flag puzzle lacks
+(the last move mated). From version 7 also when `solutions` is on a No flag
+puzzle, has no lines or an empty line, or a line isn't legal from the
+position after `lastMove`. From version 2 also when a Flag puzzle lacks
 `arrows`, or an arrow breaks the rules above (an arrow whose side isn't its
 piece's, a "capture" that captures nothing, …). Identity is the position (without move counters) plus
 the last move, so sending a puzzle again updates its answer and keeps its
@@ -253,7 +266,7 @@ Two ways in, the same checks: import the file in the app's Scan tab, or write
 `scan_puzzles` rows straight to the database (`db/0003_scan.sql`), upserting
 on `(user_id, content_key)` with `content_key` = the first four FEN fields,
 `/`, the last move (`<fen fields>/g8f6`) and `answer` = the puzzle's fields
-from `flagged` to `bestLine` as JSON. A bad row is skipped on load, never shown
+from `flagged` to `bestCp` as JSON. A bad row is skipped on load, never shown
 half-working. Check a file before sending it:
 
     npm run check:external -- --scan scan.json

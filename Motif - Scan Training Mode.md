@@ -27,6 +27,7 @@ Train the check-before-moving habit in Motif puzzles, not only finding the best 
 5. **Flag → checks, captures, threats:** 15 s. Arrows from a piece to a target, both sides, one move deep.
 6. **Flag → move + final check:** 10 s. Before it's played: "their checks after this? What does this piece stop guarding?"
 7. **Feedback** after each step. The engine grades the move.
+8. **Flag → play the line out** (added 2026-11-20). After a passing first move, the opponent's reply is played and you keep moving until the tactic ends. No-flag and quiet positions stay one move.
 
 Mix in quiet positions with no flag and no tactic at random, with no fixed ratio or pattern, so a flag can never be predicted.
 
@@ -38,10 +39,15 @@ Answers are precomputed with python-chess and Stockfish. The phone runs no engin
 - **Quick scan:** new attacks from the to-square, lines opened through the from-square, pieces no longer defended.
 - **Targets:** from attacker/defender counts. Red = loses material, orange = 1–1. Plus king-zone and fork squares.
 - **Checks, captures, threats:** only moves that win material, mate, or must be stopped (null-move for threats). Extra arrows aren't graded.
+- **Line (flagged only):** a `solutions` array like normal Motif puzzles: one or more lines of UCI moves, both sides, best moves only. The first move is still graded by the `moves` table; the rest of the line is matched exactly.
+- **Where the line ends:** the maker keeps the line going while the solver has exactly one good move, and stops after the last forced move once more than one move is good (within 0.5, or several still clearly winning). Mate ends it. Cap of about 6 solver moves. Lichess solutions already follow this rule and are used as they are.
+- **More than one best move:** each extra line goes in `solutions`, as in normal puzzles. Only the solver's choices branch; for the opponent the maker picks the engine's top reply.
 
 ## Scoring
 
 - **Fail:** wrong move, or "No flag" on a flagged position. Failed puzzles come back sooner.
+- **Line moves:** a first move in `solutions` always passes, whatever its table score (book #241: Qb4 is 0.66 behind Qa4 at +8, but it's the puzzle's idea). A first move that passes the table but isn't in `solutions` ends the puzzle as a pass: "Also works. The puzzle's line was …". After that, a move off every line fails, with the line shown.
+- **Winning positions:** when the best move is clearly winning, grade by win chance lost instead of a flat 50 cp, as `engine.py check` does, so engine noise at +8 doesn't fail a winning move.
 - **Soft miss:** flagging a quiet position, missed targets or arrows, over the target time.
 - **Timing:** recorded only for the first 2 weeks, then hard limits once the median is under target.
 - **Stats:** median quick-scan time, flag accuracy, most-missed category, weekly trend, and a summary Caïssa can read.

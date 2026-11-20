@@ -155,4 +155,65 @@ final class ScanGraderTests: XCTestCase {
         let skip = ScanAttempt.skip(id: "s", puzzleId: "p", runId: "r", playedAt: 9)
         XCTAssertEqual(skip.result, .skipped); XCTAssertNil(skip.flagCall); XCTAssertEqual(skip.mistakes, 0)
     }
+
+    // MARK: Format v7: lines and win chance
+
+    func testWinPctMatchesEngineDotPy() {
+        // engine.py win_pct: 50 at 0, symmetric, ~95 at +8.
+        XCTAssertEqual(ScanGrader.winPct(0), 50, accuracy: 1e-9)
+        XCTAssertEqual(ScanGrader.winPct(800), 95.01, accuracy: 0.01)
+        XCTAssertEqual(ScanGrader.winPct(-300) + ScanGrader.winPct(300), 100, accuracy: 1e-9)
+    }
+
+    /// Book #241: Qb4 is 0.66 behind Qa4 at +8. Under 10 points of win chance lost passes when the
+    /// best is clearly winning; the flat 50 cp still decides below +3 or without `bestCp`.
+    func testAClearlyWinningPositionIsGradedByWinChanceLost() {
+        var a = answer(moves: ["f3g5": 0, "d2d3": 66, "b1c3": 400, "c4f7": 310])
+        XCTAssertFalse(ScanGrader.gradeMove(move("d2d3"), answer: a).passed, "no bestCp: 50 cp")
+        a.bestCp = 800
+        XCTAssertEqual(ScanGrader.winPctLost(lossCp: 66, answer: a) ?? 99, 1.3, accuracy: 0.05)
+        XCTAssertTrue(ScanGrader.gradeMove(move("d2d3"), answer: a).passed)
+        XCTAssertFalse(ScanGrader.gradeMove(move("b1c3"), answer: a).passed, "+8 to +4 loses 13.7 points")
+        a.bestCp = 299
+        XCTAssertFalse(ScanGrader.gradeMove(move("d2d3"), answer: a).passed, "not clearly winning: 50 cp")
+    }
+
+    func testAForcedMateStillPassesWithBestCp() {
+        var a = answer(moves: ["f3g5": 0, "d2d3": 4, "b1c3": 100_000, "c4f7": 100_000])
+        a.bestCp = ScanAnswer.lostMateCp
+        XCTAssertTrue(ScanGrader.gradeMove(move("d2d3"), answer: a).passed)
+        XCTAssertFalse(ScanGrader.gradeMove(move("b1c3"), answer: a).passed)
+    }
+
+    func testAMoveStartingAnyLineAlwaysPasses() {
+        var a = answer()
+        a.solutions = [[move("f3g5"), move("d7d5")], [move("c4f7"), move("e8f7")]]
+        XCTAssertEqual(ScanGrader.gradeMove(move("c4f7"), answer: a), ScanMoveGrade(passed: true, lossCp: 310, onLine: true))
+        XCTAssertEqual(ScanGrader.gradeMove(move("d2d3"), answer: a), ScanMoveGrade(passed: true, lossCp: 50))
+        XCTAssertFalse(ScanGrader.gradeMove(move("b1c3"), answer: a).passed)
+    }
+
+    func testLaterMovesMatchExactlyTheLinesThatStillFit() {
+        let lines = [[move("f3g5"), move("d7d5"), move("e4d5")], [move("f3g5"), move("d7d5"), move("c4d5")],
+                     [move("c4f7"), move("e8f7"), move("f3g5")]]
+        let root = buildTrie(lines)
+        let after = try! XCTUnwrap(ScanGrader.gradeLineMove(move("f3g5"), at: root))
+        XCTAssertEqual(after.reply, move("d7d5"))
+        XCTAssertNotNil(ScanGrader.gradeLineMove(move("e4d5"), at: after.next))
+        XCTAssertNotNil(ScanGrader.gradeLineMove(move("c4d5"), at: after.next))
+        XCTAssertNil(ScanGrader.gradeLineMove(move("f3g5"), at: after.next), "the other line's move doesn't fit")
+        var a = answer(); a.solutions = lines
+        XCTAssertEqual(ScanGrader.shownLine(a, fitting: [move("c4f7"), move("e8f7")]), lines[2])
+        XCTAssertEqual(ScanGrader.shownLine(a, fitting: []), lines[0])
+    }
+
+    func testOffTheLineFailsAfterAPassingFirstMove() {
+        var a = answer(); a.solutions = [[move("f3g5"), move("d7d5"), move("e4d5")]]
+        var steps = ScanSteps(quickScan: ScanMarkStep(ms: 1000), move: ScanMoveStep(ms: 1000, played: move("f3g5"), lossCp: 0))
+        steps.line = ScanLineStep(ms: 900, played: [move("c4d5")], offLine: true)
+        let outcome = ScanGrader.result(of: steps, flagCall: true, answer: a)
+        XCTAssertEqual(outcome.result, .failed); XCTAssertEqual(outcome.detail.failReason, .offLine)
+        steps.line = ScanLineStep(ms: 900, played: [move("e4d5")])
+        XCTAssertEqual(ScanGrader.result(of: steps, flagCall: true, answer: a).result, .solved)
+    }
 }

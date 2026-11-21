@@ -17,11 +17,12 @@ struct ScanAttempt: Equatable, Codable, Sendable, RunAttempt {
     /// A failed scan is one mistake; soft misses aren't mistakes.
     var mistakes: Int { result == .failed ? 1 : 0 }
 
-    /// A fail, or a pass that missed an arrow: the full scan is what's drilled, so those misses
-    /// send the puzzle to To review though it passed (playtest 3). Target misses on attempts from
-    /// before v6 no longer count: targets aren't graded any more.
+    /// A fail, or a pass with misses in the scan (quick scan pieces or arrows): the scan is what's
+    /// drilled, so those misses send the puzzle to To review though it passed (playtests 3 and 4).
+    /// Slow steps don't. Target misses on attempts from before v6 no longer count: targets aren't
+    /// graded any more.
     var needsReview: Bool {
-        result == .failed || (result == .solved && detail.softMisses.contains(.arrowsMissed))
+        result == .failed || (result == .solved && detail.softMisses.contains { $0 == .arrowsMissed || $0 == .quickScanMissed })
     }
 
     init(id: String = newID(), puzzleId: String, runId: String?, result: AttemptResult,

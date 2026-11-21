@@ -35,7 +35,7 @@ final class BoardAnnotationsTests: XCTestCase {
         XCTAssertNil(annotations.accessibilityDescription("a1"))
     }
     func testEveryMarkColourIsInTheAssetCatalog() {
-        for name in ["BoardMarkHighlight", "BoardMarkRed", "BoardMarkOrange", "BoardMarkDot", "BoardRingCorrect",
+        for name in ["BoardMarkRed", "BoardMarkOrange", "BoardMarkDot", "BoardRingCorrect",
                      "BoardRingMissed", "BoardRingExtra", "BoardArrowOwn", "BoardArrowTheirs"] {
             guard let color = UIColor(named: name, in: Bundle(for: AppState.self), compatibleWith: nil) else { XCTFail(name); continue }
             let light = color.resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))

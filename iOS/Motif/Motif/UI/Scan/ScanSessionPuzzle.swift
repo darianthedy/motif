@@ -2,8 +2,9 @@ import SwiftUI
 
 /// One scan puzzle in a session (Scan plan §6): the run's progress and the step's time on top,
 /// the board, the step's prompt or feedback beside or under it, and the step's actions at the
-/// bottom. Its `ScanSolveModel` lives as long as the puzzle does; the attempt is recorded when
-/// the result is continued from, and `runProgress` then names the next puzzle.
+/// bottom. Its `ScanSolveModel` lives as long as the puzzle does; the attempt is recorded as the
+/// result shows, so closing the session there keeps it (playtest 4), and the session holds the
+/// puzzle on screen until Continue, when `runProgress` names the next one.
 struct ScanSessionPuzzle: View {
     @Environment(AppState.self) private var app
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -15,15 +16,23 @@ struct ScanSessionPuzzle: View {
     /// Serves done out of the total, retries included: moves after every pass or fail.
     let progress: RunPosition
     @Binding var measured: SessionMeasurements
+    /// The result is showing and about to be recorded: the session holds this puzzle.
+    let onResult: () -> Void
+    /// Continue from a recorded result: the session moves on.
+    let onContinue: () -> Void
     @State private var model: ScanSolveModel
     @State private var recording = false
+    /// The result's attempt, made once so a retried save keeps its id; set once it's stored.
+    @State private var resultAttempt: ScanAttempt?
+    @State private var saved = false
     /// A promotion waiting for its piece, answered by the row in the column.
     @State private var pending: BoardPending?
     /// The Legend sheet: what each miss icon means.
     @State private var showsLegend = false
     init(puzzle: ScanPuzzle, run: Run, progress: RunPosition, limits: ScanLimits = ScanLimits(),
-         measured: Binding<SessionMeasurements>) {
+         measured: Binding<SessionMeasurements>, onResult: @escaping () -> Void = {}, onContinue: @escaping () -> Void = {}) {
         self.puzzle = puzzle; self.run = run; self.progress = progress; _measured = measured
+        self.onResult = onResult; self.onContinue = onContinue
         _model = State(initialValue: ScanSolveModel(puzzle, limits: limits, autoAdvanceMs: ScanSolveModel.configuredAutoAdvanceMs))
     }
     var body: some View {
@@ -83,6 +92,7 @@ struct ScanSessionPuzzle: View {
         }
         // A limit that runs out mid-promotion ends the move: the piece row goes with it.
         .onChange(of: model.step) { pending = nil }
+        .onChange(of: model.outcome != nil) { _, done in if done { saveResult() } }
         .onAppear { model.attach(undoManager); model.autoAdvance = !voiceOver && !switchControl }
         .onChange(of: voiceOver || switchControl) { _, assistive in model.autoAdvance = !assistive }
         .onChange(of: undoManager) { _, next in model.attach(next) }
@@ -226,20 +236,33 @@ struct ScanSessionPuzzle: View {
 
     private func next() {
         if model.outcome == nil { model.proceed(); return }
-        guard let attempt = model.attempt(runId: run.id, playedAt: epochMilliseconds()) else { return }
+        if saved { onContinue() } else { saveResult(thenContinue: true) }
+    }
+
+    /// The result is saved as it shows. A save that failed is tried again on Continue.
+    private func saveResult(thenContinue: Bool = false) {
+        if resultAttempt == nil { resultAttempt = model.attempt(runId: run.id, playedAt: epochMilliseconds()) }
+        guard let attempt = resultAttempt else { return }
+        onResult()
+        record(attempt) { saved = true; if thenContinue { onContinue() } }
+    }
+
+    /// A puzzle whose fail is already shown (a wrong No Flag) is recorded as that fail, not as a
+    /// skip, so it still goes to review (playtest 4).
+    private func skip() {
+        pending = nil
+        let playedAt = epochMilliseconds()
+        let attempt = model.settledAttempt(runId: run.id, playedAt: playedAt)
+            ?? .skip(puzzleId: puzzle.id, runId: run.id, playedAt: playedAt)
+        model.cancel()
         record(attempt)
     }
 
-    private func skip() {
-        pending = nil; model.cancel()
-        record(.skip(puzzleId: puzzle.id, runId: run.id, playedAt: epochMilliseconds()))
-    }
-
     /// Through the outbox, so it works offline and uploads when it can.
-    private func record(_ attempt: ScanAttempt) {
+    private func record(_ attempt: ScanAttempt, then done: @escaping () -> Void = {}) {
         guard !recording else { return }; recording = true
         Task {
-            do { try await app.store.recordScanAttempt(attempt) }
+            do { try await app.store.recordScanAttempt(attempt); recording = false; done() }
             catch { app.error = error.localizedDescription; recording = false }
         }
     }

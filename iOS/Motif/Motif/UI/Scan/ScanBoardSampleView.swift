@@ -46,7 +46,8 @@ struct ScanBoardSampleView: View {
                           })
                 ScanArrowList(arrows: marks.arrows, fen: Self.fen) { marks.removeArrow(at: $0) }
             case .shapes:
-                BoardView(fen: Self.fen, orientation: .white, interactive: false, mode: .markSquares, annotations: Self.shapes)
+                BoardView(fen: Self.fen, orientation: .white, interactive: false,
+                          highlight: (from: Self.lastMove.from, to: Self.lastMove.to), mode: .markSquares, annotations: Self.shapes)
                 Text("Highlight, red, orange, dots, rings, arrows and a ghost").foregroundStyle(.motifSecondary)
             }
             Spacer()
@@ -76,7 +77,8 @@ struct ScanBoardSampleView: View {
     static let answer = ScanAnswer(flagged: true, quickScan: [ScanSquare(square: "e4", kind: .attacked)],
                                    moves: [:])
     static let shapes = BoardAnnotations(
-        tints: ["e4": .quickScan, "f7": .red, "e5": .orange],
+        // f6: a quick-scan mark on the last move's highlighted square (playtest 4).
+        tints: ["e4": .quickScan, "f6": .quickScan, "f7": .red, "e5": .orange],
         dots: ["g7", "d5"],
         rings: ["e4": .correct, "c6": .missed, "a7": .extra],
         arrows: [BoardArrow(from: "f3", to: "g5", side: .own, style: .correct), BoardArrow(from: "f6", to: "e4", side: .theirs),

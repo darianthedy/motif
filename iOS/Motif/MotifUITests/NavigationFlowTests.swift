@@ -61,7 +61,10 @@ import XCTest
         // Unposed (a local run), the simulator's own pose decides the layout: a Duo left open or
         // half-open shows both columns, with no Back. ios-ci's poses keep asserting the one stack.
         try XCTSkipIf(pose.isEmpty && collection.isHittable, "Both columns show on this simulator; set MOTIF_POSE")
-        let back = app.navigationBars.buttons.matching(NSPredicate(format: "label == 'Puzzles' OR label == 'Back'")).firstMatch
+        // On the Duo's cover screen (iOS 27) Back sits in the side bar, outside the navigation
+        // bar, as an unlabelled `BackButton`; the tab bar's own "Puzzles" button isn't it.
+        let back = app.buttons.matching(NSPredicate(format:
+            "identifier == 'BackButton' OR label == 'Back' OR (label == 'Puzzles' AND identifier != 'puzzlepiece')")).firstMatch
         wait(back); back.tap()
         expect(browse, "exists == false"); wait(collection); collection.tap(); wait(browse)
     }

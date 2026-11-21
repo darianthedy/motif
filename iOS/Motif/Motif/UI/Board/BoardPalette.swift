@@ -5,7 +5,6 @@ import SwiftUI
 enum BoardPalette {
     static let lightSquare = Color(red: 0.94, green: 0.85, blue: 0.71)
     static let darkSquare = Color(red: 0.71, green: 0.53, blue: 0.39)
-    static let markHighlight = Color("BoardMarkHighlight")
     static let markRed = Color("BoardMarkRed")
     static let markOrange = Color("BoardMarkOrange")
     static let markDot = Color("BoardMarkDot")

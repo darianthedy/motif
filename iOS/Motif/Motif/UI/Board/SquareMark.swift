@@ -2,7 +2,9 @@ import SwiftUI
 
 /// A tint on a square. Each has a shape as well as a colour, always (§4: never colour alone).
 enum SquareMark: Equatable, Sendable {
-    /// Quick scan: violet tint plus a corner notch (not green, which is the found ring's).
+    /// Quick scan: a green ring round the piece, no fill. A violet tint blended with the
+    /// last-move highlight (playtest 4); the ring reads on every square colour, and is the one the
+    /// feedback draws for a square found.
     case quickScan
     /// A piece that loses material: filled red tint plus `exclamationmark` in the corner.
     case red
@@ -18,18 +20,16 @@ enum SquareMark: Equatable, Sendable {
         }
     }
 
-    /// The tint under the piece, dimmed when the mark is carried from an earlier step. A carried
-    /// quick-scan mark has no fill: dimmed violet reads as pink on a light square, too close to a
-    /// red target's tint, so its notch alone shows it.
+    /// The tint under the piece, dimmed when the mark is carried from an earlier step.
     func fill(faded: Bool) -> Color? {
         guard faded else { return fill }
-        return self == .quickScan ? nil : fill.map { $0.opacity(0.45) }
+        return fill.map { $0.opacity(0.45) }
     }
 
-    /// The tint under the piece; the orange mark is an outline only.
+    /// The tint under the piece; the quick-scan and orange marks are outlines only.
     var fill: Color? {
         switch self {
-        case .quickScan: BoardPalette.markHighlight.opacity(0.45)
+        case .quickScan: nil
         case .red: BoardPalette.markRed.opacity(0.45)
         case .orange: nil
         }

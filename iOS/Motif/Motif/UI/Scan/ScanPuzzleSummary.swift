@@ -17,8 +17,13 @@ struct ScanPuzzleSummary: Equatable {
     let bestMoves: [String]
     /// "1. d3 d5 2. exd5", or nil without a line.
     let bestLine: String?
+    /// A source id like "Velan, 14...f6 (played exf6)" names the move played in the game, often
+    /// the answer: the list leaves it out (playtest 4).
+    static func hidingPlayedMove(_ id: String) -> String {
+        id.replacing(/\s*\(played [^)]*\)/, with: "")
+    }
     init(_ puzzle: ScanPuzzle, index: Int) {
-        number = puzzle.content.sourceId ?? "\(index + 1)"
+        number = puzzle.content.sourceId.map(Self.hidingPlayedMove) ?? "\(index + 1)"
         let start = puzzle.startFen ?? puzzle.fenBefore
         solver = Board.turnOf(start) ?? .white
         let san = Board.sanFor(puzzle.fenBefore, puzzle.lastMove) ?? puzzle.lastMove.text

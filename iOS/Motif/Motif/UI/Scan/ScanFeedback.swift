@@ -46,11 +46,12 @@ struct ScanFeedback: Equatable, Sendable {
             return ScanFeedback(verdict: .softMiss, title: "No Flag Needed", reason: "", time: time)
         }
         if !grade.missed.isEmpty {
-            let title = grade.missed.count == 1 ? "Missed a Square" : "Missed \(grade.missed.count) Squares"
+            // The quick scan flags pieces, not empty squares (playtest 4).
+            let title = grade.missed.count == 1 ? "Missed a Piece" : "Missed \(grade.missed.count) Pieces"
             return ScanFeedback(verdict: .softMiss, title: title, reason: "", time: time,
                                 misses: missedSquares(grade.missed, answer, startFen))
         }
-        if ScanTiming.isOverTarget(ms, .quickScan) { return ScanFeedback(verdict: .softMiss, title: "Right, but Slow", reason: "", time: time) }
+        if ScanTiming.isOverTarget(ms, .quickScan) { return ScanFeedback(verdict: .softMiss, title: slowStepTitle, reason: "", time: time) }
         return ScanFeedback(verdict: .pass, title: "Clean Scan", reason: "", time: time)
     }
 
@@ -65,7 +66,7 @@ struct ScanFeedback: Equatable, Sendable {
             })
             return ScanFeedback(verdict: .softMiss, title: title, reason: "", time: time, misses: misses)
         }
-        if ScanTiming.isOverTarget(ms, .arrows) { return ScanFeedback(verdict: .softMiss, title: "Right, but Slow", reason: "", time: time) }
+        if ScanTiming.isOverTarget(ms, .arrows) { return ScanFeedback(verdict: .softMiss, title: slowStepTitle, reason: "", time: time) }
         return ScanFeedback(verdict: .pass, title: "All Arrows Found", reason: "", time: time)
     }
 
@@ -106,19 +107,16 @@ struct ScanFeedback: Equatable, Sendable {
         return ScanFeedback(verdict: verdict, title: title, reason: reason, note: note, time: timeText(ms, step))
     }
 
-    /// "Passed, Slow" when the move itself was slow (the time line under it is the move's);
-    /// otherwise the slow step by name ("Passed, Slow Quick Scan"), so the label never reads
-    /// against the move's time (playtest 3). Several slow scan steps: "Passed, Slow Scan".
+    /// A step right but over its target: "Right · slow", the same pattern as the result's.
+    static let slowStepTitle = "Right · slow"
+
+    /// One pattern for a pass that was only slow, naming every slow step in the order played
+    /// ("Passed · slow: Quick Scan, Move"), so the label never reads against the move's time
+    /// (playtest 3) and never comes in three wordings (playtest 4).
     private static func slowTitle(_ misses: [ScanSoftMiss]) -> String {
-        if misses.contains(.moveSlow) { return "Passed, Slow" }
-        let steps: [String] = misses.compactMap {
-            switch $0 {
-            case .quickScanSlow: "Quick Scan"
-            case .arrowsSlow: "Arrows"
-            default: nil
-            }
-        }
-        return steps.count == 1 ? "Passed, Slow \(steps[0])" : "Passed, Slow Scan"
+        let steps: [String] = [(ScanSoftMiss.quickScanSlow, "Quick Scan"), (.arrowsSlow, "Arrows"), (.moveSlow, "Move")]
+            .filter { misses.contains($0.0) }.map(\.1)
+        return steps.isEmpty ? "Passed" : "Passed · slow: " + steps.joined(separator: ", ")
     }
 
     /// The quick scan's limit ran out before a call: the puzzle fails on any position.

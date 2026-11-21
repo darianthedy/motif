@@ -115,15 +115,15 @@ import Observation
     /// The move under final check in SAN ("Nxe5"), for the prompt.
     var candidateSan: String? { candidate.map { Board.sanFor(startFen, $0) ?? $0.text } }
 
-    /// The step's one line of guidance. No bare "Re5?": a "?" after a move reads as the chess
-    /// annotation for a mistake (playtest 3).
+    /// The step's one line of guidance. No "?" after a move: it reads as the chess annotation for
+    /// a mistake (playtests 3 and 4). The arrows have none: the step's title says it (playtest 4).
     var prompt: String {
         switch step {
         case .lastMove: "Their move."
         case .quickScan: "Last move: \(lastMoveSan)"
-        case .arrows: "Both sides. Tap to mark targets."
+        case .arrows: ""
         case .move: "Your move."
-        case .finalCheck: "Play \(candidateSan ?? "this move")?"
+        case .finalCheck: "Play \(candidateSan ?? "this move")"
         case .line: replying ? "Their move." : "Keep going."
         default: ""
         }
@@ -452,6 +452,20 @@ import Observation
     func attempt(runId: String, playedAt: Int64) -> ScanAttempt? {
         guard let outcome else { return nil }
         return ScanAttempt(puzzleId: puzzle.id, runId: runId, flagCall: flagCall, outcome: outcome, playedAt: playedAt)
+    }
+
+    /// A puzzle already failed before its result: a wrong No Flag, shown as Missed the Flag, runs
+    /// the full scan on, but the fail stands. What Skip or leaving records then (playtest 4).
+    var settledFail: ScanOutcome? {
+        guard outcome == nil, let flagCall else { return nil }
+        let sofar = ScanGrader.result(of: steps, flagCall: flagCall, answer: puzzle.answer)
+        return sofar.detail.failReason == .missedFlag ? sofar : nil
+    }
+
+    /// The attempt for a puzzle left after its fail was shown; nil when nothing has failed yet.
+    func settledAttempt(runId: String, playedAt: Int64) -> ScanAttempt? {
+        guard let settledFail else { return nil }
+        return ScanAttempt(puzzleId: puzzle.id, runId: runId, flagCall: flagCall, outcome: settledFail, playedAt: playedAt)
     }
 
     /// The window's undo manager, so shake to undo and the three-finger swipe reach the marks.

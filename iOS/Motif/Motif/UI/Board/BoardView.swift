@@ -62,6 +62,7 @@ struct BoardView: View {
         let snapshot = Snapshot(Board.snapshot(fen))
         let targets = interaction.targets
         let order = ordered
+        let lit = Self.highlighted(highlight, snapshot: snapshot)
         GeometryReader { geometry in
             let size = geometry.size.width / 8
             ZStack(alignment: .topLeading) {
@@ -71,7 +72,7 @@ struct BoardView: View {
                             ForEach(0..<8, id: \.self) { column in
                                 let index = row * 8 + column
                                 squareView(order[index], index: index, size: size, piece: snapshot[order[index]],
-                                           turn: snapshot.turn, target: targets[order[index]])
+                                           turn: snapshot.turn, target: targets[order[index]], lit: lit.contains(order[index]))
                             }
                         }
                     }
@@ -121,13 +122,27 @@ struct BoardView: View {
                 if next == nil, interaction.pending != nil { interaction.cancel() }
             }
     }
-    private func squareView(_ square: String, index: Int, size: CGFloat, piece: Board.Piece?, turn: Side?, target: Board.Target?) -> some View {
+    /// The last move's squares; a castling's rook squares too, as castling moves both pieces
+    /// (playtest 4: only the king's were lit).
+    private static func highlighted(_ highlight: (from: String, to: String)?, snapshot: Snapshot) -> Set<String> {
+        guard let highlight else { return [] }
+        var lit: Set<String> = [highlight.from, highlight.to]
+        let from = highlight.from, to = highlight.to
+        guard from.count == 2, to.count == 2, from.last == to.last, snapshot[to]?.type == .king || snapshot[from]?.type == .king,
+              let fromFile = from.first?.asciiValue, let toFile = to.first?.asciiValue, abs(Int(fromFile) - Int(toFile)) == 2
+        else { return lit }
+        let rank = String(to.suffix(1)), kingside = toFile > fromFile
+        lit.insert((kingside ? "h" : "a") + rank)
+        lit.insert((kingside ? "f" : "d") + rank)
+        return lit
+    }
+    private func squareView(_ square: String, index: Int, size: CGFloat, piece: Board.Piece?, turn: Side?, target: Board.Target?, lit: Bool) -> some View {
         let selected = interaction.selected == square || interaction.pending == .placement(square)
         let light = (index / 8 + index % 8) % 2 == 0
         return Button { tapped(square, piece: piece) } label: {
             ZStack {
                 (light ? BoardPalette.lightSquare : BoardPalette.darkSquare)
-                if highlight?.from == square || highlight?.to == square { highlightColor.opacity(0.4) }
+                if lit { highlightColor.opacity(0.4) }
                 if selected { Color.yellow.opacity(0.55) }
                 if sweep.contains(square) { Color.yellow.opacity(0.35) }
                 // A mark's fill sits under the piece so the piece stays legible; its shape is in `BoardOverlay`.

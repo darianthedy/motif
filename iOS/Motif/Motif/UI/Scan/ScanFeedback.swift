@@ -33,17 +33,17 @@ struct ScanFeedback: Equatable, Sendable {
         ([reason] + misses.map(\.spoken)).filter { !$0.isEmpty }.joined(separator: ". ")
     }
 
-    /// The quick scan and flag call, graded together when Flag or No Flag ends the step. Short on
+    /// The quick scan and flag call, graded together when Tactic or Quiet ends the step. Short on
     /// purpose: the step's title and the rings on the board already say where things stand.
     static func quickScan(_ grade: ScanMarkGrade, flag: ScanFlagGrade, answer: ScanAnswer,
                           startFen: String, ms: Int) -> ScanFeedback {
         let time = timeText(ms, .quickScan)
         if flag == .fail {
-            return ScanFeedback(verdict: .fail, title: "Missed the Flag", reason: "", time: time,
+            return ScanFeedback(verdict: .fail, title: "Missed the Tactic", reason: "", time: time,
                                 misses: missedSquares(grade.missed, answer, startFen))
         }
         if flag == .softMiss {
-            return ScanFeedback(verdict: .softMiss, title: "No Flag Needed", reason: "", time: time)
+            return ScanFeedback(verdict: .softMiss, title: "It Was Quiet", reason: "", time: time)
         }
         if !grade.missed.isEmpty {
             // The quick scan flags pieces, not empty squares (playtest 4).
@@ -70,7 +70,7 @@ struct ScanFeedback: Equatable, Sendable {
         return ScanFeedback(verdict: .pass, title: "All Arrows Found", reason: "", time: time)
     }
 
-    /// The move, and with it the puzzle's result: a missed Flag fails the puzzle whatever the move.
+    /// The move, and with it the puzzle's result: a missed Tactic fails the puzzle whatever the move.
     /// On a puzzle with a line (v7), `line` is the one that fits what was played: a first move on
     /// it says nothing of its score, one off it that still passes ends the puzzle ("Also works"),
     /// and a later move off it fails with the line shown.
@@ -91,7 +91,7 @@ struct ScanFeedback: Equatable, Sendable {
         if grade.passed, !grade.onLine, answer.hasLine, !lineText.isEmpty {
             reason = "Also works. The puzzle's line was \(lineText)."
         }
-        let note = outcome.detail.failReason == .missedFlag ? "Missed the Flag." : nil
+        let note = outcome.detail.failReason == .missedFlag ? "Missed the Tactic." : nil
         let verdict: Verdict = outcome.result == .failed ? .fail : outcome.detail.softMisses.isEmpty ? .pass : .softMiss
         let title: String
         switch (outcome.result, grade.passed) {
@@ -121,14 +121,14 @@ struct ScanFeedback: Equatable, Sendable {
 
     /// The quick scan's limit ran out before a call: the puzzle fails on any position.
     static func noCall(_ grade: ScanMarkGrade, answer: ScanAnswer, startFen: String, ms: Int) -> ScanFeedback {
-        ScanFeedback(verdict: .fail, title: "Time's Up", reason: answer.flagged ? "Needed a Flag." : "Quiet.",
+        ScanFeedback(verdict: .fail, title: "Time's Up", reason: answer.flagged ? "Needed Tactic." : "Quiet.",
                      time: timeText(ms, .quickScan, limited: true))
     }
 
     /// The move step's limit ran out before a move was played: the puzzle fails (Scoring).
     static func noMove(outcome: ScanOutcome, answer: ScanAnswer, startFen: String, step: ScanTimedStep, ms: Int) -> ScanFeedback {
         let best = bestMove(answer).map { Board.sanFor(startFen, $0) ?? $0.text }
-        let note = outcome.detail.failReason == .missedFlag ? "Missed the Flag." : nil
+        let note = outcome.detail.failReason == .missedFlag ? "Missed the Tactic." : nil
         return ScanFeedback(verdict: .fail, title: "Time's Up", reason: best.map { "Best: \($0)." } ?? "", note: note,
                             time: timeText(ms, step, limited: true))
     }

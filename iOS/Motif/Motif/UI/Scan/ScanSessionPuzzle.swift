@@ -178,7 +178,7 @@ struct ScanSessionPuzzle: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    /// Flag / No Flag while scanning, Next on the arrows, Take Back / Play It on the
+    /// Tactic / Quiet while scanning, Next on the arrows, Take Back / Play It on the
     /// final check, Continue on feedback.
     /// Neither call is prominent, so the buttons never hint at the answer; stacked at
     /// accessibility text sizes. Hidden copies of the tallest rows keep the row's height between
@@ -218,9 +218,9 @@ struct ScanSessionPuzzle: View {
     }
 
     @ViewBuilder private var calls: some View {
-        Button { model.call(false) } label: { Label("No Flag", systemImage: "flag.slash").frame(maxWidth: .infinity) }
+        Button { model.call(false) } label: { Label("Quiet", systemImage: "leaf").frame(maxWidth: .infinity) }
             .buttonStyle(.glass).controlSize(.large).disabled(!model.canCallNoFlag).accessibilityIdentifier("scan-no-flag")
-        Button { model.call(true) } label: { Label("Flag", systemImage: "flag.fill").frame(maxWidth: .infinity) }
+        Button { model.call(true) } label: { Label("Tactic", systemImage: "bolt.fill").frame(maxWidth: .infinity) }
             .buttonStyle(.glass).controlSize(.large).accessibilityIdentifier("scan-flag")
     }
 
@@ -247,7 +247,7 @@ struct ScanSessionPuzzle: View {
         record(attempt) { saved = true; if thenContinue { onContinue() } }
     }
 
-    /// A puzzle whose fail is already shown (a wrong No Flag) is recorded as that fail, not as a
+    /// A puzzle whose fail is already shown (a wrong Quiet) is recorded as that fail, not as a
     /// skip, so it still goes to review (playtest 4).
     private func skip() {
         pending = nil

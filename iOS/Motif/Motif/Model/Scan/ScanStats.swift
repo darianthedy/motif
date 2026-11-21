@@ -16,7 +16,7 @@ struct ScanStats: Equatable, Sendable {
     var misses: [ScanMissTally] = []
     /// Weeks with play, oldest first, at most `weekCount` of them.
     var weeks: [ScanWeek] = []
-    /// The share of Flag puzzles in the pool, so drift in the maker's Flag rule shows (§11.1).
+    /// The share of Tactic puzzles in the pool, so drift in the maker's Tactic rule shows (§11.1).
     var poolSize = 0
     var flagPuzzles = 0
     /// The most recent fails, newest first, at most `recentFailCount`.

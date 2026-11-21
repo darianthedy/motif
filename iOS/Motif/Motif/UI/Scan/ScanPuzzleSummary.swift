@@ -9,7 +9,7 @@ struct ScanPuzzleSummary: Equatable {
     let solver: Side
     /// "3... Nf6".
     let lastMove: String
-    /// "Flag" or "No Flag".
+    /// "Tactic" or "Quiet".
     let call: String
     /// "e4 attacked, c6 undefended", or "Nothing".
     let quickScan: String
@@ -29,7 +29,7 @@ struct ScanPuzzleSummary: Equatable {
         let san = Board.sanFor(puzzle.fenBefore, puzzle.lastMove) ?? puzzle.lastMove.text
         lastMove = [moveNumber(puzzle.fenBefore, true), san].compactMap { $0 }.joined(separator: " ")
         let answer = puzzle.answer
-        call = answer.flagged ? "Flag" : "No Flag"
+        call = answer.flagged ? "Tactic" : "Quiet"
         quickScan = answer.quickScan.isEmpty ? "Nothing" : answer.quickScan.map { "\($0.square) \($0.kind.rawValue)" }.joined(separator: ", ")
         bestMoves = answer.moves.filter { $0.value == 0 }.keys.sorted()
             .compactMap { Uci.parse($0).flatMap { Board.sanFor(start, $0) } }

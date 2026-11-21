@@ -47,7 +47,7 @@ final class ScanStatsTests: XCTestCase {
         let attempts = [
             attempt("a", "full", steps: ScanSteps(quickScan: quick(6000))),
             attempt("b", "quiet", flagCall: false, steps: ScanSteps(quickScan: quick(9000))),
-            attempt("c", "quiet", flagCall: true, steps: ScanSteps(quickScan: quick(7000))),   // Flag on quiet: wrong
+            attempt("c", "quiet", flagCall: true, steps: ScanSteps(quickScan: quick(7000))),   // Tactic on quiet: wrong
             attempt("d", "full", .failed, flagCall: nil, steps: ScanSteps(quickScan: ScanMarkStep(ms: 10_000, timedOut: true)), failReason: .noCall),
             .skip(puzzleId: "full", runId: nil, playedAt: monday),
             attempt("gone", "deleted"),
@@ -111,7 +111,7 @@ final class ScanStatsTests: XCTestCase {
         XCTAssertEqual(newest.reason, "Ke7 lost 2.5")
         XCTAssertEqual(newest.lastMove, "1. Kd1 (e1d1)")
         XCTAssertEqual(newest.missed, ["quick scan e8 (undefended)", "targets d1", "arrows e8d8 (check)"])
-        XCTAssertEqual(stats.recentFails[1].reason, "No Flag on a flagged position")
+        XCTAssertEqual(stats.recentFails[1].reason, "Quiet on a tactical position")
         XCTAssertEqual(stats.recentFails.last?.playedAt, monday + 3, "the two oldest drop out")
     }
 
@@ -134,9 +134,9 @@ final class ScanStatsTests: XCTestCase {
         XCTAssertEqual(lines[0], "# Motif Scan Training summary")
         XCTAssertTrue(lines.contains("Exported 2026-11-02. 2 puzzles played, 1 solved."), text)
         XCTAssertTrue(lines.contains("- Median quick scan: 8.2 s (target 10 s)"), text)
-        XCTAssertTrue(lines.contains("- Flag accuracy: 50 % (1 of 2 calls right)"), text)
+        XCTAssertTrue(lines.contains("- Call accuracy: 50 % (1 of 2 calls right)"), text)
         XCTAssertTrue(lines.contains("- Most missed: undefended pieces, 1 of 1 missed"), text)
-        XCTAssertTrue(lines.contains("- Flag puzzles in the pool: 50 % (1 of 2)"), text)
+        XCTAssertTrue(lines.contains("- Tactic puzzles in the pool: 50 % (1 of 2)"), text)
         XCTAssertTrue(lines.contains("| 2026-11-02 | 2 | 50 % | 8.2 s | 50 % |"), text)
         XCTAssertTrue(lines.contains("1. `\(scanTestFen)`, last move 1. Kf1 (e1f1): Failed."), text)
         XCTAssertTrue(text.hasSuffix("\n"))

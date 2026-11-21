@@ -22,7 +22,7 @@ struct ScanFailSummary: Equatable, Sendable {
 
     private static func describeReason(_ attempt: ScanAttempt, _ puzzle: ScanPuzzle) -> String {
         switch attempt.detail.failReason {
-        case .missedFlag: return "No Flag on a flagged position"
+        case .missedFlag: return "Quiet on a tactical position"
         case .noCall: return "No call in time"
         case .noMove: return "No move in time"
         case .offLine:

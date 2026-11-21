@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Scan plan §8: how the scans are going, from the attempts on this device's copy of the
 /// library: median quick scan, flag accuracy, what gets missed, a weekly trend and the share of
-/// Flag puzzles. **Export for Caïssa** shares the same numbers and the recent fails as Markdown.
+/// Tactic puzzles. **Export for Caïssa** shares the same numbers and the recent fails as Markdown.
 struct ScanStatsView: View {
     @Environment(AppState.self) private var app
     @State private var metric: ScanTrendMetric = .quickScan
@@ -44,7 +44,7 @@ struct ScanStatsView: View {
                 LabeledContent {
                     Text(stats.flagAccuracy.map(percent) ?? "–").monospacedDigit()
                 } label: {
-                    Text("Flag Accuracy")
+                    Text("Call Accuracy")
                     Text("\(stats.flagRight) of \(countLabel(stats.played, "call")) right")
                 }.accessibilityIdentifier("scan-stats-accuracy")
                 LabeledContent {
@@ -77,11 +77,11 @@ struct ScanStatsView: View {
                 LabeledContent {
                     Text(stats.flagShare.map(percent) ?? "–").monospacedDigit()
                 } label: {
-                    Text("Flag Puzzles")
+                    Text("Tactic Puzzles")
                     Text("\(stats.flagPuzzles) of \(countLabel(stats.poolSize, "puzzle")) in the pool")
                 }.accessibilityIdentifier("scan-stats-flag-share")
             } footer: {
-                Text("A share near 100 % means nearly every position is Flag, and the call teaches little.")
+                Text("A share near 100 % means nearly every position is a Tactic, and the call teaches little.")
             }
         }
         .listStyle(.insetGrouped)

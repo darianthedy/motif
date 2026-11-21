@@ -7,9 +7,9 @@ import CoreFoundation
 /// `scripts/validate-external.ts --scan` mirrors these checks and messages.
 enum ScanImport {
     /// The newest format version this app understands. Version 2 adds the full
-    /// scan: a Flag puzzle must carry `targets` and `arrows`, and both are
+    /// scan: a Tactic puzzle must carry `targets` and `arrows`, and both are
     /// checked against the position (`fullScanProblem`). Version 1 files still
-    /// import; their Flag puzzles skip the full scan. Version 3 lets a red or
+    /// import; their Tactic puzzles skip the full scan. Version 3 lets a red or
     /// orange target be an empty king-zone square (next to either king);
     /// version 2 files keep the pieces-only rule. Version 4 adds the quick-scan
     /// kind `unpinned`, arrows marked `"optional": true`, and holds quick-scan
@@ -17,10 +17,10 @@ enum ScanImport {
     /// Version 5 adds the quick-scan kind `hanging`. From 5 on the format version bumps only
     /// when the app must change (a field, a `kind`, a structure); the file's top-level `spec`
     /// is the maker's rule version and is ignored here, as any extra top-level key is.
-    /// Version 6 drops `targets`: the graded target step is gone, so a Flag puzzle needs only
+    /// Version 6 drops `targets`: the graded target step is gone, so a Tactic puzzle needs only
     /// `arrows`. `targets` is ignored, unread and unchecked, in every version, so rows and files
     /// written before v6 that still carry it keep loading.
-    /// Version 7 plays the line out: a Flag puzzle may carry `solutions` (lines of UCI moves for
+    /// Version 7 plays the line out: a Tactic puzzle may carry `solutions` (lines of UCI moves for
     /// both sides, from the solver's first move, as normal puzzles), and any puzzle `bestCp`, the
     /// best move's eval for the solver (mate = 100000). Both are read only from version 7.
     static let version = 7
@@ -153,7 +153,7 @@ enum ScanImport {
 
     // MARK: The line (version 7)
 
-    /// What a version 7 line must hold so every move of it can be played: only on a Flag
+    /// What a version 7 line must hold so every move of it can be played: only on a Tactic
     /// puzzle, at least one line, no empty line, every move legal from the start position.
     private static func lineProblem(_ answer: ScanAnswer, start: String) -> String? {
         guard let solutions = answer.solutions else { return nil }

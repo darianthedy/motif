@@ -9,7 +9,7 @@ enum ScanTrendMetric: String, CaseIterable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .quickScan: "Quick Scan"
-        case .flagAccuracy: "Flag Calls"
+        case .flagAccuracy: "Calls"
         case .solved: "Solved"
         }
     }
@@ -18,7 +18,7 @@ enum ScanTrendMetric: String, CaseIterable, Identifiable, Sendable {
     var axisTitle: String {
         switch self {
         case .quickScan: "Median quick scan, seconds"
-        case .flagAccuracy: "Flag calls right, percent"
+        case .flagAccuracy: "Tactic/Quiet calls right, percent"
         case .solved: "Puzzles solved, percent"
         }
     }

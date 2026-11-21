@@ -31,6 +31,19 @@ import XCTest
         wait(shown("Puzzle 2 of 2")); wait(button("scan-flag"))
     }
 
+    /// Playtest 4: the result is saved as it shows, so closing the session there keeps it; the
+    /// puzzle stays on screen until Continue.
+    func testAResultIsSavedBeforeContinue() {
+        launch("scan"); start()
+        wait(button("scan-flag"))
+        if square("f6").label.lowercased().contains("knight") { playFlagged(continuing: false) }
+        else { playQuiet(best: true, continuing: false) }
+        XCTAssertTrue(shown("Puzzle 1 of 2").exists, "the result stays until Continue")
+        button("scan-session-done").tap()
+        let resume = button("resume-scan-session"); wait(resume); resume.tap()
+        wait(shown("Puzzle 2 of 2")); wait(button("scan-flag"))
+    }
+
     func testOfflinePlayQuitResumeAndUploadOnReconnect() {
         let store = "scan-offline-" + UUID().uuidString
         launch("scan", offline: true, extra: ["-MotifFixture", "store=\(store)"])
@@ -104,7 +117,7 @@ import XCTest
     /// After 3…Nf6: the knight attacks e4. Flag; the CCT arrows (Nxe4 theirs, Ng5 yours), with
     /// e4 marked red and f7 orange on the way as an ungraded aid (v6); then d3, the best move,
     /// taken back once at the final check and then played.
-    private func playFlagged() {
+    private func playFlagged(continuing: Bool = true) {
         tap("e4"); expect(square("e4"), "label ENDSWITH 'marked'"); capture("scan-quick-scan")
         button("scan-flag").tap()
         expectFeedback("Clean Scan"); capture("scan-quick-scan-feedback")
@@ -129,17 +142,17 @@ import XCTest
         wait(app.descendants(matching: .any)["scan-prompt"]); move("d2", "d3")
         let playIt = button("scan-play-it"); wait(playIt); playIt.tap()
         expectFeedback("Passed"); capture("scan-move-feedback")
-        button("scan-continue").tap()
+        if continuing { button("scan-continue").tap() }
     }
 
     /// After 2…Nc6, nothing needs a Flag. No Flag, then Bb5 (best), or Na3, a pawn worse: a fail.
-    private func playQuiet(best: Bool = false) {
+    private func playQuiet(best: Bool = false, continuing: Bool = true) {
         button("scan-no-flag").tap()
         expectFeedback("Clean Scan")
         moveOn()
         wait(app.descendants(matching: .any)["scan-prompt"]); if best { move("f1", "b5"); expectFeedback("Passed") }
         else { move("b1", "a3"); expectFeedback("Mistake"); capture("scan-move-mistake") }
-        button("scan-continue").tap()
+        if continuing { button("scan-continue").tap() }
     }
 
     /// A clean step moves on by itself (after the launch's 3 s, so its feedback can be checked
@@ -153,10 +166,10 @@ import XCTest
     }
 
     /// `orSlow`: a step with a lot of taps can run past its target on a slow simulator, which
-    /// only changes the title to "Right, but Slow".
+    /// only changes the title to "Right · slow".
     private func expectFeedback(_ title: String, orSlow: Bool = false) {
         let feedback = app.descendants(matching: .any)["scan-feedback"]; wait(feedback)
-        expect(feedback, orSlow ? "label BEGINSWITH '\(title)' OR label BEGINSWITH 'Right, but Slow'" : "label BEGINSWITH '\(title)'")
+        expect(feedback, orSlow ? "label BEGINSWITH '\(title)' OR label BEGINSWITH 'Right · slow'" : "label BEGINSWITH '\(title)'")
     }
 
     private func shown(_ value: String) -> XCUIElement {

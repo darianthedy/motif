@@ -13,9 +13,9 @@ struct BoardOverlay: View {
         Canvas { context, _ in
             for (square, mark) in annotations.tints {
                 guard let rect = Self.rect(square, orientation, size) else { continue }
-                // A carried quick-scan notch keeps its full violet: with no fill under it, a dimmed
-                // notch would read pink, like a red target's tint.
-                drawTint(mark, in: rect, context: mark == .quickScan ? context : faded(square, context))
+                // Graded, the feedback's ring takes the quick-scan ring's place.
+                if mark == .quickScan, annotations.rings[square] != nil { continue }
+                drawTint(mark, in: rect, context: faded(square, context))
             }
             for square in annotations.dots {
                 guard let rect = Self.rect(square, orientation, size) else { continue }
@@ -88,14 +88,8 @@ struct BoardOverlay: View {
     private func drawTint(_ mark: SquareMark, in rect: CGRect, context: GraphicsContext) {
         switch mark {
         case .quickScan:
-            // The notch: a solid triangle in the top trailing corner.
-            let notch = size * 0.3
-            var path = Path()
-            path.move(to: CGPoint(x: rect.maxX - notch, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + notch))
-            path.closeSubpath()
-            context.fill(path, with: .color(BoardPalette.markHighlight))
+            // The found ring, without its badge: the feedback adds the tick.
+            drawRing(.correct, in: rect, context: context)
         case .red:
             break
         case .orange:

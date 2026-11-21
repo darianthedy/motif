@@ -58,6 +58,11 @@ import XCTest
         let quiet = ScanPuzzleSummary(ScanPuzzle(id: "q", content: puzzles[1], addedAt: 0), index: 1)
         XCTAssertEqual(quiet.call, "No Flag"); XCTAssertEqual(quiet.quickScan, "Nothing")
     }
+    /// Playtest 4: "(played exf6)" in a source id gave the answer away in the list.
+    func testTheListHidesThePlayedMove() {
+        XCTAssertEqual(ScanPuzzleSummary.hidingPlayedMove("Velan, 14...f6 (played exf6)"), "Velan, 14...f6")
+        XCTAssertEqual(ScanPuzzleSummary.hidingPlayedMove("two-knights"), "two-knights")
+    }
     /// v6: no targets, so no red, orange or fork dots, even for an older row that has them.
     func testDetailMarksTheMakersAnswer() throws {
         let sample = try String(contentsOf: try XCTUnwrap(Bundle.main.url(forResource: "sample-scan", withExtension: "json")), encoding: .utf8)

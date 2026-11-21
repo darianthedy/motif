@@ -24,10 +24,10 @@ final class ScanMarksTests: XCTestCase {
         XCTAssertEqual(ScanTargetMark.Square("f2", fen: fen), .kingZone)
         XCTAssertEqual(ScanTargetMark.Square("d5", fen: fen), .empty)
     }
-    /// Playtest 2: a carried quick-scan mark drops its fill (dimmed violet read as pink, like red),
-    /// keeping only its notch; carried targets keep a dimmed fill.
-    func testACarriedQuickScanMarkHasNoFill() {
-        XCTAssertNotNil(SquareMark.quickScan.fill(faded: false))
+    /// Playtest 4: a quick-scan mark is a ring, never a fill (violet blended with the last-move
+    /// highlight); carried targets keep a dimmed fill.
+    func testAQuickScanMarkHasNoFill() {
+        XCTAssertNil(SquareMark.quickScan.fill(faded: false))
         XCTAssertNil(SquareMark.quickScan.fill(faded: true))
         XCTAssertNotNil(SquareMark.red.fill(faded: true))
         XCTAssertNil(SquareMark.orange.fill(faded: true))

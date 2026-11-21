@@ -192,16 +192,21 @@ Stats (v2) read only this, so nothing in it is a summary that can go stale.
   random with recently seen puzzles at the back (`orderForGlobalDraw`,
   `RECENT_MEMORY`), so quiet and flagged positions come in no fixed pattern
   (§1.5); **Review Mistakes** takes the puzzles whose latest result is
-  failed, or a pass that missed an arrow (playtest 3: the full scan is
-  what's drilled; target misses on pre-v6 attempts no longer count). Such a pass is still a pass in its run and in the
+  failed, or a pass that missed an arrow or a quick-scan piece (playtests 3
+  and 4: the scan is what's drilled; slow steps don't count, nor do target
+  misses on pre-v6 attempts). Such a pass is still a pass in its run and in the
   stats; it just shows as *to review* until a clean pass.
 - **Failed puzzles come back sooner** in two ways, both from Puzzles: once
   more in the same run after `RETRY_GAP` (3) others, at most `MAX_RETRIES`
   (10) waiting; and in Review until solved.
 - **Skip** is an attempt with result `skipped`: the puzzle doesn't come back
-  that run and counts as neither.
+  that run and counts as neither. A puzzle already failed on screen (a wrong
+  No Flag, shown as Missed the Flag, with the full scan still to run) is
+  recorded as that fail instead (playtest 4).
 - **Mid-puzzle state isn't saved**, as with puzzles: an attempt is written
-  when the puzzle ends. Leaving in the middle of a scan resumes that puzzle
+  when the puzzle ends, i.e. as its result shows, not on Continue (playtest 4:
+  closing the session on the result lost it); the puzzle stays on screen
+  until Continue. Leaving in the middle of a scan resumes that puzzle
   from its last move, with fresh timers.
 - **Reset Scan Progress** (Scan tab menu) deletes every scan run and attempt
   and leaves the puzzles alone. Puzzle progress isn't touched, and the
@@ -405,7 +410,8 @@ New `BoardView` parameters, all defaulted: `mode = .play`,
   with more than color alone"; red–green and blue–orange are the pairs it
   names). Each mark has a shape as well as a colour, always, not only when
   Differentiate Without Color is on:
-  - Quick-scan highlight: accent tint plus a corner notch.
+  - Quick-scan mark: a green ring round the piece, no fill (playtest 4: a
+    violet tint blended with the last-move highlight).
   - Red target: filled red tint plus `exclamationmark` in the corner.
   - Orange target: orange outline (no fill) plus `equal` in the corner.
   - Arrows: own side solid, their side dashed, as well as blue / orange.

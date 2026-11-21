@@ -25,8 +25,8 @@ struct SolvePrompt: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(side == .white ? "White to move" : "Black to move").font(.caption.weight(.semibold)).foregroundStyle(.motifSecondary)
-                Text(guidance).font(.subheadline.weight(.medium)).foregroundStyle(warning ? Color.orange : .primary)
-                    .fixedSize(horizontal: false, vertical: true)
+                if !guidance.isEmpty { Text(guidance).font(.subheadline.weight(.medium)).foregroundStyle(warning ? Color.orange : .primary)
+                    .fixedSize(horizontal: false, vertical: true) }
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 10)

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A miss type's icon. The shape says the step (a square tile with the board's purple notch for
+/// A miss type's icon. The shape says the step (a square tile with the board's green ring for
 /// the quick scan, a rounded square for arrows), the colour the side, the glyph the kind. Never
 /// colour alone: your arrows are solid, theirs dashed, as on the board.
 struct ScanMissIcon: View {
@@ -21,10 +21,7 @@ struct ScanMissIcon: View {
                     Image(systemName: name).font(.system(size: size * 0.5, weight: .semibold)).foregroundStyle(.primary)
                 }
             }
-            .overlay(alignment: .topTrailing) {
-                Notch().fill(BoardPalette.markHighlight).frame(width: size * 0.36, height: size * 0.36)
-                    .clipShape(UnevenRoundedRectangle(topTrailingRadius: size * 0.16))
-            }
+            .overlay { Circle().strokeBorder(BoardPalette.ringCorrect, lineWidth: max(1.5, size * 0.08)).padding(size * 0.06) }
         case let .arrow(kind, side):
             let color = side == .own ? BoardPalette.arrowOwn : BoardPalette.arrowTheirs
             let shape = RoundedRectangle(cornerRadius: size * 0.28)
@@ -64,14 +61,3 @@ struct ScanMissIcon: View {
     }
 }
 
-/// The quick scan's corner triangle, as `BoardOverlay` draws it.
-private struct Notch: Shape {
-    func path(in rect: CGRect) -> Path {
-        Path { path in
-            path.move(to: CGPoint(x: rect.minX, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-            path.closeSubpath()
-        }
-    }
-}

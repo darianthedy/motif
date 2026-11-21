@@ -9,15 +9,15 @@ enum ScanStatsExport {
                      "Exported \(day(now, calendar)). \(stats.played) puzzles played, \(stats.solved) solved.", ""]
         let target = ScanTiming.targetMs(.quickScan) / 1000
         lines.append("- Median quick scan: " + (stats.quickScanMedianMs.map { seconds($0) + " (target \(target) s)" } ?? "none yet"))
-        lines.append("- Flag accuracy: " + (stats.flagAccuracy.map { "\(percent($0)) (\(stats.flagRight) of \(stats.played) calls right)" } ?? "none yet"))
+        lines.append("- Call accuracy: " + (stats.flagAccuracy.map { "\(percent($0)) (\(stats.flagRight) of \(stats.played) calls right)" } ?? "none yet"))
         lines.append("- Most missed: " + (stats.mostMissed.map { "\($0.category.title.lowercased()), \($0.missed) of \($0.expected) missed" } ?? "nothing yet"))
-        lines.append("- Flag puzzles in the pool: " + (stats.flagShare.map { "\(percent($0)) (\(stats.flagPuzzles) of \(stats.poolSize))" } ?? "no puzzles"))
+        lines.append("- Tactic puzzles in the pool: " + (stats.flagShare.map { "\(percent($0)) (\(stats.flagPuzzles) of \(stats.poolSize))" } ?? "no puzzles"))
         if !stats.misses.isEmpty {
             lines += ["", "## Misses by category", ""]
             lines += stats.misses.map { "- \($0.category.step), \($0.category.title.lowercased()): \($0.missed) of \($0.expected) missed" }
         }
         if !stats.weeks.isEmpty {
-            lines += ["", "## Weekly", "", "| Week of | Played | Solved | Median quick scan | Flag accuracy |", "|---|---|---|---|---|"]
+            lines += ["", "## Weekly", "", "| Week of | Played | Solved | Median quick scan | Call accuracy |", "|---|---|---|---|---|"]
             lines += stats.weeks.map { week in
                 "| \(day(week.start, calendar)) | \(week.played) | \(percent(week.solvedRate)) | \(week.quickScanMedianMs.map(seconds) ?? "–") | \(percent(week.flagAccuracy)) |"
             }

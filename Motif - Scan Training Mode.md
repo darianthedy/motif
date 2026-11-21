@@ -14,20 +14,20 @@ Train the check-before-moving habit in Motif puzzles, not only finding the best 
 
 ## Scans
 
-- **Quick scan (every puzzle):** tap what the opponent's last move attacks now, and what it opened or stopped guarding (castling: the rook too). Then call **Flag** or **No flag**.
-- **Flag if:** the quick scan found something, you're in check, or you're +3 or more.
+- **Quick scan (every puzzle):** tap what the opponent's last move attacks now, and what it opened or stopped guarding (castling: the rook too). Then call **Tactic** or **Quiet** (v9; were Flag / No flag).
+- **Tactic if:** the quick scan found something, you're in check, or you're +3 or more; from v9 also when the position is already tactical or the opponent has a threat the last move didn't create, so a Tactic can have nothing to tap.
 - **Full scan (flagged only):** mark targets, then the checks, captures and threats aimed at them.
 
 ## Puzzle flow
 
 1. **Last move** plays and stays highlighted. Timer starts.
-2. **Quick scan + flag call:** 10 s.
-3. **No flag → move:** 5 s.
-4. **Flag → targets:** 20 s. Red before orange, own pieces before theirs. Empty squares only for king-zone and fork squares; a king-zone square is coloured like a piece (red when attackers outnumber defenders, orange at 1–1 or 2–2), otherwise a dot.
-5. **Flag → checks, captures, threats:** 15 s. Arrows from a piece to a target, both sides, one move deep.
-6. **Flag → move + final check:** 10 s. Before it's played: "their checks after this? What does this piece stop guarding?"
+2. **Quick scan + Tactic / Quiet call:** 10 s.
+3. **Quiet → move:** 5 s.
+4. **Tactic → targets:** 20 s. Red before orange, own pieces before theirs. Empty squares only for king-zone and fork squares; a king-zone square is coloured like a piece (red when attackers outnumber defenders, orange at 1–1 or 2–2), otherwise a dot.
+5. **Tactic → checks, captures, threats:** 15 s. Arrows from a piece to a target, both sides, one move deep.
+6. **Tactic → move + final check:** 10 s. Before it's played: "their checks after this? What does this piece stop guarding?"
 7. **Feedback** after each step. The engine grades the move.
-8. **Flag → play the line out** (added 2026-11-20). After a passing first move, the opponent's reply is played and you keep moving until the tactic ends. No-flag and quiet positions stay one move.
+8. **Tactic → play the line out** (added 2026-11-20). After a passing first move, the opponent's reply is played and you keep moving until the tactic ends. Quiet positions stay one move.
 
 Mix in quiet positions with no flag and no tactic at random, with no fixed ratio or pattern, so a flag can never be predicted.
 
@@ -57,7 +57,7 @@ Answers are precomputed with python-chess and Stockfish. The phone runs no engin
 Each step gives a tap and a drag one meaning, so there is no mode switch mid-step.
 
 - **Layout:** step label and timer bar on top; full-width board (about 48 pt squares); action buttons, Undo and Done at the bottom.
-- **Quick scan:** tap toggles a square highlight; Flag / No flag buttons. Pieces can't be selected.
+- **Quick scan:** tap toggles a square highlight; Tactic / Quiet buttons (Quiet off while anything is marked; Tactic works with nothing marked). Pieces can't be selected.
 - **Targets:** tap a piece for red → orange → clear; tap an empty square for a dot; drag to mark several. Haptic on each change.
 - **Checks, captures, threats:** drag from a piece to a square to draw an arrow; nothing moves. Arrows are coloured by side automatically. Tap an arrow to delete it.
 - **Move:** normal play. The piece stays ghosted until **Play it** or **Take back** on the final-check sheet.

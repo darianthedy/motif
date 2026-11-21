@@ -30,6 +30,14 @@
 > but isn't on a line ends the puzzle as a pass. When the best move is clearly
 > winning, a move is graded by the win chance it loses (§1.3). Puzzles without
 > these fields stay one move, graded as before.
+>
+> **Spec v9 (2026-11-21): the call is Tactic / Quiet.** The buttons read
+> **Tactic** and **Quiet** (were Flag / No Flag): from v9 a Tactic also covers
+> tension already on the board (a tactical position, or an opponent threat the
+> last move didn't create), so a Tactic puzzle may have an empty `quickScan`, and
+> Tactic can be called with nothing marked. Data is unchanged: `flagged` true =
+> Tactic, false = Quiet, format 7. Code identifiers (`flagged`, `flagCall`,
+> `missedFlag`, `scan-flag`) keep the old word; older sections below use it too.
 
 ---
 
@@ -201,7 +209,7 @@ Stats (v2) read only this, so nothing in it is a summary that can go stale.
   (10) waiting; and in Review until solved.
 - **Skip** is an attempt with result `skipped`: the puzzle doesn't come back
   that run and counts as neither. A puzzle already failed on screen (a wrong
-  No Flag, shown as Missed the Flag, with the full scan still to run) is
+  Quiet, shown as Missed the Tactic, with the full scan still to run) is
   recorded as that fail instead (playtest 4).
 - **Mid-puzzle state isn't saved**, as with puzzles: an attempt is written
   when the puzzle ends, i.e. as its result shows, not on Continue (playtest 4:
@@ -559,9 +567,9 @@ layout automatically").
     `Text(start, style: .timer)` instead. Both have an accessibility label
     ("12 seconds left").
   - The board.
-  - The step's actions in a `safeAreaInset(edge: .bottom)`: Flag / No flag,
+  - The step's actions in a `safeAreaInset(edge: .bottom)`: Tactic / Quiet,
     or Next, as full-width `Button`s with text and a symbol
-    (`Button("Flag", systemImage: "flag.fill")`). The finishing action is
+    (`Button("Tactic", systemImage: "bolt.fill")`). The finishing action is
     `.glassProminent`, the other `.glass`. Undo is a
     `ToolbarItem(placement: .bottomBar)` with
     `Button("Undo", systemImage: "arrow.uturn.backward")`, disabled when the
@@ -579,8 +587,8 @@ layout automatically").
 - **Per step.**
   - *Last move:* the board starts at `fen_before`; the move plays after
     450 ms (`REPLY_MS`) and stays highlighted. The timer starts.
-  - *Quick scan:* `.markSquares`, prompt "Last move: Re5". Flag / No flag
-    end the step; No Flag is disabled while any square is marked.
+  - *Quick scan:* `.markSquares`, prompt "Last move: Re5". Tactic / Quiet
+    end the step; Quiet is disabled while any square is marked; Tactic works with none (v9).
   - *Targets:* `.markTargets`. Tap a piece for red → orange → clear, an
     empty square next to a king for red → orange → dot → clear, any other
     empty square for a dot; drag to mark several. Next ends the step. The
@@ -597,7 +605,7 @@ layout automatically").
     and the action row offers only **Take Back** (`.glass`) and **Play It**
     (`.glassProminent`), no questions and no sheet, so nothing covers the
     board being checked. The move step's clock runs on through the check,
-    and take-backs are recorded as `move.takeBacks`. No Flag and v1 puzzles
+    and take-backs are recorded as `move.takeBacks`. Quiet calls and v1 puzzles
     play the move at once.
   - *Feedback:* inline, never an alert (`feedback.md`): the answer as marked
     rings on the board, a `Label` with a pass/fail symbol, a terse reason
@@ -606,7 +614,7 @@ layout automatically").
     are as short ("Your move."): the step title says where you are. VoiceOver
     reads the result with `AccessibilityNotification.Announcement`.
 - **Titles and labels** use title-style capitals for buttons ("Play It",
-  "Take Back", "No Flag"), as the HIG does on iOS (`writing.md`).
+  "Take Back", "Play It"), as the HIG does on iOS (`writing.md`).
 
 ## 7. Design and SwiftUI checklist
 
@@ -640,7 +648,7 @@ review and the `swiftui-pro` rules:
 `ScanStatsView`, pushed from the Scan tab, computed on the device from
 `scanAttempts`: median quick-scan time, flag accuracy (calls right / all),
 the most-missed category (quick-scan kind, arrow kind; target colours went with v6), and a
-weekly trend line in Swift Charts with an accessibility chart descriptor, and the share of Flag puzzles in the content.
+weekly trend line in Swift Charts with an accessibility chart descriptor, and the share of Tactic puzzles in the content.
 **Export for Caïssa** shares a short Markdown summary of the same numbers
 plus the 10 most recent fails (FEN, last move, what was missed) through
 `ShareLink`.
@@ -652,19 +660,19 @@ a **Stats** row under All Puzzles):
   left out.
 - **Median quick scan** is over every quick scan played; one cut off by its limit counts at
   the limit, as `ScanTiming` counts it.
-- **Flag accuracy** is calls right over all played. A quick scan that ran out had no call, so it
+- **Call Accuracy** (Tactic / Quiet) is calls right over all played. A quick scan that ran out had no call, so it
   counts as wrong.
 - **Missed** counts, per category, the squares or arrows each step played had to find and how
   many were missed, by the answer's labels (`ScanMissCategory`). A missed square the answer no
   longer has (the puzzle was re-sent) isn't counted. Most missed = most misses, then the higher
-  rate, then the plan's order. A No Flag call has no arrows to miss. A pre-v6 attempt's target step isn't
+  rate, then the plan's order. A Quiet call has no arrows to miss. A pre-v6 attempt's target step isn't
   counted.
-- **By week**: calendar weeks with play, the last 12, one metric at a time (Quick Scan, Flag
+- **By week**: calendar weeks with play, the last 12, one metric at a time (Quick Scan,
   Calls, Solved) on a single line, the 10 s target as a dashed rule; touching a point shows its
   week. VoiceOver gets an `AXChartDescriptor` with a summary.
 - **Export for Caïssa** (toolbar `ShareLink`, plain Markdown text): the figures, misses by
   category, a weekly table and the 10 most recent fails, each with `fenBefore`, the last move in
-  SAN and UCI, the reason ("Bxf7 lost 3.1", "No Flag on a flagged position") and what was missed
+  SAN and UCI, the reason ("Bxf7 lost 3.1", "Quiet on a tactical position") and what was missed
   per step. Numbers and dates are in a fixed format, so the text doesn't depend on the device's
   language.
 - Debug fixture `scan-history` (six weeks of attempts) and route `scan-stats`; Duo capture

@@ -63,7 +63,7 @@ import XCTest
     func testNoFlagOnAFlaggedPositionFailsWhateverTheMove() async throws {
         let model = await started(puzzle(flagged: true), TestClock())
         model.call(false)
-        XCTAssertEqual(model.feedback?.verdict, .fail); XCTAssertEqual(model.feedback?.title, "Missed the Flag")
+        XCTAssertEqual(model.feedback?.verdict, .fail); XCTAssertEqual(model.feedback?.title, "Missed the Tactic")
         model.proceed(); model.play(kd8)
         let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
         XCTAssertEqual(attempt.result, .failed); XCTAssertEqual(attempt.detail.failReason, .missedFlag)
@@ -77,19 +77,33 @@ import XCTest
         model.toggle("d7"); XCTAssertFalse(model.canCallNoFlag)
         model.call(false); XCTAssertNil(model.feedback, "ignored with a mark on the board")
         model.toggle("d7"); XCTAssertTrue(model.canCallNoFlag)
-        model.call(false); XCTAssertEqual(model.feedback?.title, "Missed the Flag")
+        model.call(false); XCTAssertEqual(model.feedback?.title, "Missed the Tactic")
     }
 
     func testFlagOnAQuietPositionIsASoftMiss() async throws {
         let model = await started(puzzle(flagged: false, quickScan: []), TestClock())
         model.call(true)
-        XCTAssertEqual(model.feedback?.verdict, .softMiss); XCTAssertEqual(model.feedback?.title, "No Flag Needed")
-        model.proceed(); XCTAssertEqual(model.step, .move, "v1: the Flag branch goes straight to the move")
+        XCTAssertEqual(model.feedback?.verdict, .softMiss); XCTAssertEqual(model.feedback?.title, "It Was Quiet")
+        model.proceed(); XCTAssertEqual(model.step, .move, "v1: the Tactic branch goes straight to the move")
         model.play(kf8)
         let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
         XCTAssertEqual(attempt.result, .solved); XCTAssertEqual(attempt.detail.softMisses, [.flaggedQuiet])
         XCTAssertEqual(model.feedback?.verdict, .softMiss)
         XCTAssertEqual(model.feedback?.reason, "−0.3. Best: Kd7.")
+    }
+
+    /// v9: a Tactic position can have tension already on the board and no piece to flag, so
+    /// Tactic with nothing marked is a clean pass on the call (DosisLegalis 13).
+    func testTacticWithAnEmptyQuickScanAndNoMarksPassesTheCall() async throws {
+        let model = await started(puzzle(flagged: true, quickScan: []), TestClock())
+        XCTAssertTrue(model.marks.isEmpty)
+        model.call(true)
+        XCTAssertEqual(model.feedback?.verdict, .pass); XCTAssertEqual(model.feedback?.title, "Clean Scan")
+        XCTAssertEqual(ScanGrader.gradeFlag(called: true, answer: model.puzzle.answer), .pass)
+        model.proceed(); model.play(kd8)
+        let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
+        XCTAssertEqual(attempt.result, .solved); XCTAssertEqual(attempt.flagCall, true)
+        XCTAssertEqual(attempt.detail.steps.quickScan?.missed, []); XCTAssertEqual(attempt.detail.softMisses, [])
     }
 
     func testABadMoveFailsAndShowsTheBestMove() async throws {
@@ -263,15 +277,15 @@ import XCTest
     func testNoFinalCheckWithoutAFullScan() async {
         let quiet = await started(puzzle(flagged: false, quickScan: []), TestClock())
         quiet.call(false); quiet.proceed(); quiet.play(kd8)
-        XCTAssertEqual(quiet.step, .done, "No Flag plays at once"); XCTAssertNil(quiet.attempt(runId: "r", playedAt: 1)?.detail.steps.move?.takeBacks)
+        XCTAssertEqual(quiet.step, .done, "Quiet plays at once"); XCTAssertNil(quiet.attempt(runId: "r", playedAt: 1)?.detail.steps.move?.takeBacks)
         let v1 = await started(puzzle(flagged: true), TestClock())
         v1.call(true); v1.proceed(); v1.play(kd8)
-        XCTAssertEqual(v1.step, .done, "a v1 Flag puzzle plays at once")
+        XCTAssertEqual(v1.step, .done, "a v1 Tactic puzzle plays at once")
     }
 
     func testAQuietNoFlagOrNoFullScanGoesStraightToTheMove() async {
         let quiet = await started(puzzle(flagged: false, quickScan: []), TestClock())
-        quiet.call(false); quiet.proceed(); XCTAssertEqual(quiet.step, .move, "a right No Flag skips the full scan")
+        quiet.call(false); quiet.proceed(); XCTAssertEqual(quiet.step, .move, "a right Quiet skips the full scan")
         let v1 = await started(puzzle(flagged: true), TestClock())
         v1.call(true); v1.proceed(); XCTAssertEqual(v1.step, .move, "a puzzle without arrows skips it")
     }
@@ -281,7 +295,7 @@ import XCTest
     func testAMissedFlagStillRunsTheFullScan() async throws {
         let clock = TestClock(), model = await started(fullScan(), clock)
         model.call(false)
-        XCTAssertEqual(model.feedback?.title, "Missed the Flag"); XCTAssertNil(model.outcome, "the puzzle goes on")
+        XCTAssertEqual(model.feedback?.title, "Missed the Tactic"); XCTAssertNil(model.outcome, "the puzzle goes on")
         XCTAssertTrue(model.runsFullScan)
         // Playtest 4: Skip from here records the fail already shown, not a skip.
         let settled = try XCTUnwrap(model.settledAttempt(runId: "r", playedAt: 1))
@@ -294,7 +308,7 @@ import XCTest
         clock.advance(by: .seconds(7)); model.play(kd8); XCTAssertEqual(model.step, .finalCheck)
         model.confirm()
         XCTAssertNil(model.settledFail, "the result is the outcome now")
-        XCTAssertEqual(model.feedback?.title, "Good Move, Puzzle Failed"); XCTAssertEqual(model.feedback?.note, "Missed the Flag.")
+        XCTAssertEqual(model.feedback?.title, "Good Move, Puzzle Failed"); XCTAssertEqual(model.feedback?.note, "Missed the Tactic.")
         XCTAssertEqual(model.feedback?.time, "7.0 / 10 s", "timed as the flagged move")
         let attempt = try XCTUnwrap(model.attempt(runId: "r", playedAt: 1))
         XCTAssertEqual(attempt.result, .failed); XCTAssertEqual(attempt.detail.failReason, .missedFlag)
@@ -464,7 +478,7 @@ import XCTest
         clock.advance(by: .seconds(10)); await settle { model.feedback != nil }
         XCTAssertNil(model.flagCall); XCTAssertNil(model.deadline)
         XCTAssertEqual(model.feedback?.verdict, .fail); XCTAssertEqual(model.feedback?.title, "Time's Up")
-        XCTAssertEqual(model.feedback?.reason, "Needed a Flag.")
+        XCTAssertEqual(model.feedback?.reason, "Needed Tactic.")
         XCTAssertEqual(model.feedback?.time, "10.0 / 10 s limit")
         XCTAssertEqual(model.annotations.rings, ["d7": .correct], "the scan's rings stay on the board")
         model.proceed(); XCTAssertEqual(model.step, .quickScan, "the puzzle ends here: no move")

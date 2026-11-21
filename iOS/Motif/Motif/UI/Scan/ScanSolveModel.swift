@@ -3,8 +3,8 @@ import Observation
 
 /// One scan puzzle, step by step (Scan plan §5): the board, the marks, the step's time and the
 /// attempt being built. Grading is `ScanGrader`'s; this model only collects input and times it.
-/// The last move plays, the quick scan ends with Flag or No Flag, feedback; on a flagged puzzle
-/// with a full scan the CCT arrows, feedback (after a wrong No Flag too: the puzzle has failed,
+/// The last move plays, the quick scan ends with Tactic or Quiet, feedback; on a flagged puzzle
+/// with a full scan the CCT arrows, feedback (after a wrong Quiet too: the puzzle has failed,
 /// but the scan it skipped is still drilled); then the move, held ghosted for the final check
 /// after a full scan, and its feedback. While drawing arrows (by drag) a tap marks a target red or
 /// orange: a thinking aid only, never graded, stored or compared with anything (spec v6). The quick scan's marks stay on the board, dimmed, through the arrows. Nothing is saved until the view records `outcome`.
@@ -95,10 +95,10 @@ import Observation
     var canMark: Bool { [.quickScan, .arrows].contains(step) && feedback == nil }
     var canMove: Bool { step == .move || (step == .line && !replying) }
     /// A flagged puzzle with arrows runs them after the quick scan, whatever the call:
-    /// a wrong No Flag has already failed it, but the scan is the part most worth drilling.
+    /// a wrong Quiet has already failed it, but the scan is the part most worth drilling.
     var runsFullScan: Bool { flagCall != nil && puzzle.answer.hasFullScan }
-    /// A move is held for the final check only after the full scan (Puzzle flow 6); a quiet No
-    /// Flag and v1 puzzles play at once.
+    /// A move is held for the final check only after the full scan (Puzzle flow 6); a right Quiet
+    /// call and v1 puzzles play at once.
     var needsFinalCheck: Bool { runsFullScan }
     var canUndo: Bool { canMark && !history.isEmpty }
     var boardMode: BoardMode {
@@ -260,10 +260,10 @@ import Observation
         else if let before = history.popLast() { current = before }
     }
 
-    /// No Flag says nothing changed, so it's off while any square is marked (playtest 3).
+    /// Quiet says nothing changed, so it's off while any square is marked (playtest 3).
     var canCallNoFlag: Bool { marks.isEmpty }
 
-    /// Flag or No Flag: grades the quick scan and the call, and shows feedback.
+    /// Tactic or Quiet: grades the quick scan and the call, and shows feedback.
     func call(_ flag: Bool) {
         guard flag || canCallNoFlag else { return }
         endQuickScan(flag, timedOut: false)
@@ -454,7 +454,7 @@ import Observation
         return ScanAttempt(puzzleId: puzzle.id, runId: runId, flagCall: flagCall, outcome: outcome, playedAt: playedAt)
     }
 
-    /// A puzzle already failed before its result: a wrong No Flag, shown as Missed the Flag, runs
+    /// A puzzle already failed before its result: a wrong Quiet, shown as Missed the Tactic, runs
     /// the full scan on, but the fail stands. What Skip or leaving records then (playtest 4).
     var settledFail: ScanOutcome? {
         guard outcome == nil, let flagCall else { return nil }
@@ -513,7 +513,7 @@ import Observation
         }
     }
 
-    /// The move's target: the flagged one after a full scan, which a wrong No Flag runs too.
+    /// The move's target: the flagged one after a full scan, which a wrong Quiet runs too.
     private var moveStep: ScanTimedStep { ScanTimedStep.move(flagCall: flagCall == true, steps: steps) }
 
     /// A step found cleanly and in time moves on by itself after a short pause; a miss waits for

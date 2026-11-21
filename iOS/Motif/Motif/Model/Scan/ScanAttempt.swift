@@ -9,7 +9,7 @@ struct ScanAttempt: Equatable, Codable, Sendable, RunAttempt {
     var runId: String?
     /// `solved` = passed, as for puzzles, so the derive code serves both.
     var result: AttemptResult
-    /// What the user called: Flag (true) or No Flag. Nil for a skip, or a quick scan that ran out.
+    /// What the user called: Tactic (true) or Quiet. Nil for a skip, or a quick scan that ran out.
     var flagCall: Bool?
     var detail: ScanAttemptDetail
     var playedAt: Int64

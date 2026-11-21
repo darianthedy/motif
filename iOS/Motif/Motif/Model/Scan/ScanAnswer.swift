@@ -3,18 +3,18 @@ import Foundation
 /// The maker's answer to one scan puzzle, stored as `scan_puzzles.answer`.
 /// Motif never works any of it out; it only compares input with it.
 struct ScanAnswer: Equatable, Codable, Sendable {
-    /// What the position is: Flag or No flag. Not `Puzzle.flagged`, which
+    /// What the position is: Tactic or Quiet. Not `Puzzle.flagged`, which
     /// means "needs a look".
     var flagged: Bool
     var quickScan: [ScanSquare]
-    /// Checks, captures and threats for the full scan; present on a Flag puzzle from v2. There are
+    /// Checks, captures and threats for the full scan; present on a Tactic puzzle from v2. There are
     /// no targets: the graded target step went in v6, and an older row's `targets` is ignored.
     var arrows: [ScanArrow]?
     /// Every legal move of the solver, keyed by UCI, with how many centipawns
     /// worse it is than the best (best = 0, a thrown-away mate = 100000).
     var moves: [String: Int]
     var bestLine: [Uci]?
-    /// The line to play out (v7, Flag puzzles only): one or more lines of UCI moves for both
+    /// The line to play out (v7, Tactic puzzles only): one or more lines of UCI moves for both
     /// sides, each starting with the solver's first move, as a normal puzzle's `solutions`. Nil
     /// for a one-move puzzle.
     var solutions: [[Uci]]? = nil
@@ -22,8 +22,8 @@ struct ScanAnswer: Equatable, Codable, Sendable {
     /// so a clearly winning position is graded by win chance lost. Nil before v7.
     var bestCp: Int? = nil
 
-    /// Whether the Flag branch runs the full scan (CCT arrows, then the move and final check).
-    /// Version 2 on requires arrows on a Flag puzzle; a version 1 Flag puzzle without them goes
+    /// Whether the Tactic branch runs the full scan (CCT arrows, then the move and final check).
+    /// Version 2 on requires arrows on a Tactic puzzle; a version 1 Tactic puzzle without them goes
     /// straight to the move.
     var hasFullScan: Bool { flagged && arrows != nil }
 

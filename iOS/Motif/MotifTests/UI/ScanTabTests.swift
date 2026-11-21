@@ -52,11 +52,11 @@ import XCTest
         let puzzles = ScanImport.read(text).puzzles; XCTAssertEqual(puzzles.count, 2)
         let summary = ScanPuzzleSummary(ScanPuzzle(id: "s", content: puzzles[0], addedAt: 0), index: 0)
         XCTAssertEqual(summary.number, "two-knights"); XCTAssertEqual(summary.solver, .white)
-        XCTAssertEqual(summary.lastMove, "3... Nf6"); XCTAssertEqual(summary.call, "Flag")
+        XCTAssertEqual(summary.lastMove, "3... Nf6"); XCTAssertEqual(summary.call, "Tactic")
         XCTAssertEqual(summary.quickScan, "e4 attacked"); XCTAssertEqual(summary.bestMoves, ["d3"])
         XCTAssertEqual(summary.bestLine, "4. d3")
         let quiet = ScanPuzzleSummary(ScanPuzzle(id: "q", content: puzzles[1], addedAt: 0), index: 1)
-        XCTAssertEqual(quiet.call, "No Flag"); XCTAssertEqual(quiet.quickScan, "Nothing")
+        XCTAssertEqual(quiet.call, "Quiet"); XCTAssertEqual(quiet.quickScan, "Nothing")
     }
     /// Playtest 4: "(played exf6)" in a source id gave the answer away in the list.
     func testTheListHidesThePlayedMove() {

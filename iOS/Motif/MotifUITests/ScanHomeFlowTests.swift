@@ -36,9 +36,9 @@ import XCTest
         wait(app.staticTexts["No Results Yet"]); XCTAssertFalse(button("scan-stats-export").exists)
         launch("scan-stats", extra: ["-MotifFixture", "scan-history"])
         wait(app.descendants(matching: .any)["scan-stats-chart"]); capture("scan-stats")
-        XCTAssertTrue(shown("Median Quick Scan").exists); XCTAssertTrue(shown("Flag Accuracy").exists)
+        XCTAssertTrue(shown("Median Quick Scan").exists); XCTAssertTrue(shown("Call Accuracy").exists)
         XCTAssertTrue(shown("24 puzzles played").exists)
-        app.buttons["Flag Calls"].tap(); wait(app.descendants(matching: .any)["scan-stats-chart"])
+        app.buttons["Calls"].tap(); wait(app.descendants(matching: .any)["scan-stats-chart"])
         let export = button("scan-stats-export"); XCTAssertTrue(export.isEnabled); export.tap()
         let share = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Copy' OR label == 'Save to Files'")).firstMatch
         wait(share); capture("scan-stats-export")

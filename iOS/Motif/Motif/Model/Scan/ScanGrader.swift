@@ -30,7 +30,7 @@ enum ScanGrader {
         compare(expected: answer.quickScan.map(\.square), marked: tapped)
     }
 
-    /// No Flag on a flagged position fails; Flag on a quiet one is a soft miss.
+    /// Quiet on a tactical position fails; Tactic on a quiet one is a soft miss.
     static func gradeFlag(called: Bool, answer: ScanAnswer) -> ScanFlagGrade {
         switch (called, answer.flagged) {
         case (false, true): .fail
